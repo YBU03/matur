@@ -6,9 +6,9 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 
 | Tahap | Isi | Kode PRD | Status |
 |---|---|---|---|
-| **1** | Kerangka Next.js + Tailwind, logo & maskot, login satu halaman (password / PIN), pemilih peran & outlet, dashboard per peran, komponen konfirmasi edit & hapus 2 tahap, skema awal Supabase | AKS-01, 05, 06 · MST-01/02 (skema) | ✅ Selesai |
-| 2 | Sambungkan Supabase Auth + RLS, OTP owner/mitra, CRUD data master (outlet, mitra & perjanjian, pengguna, karyawan, menu/varian, resep, bahan, supplier, kategori biaya), log aktivitas & tempat sampah | AKS-02–08, MST-01–08 | ⏳ |
-| 3 | POS kasir (PWA, offline IndexedDB), kanal & metode bayar, diskon/void PIN SPV, struk, layar barista | POS-01–09 | |
+| **1** | Kerangka Next.js + Tailwind, logo & maskot, login satu halaman (password / PIN), pemilih peran & outlet, dashboard per peran, komponen konfirmasi edit & hapus 2 tahap, skema awal Supabase | AKS-01, 05, 06 · MST-01/02 (skema) | ✅ |
+| **2** | Supabase (project `matur`, Singapura) + login sungguhan & RLS, CRUD data master (outlet, mitra, perjanjian & investasi awal, karyawan, kategori menu, menu, varian, resep, bahan, supplier), kategori biaya sesuai format laporan, log aktivitas, tempat sampah + pulihkan | AKS-03–07, MST-01–08 | ✅ |
+| 3 | Kelola pengguna & akses (buat akun, PIN, perangkat outlet), OTP owner/mitra, hapus otomatis sampah > 30 hari · POS kasir (PWA, offline IndexedDB), kanal & metode bayar, diskon/void PIN SPV, struk, layar barista | AKS-02, 07 · POS-01–09 | |
 | 4 | Shift & absensi (buka/tutup shift, setoran kas, jadwal, izin/cuti, rekap) | SFT, ABS | |
 | 5 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | |
 | 6 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | |

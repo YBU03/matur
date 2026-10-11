@@ -1,49 +1,43 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { USERS, type Assignment, type DemoUser } from "./demo-data";
+import { cache } from "react";
+import type { Role } from "./roles";
+import { supabaseServer } from "./supabase/server";
 
-// Sesi sementara (Tahap 1) berupa cookie bertanda tangan HMAC.
-// Tahap 2 diganti Supabase Auth + RLS.
+// Sesi = pengguna Supabase Auth + penugasan aktif (peran & outlet) yang dipilih.
+// Pilihan aktif disimpan di cookie dan selalu dicocokkan ulang dengan tabel penugasan.
 
-const COOKIE = "matur_session";
-const SECRET = process.env.SESSION_SECRET ?? "dev-only-secret-ganti-di-produksi";
+const ACTIVE = "matur_active";
 
-type Payload = { uid: string; active: Assignment | null };
-export type Session = { user: DemoUser; active: Assignment | null };
+export type Assignment = { role: Role; outletId: string | null; outletNama: string };
+export type Session = { userId: string; nama: string; assignments: Assignment[]; active: Assignment | null };
 
-const sign = (data: string) => createHmac("sha256", SECRET).update(data).digest("base64url");
+const key = (a: { role: string; outletId: string | null }) => `${a.role}|${a.outletId ?? ""}`;
 
-export async function getSession(): Promise<Session | null> {
-  const raw = (await cookies()).get(COOKIE)?.value;
-  if (!raw) return null;
-  const [data, sig] = raw.split(".");
-  if (!data || !sig) return null;
-  const expected = Buffer.from(sign(data));
-  const given = Buffer.from(sig);
-  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
-  const p = JSON.parse(Buffer.from(data, "base64url").toString()) as Payload;
-  const user = USERS.find((u) => u.id === p.uid);
+export const getSession = cache(async (): Promise<Session | null> => {
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return null;
-  // pastikan penugasan aktif memang milik pengguna (AKS-03)
-  const active =
-    p.active && user.assignments.some((a) => a.role === p.active!.role && a.outletId === p.active!.outletId)
-      ? p.active
-      : null;
-  return { user, active };
-}
 
-export async function setSession(p: Payload) {
-  const data = Buffer.from(JSON.stringify(p)).toString("base64url");
-  (await cookies()).set(COOKIE, `${data}.${sign(data)}`, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12,
-  });
-}
+  const [{ data: profil }, { data: tugas }] = await Promise.all([
+    supabase.from("pengguna").select("nama").eq("id", user.id).single(),
+    supabase.from("penugasan").select("peran, outlet_id, outlet(nama)").eq("pengguna_id", user.id),
+  ]);
+  const assignments: Assignment[] = (tugas ?? []).map((t) => ({
+    role: t.peran as Role,
+    outletId: t.outlet_id,
+    outletNama: (t.outlet as unknown as { nama: string } | null)?.nama ?? "Semua Outlet",
+  }));
 
-export async function clearSession() {
-  (await cookies()).delete(COOKIE);
+  const chosen = (await cookies()).get(ACTIVE)?.value;
+  const active = assignments.find((a) => key(a) === chosen) ?? (assignments.length === 1 ? assignments[0] : null);
+  return { userId: user.id, nama: profil?.nama ?? user.email ?? "", assignments, active };
+});
+
+export async function setActive(a: { role: string; outletId: string | null } | null) {
+  const store = await cookies();
+  if (!a) store.delete(ACTIVE);
+  else store.set(ACTIVE, key(a), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
 }

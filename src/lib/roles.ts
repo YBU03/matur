@@ -29,6 +29,9 @@ type RoleDef = {
   menu: MenuItem[];
 };
 
+/** tahap pengembangan yang sudah selesai */
+export const CURRENT_STAGE = 2;
+
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
 
 export const ROLES: Record<Role, RoleDef> = {
@@ -40,9 +43,13 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
-      { href: "/outlet", label: "Outlet", stage: 2 },
-      { href: "/mitra", label: "Mitra & Perjanjian", stage: 2 },
-      { href: "/pengguna", label: "Pengguna", stage: 2 },
+      { href: "/master/outlet", label: "Outlet", stage: 2 },
+      { href: "/master/mitra", label: "Mitra", stage: 2 },
+      { href: "/master/perjanjian", label: "Perjanjian Mitra", stage: 2 },
+      { href: "/master/karyawan", label: "Karyawan", stage: 2 },
+      { href: "/master/menu", label: "Menu", stage: 2 },
+      { href: "/master/bahan", label: "Bahan Baku", stage: 2 },
+      { href: "/pengguna", label: "Pengguna & Akses", stage: 3 },
       { href: "/laporan", label: "Laporan Mitra", stage: 6 },
       { href: "/simulasi", label: "Mode Simulasi", stage: 8 },
       { href: "/log", label: "Log Aktivitas", stage: 2 },
@@ -54,7 +61,7 @@ export const ROLES: Record<Role, RoleDef> = {
     accent: "bg-violet-600",
     login: "password",
     allOutlets: false,
-    menu: [dash, { href: "/outlet", label: "Outlet Wilayah", stage: 2 }],
+    menu: [dash, { href: "/master/outlet", label: "Outlet Wilayah", stage: 2 }],
   },
   finance: {
     label: "Finance / Akuntan",
@@ -68,7 +75,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/laporan", label: "Laporan Mitra", stage: 6 },
       { href: "/tutup-buku", label: "Tutup Buku", stage: 6 },
       { href: "/transfer", label: "Transfer Mitra", stage: 6 },
-      { href: "/mitra", label: "Investasi Awal", stage: 2 },
+      { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },
     ],
   },
   hrd: {
@@ -79,7 +86,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
-      { href: "/karyawan", label: "Karyawan", stage: 2 },
+      { href: "/master/karyawan", label: "Karyawan", stage: 2 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 4 },
       { href: "/absensi", label: "Rekap Absensi", stage: 4 },
       { href: "/penggajian", label: "Penggajian", stage: 7 },
@@ -93,10 +100,15 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
-      { href: "/outlet", label: "Outlet", stage: 2 },
-      { href: "/menu", label: "Menu & Resep", stage: 2 },
-      { href: "/bahan", label: "Bahan Baku", stage: 2 },
-      { href: "/mitra", label: "Mitra & Investasi", stage: 2 },
+      { href: "/master/outlet", label: "Outlet", stage: 2 },
+      { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
+      { href: "/master/menu", label: "Menu", stage: 2 },
+      { href: "/master/varian", label: "Varian Menu", stage: 2 },
+      { href: "/master/resep", label: "Resep", stage: 2 },
+      { href: "/master/bahan", label: "Bahan Baku", stage: 2 },
+      { href: "/master/supplier", label: "Supplier", stage: 2 },
+      { href: "/master/mitra", label: "Mitra", stage: 2 },
+      { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },
       { href: "/proyek", label: "Proyek Pembangunan", stage: 8 },
       { href: "/simulasi", label: "Mode Simulasi", stage: 8 },
     ],
@@ -112,7 +124,8 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/gudang/stok", label: "Stok Gudang", stage: 5 },
       { href: "/gudang/pembelian", label: "Pembelian Supplier", stage: 5 },
       { href: "/gudang/kiriman", label: "Kiriman ke Outlet", stage: 5 },
-      { href: "/bahan", label: "Harga Pokok Bahan", stage: 5 },
+      { href: "/master/bahan", label: "Bahan & Harga Pokok", stage: 2 },
+      { href: "/master/supplier", label: "Supplier", stage: 2 },
     ],
   },
   spv: {

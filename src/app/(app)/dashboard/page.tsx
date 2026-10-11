@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { outletName } from "@/lib/demo-data";
-import { ROLES } from "@/lib/roles";
+import { CURRENT_STAGE, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 
 export default async function Dashboard() {
@@ -15,8 +14,8 @@ export default async function Dashboard() {
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={120} height={120} priority className="hidden rounded-2xl sm:block" />
         <div>
           <p className="text-sm text-white/80">{r.label}</p>
-          <h1 className="text-2xl font-bold sm:text-3xl">Sugeng rawuh, {s.user.nama}!</h1>
-          <p className="mt-1 text-white/90">{outletName(active.outletId)}</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">Sugeng rawuh, {s.nama}!</h1>
+          <p className="mt-1 text-white/90">{active.outletNama}</p>
         </div>
       </section>
 
@@ -28,7 +27,7 @@ export default async function Dashboard() {
             .map((m) => (
               <Link key={m.href} href={m.href} className="rounded-2xl border border-matur-200 bg-white p-4 shadow-sm hover:shadow-md">
                 <p className="font-semibold">{m.label}</p>
-                <p className="text-xs text-stone-500">{m.stage === 1 ? "Tersedia" : `Tahap ${m.stage}`}</p>
+                <p className="text-xs text-stone-500">{m.stage <= CURRENT_STAGE ? "Tersedia" : `Tahap ${m.stage}`}</p>
               </Link>
             ))}
           {(active.role === "owner" || active.role === "admin_pusat") && (

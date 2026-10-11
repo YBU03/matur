@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { chooseAssignment } from "@/lib/actions";
-import { outletName } from "@/lib/demo-data";
 import { ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 
@@ -11,10 +10,10 @@ export default async function PilihPeran() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-bold">Halo, {s.user.nama} 👋</h1>
+      <h1 className="text-2xl font-bold">Halo, {s.nama} 👋</h1>
       <p className="mb-6 text-stone-500">Pilih peran dan outlet yang ingin digunakan.</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        {s.user.assignments.map((a) => {
+        {s.assignments.map((a) => {
           const r = ROLES[a.role];
           return (
             <form key={`${a.role}-${a.outletId}`} action={chooseAssignment}>
@@ -24,7 +23,7 @@ export default async function PilihPeran() {
                 <Image src={`/mascot/${r.mascot}.png`} alt="" width={72} height={72} className="rounded-xl" />
                 <span>
                   <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${r.accent}`}>{r.label}</span>
-                  <span className="mt-1 block font-semibold">{outletName(a.outletId)}</span>
+                  <span className="mt-1 block font-semibold">{a.outletNama}</span>
                 </span>
               </button>
             </form>

@@ -10,8 +10,9 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-Tahap 1 memakai akun demo (lihat panel "Akun demo" di halaman login). Atur
-`SESSION_SECRET` di environment produksi.
+Salin `.env.example` ke `.env.local` lalu isi `PIN_PEPPER` (rahasia login PIN,
+harus sama dengan yang dipakai saat akun kasir/barista dibuat). Data awal ada di
+`supabase/seed.sql`.
 
 ## Struktur
 - `src/lib/roles.ts` — peran, maskot, dan menu tiap dashboard
