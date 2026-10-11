@@ -9,6 +9,7 @@ import { SideNav } from "@/components/side-nav";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
   if (!s) redirect("/login");
+  if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
   const r = ROLES[s.active.role];
 

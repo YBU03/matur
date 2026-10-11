@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 const MASCOTS = ["mitra", "gudang", "kasir", "akunting", "admin"];
@@ -33,6 +34,9 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold">Masuk</h2>
           <p className="mb-6 text-sm text-stone-500">Satu halaman login untuk semua peran.</p>
           <LoginForm />
+          <p className="mt-6 text-center text-sm text-stone-500">
+            Belum punya akun? <Link href="/daftar" className="font-semibold text-matur-700">Daftar di sini</Link>
+          </p>
         </div>
       </section>
     </main>

@@ -76,3 +76,31 @@ export async function removeAssignment(id: string): Promise<Result> {
   revalidatePath("/pengguna");
   return { ok: "Peran dicabut." };
 }
+
+// ACC pendaftar: tetapkan peran + outlet (outlet wajib untuk peran outlet/mitra)
+export async function approveUser(uid: string, role: Role, outlet: string | null): Promise<Result> {
+  if (!ROLES[role]) return { error: "Peran tidak valid." };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("setujui_pengguna", { p_uid: uid, p_peran: role, p_outlet: ROLES[role].allOutlets ? null : outlet });
+  if (error) return { error: error.message };
+  revalidatePath("/pengguna");
+  return { ok: `Disetujui sebagai ${ROLES[role].label}.` };
+}
+
+export async function rejectUser(uid: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("tolak_pengguna", { p_uid: uid });
+  if (error) return { error: error.message };
+  revalidatePath("/pengguna");
+  return { ok: "Pendaftaran ditolak." };
+}
+
+export async function setUserStatus(uid: string, status: "aktif" | "nonaktif"): Promise<Result> {
+  const s = await getSession();
+  if (s?.userId === uid) return { error: "Tidak bisa menonaktifkan akun sendiri." };
+  const supabase = await supabaseServer();
+  const { error, count } = await supabase.from("pengguna").update({ status }, { count: "exact" }).eq("id", uid);
+  if (error || !count) return { error: "Tidak diizinkan mengubah status akun ini." };
+  revalidatePath("/pengguna");
+  return { ok: status === "aktif" ? "Akun diaktifkan." : "Akun dinonaktifkan." };
+}

@@ -101,6 +101,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/pengguna", label: "Pengguna & Persetujuan", stage: 3 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/master/menu", label: "Menu", stage: 2 },
@@ -197,3 +198,16 @@ export const ROLES: Record<Role, RoleDef> = {
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }
+
+/** Peran yang bisa diajukan saat daftar akun; admin yang menentukan peran & outlet akhirnya. */
+export const PERAN_DAFTAR: [Role, string][] = [
+  ["mitra", "Mitra"],
+  ["pic", "PIC / Kontraktor"],
+  ["kasir", "Kasir"],
+  ["barista", "Barista"],
+  ["spv", "Kepala Outlet / SPV"],
+  ["admin_gudang", "Admin Gudang"],
+  ["finance", "Finance / Akuntan"],
+  ["hrd", "HRD"],
+  ["admin_pusat", "Admin Pusat"],
+];

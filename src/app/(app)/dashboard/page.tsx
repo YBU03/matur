@@ -25,6 +25,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     const { data } = await supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama");
     outlets = data ?? [];
   }
+  let pendaftar = 0;
+  if (canSim) {
+    const supabase = await supabaseServer();
+    const { count } = await supabase.from("pengguna").select("id", { count: "exact", head: true }).eq("status", "menunggu");
+    pendaftar = count ?? 0;
+  }
   const outletId = pusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
   return (
@@ -37,6 +43,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-white/90">{active.outletNama}</p>
         </div>
       </section>
+
+      {pendaftar > 0 && (
+        <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          🔔 {pendaftar} pendaftar baru menunggu persetujuan → buka Pengguna & Akses
+        </Link>
+      )}
 
       {lihatPenjualan && (
         <SalesDashboard

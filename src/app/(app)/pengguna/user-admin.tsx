@@ -3,18 +3,27 @@
 import { useActionState, useState, useTransition } from "react";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import { Modal } from "@/components/confirm-edit";
-import { addAssignment, createUser, removeAssignment, resetSecret, type Result } from "@/lib/pengguna-actions";
+import { addAssignment, approveUser, createUser, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
 import { ROLES, type Role } from "@/lib/roles";
 
 type Assign = { id: string; peran: string; outlet_id: string | null };
-export type UserRow = { id: string; nama: string; email: string | null; aktif: boolean; assignments: Assign[] };
+export type UserRow = {
+  id: string;
+  nama: string;
+  email: string | null;
+  no_hp: string | null;
+  status: string;
+  permintaan: { peran?: string; outlet?: string; catatan?: string } | null;
+  created_at: string;
+  assignments: Assign[];
+};
 type Outlet = { id: string; nama: string };
 
 const ROLE_KEYS = Object.keys(ROLES) as Role[];
 const isPin = (r: string) => r === "kasir" || r === "barista";
 const cls = "mt-1 w-full rounded-lg border border-stone-300 px-3 py-2";
 
-export function UserAdmin({ users, outlets }: { users: UserRow[]; outlets: Outlet[] }) {
+export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[]; outlets: Outlet[]; isOwner: boolean; meId: string }) {
   const [state, action, pending] = useActionState<Result, FormData>(createUser, {});
   const [role, setRole] = useState<Role>("kasir");
   const [msg, setMsg] = useState<Result | null>(null);
@@ -37,7 +46,8 @@ export function UserAdmin({ users, outlets }: { users: UserRow[]; outlets: Outle
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pengguna & Akses</h1>
-      <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} busy={busy} onRun={run} />
+      {isOwner && <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <label className="text-sm font-medium">
           Nama
           <input name="nama" required className={cls} />
@@ -81,7 +91,7 @@ export function UserAdmin({ users, outlets }: { users: UserRow[]; outlets: Outle
           {state.error && <span className="text-sm text-red-600">{state.error}</span>}
           {state.ok && <span className="text-sm text-green-700">{state.ok}</span>}
         </div>
-      </form>
+      </form>}
 
       {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
 
@@ -96,9 +106,12 @@ export function UserAdmin({ users, outlets }: { users: UserRow[]; outlets: Outle
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {users.filter((u) => u.status !== "menunggu").map((u) => (
               <tr key={u.id} className="border-t border-stone-100 align-top">
-                <td className="px-3 py-2 font-medium">{u.nama}</td>
+                <td className="px-3 py-2 font-medium">
+                  {u.nama}
+                  {u.status !== "aktif" && <span className="ml-2 rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">{u.status}</span>}
+                </td>
                 <td className="px-3 py-2 text-stone-600">{u.email?.replace("@pin.matur.id", " (PIN)")}</td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
@@ -122,6 +135,15 @@ export function UserAdmin({ users, outlets }: { users: UserRow[]; outlets: Outle
                   >
                     {u.email?.endsWith("@pin.matur.id") ? "Ganti PIN" : "Ganti password"}
                   </button>
+                  {u.id !== meId && (u.status === "aktif" || u.status === "nonaktif") && (
+                    <button
+                      disabled={busy}
+                      onClick={() => run(() => setUserStatus(u.id, u.status === "aktif" ? "nonaktif" : "aktif"))}
+                      className={`ml-3 hover:underline ${u.status === "aktif" ? "text-red-600" : "text-green-700"}`}
+                    >
+                      {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -185,5 +207,77 @@ function AddRoleDialog({ user, outlets, busy, onCancel, onSave }: { user: UserRo
         <button disabled={busy} onClick={() => onSave(role, ROLES[role].allOutlets ? null : outlet)} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">Tambah</button>
       </div>
     </Modal>
+  );
+}
+
+// Pendaftar mandiri menunggu ACC: admin menentukan peran dan outlet yang boleh dilihat
+function Pending({
+  users,
+  outlets,
+  isOwner,
+  busy,
+  onRun,
+}: {
+  users: UserRow[];
+  outlets: Outlet[];
+  isOwner: boolean;
+  busy: boolean;
+  onRun: (fn: () => Promise<Result>) => void;
+}) {
+  if (!users.length) return null;
+  return (
+    <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
+      <h2 className="mb-3 font-bold">Pendaftar menunggu persetujuan ({users.length})</h2>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {users.map((u) => (
+          <PendingCard key={u.id} u={u} outlets={outlets} isOwner={isOwner} busy={busy} onRun={onRun} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PendingCard({ u, outlets, isOwner, busy, onRun }: { u: UserRow; outlets: Outlet[]; isOwner: boolean; busy: boolean; onRun: (fn: () => Promise<Result>) => void }) {
+  const diminta = (u.permintaan?.peran ?? "mitra") as Role;
+  const [role, setRole] = useState<Role>(ROLES[diminta] ? diminta : "mitra");
+  const cocok = outlets.find((o) => u.permintaan?.outlet && o.nama.toLowerCase().includes(u.permintaan.outlet.toLowerCase()));
+  const [outlet, setOutlet] = useState(cocok?.id ?? "");
+  const pilihan = ROLE_KEYS.filter((r) => isOwner || r !== "owner");
+  return (
+    <div className="rounded-xl border bg-white p-3 text-sm">
+      <p className="font-semibold">{u.nama}</p>
+      <p className="text-stone-600">{u.email}{u.no_hp && ` · ${u.no_hp}`}</p>
+      <p className="mt-1 text-xs text-stone-500">
+        Mengajukan: <b>{ROLES[diminta]?.label ?? diminta}</b>
+        {u.permintaan?.outlet && <> · outlet “{u.permintaan.outlet}”</>}
+        {u.permintaan?.catatan && <> · “{u.permintaan.catatan}”</>}
+      </p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="rounded-lg border px-2 py-1.5">
+          {pilihan.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
+        </select>
+        {ROLES[role].allOutlets ? (
+          <span className="self-center text-xs text-stone-500">Akses semua outlet</span>
+        ) : (
+          <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="rounded-lg border px-2 py-1.5">
+            <option value="">— pilih outlet —</option>
+            {outlets.map((o) => <option key={o.id} value={o.id}>{o.nama}</option>)}
+          </select>
+        )}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button
+          disabled={busy || (!ROLES[role].allOutlets && !outlet)}
+          onClick={() => onRun(() => approveUser(u.id, role, outlet || null))}
+          className="flex-1 rounded-lg bg-green-600 py-1.5 font-semibold text-white disabled:opacity-50"
+        >
+          Setujui
+        </button>
+        <button disabled={busy} onClick={() => onRun(() => rejectUser(u.id))} className="rounded-lg border border-red-300 px-3 py-1.5 text-red-600">
+          Tolak
+        </button>
+      </div>
+      <p className="mt-1 text-xs text-stone-400">Outlet tambahan bisa ditambahkan lewat “+ peran” setelah disetujui.</p>
+    </div>
   );
 }

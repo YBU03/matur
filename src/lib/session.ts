@@ -10,7 +10,7 @@ import { supabaseServer } from "./supabase/server";
 const ACTIVE = "matur_active";
 
 export type Assignment = { role: Role; outletId: string | null; outletNama: string };
-export type Session = { userId: string; nama: string; assignments: Assignment[]; active: Assignment | null };
+export type Session = { userId: string; nama: string; status: string; assignments: Assignment[]; active: Assignment | null };
 
 const key = (a: { role: string; outletId: string | null }) => `${a.role}|${a.outletId ?? ""}`;
 
@@ -22,10 +22,12 @@ export const getSession = cache(async (): Promise<Session | null> => {
   if (!user) return null;
 
   const [{ data: profil }, { data: tugas }] = await Promise.all([
-    supabase.from("pengguna").select("nama").eq("id", user.id).single(),
+    supabase.from("pengguna").select("nama, status").eq("id", user.id).single(),
     supabase.from("penugasan").select("peran, outlet_id, outlet(nama)").eq("pengguna_id", user.id),
   ]);
-  const assignments: Assignment[] = (tugas ?? []).map((t) => ({
+  const status = profil?.status ?? "menunggu";
+  // akun menunggu/ditolak/nonaktif tidak punya peran yang berlaku
+  const assignments: Assignment[] = (status === "aktif" ? (tugas ?? []) : []).map((t) => ({
     role: t.peran as Role,
     outletId: t.outlet_id,
     outletNama: (t.outlet as unknown as { nama: string } | null)?.nama ?? "Semua Outlet",
@@ -33,7 +35,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   const chosen = (await cookies()).get(ACTIVE)?.value;
   const active = assignments.find((a) => key(a) === chosen) ?? (assignments.length === 1 ? assignments[0] : null);
-  return { userId: user.id, nama: profil?.nama ?? user.email ?? "", assignments, active };
+  return { userId: user.id, nama: profil?.nama ?? user.email ?? "", status, assignments, active };
 });
 
 export async function setActive(a: { role: string; outletId: string | null } | null) {

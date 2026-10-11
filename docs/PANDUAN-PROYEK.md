@@ -32,3 +32,10 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - **Import Excel**: pilih file `.xlsx`. Bisa langsung memakai format *Daftar Material dan Harga* (sheet material per bagian, interior, tukang) maupun file hasil Export Matoer. Muncul pratinjau total per kelompok + peringatan bila total tertulis di file berbeda dengan penjumlahan item. Pilih *tambahkan* atau *ganti semua* (data lama masuk tempat sampah).
 - **Export Excel / PDF**: unduh rincian lengkap dengan subtotal per kelompok dan grand total. File Excel hasil export bisa diedit lalu di-import kembali.
 - **+ Tambah / Ubah Item**: isi kelompok, bagian, nama barang, spesifikasi, jumlah, satuan, harga satuan (total dihitung otomatis bila dikosongkan), realisasi, status.
+
+## 6. Daftar akun & persetujuan
+- Calon pengguna membuka **https://matoer.vercel.app/daftar**, mengisi nama, email, HP, password, peran yang diajukan, dan outlet yang dimaksud.
+- Akun berstatus *menunggu* dan belum bisa melihat data apa pun.
+- Owner / Admin Pusat membuka **Pengguna & Akses** → kotak *Pendaftar menunggu persetujuan* → pilih **peran** dan **outlet** → **Setujui** (atau **Tolak**). Untuk mitra, outlet yang dipilih adalah outlet yang boleh ia lihat; outlet tambahan lewat **+ peran**.
+- Setelah login, setiap orang langsung masuk ke dashboard sesuai perannya. Akun bisa **dinonaktifkan** kapan saja (akses langsung terkunci).
+- Hanya Owner yang bisa memberi peran Owner.

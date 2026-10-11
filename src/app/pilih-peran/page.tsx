@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 export default async function PilihPeran() {
   const s = await getSession();
   if (!s) redirect("/login");
+  if (s.assignments.length === 0) redirect("/menunggu");
 
   return (
     <main className="mx-auto max-w-2xl p-6">
