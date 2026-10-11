@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { MenuItem } from "@/lib/roles";
+import { CURRENT_STAGE, type MenuItem } from "@/lib/roles";
 
 export function SideNav({ items }: { items: MenuItem[] }) {
   const path = usePathname();
@@ -19,6 +19,7 @@ export function SideNav({ items }: { items: MenuItem[] }) {
             }`}
           >
             {m.label}
+            {m.stage > CURRENT_STAGE && <span className="ml-1 text-xs opacity-60">🔒</span>}
           </Link>
         );
       })}

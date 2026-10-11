@@ -10,17 +10,21 @@ export default async function MasterPage({
   searchParams,
 }: {
   params: Promise<{ entity: string }>;
-  searchParams: Promise<{ sampah?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { entity: key } = await params;
-  const trash = (await searchParams).sampah === "1";
+  const sp = await searchParams;
+  const trash = sp.sampah === "1";
   const entity = ENTITIES[key];
   const s = await getSession();
-  if (!entity || !s?.active || !findMenu(s.active.role, `/master/${key}`)) notFound();
+  if (!entity || !s?.active || !(findMenu(s.active.role, `/master/${key}`) || entity.editors.includes(s.active.role))) notFound();
+  // filter dari query, mis. /master/pekerjaan?proyek_id=… (juga jadi nilai awal saat tambah)
+  const filter = Object.fromEntries(entity.fields.filter((f) => f.type === "select" && sp[f.key]).map((f) => [f.key, sp[f.key]!]));
 
   const supabase = await supabaseServer();
   let q = supabase.from(entity.table).select("*").limit(500);
   q = trash ? q.not("deleted_at", "is", null).order("deleted_at", { ascending: false }) : q.is("deleted_at", null);
+  for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
   const { data: rows } = await q;
 
   // opsi untuk kolom rujukan (select)
@@ -43,6 +47,7 @@ export default async function MasterPage({
       rows={(rows ?? []) as Record<string, unknown>[]}
       refs={refs}
       trash={trash}
+      filter={filter}
       canEdit={entity.editors.includes(s.active.role)}
     />
   );

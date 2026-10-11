@@ -30,7 +30,7 @@ type RoleDef = {
 };
 
 /** tahap pengembangan yang sudah selesai */
-export const CURRENT_STAGE = 3;
+export const CURRENT_STAGE = 4;
 
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
 
@@ -46,12 +46,13 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/mitra", label: "Mitra", stage: 2 },
       { href: "/master/perjanjian", label: "Perjanjian Mitra", stage: 2 },
+      { href: "/proyek", label: "Proyek Pembangunan", stage: 4 },
       { href: "/master/karyawan", label: "Karyawan", stage: 2 },
       { href: "/master/menu", label: "Menu", stage: 2 },
       { href: "/master/bahan", label: "Bahan Baku", stage: 2 },
       { href: "/pengguna", label: "Pengguna & Akses", stage: 3 },
-      { href: "/laporan", label: "Laporan Mitra", stage: 6 },
-      { href: "/simulasi", label: "Mode Simulasi", stage: 8 },
+      { href: "/laporan", label: "Laporan Mitra", stage: 7 },
+      { href: "/simulasi", label: "Mode Simulasi", stage: 9 },
       { href: "/log", label: "Log Aktivitas", stage: 2 },
     ],
   },
@@ -71,10 +72,10 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
-      { href: "/biaya", label: "Biaya Operasional", stage: 6 },
-      { href: "/laporan", label: "Laporan Mitra", stage: 6 },
-      { href: "/tutup-buku", label: "Tutup Buku", stage: 6 },
-      { href: "/transfer", label: "Transfer Mitra", stage: 6 },
+      { href: "/biaya", label: "Biaya Operasional", stage: 7 },
+      { href: "/laporan", label: "Laporan Mitra", stage: 7 },
+      { href: "/tutup-buku", label: "Tutup Buku", stage: 7 },
+      { href: "/transfer", label: "Transfer Mitra", stage: 7 },
       { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },
     ],
   },
@@ -87,9 +88,9 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/master/karyawan", label: "Karyawan", stage: 2 },
-      { href: "/jadwal", label: "Jadwal Shift", stage: 4 },
-      { href: "/absensi", label: "Rekap Absensi", stage: 4 },
-      { href: "/penggajian", label: "Penggajian", stage: 7 },
+      { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
+      { href: "/absensi", label: "Rekap Absensi", stage: 5 },
+      { href: "/penggajian", label: "Penggajian", stage: 8 },
     ],
   },
   admin_pusat: {
@@ -109,8 +110,8 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/supplier", label: "Supplier", stage: 2 },
       { href: "/master/mitra", label: "Mitra", stage: 2 },
       { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },
-      { href: "/proyek", label: "Proyek Pembangunan", stage: 8 },
-      { href: "/simulasi", label: "Mode Simulasi", stage: 8 },
+      { href: "/proyek", label: "Proyek Pembangunan", stage: 4 },
+      { href: "/simulasi", label: "Mode Simulasi", stage: 9 },
     ],
   },
   admin_gudang: {
@@ -121,9 +122,9 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
-      { href: "/gudang/stok", label: "Stok Gudang", stage: 5 },
-      { href: "/gudang/pembelian", label: "Pembelian Supplier", stage: 5 },
-      { href: "/gudang/kiriman", label: "Kiriman ke Outlet", stage: 5 },
+      { href: "/gudang/stok", label: "Stok Gudang", stage: 6 },
+      { href: "/gudang/pembelian", label: "Pembelian Supplier", stage: 6 },
+      { href: "/gudang/kiriman", label: "Kiriman ke Outlet", stage: 6 },
       { href: "/master/bahan", label: "Bahan & Harga Pokok", stage: 2 },
       { href: "/master/supplier", label: "Supplier", stage: 2 },
     ],
@@ -138,10 +139,10 @@ export const ROLES: Record<Role, RoleDef> = {
       dash,
       { href: "/pos", label: "POS Penjualan", stage: 3 },
       { href: "/antrean", label: "Antrean Pesanan", stage: 3 },
-      { href: "/stok", label: "Stok & Opname", stage: 5 },
-      { href: "/permintaan", label: "Permintaan Barang", stage: 5 },
-      { href: "/jadwal", label: "Jadwal Shift", stage: 4 },
-      { href: "/persetujuan", label: "Persetujuan", stage: 4 },
+      { href: "/stok", label: "Stok & Opname", stage: 6 },
+      { href: "/permintaan", label: "Permintaan Barang", stage: 6 },
+      { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
+      { href: "/persetujuan", label: "Persetujuan", stage: 5 },
     ],
   },
   kasir: {
@@ -153,8 +154,8 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/pos", label: "Layar POS", stage: 3 },
-      { href: "/shift", label: "Shift Saya", stage: 4 },
-      { href: "/slip", label: "Absensi & Slip Gaji", stage: 7 },
+      { href: "/shift", label: "Shift Saya", stage: 5 },
+      { href: "/slip", label: "Absensi & Slip Gaji", stage: 8 },
     ],
   },
   barista: {
@@ -166,8 +167,8 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/antrean", label: "Antrean Pesanan", stage: 3 },
-      { href: "/shift", label: "Shift Saya", stage: 4 },
-      { href: "/slip", label: "Absensi & Slip Gaji", stage: 7 },
+      { href: "/shift", label: "Shift Saya", stage: 5 },
+      { href: "/slip", label: "Absensi & Slip Gaji", stage: 8 },
     ],
   },
   mitra: {
@@ -178,9 +179,9 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [
       dash,
-      { href: "/portal/laporan", label: "Laporan Bulanan", stage: 8 },
-      { href: "/portal/bep", label: "Progres BEP", stage: 8 },
-      { href: "/portal/pembangunan", label: "Pembangunan", stage: 8 },
+      { href: "/portal/pembangunan", label: "Progres Pembangunan", stage: 4 },
+      { href: "/portal/laporan", label: "Laporan Bulanan", stage: 9 },
+      { href: "/portal/bep", label: "Progres BEP", stage: 9 },
     ],
   },
   pic: {
@@ -189,7 +190,7 @@ export const ROLES: Record<Role, RoleDef> = {
     accent: "bg-blue-600",
     login: "otp",
     allOutlets: false,
-    menu: [dash, { href: "/proyek", label: "Progres Pekerjaan", stage: 8 }],
+    menu: [dash, { href: "/proyek", label: "Progres Pekerjaan", stage: 4 }],
   },
 };
 

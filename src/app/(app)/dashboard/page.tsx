@@ -1,12 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
-import { CURRENT_STAGE, ROLES } from "@/lib/roles";
+import { ProyekCard } from "@/components/proyek-card";
+import { daftarProyek } from "@/lib/proyek";
+import { CURRENT_STAGE, ROLES, findMenu } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 
 export default async function Dashboard() {
   const s = (await getSession())!;
   const active = s.active!;
   const r = ROLES[active.role];
+  const lihatProyek = findMenu(active.role, "/proyek") || findMenu(active.role, "/portal/pembangunan");
+  const proyek = lihatProyek ? (await daftarProyek()).filter((p) => p.status === "berjalan") : [];
 
   return (
     <div className="space-y-6">
@@ -19,15 +23,30 @@ export default async function Dashboard() {
         </div>
       </section>
 
+      {proyek.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-semibold">Progres Pembangunan</h2>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {proyek.map((p) => (
+              <ProyekCard key={p.id} p={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section>
         <h2 className="mb-3 font-semibold">Menu Anda</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {r.menu
             .filter((m) => m.href !== "/dashboard")
             .map((m) => (
-              <Link key={m.href} href={m.href} className="rounded-2xl border border-matur-200 bg-white p-4 shadow-sm hover:shadow-md">
+              <Link
+                key={m.href}
+                href={m.href}
+                className={`rounded-2xl border border-matur-200 p-4 shadow-sm hover:shadow-md ${m.stage <= CURRENT_STAGE ? "bg-white" : "bg-stone-50 opacity-70"}`}
+              >
                 <p className="font-semibold">{m.label}</p>
-                <p className="text-xs text-stone-500">{m.stage <= CURRENT_STAGE ? "Tersedia" : `Tahap ${m.stage}`}</p>
+                <p className="text-xs text-stone-500">{m.stage <= CURRENT_STAGE ? "Tersedia" : "🔒 Segera hadir"}</p>
               </Link>
             ))}
           {(active.role === "owner" || active.role === "admin_pusat") && (

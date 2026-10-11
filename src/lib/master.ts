@@ -161,6 +161,51 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "status", label: "Status", type: "enum", options: ["aktif", "nonaktif"], required: true },
     ],
   },
+  proyek: {
+    table: "proyek",
+    title: "Proyek Pembangunan",
+    nameKey: "nama",
+    editors: ["owner", "admin_pusat"],
+    fields: [
+      { key: "nama", label: "Nama Proyek", type: "text", required: true },
+      { key: "outlet_id", label: "Outlet", type: "select", ref: { table: "outlet", label: "nama" }, required: true },
+      { key: "estimasi_budget", label: "Estimasi Budget", type: "money", required: true },
+      { key: "tgl_mulai", label: "Tanggal Mulai", type: "date" },
+      { key: "target_buka", label: "Target Buka", type: "date" },
+      { key: "status", label: "Status", type: "enum", options: ["berjalan", "selesai"], required: true },
+      { key: "catatan", label: "Catatan", type: "text", list: false },
+    ],
+  },
+  item_rab: {
+    table: "item_rab",
+    title: "RAB / Kebutuhan",
+    nameKey: "nama",
+    editors: ["owner", "admin_pusat"],
+    fields: [
+      { key: "proyek_id", label: "Proyek", type: "select", ref: { table: "proyek", label: "nama" }, required: true },
+      { key: "kategori", label: "Kategori", type: "enum", options: ["Renovasi", "Mesin Espresso", "Grinder", "Furnitur", "Peralatan", "Branding", "Lainnya"], required: true },
+      { key: "nama", label: "Nama Item", type: "text", required: true },
+      { key: "qty", label: "Jumlah", type: "number", required: true },
+      { key: "harga_estimasi", label: "Total Estimasi", type: "money", required: true },
+      { key: "harga_realisasi", label: "Total Realisasi", type: "money" },
+      { key: "status", label: "Status", type: "enum", options: ["rencana", "dibeli", "terpasang"], required: true },
+    ],
+  },
+  pekerjaan: {
+    table: "pekerjaan",
+    title: "Pekerjaan",
+    nameKey: "nama",
+    editors: ["owner", "admin_pusat"],
+    fields: [
+      { key: "proyek_id", label: "Proyek", type: "select", ref: { table: "proyek", label: "nama" }, required: true },
+      { key: "nama", label: "Nama Pekerjaan", type: "text", required: true },
+      { key: "pic_id", label: "PIC", type: "select", ref: { table: "pengguna", label: "nama" } },
+      { key: "bobot", label: "Bobot", type: "number", required: true },
+      { key: "progres", label: "Progres %", type: "percent", required: true },
+      { key: "tgl_mulai", label: "Mulai", type: "date" },
+      { key: "tgl_selesai", label: "Target Selesai", type: "date" },
+    ],
+  },
 };
 
 /** Ubah isian form menjadi nilai kolom; hanya kolom yang terdaftar yang lolos. */

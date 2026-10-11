@@ -31,9 +31,12 @@ function show(f: Field, v: unknown, refs: Refs): string {
   }
 }
 
-const toForm = (entity: Entity, row: Row | null): Form =>
+const toForm = (entity: Entity, row: Row | null, initial: Record<string, string> = {}): Form =>
   Object.fromEntries(
-    entity.fields.map((f) => [f.key, f.type === "bool" ? Boolean(row?.[f.key] ?? f.key === "aktif") : String(row?.[f.key] ?? "")]),
+    entity.fields.map((f) => [
+      f.key,
+      f.type === "bool" ? Boolean(row?.[f.key] ?? f.key === "aktif") : String(row?.[f.key] ?? (row ? "" : (initial[f.key] ?? ""))),
+    ]),
   );
 
 export function MasterTable({
@@ -42,6 +45,7 @@ export function MasterTable({
   rows,
   refs,
   trash,
+  filter = {},
   canEdit,
 }: {
   entityKey: string;
@@ -49,6 +53,7 @@ export function MasterTable({
   rows: Row[];
   refs: Refs;
   trash: boolean;
+  filter?: Record<string, string>;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -93,14 +98,14 @@ export function MasterTable({
           {trash && <span className="ml-2 text-base font-normal text-stone-500">· Tempat Sampah</span>}
         </h1>
         <Link
-          href={trash ? `/master/${entityKey}` : `/master/${entityKey}?sampah=1`}
+          href={`/master/${entityKey}?${new URLSearchParams({ ...filter, ...(trash ? {} : { sampah: "1" }) })}`}
           className="rounded-xl border border-matur-300 px-3 py-2 text-sm hover:bg-matur-50"
         >
           {trash ? "← Kembali" : "Tempat Sampah"}
         </Link>
         {canEdit && !trash && (
           <button
-            onClick={() => setEditing({ row: null, form: toForm(entity, null) })}
+            onClick={() => setEditing({ row: null, form: toForm(entity, null, filter) })}
             className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white hover:bg-matur-600"
           >
             + Tambah

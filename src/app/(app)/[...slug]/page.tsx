@@ -13,10 +13,11 @@ export default async function ComingSoon({ params }: { params: Promise<{ slug: s
   return (
     <div className="mx-auto mt-10 max-w-md text-center">
       <Image src={`/mascot/${ROLES[s.active.role].mascot}.png`} alt="" width={160} height={160} className="mx-auto rounded-3xl" />
-      <h1 className="mt-4 text-2xl font-bold">{item.label}</h1>
+      <h1 className="mt-4 text-2xl font-bold">🔒 {item.label}</h1>
       <p className="mt-2 text-stone-500">
-        Modul ini sedang disiapkan dan dijadwalkan pada <b>Tahap {item.stage}</b>.
+        Fitur ini masih dikunci dan akan dibuka bertahap setelah siap. Terima kasih sudah menunggu!
       </p>
+      <p className="mt-1 text-xs text-stone-400">Rencana pengembangan: Tahap {item.stage}</p>
     </div>
   );
 }
