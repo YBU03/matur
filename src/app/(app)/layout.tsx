@@ -1,0 +1,47 @@
+import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { logoutAction } from "@/lib/actions";
+import { outletName } from "@/lib/demo-data";
+import { ROLES } from "@/lib/roles";
+import { getSession } from "@/lib/session";
+import { SideNav } from "@/components/side-nav";
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const s = await getSession();
+  if (!s) redirect("/login");
+  if (!s.active) redirect("/pilih-peran");
+  const r = ROLES[s.active.role];
+
+  return (
+    <div className="min-h-screen lg:flex">
+      <aside className="border-b border-matur-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
+        <div className="flex items-center gap-2 p-4">
+          <Image src="/brand/logo-192.png" alt="Matur" width={36} height={36} className="rounded-lg" />
+          <span className="text-lg font-bold">Matur</span>
+        </div>
+        <div className="mx-4 mb-3 flex items-center gap-3 rounded-xl bg-matur-50 p-2">
+          <Image src={`/mascot/${r.mascot}.png`} alt="" width={44} height={44} className="rounded-lg" />
+          <div className="min-w-0 text-sm">
+            <p className="truncate font-semibold">{s.user.nama}</p>
+            <p className="truncate text-xs text-stone-500">
+              {r.label} · {outletName(s.active.outletId)}
+            </p>
+          </div>
+        </div>
+        <SideNav items={r.menu} />
+        <div className="flex gap-2 p-4 text-sm">
+          {s.user.assignments.length > 1 && (
+            <Link href="/pilih-peran" className="rounded-lg border border-matur-300 px-3 py-1.5 hover:bg-matur-50">
+              Ganti peran
+            </Link>
+          )}
+          <form action={logoutAction}>
+            <button className="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50">Keluar</button>
+          </form>
+        </div>
+      </aside>
+      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+    </div>
+  );
+}

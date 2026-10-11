@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-matur-50: #fff8e6;
+  --color-matur-100: #ffefc2;
+  --color-matur-200: #ffde85;
+  --color-matur-300: #ffc93d;
+  --color-matur-400: #ffb31a;
+  --color-matur-500: #ff9500;
+  --color-matur-600: #f07400;
+  --color-matur-700: #c75400;
+  --color-kopi-700: #5a3417;
+  --color-kopi-900: #3a1f0b;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: #fffaf2;
+  color: #2b1a0e;
+}
