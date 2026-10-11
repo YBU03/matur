@@ -18,3 +18,10 @@ body {
   background: #fffaf2;
   color: #2b1a0e;
 }
+
+/* POS-05: cetak hanya struk (printer thermal 58/80 mm) */
+@media print {
+  body * { visibility: hidden; }
+  #struk, #struk * { visibility: visible; }
+  #struk { position: fixed; left: 0; top: 0; width: 72mm; background: white; }
+}

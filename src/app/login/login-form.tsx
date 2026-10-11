@@ -1,26 +1,40 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { loginAction, type LoginState } from "@/lib/actions";
+import { loginAction, otpAction, type LoginState } from "@/lib/actions";
+
+type Mode = "password" | "pin" | "otp";
+const TABS: [Mode, string][] = [
+  ["password", "Email"],
+  ["pin", "PIN Kasir"],
+  ["otp", "Kode OTP"],
+];
 
 export function LoginForm() {
-  const [mode, setMode] = useState<"password" | "pin">("password");
-  const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
-
+  const [mode, setMode] = useState<Mode>("password");
   return (
-    <form action={action} className="space-y-4">
-      <div className="grid grid-cols-2 rounded-xl bg-matur-100 p-1 text-sm font-semibold">
-        {(["password", "pin"] as const).map((m) => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 rounded-xl bg-matur-100 p-1 text-sm font-semibold">
+        {TABS.map(([m, label]) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`rounded-lg py-2 ${mode === m ? "bg-white shadow text-matur-700" : "text-kopi-700"}`}
+            className={`rounded-lg py-2 ${mode === m ? "bg-white text-matur-700 shadow" : "text-kopi-700"}`}
           >
-            {m === "password" ? "Email / HP" : "PIN Kasir & Barista"}
+            {label}
           </button>
         ))}
       </div>
+      {mode === "otp" ? <OtpForm /> : <PasswordForm key={mode} mode={mode} />}
+    </div>
+  );
+}
+
+function PasswordForm({ mode }: { mode: "password" | "pin" }) {
+  const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
+  return (
+    <form action={action} className="space-y-4">
       <input type="hidden" name="mode" value={mode} />
       {mode === "password" ? (
         <>
@@ -33,16 +47,41 @@ export function LoginForm() {
           <Field name="secret" label="PIN (4–6 digit)" type="password" inputMode="numeric" pattern="\d{4,6}" />
         </>
       )}
-      {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
-      <button
-        disabled={pending}
-        className="w-full rounded-xl bg-matur-500 py-3 font-semibold text-white shadow hover:bg-matur-600 disabled:opacity-60"
-      >
-        {pending ? "Memeriksa…" : "Masuk"}
-      </button>
+      <Error text={state.error} />
+      <Submit pending={pending} />
     </form>
   );
 }
+
+function OtpForm() {
+  const [state, action, pending] = useActionState<LoginState & { sent?: string }, FormData>(otpAction, {});
+  return (
+    <form action={action} className="space-y-4">
+      {state.sent ? (
+        <>
+          <input type="hidden" name="login" value={state.sent} />
+          <p className="text-sm text-stone-600">
+            Kode dikirim ke <b>{state.sent}</b>. Periksa email Anda.
+          </p>
+          <Field name="secret" label="Kode OTP" inputMode="numeric" autoComplete="one-time-code" />
+        </>
+      ) : (
+        <Field name="login" label="Email terdaftar" type="email" placeholder="mitra@email.com" />
+      )}
+      <Error text={state.error} />
+      <Submit pending={pending} label={state.sent ? "Masuk" : "Kirim kode"} />
+    </form>
+  );
+}
+
+const Error = ({ text }: { text?: string }) =>
+  text ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{text}</p> : null;
+
+const Submit = ({ pending, label = "Masuk" }: { pending: boolean; label?: string }) => (
+  <button disabled={pending} className="w-full rounded-xl bg-matur-500 py-3 font-semibold text-white shadow hover:bg-matur-600 disabled:opacity-60">
+    {pending ? "Memeriksa…" : label}
+  </button>
+);
 
 function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (

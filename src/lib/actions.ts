@@ -44,3 +44,20 @@ export async function logoutAction() {
   await setActive(null);
   redirect("/login");
 }
+
+// Mitra & PIC: login kode OTP via email (PRD tabel peran)
+export async function otpAction(_: LoginState & { sent?: string }, form: FormData): Promise<LoginState & { sent?: string }> {
+  const email = String(form.get("login") ?? "").trim().toLowerCase();
+  const token = String(form.get("secret") ?? "").trim();
+  const supabase = await supabaseServer();
+  if (!token) {
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (error) return { error: "Email tidak terdaftar atau terlalu sering meminta kode. Coba lagi nanti." };
+    return { sent: email };
+  }
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error) return { sent: email, error: "Kode salah atau kedaluwarsa." };
+  await setActive(null);
+  const s = await getSession();
+  redirect(s?.active ? "/dashboard" : "/pilih-peran");
+}

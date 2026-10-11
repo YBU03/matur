@@ -30,7 +30,7 @@ type RoleDef = {
 };
 
 /** tahap pengembangan yang sudah selesai */
-export const CURRENT_STAGE = 2;
+export const CURRENT_STAGE = 3;
 
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
 
@@ -136,7 +136,8 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [
       dash,
-      { href: "/pos", label: "Penjualan", stage: 3 },
+      { href: "/pos", label: "POS Penjualan", stage: 3 },
+      { href: "/antrean", label: "Antrean Pesanan", stage: 3 },
       { href: "/stok", label: "Stok & Opname", stage: 5 },
       { href: "/permintaan", label: "Permintaan Barang", stage: 5 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 4 },
