@@ -5,8 +5,10 @@ import "./globals.css";
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Matur – Sistem Terintegrasi Coffeeshop",
+  title: "Matoer – Sistem Terintegrasi Coffeeshop",
   description: "POS, gudang, akunting, dan portal mitra CV. Hazna Berkah Indonesia",
+  applicationName: "Matoer",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

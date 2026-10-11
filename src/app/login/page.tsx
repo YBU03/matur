@@ -8,8 +8,8 @@ export default function LoginPage() {
     <main className="min-h-screen grid lg:grid-cols-2">
       <section className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-matur-300 via-matur-500 to-matur-600 p-10 text-white">
         <div className="flex items-center gap-3">
-          <Image src="/brand/logo-192.png" alt="Matur" width={48} height={48} className="rounded-xl" />
-          <span className="text-2xl font-bold">Matur</span>
+          <Image src="/brand/logo-192.png" alt="Matoer" width={48} height={48} className="rounded-xl" />
+          <span className="text-2xl font-bold">Matoer</span>
         </div>
         <div>
           <h1 className="text-4xl font-extrabold leading-tight">Satu sistem untuk seluruh outlet.</h1>
@@ -27,8 +27,8 @@ export default function LoginPage() {
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center text-center lg:hidden">
-            <Image src="/brand/logo-192.png" alt="Matur" width={72} height={72} className="rounded-2xl" />
-            <span className="mt-2 text-2xl font-bold">Matur</span>
+            <Image src="/brand/logo-192.png" alt="Matoer" width={72} height={72} className="rounded-2xl" />
+            <span className="mt-2 text-2xl font-bold">Matoer</span>
           </div>
           <h2 className="text-2xl font-bold">Masuk</h2>
           <p className="mb-6 text-sm text-stone-500">Satu halaman login untuk semua peran.</p>

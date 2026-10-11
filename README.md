@@ -1,4 +1,4 @@
-# Matur
+# Matoer
 
 Sistem terintegrasi coffeeshop CV. Hazna Berkah Indonesia — POS, gudang, akunting,
 dan portal mitra. Lihat [docs/ROADMAP.md](docs/ROADMAP.md) untuk tahapan dan [docs/PANDUAN-PROYEK.md](docs/PANDUAN-PROYEK.md) untuk panduan pemantauan pembangunan.

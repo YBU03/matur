@@ -1,6 +1,6 @@
 // Import/export rincian keperluan proyek (dipakai di browser).
 // Import mengenali dua bentuk file:
-//  1. File hasil export Matur (sheet "Rincian Keperluan", kolom Kelompok…Keterangan)
+//  1. File hasil export Matoer (sheet "Rincian Keperluan", kolom Kelompok…Keterangan)
 //  2. Format "Daftar Material dan Harga": sheet material per bagian, sheet interior, sheet tukang.
 
 import type ExcelJS from "exceljs";
@@ -65,7 +65,7 @@ export async function parseWorkbook(buf: ArrayBuffer): Promise<{ rows: RabRow[];
     }
 
     if (header.includes("kelompok")) {
-      // 1. format export Matur
+      // 1. format export Matoer
       const c = Object.fromEntries(HEADERS.map((h) => [h, col(h.toLowerCase())]));
       for (const r of all.slice(headerIdx + 1)) {
         const nama = text(r.v[c["Nama Barang"]]);

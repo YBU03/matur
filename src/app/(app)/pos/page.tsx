@@ -11,6 +11,7 @@ export default async function PosPage() {
   const { data: sesi } = await supabase
     .from("sesi_kas")
     .select("id, modal_laci, dibuka_at")
+    .eq("mode", "asli")
     .eq("outlet_id", s.active.outletId)
     .eq("kasir_id", s.userId)
     .is("ditutup_at", null)
@@ -18,9 +19,9 @@ export default async function PosPage() {
   if (!sesi) return <OpenShift outletNama={s.active.outletNama} />;
 
   const [{ data: kategori }, { data: menu }, { data: varian }] = await Promise.all([
-    supabase.from("kategori_menu").select("id, nama").is("deleted_at", null).order("urutan"),
-    supabase.from("menu").select("id, nama, kategori_id, harga_langsung, harga_ojol").is("deleted_at", null).eq("aktif", true).order("nama"),
-    supabase.from("varian").select("id, menu_id, grup, nama, tambahan_harga").is("deleted_at", null),
+    supabase.from("kategori_menu").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
+    supabase.from("menu").select("id, nama, kategori_id, harga_langsung, harga_ojol").eq("mode", "asli").is("deleted_at", null).eq("aktif", true).order("nama"),
+    supabase.from("varian").select("id, menu_id, grup, nama, tambahan_harga").eq("mode", "asli").is("deleted_at", null),
   ]);
   const menus: PosMenu[] = (menu ?? []).map((m) => ({ ...m, varian: (varian ?? []).filter((v) => v.menu_id === m.id) }));
   return <PosScreen kategori={kategori ?? []} menus={menus} outletNama={s.active.outletNama} kasir={s.nama} />;

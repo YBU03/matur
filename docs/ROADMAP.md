@@ -1,6 +1,6 @@
-# Roadmap Pengembangan Bertahap — Matur
+# Roadmap Pengembangan Bertahap — Matoer
 
-Mengikuti PRD *Matur – Sistem Terintegrasi Coffeeshop*. Fase 1 PRD (operasional outlet)
+Mengikuti PRD *Matur (kini Matoer) – Sistem Terintegrasi Coffeeshop*. Fase 1 PRD (operasional outlet)
 dan Fase 2 (keuangan & mitra) dipecah menjadi tahap kecil supaya tiap sesi
 pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 
@@ -18,6 +18,11 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 
 Uji penerimaan laporan: angka periode **Agustus 2026 Ruma Kopiaksa** harus sama
 persis dengan laporan manual (laba bersih Rp32.181.189, bagi hasil mitra Rp17.699.654).
+
+## Pembaruan
+- Nama aplikasi menjadi **Matoer** (domain "matur" sudah dipakai pihak lain).
+- Dashboard visual (DSB-01..05): pilih cabang + periode, kartu KPI dengan perbandingan periode sebelumnya, tren omzet per outlet, perbandingan cabang, komposisi kanal, menu terlaris & kurang laku, heatmap jam ramai, progres pembangunan; mitra/PIC melihat grafik progres pekerjaan dan estimasi vs realisasi.
+- Data simulasi (mode `simulasi`, ±75 hari, 2 outlet) untuk mencoba dashboard; aktifkan dengan centang "Data simulasi" (Owner/Admin Pusat). Tidak pernah tampil di POS, data master, maupun laporan asli.
 
 ## Catatan teknis
 - `supabase/migrations/0005_sampah_otomatis.sql` (hapus permanen sampah > 30 hari) belum terpasang; jalankan manual di SQL Editor.

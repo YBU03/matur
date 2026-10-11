@@ -5,6 +5,9 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { MasterTable } from "./master-table";
 
+// tabel tanpa kolom mode (asli/simulasi)
+const NO_MODE = new Set(["pengguna", "mitra"]);
+
 export default async function MasterPage({
   params,
   searchParams,
@@ -23,6 +26,7 @@ export default async function MasterPage({
 
   const supabase = await supabaseServer();
   let q = supabase.from(entity.table).select("*").limit(500);
+  if (!NO_MODE.has(entity.table)) q = q.eq("mode", "asli"); // data simulasi tidak tampil di data master
   q = trash ? q.not("deleted_at", "is", null).order("deleted_at", { ascending: false }) : q.is("deleted_at", null);
   for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
   const { data: rows } = await q;
@@ -35,6 +39,7 @@ export default async function MasterPage({
       .map(async (f) => {
         let rq = supabase.from(f.ref!.table).select(`id, ${f.ref!.label}`).order(f.ref!.label).limit(500);
         if (f.ref!.table !== "pengguna") rq = rq.is("deleted_at", null);
+        if (!NO_MODE.has(f.ref!.table)) rq = rq.eq("mode", "asli");
         const { data } = await rq;
         refs[f.key] = ((data ?? []) as unknown as Record<string, string>[]).map((r) => ({ id: r.id, label: r[f.ref!.label] }));
       }),

@@ -38,7 +38,7 @@ function PasswordForm({ mode }: { mode: "password" | "pin" }) {
       <input type="hidden" name="mode" value={mode} />
       {mode === "password" ? (
         <>
-          <Field name="login" label="Email" type="email" placeholder="nama@matur.id" />
+          <Field name="login" label="Email" type="email" placeholder="nama@email.com" />
           <Field name="secret" label="Password" type="password" />
         </>
       ) : (

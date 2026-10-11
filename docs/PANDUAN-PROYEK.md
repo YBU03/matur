@@ -29,6 +29,6 @@ Menu lain (Laporan Bulanan, Progres BEP) masih terkunci 🔒 dan dibuka bertahap
 
 ## 5. Rincian Keperluan (import/export)
 Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk admin).
-- **Import Excel**: pilih file `.xlsx`. Bisa langsung memakai format *Daftar Material dan Harga* (sheet material per bagian, interior, tukang) maupun file hasil Export Matur. Muncul pratinjau total per kelompok + peringatan bila total tertulis di file berbeda dengan penjumlahan item. Pilih *tambahkan* atau *ganti semua* (data lama masuk tempat sampah).
+- **Import Excel**: pilih file `.xlsx`. Bisa langsung memakai format *Daftar Material dan Harga* (sheet material per bagian, interior, tukang) maupun file hasil Export Matoer. Muncul pratinjau total per kelompok + peringatan bila total tertulis di file berbeda dengan penjumlahan item. Pilih *tambahkan* atau *ganti semua* (data lama masuk tempat sampah).
 - **Export Excel / PDF**: unduh rincian lengkap dengan subtotal per kelompok dan grand total. File Excel hasil export bisa diedit lalu di-import kembali.
 - **+ Tambah / Ubah Item**: isi kelompok, bagian, nama barang, spesifikasi, jumlah, satuan, harga satuan (total dihitung otomatis bila dikosongkan), realisasi, status.

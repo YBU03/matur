@@ -15,6 +15,7 @@ export default async function AntreanPage() {
     .select("id, nomor, kanal, tipe, pelanggan, meja, status_pesanan, created_at, item_transaksi(nama, qty, catatan)")
     .eq("outlet_id", s.active.outletId)
     .eq("status", "lunas")
+    .eq("mode", "asli")
     .neq("status_pesanan", "diambil")
     .gte("created_at", since)
     .order("created_at");
