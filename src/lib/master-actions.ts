@@ -26,6 +26,8 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   if (!g) return { error: "Tidak diizinkan." };
   const { values, errors } = parseForm(g.entity, form);
   if (errors.length) return { error: errors.join(", ") };
+  if (g.entity.table === "item_rab" && values.harga_estimasi === null)
+    values.harga_estimasi = Math.round(Number(values.qty ?? 0) * Number(values.harga_satuan ?? 0));
   const q = id ? g.supabase.from(g.entity.table).update(values).eq("id", id) : g.supabase.from(g.entity.table).insert(values);
   const { error } = await q.select("id").single();
   if (error) return { error: friendly(error.message) };

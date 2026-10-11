@@ -3,14 +3,9 @@ import { notFound } from "next/navigation";
 import { Progress, sisaHari } from "@/components/proyek-card";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { detailProyek, progresTotal } from "@/lib/proyek";
+import { groupRab } from "@/lib/rab-excel";
 import { getSession } from "@/lib/session";
 import { Approvals, ReportButton } from "./client";
-
-const STATUS_RAB: Record<string, string> = {
-  rencana: "bg-stone-100 text-stone-600",
-  dibeli: "bg-amber-100 text-amber-800",
-  terpasang: "bg-green-100 text-green-800",
-};
 
 // MTR-01 / PRY: budget vs realisasi, RAB, PIC, progres, galeri, timeline
 export default async function DetailProyek({ params }: { params: Promise<{ id: string }> }) {
@@ -63,7 +58,7 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
       {admin && (
         <div className="flex flex-wrap gap-2 text-sm">
           <Link href={`/master/pekerjaan?proyek_id=${p.id}`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Kelola Pekerjaan & PIC</Link>
-          <Link href={`/master/item_rab?proyek_id=${p.id}`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Kelola RAB</Link>
+          <Link href={`/proyek/${p.id}/rab`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Rincian Keperluan (import/export)</Link>
           <Link href="/master/proyek" className="rounded-xl border border-matur-300 bg-white px-3 py-2">Ubah Data Proyek</Link>
         </div>
       )}
@@ -119,46 +114,34 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="rounded-2xl border border-matur-200 bg-white p-4">
-        <h2 className="mb-3 font-bold">Daftar Kebutuhan (RAB)</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-stone-500">
-              <tr>
-                <th className="py-1 pr-3">Kategori</th>
-                <th className="pr-3">Item</th>
-                <th className="pr-3 text-right">Jumlah</th>
-                <th className="pr-3 text-right">Estimasi</th>
-                <th className="pr-3 text-right">Realisasi</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rab.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-4 text-center text-stone-400">Belum ada item RAB.</td>
-                </tr>
-              )}
-              {rab.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="py-2 pr-3 text-stone-500">{r.kategori}</td>
-                  <td className="pr-3 font-medium">{r.nama}</td>
-                  <td className="pr-3 text-right">{Number(r.qty)}</td>
-                  <td className="whitespace-nowrap pr-3 text-right tabular-nums">{formatRupiah(r.harga_estimasi)}</td>
-                  <td className="whitespace-nowrap pr-3 text-right tabular-nums">{formatRupiah(r.harga_realisasi ?? 0)}</td>
-                  <td><span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_RAB[r.status]}`}>{r.status}</span></td>
-                </tr>
-              ))}
-              {rab.length > 0 && (
-                <tr className="border-t-2 font-bold">
-                  <td colSpan={3} className="py-2">Total</td>
-                  <td className="whitespace-nowrap pr-3 text-right tabular-nums">{formatRupiah(estimasiRab)}</td>
-                  <td className="whitespace-nowrap pr-3 text-right tabular-nums">{formatRupiah(realisasi)}</td>
-                  <td />
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="font-bold">Rincian Keperluan</h2>
+          <Link href={`/proyek/${p.id}/rab`} className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white">
+            Lihat rincian →
+          </Link>
         </div>
+        {rab.length === 0 && <p className="text-sm text-stone-400">Belum ada rincian keperluan.</p>}
+        <table className="w-full text-sm">
+          <tbody>
+            {groupRab(rab).map((g) => (
+              <tr key={g.kelompok} className="border-t">
+                <td className="py-2">
+                  <Link href={`/proyek/${p.id}/rab#${g.kelompok}`} className="font-medium hover:underline">{g.kelompok}</Link>
+                  <span className="ml-2 text-xs text-stone-500">{g.items.length} item · {g.items.filter((i) => i.status !== "rencana").length} dibeli/terpasang</span>
+                </td>
+                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(g.estimasi)}</td>
+                <td className="whitespace-nowrap pl-3 text-right text-xs text-stone-500 tabular-nums">{g.realisasi ? `realisasi ${formatRupiah(g.realisasi)}` : ""}</td>
+              </tr>
+            ))}
+            {rab.length > 0 && (
+              <tr className="border-t-2 font-bold">
+                <td className="py-2">Grand Total</td>
+                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(estimasiRab)}</td>
+                <td className="whitespace-nowrap pl-3 text-right text-xs tabular-nums">{realisasi ? `realisasi ${formatRupiah(realisasi)}` : ""}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
 
       <section className="rounded-2xl border border-matur-200 bg-white p-4">
