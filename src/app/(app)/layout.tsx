@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/lib/actions";
-import { ROLES } from "@/lib/roles";
+import { POS_ONLY, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { SideNav } from "@/components/side-nav";
 
@@ -11,6 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
+  if (POS_ONLY.includes(s.active.role)) redirect("/kasir");
   const r = ROLES[s.active.role];
 
   return (

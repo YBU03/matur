@@ -38,3 +38,9 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - Pendaftar berikutnya membuka **https://matoer.vercel.app/daftar** (nama, email, HP, password, keterangan opsional) — tanpa memilih peran. Akun berstatus *menunggu* dan belum bisa melihat data apa pun.
 - Owner / Admin Pusat membuka **Pengguna & Akses** → kotak *Pendaftar menunggu persetujuan* → tentukan **peran** dan **outlet** → **Setujui** (atau **Tolak**). Untuk mitra, outlet yang dipilih adalah outlet yang boleh ia lihat; outlet tambahan lewat **+ peran**.
 - Setelah login, setiap orang langsung masuk ke dashboard sesuai perannya. Akun bisa **dinonaktifkan** kapan saja (akses langsung terkunci). Hanya Owner yang bisa memberi peran Owner.
+
+## 7. Aplikasi POS kasir & barista (terpisah)
+- Alamat khusus: **https://matoer.vercel.app/kasir** — dipakai di tablet/HP outlet. Bisa dipasang sebagai aplikasi (*Add to Home Screen*) dan langsung terbuka ke POS.
+- Login dengan **kode staf + PIN** (akun dibuat Owner di *Pengguna & Akses*), atau email untuk kasir yang mendaftar sendiri.
+- Kasir: layar **Kasir** (POS) dan **Antrean**; Barista: **Antrean**; Shift & absensi menyusul.
+- Halaman login utama (**/login**) hanya untuk email: owner, admin, pusat, gudang, mitra. Kasir/barista yang login di sana otomatis diarahkan ke /kasir. SPV membuka POS lewat menu **Buka Aplikasi POS**.

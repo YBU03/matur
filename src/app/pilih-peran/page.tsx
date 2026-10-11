@@ -1,20 +1,21 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { chooseAssignment } from "@/lib/actions";
-import { ROLES } from "@/lib/roles";
+import { POS_ONLY, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 
 export default async function PilihPeran() {
   const s = await getSession();
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
+  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/kasir");
 
   return (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="text-2xl font-bold">Halo, {s.nama} 👋</h1>
       <p className="mb-6 text-stone-500">Pilih peran dan outlet yang ingin digunakan.</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        {s.assignments.map((a) => {
+        {s.assignments.filter((a) => !POS_ONLY.includes(a.role)).map((a) => {
           const r = ROLES[a.role];
           return (
             <form key={`${a.role}-${a.outletId}`} action={chooseAssignment}>

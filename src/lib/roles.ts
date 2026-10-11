@@ -138,8 +138,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [
       dash,
-      { href: "/pos", label: "POS Penjualan", stage: 3 },
-      { href: "/antrean", label: "Antrean Pesanan", stage: 3 },
+      { href: "/kasir", label: "Buka Aplikasi POS", stage: 3 },
       { href: "/stok", label: "Stok & Opname", stage: 6 },
       { href: "/permintaan", label: "Permintaan Barang", stage: 6 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
@@ -199,3 +198,9 @@ export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }
 
+
+// Aplikasi POS terpisah di /kasir (login kode staf + PIN, dipakai di perangkat outlet)
+export const POS_ROLES: Role[] = ["kasir", "barista", "spv"];
+/** peran yang hanya memakai aplikasi POS, tidak masuk dashboard utama */
+export const POS_ONLY: Role[] = ["kasir", "barista"];
+export const BISA_JUAL: Role[] = ["kasir", "spv"];

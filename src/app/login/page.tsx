@@ -37,6 +37,9 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-sm text-stone-500">
             Belum punya akun? <Link href="/daftar" className="font-semibold text-matur-700">Daftar di sini</Link>
           </p>
+          <Link href="/kasir" className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+            🧾 Kasir / barista outlet? Buka aplikasi POS
+          </Link>
         </div>
       </section>
     </main>

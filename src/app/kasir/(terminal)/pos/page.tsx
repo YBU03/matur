@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { findMenu } from "@/lib/roles";
+import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { OpenShift, PosScreen, type PosMenu } from "./pos-screen";
 
 export default async function PosPage() {
   const s = await getSession();
-  if (!s?.active?.outletId || !findMenu(s.active.role, "/pos")) notFound();
+  if (!s?.active?.outletId || !BISA_JUAL.includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
   const { data: sesi } = await supabase
     .from("sesi_kas")

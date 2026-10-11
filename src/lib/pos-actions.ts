@@ -29,7 +29,7 @@ export async function bukaShift(modal: number): Promise<{ error?: string }> {
   const supabase = await supabaseServer();
   const { error } = await supabase.rpc("buka_sesi_kas", { p_outlet: o, p_modal: Math.round(modal) || 0 });
   if (error) return { error: error.message };
-  revalidatePath("/pos");
+  revalidatePath("/kasir/pos");
   return {};
 }
 
@@ -39,7 +39,7 @@ export async function bayar(c: Checkout): Promise<{ error?: string; receipt?: Re
   const supabase = await supabaseServer();
   const { data, error } = await supabase.rpc("buat_transaksi", { p: { ...c, outlet_id: o } });
   if (error) return { error: error.message };
-  revalidatePath("/antrean");
+  revalidatePath("/kasir/antrean");
   return { receipt: data as Receipt };
 }
 
@@ -47,6 +47,6 @@ export async function ubahStatus(id: string, status: "diproses" | "siap" | "diam
   const supabase = await supabaseServer();
   const { error } = await supabase.rpc("ubah_status_pesanan", { p_id: id, p_status: status });
   if (error) return { error: error.message };
-  revalidatePath("/antrean");
+  revalidatePath("/kasir/antrean");
   return {};
 }

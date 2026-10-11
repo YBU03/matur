@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { findMenu } from "@/lib/roles";
+import { POS_ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Queue, type Order } from "./queue";
@@ -7,7 +7,7 @@ import { Queue, type Order } from "./queue";
 // POS-06: pesanan dari kasir tampil otomatis di layar barista
 export default async function AntreanPage() {
   const s = await getSession();
-  if (!s?.active?.outletId || !findMenu(s.active.role, "/antrean")) notFound();
+  if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
   const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
   const { data } = await supabase

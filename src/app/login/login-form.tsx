@@ -3,10 +3,9 @@
 import { useActionState, useState } from "react";
 import { loginAction, otpAction, type LoginState } from "@/lib/actions";
 
-type Mode = "password" | "pin" | "otp";
+type Mode = "password" | "otp";
 const TABS: [Mode, string][] = [
-  ["password", "Email"],
-  ["pin", "PIN Kasir"],
+  ["password", "Email & Password"],
   ["otp", "Kode OTP"],
 ];
 
@@ -14,7 +13,7 @@ export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 rounded-xl bg-matur-100 p-1 text-sm font-semibold">
+      <div className="grid grid-cols-2 rounded-xl bg-matur-100 p-1 text-sm font-semibold">
         {TABS.map(([m, label]) => (
           <button
             key={m}
@@ -26,27 +25,17 @@ export function LoginForm() {
           </button>
         ))}
       </div>
-      {mode === "otp" ? <OtpForm /> : <PasswordForm key={mode} mode={mode} />}
+      {mode === "otp" ? <OtpForm /> : <PasswordForm />}
     </div>
   );
 }
 
-function PasswordForm({ mode }: { mode: "password" | "pin" }) {
+function PasswordForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
   return (
     <form action={action} className="space-y-4">
-      <input type="hidden" name="mode" value={mode} />
-      {mode === "password" ? (
-        <>
-          <Field name="login" label="Email" type="email" placeholder="nama@email.com" />
-          <Field name="secret" label="Password" type="password" />
-        </>
-      ) : (
-        <>
-          <Field name="login" label="Kode staf" placeholder="kasir1" autoCapitalize="none" />
-          <Field name="secret" label="PIN (4–6 digit)" type="password" inputMode="numeric" pattern="\d{4,6}" />
-        </>
-      )}
+      <Field name="login" label="Email" type="email" placeholder="nama@email.com" />
+      <Field name="secret" label="Password" type="password" />
       <Error text={state.error} />
       <Submit pending={pending} />
     </form>
