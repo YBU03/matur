@@ -199,15 +199,3 @@ export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }
 
-/** Peran yang bisa diajukan saat daftar akun; admin yang menentukan peran & outlet akhirnya. */
-export const PERAN_DAFTAR: [Role, string][] = [
-  ["mitra", "Mitra"],
-  ["pic", "PIC / Kontraktor"],
-  ["kasir", "Kasir"],
-  ["barista", "Barista"],
-  ["spv", "Kepala Outlet / SPV"],
-  ["admin_gudang", "Admin Gudang"],
-  ["finance", "Finance / Akuntan"],
-  ["hrd", "HRD"],
-  ["admin_pusat", "Admin Pusat"],
-];

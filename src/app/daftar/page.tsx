@@ -9,7 +9,7 @@ export default function DaftarPage() {
         <Image src="/brand/logo-192.png" alt="Matoer" width={48} height={48} className="rounded-xl" />
         <div>
           <h1 className="text-2xl font-bold">Daftar akun</h1>
-          <p className="text-sm text-stone-500">Akun aktif setelah disetujui admin.</p>
+          <p className="text-sm text-stone-500">Peran dan akses ditentukan admin setelah mendaftar.</p>
         </div>
       </div>
       <DaftarForm />

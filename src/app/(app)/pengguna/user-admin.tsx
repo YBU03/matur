@@ -13,7 +13,7 @@ export type UserRow = {
   email: string | null;
   no_hp: string | null;
   status: string;
-  permintaan: { peran?: string; outlet?: string; catatan?: string } | null;
+  permintaan: { catatan?: string } | null;
   created_at: string;
   assignments: Assign[];
 };
@@ -238,25 +238,22 @@ function Pending({
 }
 
 function PendingCard({ u, outlets, isOwner, busy, onRun }: { u: UserRow; outlets: Outlet[]; isOwner: boolean; busy: boolean; onRun: (fn: () => Promise<Result>) => void }) {
-  const diminta = (u.permintaan?.peran ?? "mitra") as Role;
-  const [role, setRole] = useState<Role>(ROLES[diminta] ? diminta : "mitra");
-  const cocok = outlets.find((o) => u.permintaan?.outlet && o.nama.toLowerCase().includes(u.permintaan.outlet.toLowerCase()));
-  const [outlet, setOutlet] = useState(cocok?.id ?? "");
+  const [role, setRole] = useState<Role | "">("");
+  const [outlet, setOutlet] = useState("");
   const pilihan = ROLE_KEYS.filter((r) => isOwner || r !== "owner");
   return (
     <div className="rounded-xl border bg-white p-3 text-sm">
       <p className="font-semibold">{u.nama}</p>
       <p className="text-stone-600">{u.email}{u.no_hp && ` · ${u.no_hp}`}</p>
-      <p className="mt-1 text-xs text-stone-500">
-        Mengajukan: <b>{ROLES[diminta]?.label ?? diminta}</b>
-        {u.permintaan?.outlet && <> · outlet “{u.permintaan.outlet}”</>}
-        {u.permintaan?.catatan && <> · “{u.permintaan.catatan}”</>}
-      </p>
+      {u.permintaan?.catatan && <p className="mt-1 text-xs text-stone-500">Keterangan: “{u.permintaan.catatan}”</p>}
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="rounded-lg border px-2 py-1.5">
+          <option value="">— tentukan peran —</option>
           {pilihan.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
         </select>
-        {ROLES[role].allOutlets ? (
+        {!role ? (
+          <span />
+        ) : ROLES[role].allOutlets ? (
           <span className="self-center text-xs text-stone-500">Akses semua outlet</span>
         ) : (
           <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="rounded-lg border px-2 py-1.5">
@@ -267,8 +264,8 @@ function PendingCard({ u, outlets, isOwner, busy, onRun }: { u: UserRow; outlets
       </div>
       <div className="mt-2 flex gap-2">
         <button
-          disabled={busy || (!ROLES[role].allOutlets && !outlet)}
-          onClick={() => onRun(() => approveUser(u.id, role, outlet || null))}
+          disabled={busy || !role || (!ROLES[role].allOutlets && !outlet)}
+          onClick={() => role && onRun(() => approveUser(u.id, role, outlet || null))}
           className="flex-1 rounded-lg bg-green-600 py-1.5 font-semibold text-white disabled:opacity-50"
         >
           Setujui

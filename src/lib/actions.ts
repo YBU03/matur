@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { PERAN_DAFTAR } from "./roles";
 import { getSession, setActive } from "./session";
 import { supabaseServer } from "./supabase/server";
 
@@ -49,24 +48,26 @@ export async function otpAction(_: LoginState & { sent?: string }, form: FormDat
   return setelahLogin();
 }
 
-export type DaftarState = { error?: string; ok?: boolean };
+export type DaftarState = { error?: string };
 
-// Daftar akun mandiri: status "menunggu" sampai di-ACC Owner/Admin Pusat
+// Daftar akun mandiri. Pendaftar pertama (belum ada Owner) otomatis menjadi Owner;
+// selanjutnya status "menunggu" sampai admin menentukan peran & outlet.
 export async function daftarAction(_: DaftarState, form: FormData): Promise<DaftarState> {
-  const peran = String(form.get("peran") ?? "");
-  if (!PERAN_DAFTAR.some(([r]) => r === peran)) return { error: "Pilih peran yang diajukan." };
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
   if (password !== String(form.get("password2") ?? "")) return { error: "Konfirmasi password tidak sama." };
   const supabase = await supabaseServer();
   const { error } = await supabase.rpc("daftar_akun", {
     p_nama: String(form.get("nama") ?? ""),
-    p_email: String(form.get("email") ?? ""),
+    p_email: email,
     p_hp: String(form.get("hp") ?? ""),
     p_password: password,
-    p_permintaan: { peran, outlet: String(form.get("outlet") ?? ""), catatan: String(form.get("catatan") ?? "") },
+    p_permintaan: { catatan: String(form.get("catatan") ?? "") },
   });
   if (error) return { error: error.message };
-  return { ok: true };
+  const { error: e2 } = await supabase.auth.signInWithPassword({ email, password });
+  if (e2) redirect("/login");
+  return setelahLogin();
 }
 
 export async function chooseAssignment(form: FormData) {
