@@ -34,3 +34,4 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [data-overlay] * { animation: none !important; }
 }
+@keyframes goyang { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
