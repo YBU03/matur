@@ -16,10 +16,11 @@ const key = (a: { role: string; outletId: string | null }) => `${a.role}|${a.out
 
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // getClaims memverifikasi JWT secara lokal — lebih cepat daripada getUser yang memanggil server Auth
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) return null;
+  const user = { id: claims.sub, email: claims.email as string | undefined };
 
   const [{ data: profil }, { data: tugas }] = await Promise.all([
     supabase.from("pengguna").select("nama, status").eq("id", user.id).single(),

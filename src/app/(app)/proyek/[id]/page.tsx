@@ -5,6 +5,8 @@ import { formatRupiah, formatTanggal } from "@/lib/format";
 import { detailProyek, progresTotal } from "@/lib/proyek";
 import { groupRab } from "@/lib/rab-excel";
 import { getSession } from "@/lib/session";
+import { supabaseServer } from "@/lib/supabase/server";
+import { RowDeleter, RowEditor } from "@/components/row-editor";
 import { Approvals, DesainGallery, RabDownload, ReportButton } from "./client";
 
 // MTR-01 / PRY: budget vs realisasi, RAB, PIC, progres, galeri, timeline
@@ -23,6 +25,15 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
   const disetujui = foto.filter((f) => f.status === "disetujui");
   const menunggu = foto.filter((f) => f.status === "menunggu");
   const namaPekerjaan = Object.fromEntries(pekerjaan.map((k) => [k.id, k.nama]));
+  // daftar PIC untuk form tahapan (admin saja)
+  let picRefs: { id: string; label: string }[] = [];
+  if (admin) {
+    const supabase = await supabaseServer();
+    const { data } = await supabase.from("pengguna").select("id, nama").eq("status", "aktif").order("nama");
+    picRefs = (data ?? []).map((u) => ({ id: u.id, label: u.nama }));
+  }
+  const PROYEK_FIELDS = ["nama", "estimasi_budget", "tgl_mulai", "target_buka", "status", "catatan"];
+  const TAHAP_FIELDS = ["nama", "pic_id", "bobot", "progres", "tgl_mulai", "tgl_selesai", "urutan"];
   // tahap saat ini = tahapan pertama (urut) yang belum 100%
   const tahap = pekerjaan.find((k) => k.progres < 100);
 
@@ -32,7 +43,18 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
         <Link href={s.active.role === "mitra" ? "/portal/pembangunan" : "/proyek"} className="text-sm text-white/80">
           ← Semua proyek
         </Link>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{p.nama}</h1>
+        <div className="mt-1 flex flex-wrap items-start gap-2">
+          <h1 className="mr-auto text-2xl font-bold sm:text-3xl">{p.nama}</h1>
+          {admin && (
+            <RowEditor
+              entityKey="proyek"
+              row={p as unknown as Record<string, unknown>}
+              fields={PROYEK_FIELDS}
+              label="✏️ Ubah data proyek"
+              className="rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/30"
+            />
+          )}
+        </div>
         <p className="text-white/90">
           {p.outlet?.nama} · {p.status === "selesai" ? "Selesai" : "Sedang berjalan"}
         </p>
@@ -107,7 +129,20 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
       <DesainGallery proyekId={p.id} admin={admin} items={desain} />
 
       <section className="rounded-2xl border border-matur-200 bg-white p-4">
-        <h2 className="mb-3 font-bold">Tahapan & Progres</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="mr-auto font-bold">Tahapan & Progres</h2>
+          {admin && (
+            <RowEditor
+              entityKey="pekerjaan"
+              row={null}
+              initial={{ proyek_id: p.id, bobot: "1", progres: "0", urutan: String(pekerjaan.length + 1) }}
+              fields={TAHAP_FIELDS}
+              refs={{ pic_id: picRefs }}
+              label="+ Tambah tahapan"
+              className="rounded-lg border border-matur-300 px-3 py-1.5 text-sm text-matur-700 hover:bg-matur-50"
+            />
+          )}
+        </div>
         {pekerjaan.length === 0 && <p className="text-sm text-stone-400">Belum ada tahapan.</p>}
         <ul className="divide-y">
           {pekerjaan.map((k) => (
@@ -125,6 +160,12 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
                 <span className="w-10 text-right text-sm font-semibold">{k.progres}%</span>
               </div>
               {(admin || k.pic_id === s.userId) && <ReportButton proyekId={p.id} pekerjaan={{ id: k.id, nama: k.nama, progres: k.progres }} />}
+              {admin && (
+                <span className="flex">
+                  <RowEditor entityKey="pekerjaan" row={k as unknown as Record<string, unknown>} fields={TAHAP_FIELDS} refs={{ pic_id: picRefs }} title={`Ubah tahapan · ${k.nama}`} />
+                  <RowDeleter entityKey="pekerjaan" id={k.id} name={`Tahapan / Pekerjaan ${k.nama}`} />
+                </span>
+              )}
             </li>
           ))}
         </ul>

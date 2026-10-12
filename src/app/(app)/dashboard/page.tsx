@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CURRENT_STAGE, ROLES, type Role } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -51,6 +52,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {lihatPenjualan && (
+        <Suspense fallback={<Skeleton h="h-96" />}>
         <SalesDashboard
           outlets={outlets}
           outletId={outletId}
@@ -59,9 +61,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           canPick={pusat}
           canSim={canSim}
         />
+        </Suspense>
       )}
-      {pusat && <ProjectsOverview />}
-      {PROYEK.includes(active.role) && <ProjectDetailCharts />}
+      {pusat && (
+        <Suspense fallback={<Skeleton h="h-48" />}>
+          <ProjectsOverview />
+        </Suspense>
+      )}
+      {PROYEK.includes(active.role) && (
+        <Suspense fallback={<Skeleton h="h-96" />}>
+          <ProjectDetailCharts />
+        </Suspense>
+      )}
 
       <section>
         <h2 className="mb-3 font-semibold">Menu Anda</h2>
@@ -82,4 +93,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </section>
     </div>
   );
+}
+
+function Skeleton({ h }: { h: string }) {
+  return <div className={`${h} animate-pulse rounded-2xl bg-matur-50`} aria-busy="true" />;
 }

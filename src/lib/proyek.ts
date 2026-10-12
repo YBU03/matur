@@ -14,6 +14,8 @@ export type Proyek = {
 };
 export type Pekerjaan = {
   id: string;
+  proyek_id: string;
+  urutan: number;
   nama: string;
   pic_id: string | null;
   bobot: number;
@@ -78,7 +80,7 @@ export async function detailProyek(id: string) {
   const { data: p } = await supabase.from("proyek").select(PROYEK_COLS).eq("id", id).is("deleted_at", null).maybeSingle();
   if (!p) return null;
   const [{ data: ks }, { data: rab }] = await Promise.all([
-    supabase.from("pekerjaan").select("id, nama, pic_id, bobot, progres, tgl_mulai, tgl_selesai, pic:pengguna(nama)").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_mulai"),
+    supabase.from("pekerjaan").select("id, proyek_id, urutan, nama, pic_id, bobot, progres, tgl_mulai, tgl_selesai, pic:pengguna(nama)").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_mulai"),
     supabase
       .from("item_rab")
       .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan")

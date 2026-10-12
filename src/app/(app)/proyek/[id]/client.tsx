@@ -175,7 +175,7 @@ export function DesainGallery({ proyekId, admin, items }: { proyekId: string; ad
   return (
     <section className="rounded-2xl border border-matur-200 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold">Desain Cafe</h2>
+        <h2 className="font-bold">Rencana Desain Cafe</h2>
         {admin && (
           <label className="cursor-pointer rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white">
             {pending ? progress || "Mengunggah…" : "+ Unggah desain"}

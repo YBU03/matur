@@ -7,8 +7,10 @@ import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
 import { importRab, type Result } from "@/lib/proyek-actions";
 import { exportExcel, exportPdf, groupRab, parseWorkbook, type RabRow } from "@/lib/rab-excel";
+import { RowDeleter, RowEditor } from "@/components/row-editor";
 
 type Item = RabRow & { id: string };
+const RAB_FIELDS = ["kategori", "bagian", "nama", "spesifikasi", "qty", "satuan", "harga_satuan", "harga_estimasi", "harga_realisasi", "status", "keterangan"];
 const STATUS: Record<string, string> = {
   rencana: "bg-stone-100 text-stone-600",
   dibeli: "bg-amber-100 text-amber-800",
@@ -84,8 +86,18 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
 
       {groups.map((g) => (
         <section key={g.kelompok} id={g.kelompok} className="overflow-hidden rounded-2xl border border-matur-200 bg-white">
-          <h2 className="flex justify-between bg-matur-50 px-4 py-2 font-bold">
-            <span>{g.kelompok}</span>
+          <h2 className="flex items-center gap-2 bg-matur-50 px-4 py-2 font-bold">
+            <span className="mr-auto">{g.kelompok}</span>
+            {admin && (
+              <RowEditor
+                entityKey="item_rab"
+                row={null}
+                initial={{ proyek_id: proyek.id, kategori: g.kelompok, qty: "1", status: "rencana" }}
+                fields={RAB_FIELDS}
+                label="+ Tambah item"
+                className="rounded-lg border border-matur-300 bg-white px-2 py-1 text-xs font-semibold text-matur-700"
+              />
+            )}
             <span className="tabular-nums">{formatRupiah(g.estimasi)}</span>
           </h2>
           <div className="overflow-x-auto">
@@ -100,11 +112,12 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
                   <th className="px-3 text-right">Realisasi</th>
                   <th className="px-3">Status</th>
                   <th className="px-3">Keterangan</th>
+                  {admin && <th className="px-3" />}
                 </tr>
               </thead>
               <tbody>
                 {g.items.map((i, idx) => (
-                  <Rows key={i.id} item={i} showBagian={i.bagian !== null && i.bagian !== g.items[idx - 1]?.bagian} />
+                  <Rows key={i.id} item={i} proyekId={proyek.id} admin={admin} showBagian={i.bagian !== null && i.bagian !== g.items[idx - 1]?.bagian} />
                 ))}
               </tbody>
             </table>
@@ -115,12 +128,12 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
   );
 }
 
-function Rows({ item: i, showBagian }: { item: Item; showBagian: boolean }) {
+function Rows({ item: i, proyekId, admin, showBagian }: { item: Item; proyekId: string; admin: boolean; showBagian: boolean }) {
   return (
     <>
       {showBagian && (
         <tr className="border-t bg-stone-50">
-          <td colSpan={8} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-kopi-700">{i.bagian}</td>
+          <td colSpan={admin ? 9 : 8} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-kopi-700">{i.bagian}</td>
         </tr>
       )}
       <tr className="border-t border-stone-100">
@@ -132,6 +145,12 @@ function Rows({ item: i, showBagian }: { item: Item; showBagian: boolean }) {
         <td className="whitespace-nowrap px-3 text-right tabular-nums">{i.harga_realisasi ? formatRupiah(i.harga_realisasi) : ""}</td>
         <td className="px-3"><span className={`rounded-full px-2 py-0.5 text-xs ${STATUS[i.status]}`}>{i.status}</span></td>
         <td className="px-3 text-xs text-stone-500">{i.keterangan ?? ""}</td>
+        {admin && (
+          <td className="whitespace-nowrap px-1 text-right">
+            <RowEditor entityKey="item_rab" row={{ ...i, proyek_id: proyekId }} fields={RAB_FIELDS} label="✏️" title={`Ubah item · ${i.nama}`} />
+            <RowDeleter entityKey="item_rab" id={i.id} name={`Rincian Keperluan ${i.nama}`} />
+          </td>
+        )}
       </tr>
     </>
   );

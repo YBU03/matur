@@ -10,11 +10,11 @@ import { saveMaster, setDeleted, uploadFotoMenu } from "@/lib/master-actions";
 import { compressImage } from "@/lib/compress-image";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 
-type Row = Record<string, unknown>;
-type Refs = Record<string, { id: string; label: string }[]>;
+export type Row = Record<string, unknown>;
+export type Refs = Record<string, { id: string; label: string }[]>;
 type Form = Record<string, string | boolean>;
 
-function show(f: Field, v: unknown, refs: Refs): string {
+export function show(f: Field, v: unknown, refs: Refs): string {
   if (v === null || v === undefined || v === "") return "-";
   switch (f.type) {
     case "money":
@@ -32,7 +32,7 @@ function show(f: Field, v: unknown, refs: Refs): string {
   }
 }
 
-const toForm = (entity: Entity, row: Row | null, initial: Record<string, string> = {}): Form =>
+export const toForm = (entity: Entity, row: Row | null, initial: Record<string, string> = {}): Form =>
   Object.fromEntries(
     entity.fields.map((f) => [
       f.key,
@@ -219,7 +219,7 @@ export function MasterTable({
   );
 }
 
-function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; value: string | boolean; onChange: (v: string | boolean) => void }) {
+export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; value: string | boolean; onChange: (v: string | boolean) => void }) {
   const cls = "mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-matur-500";
   if (f.type === "image") return <ImageInput label={f.label} value={String(value)} onChange={onChange} />;
   if (f.type === "bool")

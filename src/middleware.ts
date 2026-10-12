@@ -14,7 +14,8 @@ export async function middleware(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  // getClaims memverifikasi token secara lokal (tanpa panggilan ke server Auth) dan me-refresh bila kedaluwarsa
+  await supabase.auth.getClaims();
   return response;
 }
 
