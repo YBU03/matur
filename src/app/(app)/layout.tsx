@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/lib/actions";
-import { POS_ONLY, ROLES } from "@/lib/roles";
+import { CURRENT_STAGE, POS_ONLY, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
@@ -48,8 +48,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </>
   );
 
+  // 4 pintasan di tombol melayang bawah: Beranda + menu terpenting peran ini yang sudah tersedia
+  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/gudang/stok", "/pengguna", "/kasir", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
+  const tersedia = r.menu.filter((m) => m.stage <= CURRENT_STAGE && m.href !== "/dashboard");
+  const quick = [
+    { href: "/dashboard", label: "Beranda" },
+    ...[...tersedia].sort((a, b) => (PRIORITAS.indexOf(a.href) + 1 || 99) - (PRIORITAS.indexOf(b.href) + 1 || 99)).slice(0, 3),
+  ];
+
   return (
-    <AppShell sidebar={sidebar} title={`Matoer · ${r.label}`}>
+    <AppShell sidebar={sidebar} title={`Matoer · ${r.label}`} quick={quick}>
       {children}
     </AppShell>
   );

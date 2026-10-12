@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CURRENT_STAGE, ROLES, type Role } from "@/lib/roles";
+import { ROLES, type Role } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProjectDetailCharts, ProjectsOverview } from "./projects";
@@ -74,23 +74,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Suspense>
       )}
 
-      <section>
-        <h2 className="mb-3 font-semibold">Menu Anda</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {r.menu
-            .filter((m) => m.href !== "/dashboard")
-            .map((m) => (
-              <Link
-                key={m.href}
-                href={m.href}
-                className={`rounded-2xl border border-matur-200 p-4 shadow-sm hover:shadow-md ${m.stage <= CURRENT_STAGE ? "bg-white" : "bg-stone-50 opacity-70"}`}
-              >
-                <p className="font-semibold">{m.label}</p>
-                <p className="text-xs text-stone-500">{m.stage <= CURRENT_STAGE ? "Tersedia" : "🔒 Segera hadir"}</p>
-              </Link>
-            ))}
-        </div>
-      </section>
     </div>
   );
 }
