@@ -26,6 +26,9 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   if (!g) return { error: "Tidak diizinkan." };
   const { values, errors } = parseForm(g.entity, form);
   if (errors.length) return { error: errors.join(", ") };
+  // HPP per satuan pakai = harga beli ÷ isi kemasan bila tidak diisi
+  if (g.entity.table === "bahan" && values.harga_pokok === null)
+    values.harga_pokok = Math.round((Number(values.harga_beli ?? 0) / Math.max(Number(values.konversi ?? 1), 0.001)) * 10000) / 10000;
   if (g.entity.table === "item_rab" && values.harga_estimasi === null)
     values.harga_estimasi = Math.round(Number(values.qty ?? 0) * Number(values.harga_satuan ?? 0));
   const q = id ? g.supabase.from(g.entity.table).update(values).eq("id", id) : g.supabase.from(g.entity.table).insert(values);

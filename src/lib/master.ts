@@ -4,6 +4,8 @@
 
 import type { Role } from "./roles";
 
+export const KATEGORI_BAHAN = ["Kopi & Susu", "Sirup & Saus", "Bubuk", "Buah & Jus", "Kemasan & Cup", "Lainnya"];
+
 export type FieldType = "text" | "number" | "money" | "percent" | "date" | "bool" | "select" | "enum" | "image";
 
 export type Field = {
@@ -118,12 +120,17 @@ export const ENTITIES: Record<string, Entity> = {
     editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "nama", label: "Nama Bahan", type: "text", required: true },
+      { key: "kategori", label: "Kategori", type: "enum", options: KATEGORI_BAHAN, required: true },
       { key: "satuan_beli", label: "Satuan Beli", type: "text", required: true },
+      { key: "kemasan", label: "Keterangan Kemasan", type: "text" },
       { key: "satuan_pakai", label: "Satuan Pakai", type: "text", required: true },
       { key: "konversi", label: "Isi per Satuan Beli", type: "number", required: true },
-      { key: "stok_min", label: "Stok Minimum", type: "number" },
-      { key: "harga_pokok", label: "Harga Pokok / Satuan Pakai", type: "money" },
-      { key: "supplier_id", label: "Supplier", type: "select", ref: { table: "supplier", label: "nama" } },
+      { key: "harga_beli", label: "Harga Beli / Satuan Beli", type: "money", required: true },
+      { key: "harga_pokok", label: "HPP / Satuan Pakai (kosong = otomatis)", type: "number", list: false },
+      { key: "stok_min", label: "Stok Minimum (satuan pakai)", type: "number", list: false },
+      { key: "supplier_id", label: "Supplier", type: "select", ref: { table: "supplier", label: "nama" }, list: false },
+      { key: "catatan", label: "Catatan", type: "text", list: false },
+      { key: "urutan", label: "Urutan", type: "number", list: false },
     ],
   },
   resep: {

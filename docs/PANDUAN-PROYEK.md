@@ -50,3 +50,9 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - Menu baru: **Data Master → Menu → + Tambah**, isi foto (tombol *Pilih foto*, otomatis dikecilkan), nama, kategori, harga, dan *Urutan di POS*.
 - **📲 Pasang Aplikasi**: tombol di halaman login, menu samping, dan aplikasi POS. Android/Chrome langsung memasang; iPhone diberi petunjuk *Bagikan → Tambahkan ke Layar Utama*.
 - Di HP, menu samping dibuka lewat tombol **☰** di kiri atas.
+
+## 9. Bahan baku & stok gudang
+- Menu **Stok Gudang** (Owner, Admin Pusat, Admin Gudang): 32 bahan dari *List Bahan Baku Ruma* per kategori (Kopi & Susu, Sirup & Saus, Bubuk, Buah & Jus, Kemasan & Cup, Lainnya) dengan stok awal, harga beli per kemasan, HPP per gram/ml/pcs, dan nilai persediaan (total Rp19.991.568 = Grand Total daftar).
+- Kartu ringkasan bisa diketuk untuk menyaring **stok menipis/habis** dan **perlu dicek**. Ada pencarian, filter kategori, dan **Export Excel**.
+- **Koreksi stok**: isi stok fisik dalam satuan beli → konfirmasi sebelum → sesudah → tercatat di log.
+- **+ Tambah / Ubah Bahan** membuka Data Master Bahan; HPP per satuan pakai dihitung otomatis dari harga beli ÷ isi kemasan bila dikosongkan. HPP ini dipakai resep untuk menghitung HPP teoritis tiap transaksi.
