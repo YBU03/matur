@@ -26,6 +26,15 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 
 - Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra masih dikunci.
 
+## Daftar tunda (dikerjakan nanti)
+- **OTP email saat daftar + Lupa password.** Kode 6 digit ke email pendaftar sebelum masuk antrean ACC admin; lupa password lewat kode email. Akun Brevo (paket Free, ±300 email/hari) sudah dibuat. Sisa langkah:
+  1. Tambah & verifikasi sender di Brevo (sementara Gmail; bisa masuk spam).
+  2. Isi SMTP di Supabase → Authentication → SMTP: host `smtp-relay.brevo.com`, port `587`, username = login SMTP Brevo (`…@smtp-brevo.com`), password = SMTP key. SMTP key jangan dibagikan lewat chat.
+  3. Naikkan rate limit email Supabase (±30–60/jam), pasang template email berbahasa Indonesia berisi `{{ .Token }}`.
+  4. Bangun alur OTP daftar & Lupa password di aplikasi.
+- **Domain sendiri sebelum launching November** (mis. `matoer.id` / `matoer.com`): pengirim email resmi (`noreply@…`, tidak masuk spam) dan alamat aplikasi (`app.…` menggantikan `matoer.vercel.app`).
+- Cicilan kecil lain: badge notifikasi menu Proyek, tombol Bagikan ke WhatsApp, riwayat aktivitas proyek, jawaban pertanyaan terbuka PRD, hapus otomatis tempat sampah >30 hari, form input laporan bulanan memakai skema bagi hasil.
+
 ## Catatan teknis
 - `supabase/migrations/0005_sampah_otomatis.sql` (hapus permanen sampah > 30 hari) belum terpasang; jalankan manual di SQL Editor.
 - Login OTP memakai email Supabase. Ubah template *Magic Link* di Supabase → Authentication → Email Templates agar memuat `{{ .Token }}`. Email bawaan Supabase dibatasi beberapa email per jam; untuk produksi pasang SMTP sendiri.
