@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { InstallButton } from "@/components/install-button";
 import { LoginForm } from "./login-form";
 
 const MASCOTS = ["mitra", "gudang", "kasir", "akunting", "admin"];
@@ -40,6 +41,7 @@ export default function LoginPage() {
           <Link href="/kasir" className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
             🧾 Kasir / barista outlet? Buka aplikasi POS
           </Link>
+          <div className="mt-3"><InstallButton /></div>
         </div>
       </section>
     </main>

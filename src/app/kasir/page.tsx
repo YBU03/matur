@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { kasirLogoutAction } from "@/lib/actions";
 import { BISA_JUAL, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
+import { InstallButton } from "@/components/install-button";
 import { KasirLogin } from "./kasir-login";
 
 // Pintu masuk aplikasi POS: login kode staf + PIN, lalu pilih outlet bila bertugas di beberapa outlet.
@@ -15,6 +16,7 @@ export default async function KasirEntry() {
     return (
       <Shell>
         <KasirLogin />
+        <div className="mt-4"><InstallButton /></div>
       </Shell>
     );
   }

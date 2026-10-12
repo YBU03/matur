@@ -20,7 +20,7 @@ export default async function PosPage() {
 
   const [{ data: kategori }, { data: menu }, { data: varian }] = await Promise.all([
     supabase.from("kategori_menu").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
-    supabase.from("menu").select("id, nama, kategori_id, harga_langsung, harga_ojol").eq("mode", "asli").is("deleted_at", null).eq("aktif", true).order("nama"),
+    supabase.from("menu").select("id, nama, kategori_id, harga_langsung, harga_ojol, foto_url").eq("mode", "asli").is("deleted_at", null).eq("aktif", true).order("urutan").order("nama"),
     supabase.from("varian").select("id, menu_id, grup, nama, tambahan_harga").eq("mode", "asli").is("deleted_at", null),
   ]);
   const menus: PosMenu[] = (menu ?? []).map((m) => ({ ...m, varian: (varian ?? []).filter((v) => v.menu_id === m.id) }));

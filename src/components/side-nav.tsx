@@ -7,7 +7,7 @@ import { CURRENT_STAGE, type MenuItem } from "@/lib/roles";
 export function SideNav({ items }: { items: MenuItem[] }) {
   const path = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto px-3 lg:flex-col">
+    <nav className="flex flex-col gap-1 px-3">
       {items.map((m) => {
         const active = path === m.href || path.startsWith(m.href + "/");
         return (

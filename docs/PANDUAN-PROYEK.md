@@ -44,3 +44,9 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - Login dengan **kode staf + PIN** (akun dibuat Owner di *Pengguna & Akses*), atau email untuk kasir yang mendaftar sendiri.
 - Kasir: layar **Kasir** (POS) dan **Antrean**; Barista: **Antrean**; Shift & absensi menyusul.
 - Halaman login utama (**/login**) hanya untuk email: owner, admin, pusat, gudang, mitra. Kasir/barista yang login di sana otomatis diarahkan ke /kasir. SPV membuka POS lewat menu **Buka Aplikasi POS**.
+
+## 8. Menu POS, tombol Pasang Aplikasi, menu ☰
+- 24 menu Ruma Kopi (Coffee, Non Coffee, Cheesecake) sudah masuk lengkap dengan foto dan harga. Harga ojol sementara disamakan dengan harga dine-in — ubah di **Data Master → Menu** bila harga ojol berbeda.
+- Menu baru: **Data Master → Menu → + Tambah**, isi foto (tombol *Pilih foto*, otomatis dikecilkan), nama, kategori, harga, dan *Urutan di POS*.
+- **📲 Pasang Aplikasi**: tombol di halaman login, menu samping, dan aplikasi POS. Android/Chrome langsung memasang; iPhone diberi petunjuk *Bagikan → Tambahkan ke Layar Utama*.
+- Di HP, menu samping dibuka lewat tombol **☰** di kiri atas.

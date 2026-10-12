@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 import { ConfirmEditDialog, Modal, type Change } from "@/components/confirm-edit";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import type { Entity, Field } from "@/lib/master";
-import { saveMaster, setDeleted } from "@/lib/master-actions";
+import { saveMaster, setDeleted, uploadFotoMenu } from "@/lib/master-actions";
+import { compressImage } from "@/lib/compress-image";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 
 type Row = Record<string, unknown>;
@@ -141,7 +142,16 @@ export function MasterTable({
               <tr key={String(r.id)} className="border-t border-stone-100">
                 {cols.map((f) => (
                   <td key={f.key} className={`whitespace-nowrap px-3 py-2 ${f.type === "money" ? "text-right tabular-nums" : ""}`}>
-                    {show(f, r[f.key], refs)}
+                    {f.type === "image" ? (
+                      r[f.key] ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- foto dari aset/Storage
+                        <img src={String(r[f.key])} alt="" className="size-10 rounded-lg object-cover" />
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )
+                    ) : (
+                      show(f, r[f.key], refs)
+                    )}
                   </td>
                 ))}
                 {canEdit && (
@@ -211,6 +221,7 @@ export function MasterTable({
 
 function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; value: string | boolean; onChange: (v: string | boolean) => void }) {
   const cls = "mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-matur-500";
+  if (f.type === "image") return <ImageInput label={f.label} value={String(value)} onChange={onChange} />;
   if (f.type === "bool")
     return (
       <label className="flex items-center gap-2 self-end py-2 text-sm font-medium">
@@ -247,5 +258,45 @@ function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; value: stri
         />
       )}
     </label>
+  );
+}
+
+function ImageInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const fd = new FormData();
+      fd.set("foto", new File([await compressImage(file, 600, 0.82)], "foto.jpg", { type: "image/jpeg" }));
+      const r = await uploadFotoMenu(fd);
+      if (r.error) setErr(r.error);
+      else onChange(r.url!);
+    } catch {
+      setErr("Gagal memproses foto.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-3 sm:col-span-2">
+      {value ? (
+        // eslint-disable-next-line @next/next/no-img-element -- pratinjau foto
+        <img src={value} alt="" className="size-20 rounded-xl object-cover" />
+      ) : (
+        <div className="grid size-20 place-items-center rounded-xl bg-stone-100 text-xs text-stone-400">Belum ada</div>
+      )}
+      <div className="text-sm">
+        <p className="font-medium">{label}</p>
+        <label className="mt-1 inline-block cursor-pointer rounded-lg border border-matur-400 px-3 py-1.5 text-matur-700">
+          {busy ? "Mengunggah…" : value ? "Ganti foto" : "Pilih foto"}
+          <input type="file" accept="image/*" className="hidden" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+        {value && <button type="button" onClick={() => onChange("")} className="ml-2 text-xs text-red-600">Hapus</button>}
+        {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
+      </div>
+    </div>
   );
 }

@@ -49,3 +49,15 @@ export async function setDeleted(entityKey: string, id: string, deleted: boolean
   revalidatePath(`/master/${entityKey}`);
   return {};
 }
+
+// Unggah foto menu ke bucket publik "menu" (sudah dikompres di browser)
+export async function uploadFotoMenu(form: FormData): Promise<{ error?: string; url?: string }> {
+  const file = form.get("foto");
+  if (!(file instanceof File) || !file.size) return { error: "Pilih foto." };
+  if (file.size > 2 * 1024 * 1024) return { error: "Ukuran foto maksimal 2 MB." };
+  const supabase = await supabaseServer();
+  const path = `${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage.from("menu").upload(path, file, { contentType: "image/jpeg" });
+  if (error) return { error: error.message.includes("row-level") ? "Hanya Owner/Admin Pusat yang bisa mengunggah foto." : error.message };
+  return { url: supabase.storage.from("menu").getPublicUrl(path).data.publicUrl };
+}

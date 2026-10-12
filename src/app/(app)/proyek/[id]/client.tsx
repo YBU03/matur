@@ -4,18 +4,8 @@ import { useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatTanggal } from "@/lib/format";
 import type { Foto } from "@/lib/proyek";
+import { compressImage as compress } from "@/lib/compress-image";
 import { laporProgres, periksaFoto, type Result } from "@/lib/proyek-actions";
-
-/** Perkecil foto dari HP (sering >5 MB) menjadi JPEG maks. 1600 px sebelum diunggah. */
-async function compress(file: File): Promise<Blob> {
-  const img = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(img.width * scale);
-  canvas.height = Math.round(img.height * scale);
-  canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return new Promise((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("Gagal memproses foto"))), "image/jpeg", 0.8));
-}
 
 export function ReportButton({ proyekId, pekerjaan }: { proyekId: string; pekerjaan: { id: string; nama: string; progres: number } }) {
   const [open, setOpen] = useState(false);

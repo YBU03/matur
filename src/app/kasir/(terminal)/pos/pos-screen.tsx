@@ -6,7 +6,7 @@ import { formatRupiah } from "@/lib/format";
 import { bayar, bukaShift, type Receipt } from "@/lib/pos-actions";
 
 type Varian = { id: string; grup: string; nama: string; tambahan_harga: number };
-export type PosMenu = { id: string; nama: string; kategori_id: string | null; harga_langsung: number; harga_ojol: number; varian: Varian[] };
+export type PosMenu = { id: string; nama: string; kategori_id: string | null; harga_langsung: number; harga_ojol: number; foto_url: string | null; varian: Varian[] };
 type Line = { key: string; menu: PosMenu; varian: Varian[]; qty: number };
 
 // POS-02: kanal penjualan sesuai baris pendapatan di laporan
@@ -85,6 +85,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
     const key = menu.id + ":" + varian.map((v) => v.id).sort().join(",");
     setCart((c) => (c.some((l) => l.key === key) ? c.map((l) => (l.key === key ? { ...l, qty: l.qty + 1 } : l)) : [...c, { key, menu, varian, qty: 1 }]));
   };
+  const qtyOf = (menuId: string) => cart.filter((l) => l.menu.id === menuId).reduce((s, l) => s + l.qty, 0);
   const setQty = (key: string, d: number) => setCart((c) => c.flatMap((l) => (l.key !== key ? [l] : l.qty + d > 0 ? [{ ...l, qty: l.qty + d }] : [])));
 
   const checkout = () =>
@@ -123,15 +124,26 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
           ))}
         </div>
         {menus.length === 0 && <p className="py-10 text-center text-stone-400">Belum ada menu. Tambahkan di Data Master → Menu.</p>}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
           {shown.map((m) => (
             <button
               key={m.id}
               onClick={() => (m.varian.length ? setPicking(m) : add(m, []))}
-              className="rounded-2xl border border-matur-200 bg-white p-3 text-left shadow-sm active:scale-95"
+              className="relative overflow-hidden rounded-2xl border border-matur-200 bg-white text-left shadow-sm transition active:scale-95"
             >
-              <p className="font-semibold leading-tight">{m.nama}</p>
-              <p className="mt-1 text-sm text-matur-700">{formatRupiah(OJOL.has(kanal) ? m.harga_ojol : m.harga_langsung)}</p>
+              {m.foto_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- foto menu dari aset/Storage
+                <img src={m.foto_url} alt="" loading="lazy" className="aspect-square w-full bg-matur-50 object-cover" />
+              ) : (
+                <div className="grid aspect-square w-full place-items-center bg-matur-50 text-3xl font-black text-matur-300">{m.nama.slice(0, 1)}</div>
+              )}
+              {qtyOf(m.id) > 0 && (
+                <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-matur-500 text-sm font-bold text-white shadow">{qtyOf(m.id)}</span>
+              )}
+              <div className="p-2.5">
+                <p className="line-clamp-2 text-sm font-semibold leading-tight">{m.nama}</p>
+                <p className="mt-0.5 text-sm font-bold text-matur-700">{formatRupiah(OJOL.has(kanal) ? m.harga_ojol : m.harga_langsung)}</p>
+              </div>
             </button>
           ))}
         </div>

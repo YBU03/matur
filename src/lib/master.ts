@@ -4,7 +4,7 @@
 
 import type { Role } from "./roles";
 
-export type FieldType = "text" | "number" | "money" | "percent" | "date" | "bool" | "select" | "enum";
+export type FieldType = "text" | "number" | "money" | "percent" | "date" | "bool" | "select" | "enum" | "image";
 
 export type Field = {
   key: string;
@@ -90,11 +90,13 @@ export const ENTITIES: Record<string, Entity> = {
     nameKey: "nama",
     editors: ["owner", "admin_pusat"],
     fields: [
+      { key: "foto_url", label: "Foto", type: "image" },
       { key: "nama", label: "Nama Menu", type: "text", required: true },
       { key: "kategori_id", label: "Kategori", type: "select", ref: { table: "kategori_menu", label: "nama" } },
       { key: "harga_langsung", label: "Harga Dine-in/Take Away", type: "money", required: true },
       { key: "harga_ojol", label: "Harga Ojol", type: "money", required: true },
       { key: "aktif", label: "Aktif", type: "bool" },
+      { key: "urutan", label: "Urutan di POS", type: "number", list: false },
     ],
   },
   varian: {
@@ -234,6 +236,8 @@ export function parseForm(entity: Entity, form: Record<string, string | boolean>
       if (!Number.isFinite(n)) errors.push(`${f.label} harus angka`);
       // uang selalu rupiah bulat
       out[f.key] = f.type === "money" ? Math.round(n) : n;
+    } else if (f.type === "image" && !/^(\/menu\/[\w.-]+|https:\/\/[\w.-]+\.supabase\.co\/storage\/v1\/object\/public\/menu\/[\w./-]+)$/.test(v)) {
+      errors.push(`${f.label} tidak valid`);
     } else if (f.type === "enum" && f.options && !f.options.includes(v)) {
       errors.push(`${f.label} tidak valid`);
     } else {
