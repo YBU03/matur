@@ -21,15 +21,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Image src="/brand/logo-192.png" alt="Matoer" width={36} height={36} className="rounded-lg" />
         <span className="text-lg font-bold">Matoer</span>
       </div>
-      <div className="mx-4 mb-3 flex items-center gap-3 rounded-xl bg-matur-50 p-2">
+      <Link href="/profil" className="mx-4 mb-3 flex items-center gap-3 rounded-xl bg-matur-50 p-2 hover:bg-matur-100" title="Profil saya">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={44} height={44} className="rounded-lg" />
-        <div className="min-w-0 text-sm">
+        <div className="min-w-0 flex-1 text-sm">
           <p className="truncate font-semibold">{s.nama}</p>
           <p className="truncate text-xs text-stone-500">
             {r.label} · {s.active.outletNama}
           </p>
+          <p className="text-xs font-medium text-matur-700">Profil saya ›</p>
         </div>
-      </div>
+      </Link>
       <SideNav items={r.menu} />
       <div className="space-y-2 p-4 text-sm">
         <InstallButton />
