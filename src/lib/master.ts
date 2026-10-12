@@ -207,7 +207,7 @@ export const ENTITIES: Record<string, Entity> = {
   },
   pekerjaan: {
     table: "pekerjaan",
-    title: "Pekerjaan",
+    title: "Tahapan / Pekerjaan",
     nameKey: "nama",
     editors: ["owner", "admin_pusat"],
     fields: [
@@ -218,6 +218,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "progres", label: "Progres %", type: "percent", required: true },
       { key: "tgl_mulai", label: "Mulai", type: "date" },
       { key: "tgl_selesai", label: "Target Selesai", type: "date" },
+      { key: "urutan", label: "Urutan", type: "number" },
     ],
   },
 };

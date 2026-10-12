@@ -56,3 +56,9 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - Kartu ringkasan bisa diketuk untuk menyaring **stok menipis/habis** dan **perlu dicek**. Ada pencarian, filter kategori, dan **Export Excel**.
 - **Koreksi stok**: isi stok fisik dalam satuan beli → konfirmasi sebelum → sesudah → tercatat di log.
 - **+ Tambah / Ubah Bahan** membuka Data Master Bahan; HPP per satuan pakai dihitung otomatis dari harga beli ÷ isi kemasan bila dikosongkan. HPP ini dipakai resep untuk menghitung HPP teoritis tiap transaksi.
+
+## 10. Proyek "Pembangunan Ruma Outlet 2" (siap dibagikan ke mitra)
+- Estimasi biaya **Rp35.259.000** (50 item dari *Daftar Material dan Harga*: Material Rp17.999.000, Keperluan Interior Rp11.100.000, Pertukangan Rp6.160.000).
+- 8 tahapan mulai 0%: Perencanaan & Desain → RAB & Pengadaan → Sipil & Renovasi → Kusen/Plafon/Listrik-Air → Interior & Furnitur → Peralatan & AC → Branding & Finishing → Persiapan Grand Opening. Bobot bisa diubah di *Kelola Tahapan & PIC*.
+- Halaman proyek: tahap saat ini, estimasi biaya, ringkasan per kelompok + **Lihat detail** + **⬇ Excel / ⬇ PDF**, galeri **Desain Cafe** (admin: *+ Unggah desain*, bisa beberapa gambar sekaligus), tahapan & progres, galeri progres, timeline.
+- Agar mitra bisa melihat: setujui akun mitra dengan peran **Mitra** dan outlet **Ruma Outlet 2** (atau tambahkan lewat **+ peran**).

@@ -5,7 +5,7 @@ import { formatRupiah, formatTanggal } from "@/lib/format";
 import { detailProyek, progresTotal } from "@/lib/proyek";
 import { groupRab } from "@/lib/rab-excel";
 import { getSession } from "@/lib/session";
-import { Approvals, ReportButton } from "./client";
+import { Approvals, DesainGallery, RabDownload, ReportButton } from "./client";
 
 // MTR-01 / PRY: budget vs realisasi, RAB, PIC, progres, galeri, timeline
 export default async function DetailProyek({ params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +14,7 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
   if (!s?.active) notFound();
   const d = await detailProyek(id); // RLS: hanya proyek yang boleh dilihat
   if (!d) notFound();
-  const { proyek: p, pekerjaan, rab, foto } = d;
+  const { proyek: p, pekerjaan, rab, foto, desain } = d;
   const admin = s.active.role === "owner" || s.active.role === "admin_pusat";
   const progres = progresTotal(pekerjaan);
   const realisasi = rab.reduce((t, r) => t + (r.harga_realisasi ?? 0), 0);
@@ -23,6 +23,8 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
   const disetujui = foto.filter((f) => f.status === "disetujui");
   const menunggu = foto.filter((f) => f.status === "menunggu");
   const namaPekerjaan = Object.fromEntries(pekerjaan.map((k) => [k.id, k.nama]));
+  // tahap saat ini = tahapan pertama (urut) yang belum 100%
+  const tahap = pekerjaan.find((k) => k.progres < 100);
 
   return (
     <div className="space-y-6">
@@ -34,6 +36,9 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
         <p className="text-white/90">
           {p.outlet?.nama} · {p.status === "selesai" ? "Selesai" : "Sedang berjalan"}
         </p>
+        {p.status !== "selesai" && tahap && (
+          <p className="mt-2 inline-block rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">Tahap saat ini: {tahap.nama}</p>
+        )}
         <div className="mt-4 flex items-end gap-4">
           <span className="text-5xl font-extrabold">{progres}%</span>
           <div className="flex-1 pb-2">
@@ -45,7 +50,7 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Estimasi Budget" value={formatRupiah(p.estimasi_budget)} sub={estimasiRab ? `RAB ${formatRupiah(estimasiRab)}` : undefined} />
+        <Kpi label="Estimasi Biaya" value={formatRupiah(p.estimasi_budget)} sub={estimasiRab ? `RAB ${formatRupiah(estimasiRab)}` : undefined} />
         <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={p.estimasi_budget ? `${Math.round((realisasi / p.estimasi_budget) * 100)}% dari budget` : undefined} />
         <Kpi label="Sisa Budget" value={formatRupiah(p.estimasi_budget - realisasi)} warn={realisasi > p.estimasi_budget} />
         <Kpi
@@ -57,7 +62,7 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
 
       {admin && (
         <div className="flex flex-wrap gap-2 text-sm">
-          <Link href={`/master/pekerjaan?proyek_id=${p.id}`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Kelola Pekerjaan & PIC</Link>
+          <Link href={`/master/pekerjaan?proyek_id=${p.id}`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Kelola Tahapan & PIC</Link>
           <Link href={`/proyek/${p.id}/rab`} className="rounded-xl border border-matur-300 bg-white px-3 py-2">Rincian Keperluan (import/export)</Link>
           <Link href="/master/proyek" className="rounded-xl border border-matur-300 bg-white px-3 py-2">Ubah Data Proyek</Link>
         </div>
@@ -68,8 +73,42 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
       )}
 
       <section className="rounded-2xl border border-matur-200 bg-white p-4">
-        <h2 className="mb-3 font-bold">Pekerjaan</h2>
-        {pekerjaan.length === 0 && <p className="text-sm text-stone-400">Belum ada pekerjaan.</p>}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h2 className="mr-auto font-bold">Estimasi Biaya & Rincian Keperluan</h2>
+          <RabDownload judul={`Rincian Keperluan ${p.nama}`} sub={`${p.outlet?.nama ?? ""} · Estimasi ${formatRupiah(estimasiRab)}`} items={rab} />
+          <Link href={`/proyek/${p.id}/rab`} className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white">
+            Lihat detail →
+          </Link>
+        </div>
+        {rab.length === 0 && <p className="text-sm text-stone-400">Belum ada rincian keperluan.</p>}
+        <table className="w-full text-sm">
+          <tbody>
+            {groupRab(rab).map((g) => (
+              <tr key={g.kelompok} className="border-t">
+                <td className="py-2">
+                  <Link href={`/proyek/${p.id}/rab#${g.kelompok}`} className="font-medium hover:underline">{g.kelompok}</Link>
+                  <span className="ml-2 text-xs text-stone-500">{g.items.length} item · {g.items.filter((i) => i.status !== "rencana").length} dibeli/terpasang</span>
+                </td>
+                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(g.estimasi)}</td>
+                <td className="whitespace-nowrap pl-3 text-right text-xs text-stone-500 tabular-nums">{g.realisasi ? `realisasi ${formatRupiah(g.realisasi)}` : ""}</td>
+              </tr>
+            ))}
+            {rab.length > 0 && (
+              <tr className="border-t-2 font-bold">
+                <td className="py-2">Grand Total</td>
+                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(estimasiRab)}</td>
+                <td className="whitespace-nowrap pl-3 text-right text-xs tabular-nums">{realisasi ? `realisasi ${formatRupiah(realisasi)}` : ""}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      <DesainGallery proyekId={p.id} admin={admin} items={desain} />
+
+      <section className="rounded-2xl border border-matur-200 bg-white p-4">
+        <h2 className="mb-3 font-bold">Tahapan & Progres</h2>
+        {pekerjaan.length === 0 && <p className="text-sm text-stone-400">Belum ada tahapan.</p>}
         <ul className="divide-y">
           {pekerjaan.map((k) => (
             <li key={k.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
@@ -111,37 +150,6 @@ export default async function DetailProyek({ params }: { params: Promise<{ id: s
             </figure>
           ))}
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-matur-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="font-bold">Rincian Keperluan</h2>
-          <Link href={`/proyek/${p.id}/rab`} className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white">
-            Lihat rincian →
-          </Link>
-        </div>
-        {rab.length === 0 && <p className="text-sm text-stone-400">Belum ada rincian keperluan.</p>}
-        <table className="w-full text-sm">
-          <tbody>
-            {groupRab(rab).map((g) => (
-              <tr key={g.kelompok} className="border-t">
-                <td className="py-2">
-                  <Link href={`/proyek/${p.id}/rab#${g.kelompok}`} className="font-medium hover:underline">{g.kelompok}</Link>
-                  <span className="ml-2 text-xs text-stone-500">{g.items.length} item · {g.items.filter((i) => i.status !== "rencana").length} dibeli/terpasang</span>
-                </td>
-                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(g.estimasi)}</td>
-                <td className="whitespace-nowrap pl-3 text-right text-xs text-stone-500 tabular-nums">{g.realisasi ? `realisasi ${formatRupiah(g.realisasi)}` : ""}</td>
-              </tr>
-            ))}
-            {rab.length > 0 && (
-              <tr className="border-t-2 font-bold">
-                <td className="py-2">Grand Total</td>
-                <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(estimasiRab)}</td>
-                <td className="whitespace-nowrap pl-3 text-right text-xs tabular-nums">{realisasi ? `realisasi ${formatRupiah(realisasi)}` : ""}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
       </section>
 
       <section className="rounded-2xl border border-matur-200 bg-white p-4">

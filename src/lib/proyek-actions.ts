@@ -81,3 +81,28 @@ export async function importRab(proyekId: string, rows: ImportRow[], ganti: bool
   revalidatePath(`/proyek/${proyekId}/rab`);
   return { ok: `${data.length} item berhasil diimpor.` };
 }
+
+// Galeri desain cafe: admin mengunggah, mitra langsung bisa melihat (tanpa persetujuan)
+export async function unggahDesain(form: FormData): Promise<Result> {
+  const proyekId = String(form.get("proyek_id"));
+  const judul = String(form.get("judul") ?? "").slice(0, 120);
+  const file = form.get("foto");
+  if (!(file instanceof File) || !file.size) return { error: "Pilih gambar desain." };
+  if (file.size > 5 * 1024 * 1024) return { error: "Ukuran gambar maksimal 5 MB." };
+  const supabase = await supabaseServer();
+  const path = `${proyekId}/desain/${crypto.randomUUID()}.jpg`;
+  const up = await supabase.storage.from("proyek").upload(path, file, { contentType: "image/jpeg" });
+  if (up.error) return { error: up.error.message.includes("row-level") ? "Hanya Admin Pusat yang bisa mengunggah desain." : up.error.message };
+  const { error } = await supabase.from("desain_proyek").insert({ proyek_id: proyekId, path, judul: judul || null });
+  if (error) return { error: error.message };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: "Desain diunggah." };
+}
+
+export async function hapusDesain(proyekId: string, id: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error, count } = await supabase.from("desain_proyek").delete({ count: "exact" }).eq("id", id);
+  if (error || !count) return { error: "Gagal menghapus (hanya Admin Pusat)." };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: "Desain dihapus." };
+}

@@ -25,12 +25,18 @@ export type Pekerjaan = {
 export type ItemRab = {
   id: string;
   kategori: string;
+  bagian: string | null;
   nama: string;
+  spesifikasi: string | null;
   qty: number;
+  satuan: string | null;
+  harga_satuan: number | null;
   harga_estimasi: number;
   harga_realisasi: number | null;
-  status: string;
+  status: "rencana" | "dibeli" | "terpasang";
+  keterangan: string | null;
 };
+export type Desain = { id: string; path: string; judul: string | null; created_at: string; url?: string };
 export type Foto = {
   id: string;
   pekerjaan_id: string;
@@ -72,8 +78,14 @@ export async function detailProyek(id: string) {
   const { data: p } = await supabase.from("proyek").select(PROYEK_COLS).eq("id", id).is("deleted_at", null).maybeSingle();
   if (!p) return null;
   const [{ data: ks }, { data: rab }] = await Promise.all([
-    supabase.from("pekerjaan").select("id, nama, pic_id, bobot, progres, tgl_mulai, tgl_selesai, pic:pengguna(nama)").eq("proyek_id", id).is("deleted_at", null).order("tgl_mulai"),
-    supabase.from("item_rab").select("id, kategori, nama, qty, harga_estimasi, harga_realisasi, status").eq("proyek_id", id).is("deleted_at", null).order("kategori"),
+    supabase.from("pekerjaan").select("id, nama, pic_id, bobot, progres, tgl_mulai, tgl_selesai, pic:pengguna(nama)").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_mulai"),
+    supabase
+      .from("item_rab")
+      .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan")
+      .eq("proyek_id", id)
+      .is("deleted_at", null)
+      .order("urutan")
+      .order("nama"),
   ]);
   const pekerjaan = (ks ?? []) as unknown as Pekerjaan[];
   const { data: fs } = await supabase
@@ -88,5 +100,12 @@ export async function detailProyek(id: string) {
     const { data: urls } = await supabase.storage.from("proyek").createSignedUrls(foto.map((f) => f.path), 3600);
     foto.forEach((f, i) => (f.url = urls?.[i]?.signedUrl ?? undefined));
   }
-  return { proyek: p as unknown as Proyek, pekerjaan, rab: (rab ?? []) as ItemRab[], foto };
+  const { data: ds } = await supabase.from("desain_proyek").select("id, path, judul, created_at").eq("proyek_id", id).order("created_at");
+  const desain = (ds ?? []) as Desain[];
+  if (desain.length) {
+    const { data: urls } = await supabase.storage.from("proyek").createSignedUrls(desain.map((d) => d.path), 3600);
+    desain.forEach((d, i) => (d.url = urls?.[i]?.signedUrl ?? undefined));
+  }
+  const items = ((rab ?? []) as ItemRab[]).map((r) => ({ ...r, qty: Number(r.qty) }));
+  return { proyek: p as unknown as Proyek, pekerjaan, rab: items, foto, desain };
 }
