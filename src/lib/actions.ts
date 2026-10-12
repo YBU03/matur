@@ -63,16 +63,6 @@ export async function daftarAction(_: DaftarState, form: FormData): Promise<Daft
   return setelahLogin();
 }
 
-export async function chooseAssignment(form: FormData) {
-  const s = await getSession();
-  if (!s) redirect("/login");
-  const role = String(form.get("role"));
-  const outletId = form.get("outletId") ? String(form.get("outletId")) : null;
-  const ok = s.assignments.some((a) => a.role === role && a.outletId === outletId);
-  await setActive(ok ? { role, outletId } : null);
-  redirect(ok ? "/dashboard" : "/pilih-peran");
-}
-
 export async function logoutAction() {
   const supabase = await supabaseServer();
   await supabase.auth.signOut();
