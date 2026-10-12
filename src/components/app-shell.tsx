@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomBar, type QuickItem } from "./bottom-bar";
+import { LogoutButton } from "./logout-button";
 
 /** Sidebar di desktop; di HP menjadi laci yang dibuka lewat tombol hamburger. */
 export function AppShell({ sidebar, title, quick, children }: { sidebar: React.ReactNode; title: string; quick: QuickItem[]; children: React.ReactNode }) {
@@ -26,7 +27,8 @@ export function AppShell({ sidebar, title, quick, children }: { sidebar: React.R
           </svg>
         </button>
         <Image src="/brand/logo-192.png" alt="" width={30} height={30} className="rounded-lg" />
-        <span className="truncate font-bold">{title}</span>
+        <span className="min-w-0 flex-1 truncate font-bold">{title}</span>
+        <LogoutButton />
       </header>
 
       {/* laci menu HP */}
@@ -41,7 +43,12 @@ export function AppShell({ sidebar, title, quick, children }: { sidebar: React.R
       </div>
 
       <aside className="hidden border-r border-matur-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto">{sidebar}</aside>
-      <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pt-4">
+        <div className="mb-4 hidden justify-end lg:flex">
+          <LogoutButton />
+        </div>
+        {children}
+      </main>
       <BottomBar items={quick} onMenu={() => setOpen(true)} />
     </div>
   );
