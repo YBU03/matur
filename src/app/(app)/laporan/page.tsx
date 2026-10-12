@@ -13,7 +13,7 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
   if (!s?.active || !BOLEH.includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
   const [{ data: outlets }, { data: rows }] = await Promise.all([
-    supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai"),
+    supabase.from("outlet").select("id, nama, skema:skema_bagi_hasil(nama)").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai"),
     supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("mode", "asli").is("deleted_at", null).order("periode", { ascending: false }),
   ]);
   const semua = (rows ?? []) as unknown as Laporan[];
@@ -42,6 +42,16 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
           })}
         </div>
       </div>
+
+      {(() => {
+        const sk = (daftar.find((o) => o.id === pilih)?.skema as unknown as { nama: string } | null)?.nama;
+        return (
+          <p className="text-sm text-stone-500">
+            Skema bagi hasil: <b className="text-kopi-900">{sk ?? "belum dipilih"}</b> ·{" "}
+            <Link href="/skema-bagi-hasil" className="text-matur-700 underline">atur</Link>
+          </p>
+        );
+      })()}
 
       {list.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-matur-300 bg-white p-6 text-center text-stone-500">Belum ada laporan untuk outlet ini.</p>
