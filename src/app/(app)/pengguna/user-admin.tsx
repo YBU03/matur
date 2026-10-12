@@ -31,6 +31,9 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
   const [resetting, setResetting] = useState<{ u: UserRow; role: Role } | null>(null);
   const [adding, setAdding] = useState<UserRow | null>(null);
   const [busy, start] = useTransition();
+  const [q, setQ] = useState("");
+  const [buat, setBuat] = useState(false);
+  const aktif = users.filter((u) => u.status !== "menunggu");
   const outletName = (id: string | null) => (id ? (outlets.find((o) => o.id === id)?.nama ?? "-") : "Semua Outlet");
   const run = (fn: () => Promise<Result>) =>
     start(async () => {
@@ -47,7 +50,16 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pengguna & Akses</h1>
       <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} busy={busy} onRun={run} />
-      {isOwner && <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      {isOwner && !buat && (
+        <button onClick={() => setBuat(true)} className="w-full rounded-xl bg-matur-500 px-4 py-2.5 font-semibold text-white sm:w-auto">
+          + Buat akun baru
+        </button>
+      )}
+      {isOwner && buat && <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <p className="flex items-center font-bold sm:col-span-2 lg:col-span-5">
+          <span className="mr-auto">Buat akun baru</span>
+          <button type="button" onClick={() => setBuat(false)} className="text-sm font-normal text-stone-500">Tutup ✕</button>
+        </p>
         <label className="text-sm font-medium">
           Nama
           <input name="nama" required className={cls} />
@@ -95,61 +107,66 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
 
       {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
 
-      <div className="overflow-x-auto rounded-2xl border border-matur-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-matur-50 text-left text-kopi-700">
-            <tr>
-              <th className="px-3 py-2">Nama</th>
-              <th className="px-3 py-2">Login</th>
-              <th className="px-3 py-2">Peran & Outlet</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {users.filter((u) => u.status !== "menunggu").map((u) => (
-              <tr key={u.id} className="border-t border-stone-100 align-top">
-                <td className="px-3 py-2 font-medium">
-                  {u.nama}
-                  {u.status !== "aktif" && <span className="ml-2 rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">{u.status}</span>}
-                </td>
-                <td className="px-3 py-2 text-stone-600">{u.email?.replace("@pin.matur.id", " (PIN)")}</td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {u.assignments.map((a) => (
-                      <span key={a.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white ${ROLES[a.peran as Role].accent}`}>
-                        {ROLES[a.peran as Role].label} · {outletName(a.outlet_id)}
-                        <button title="Cabut peran" onClick={() => setRemoving({ a, nama: u.nama })} className="ml-1 opacity-80 hover:opacity-100">
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    <button onClick={() => setAdding(u)} className="rounded-full border border-dashed px-2 py-0.5 text-xs text-stone-500">
-                      + peran
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="mr-auto font-bold">Daftar pengguna ({aktif.length})</h2>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama / login…" className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm sm:w-64" />
+      </div>
+      <ul className="grid gap-3 lg:grid-cols-2">
+        {aktif
+          .filter((u) => !q || `${u.nama} ${u.email ?? ""}`.toLowerCase().includes(q.toLowerCase()))
+          .map((u) => (
+            <li key={u.id} className={`rounded-2xl border bg-white p-4 ${u.status === "aktif" ? "border-matur-200" : "border-stone-200 opacity-75"}`}>
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-matur-100 font-bold text-kopi-700">{u.nama.slice(0, 1).toUpperCase()}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    {u.nama}
+                    {u.id === meId && <span className="ml-1 text-xs font-normal text-stone-500">(Anda)</span>}
+                  </p>
+                  <p className="truncate text-sm text-stone-500">{u.email?.endsWith("@pin.matur.id") ? `Kode staf: ${u.email.replace("@pin.matur.id", "")}` : u.email}</p>
+                </div>
+                {u.status !== "aktif" && <span className="shrink-0 rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{u.status}</span>}
+              </div>
+              <div className="mt-3 rounded-xl bg-stone-50">
+                {u.assignments.length === 0 && <p className="px-3 py-2 text-sm text-stone-400">Belum punya peran</p>}
+                {u.assignments.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 border-b border-stone-200/70 px-3 py-2 last:border-0">
+                    <span className="size-2 shrink-0 rounded-full bg-matur-400" />
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="font-medium">{ROLES[a.peran as Role].label}</p>
+                      <p className="text-xs text-stone-500">{outletName(a.outlet_id)}</p>
+                    </div>
+                    <button title="Cabut peran" onClick={() => setRemoving({ a, nama: u.nama })} className="grid size-8 place-items-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600">
+                      ✕
                     </button>
                   </div>
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                <button onClick={() => setAdding(u)} className="rounded-lg border border-matur-300 py-2 font-medium text-matur-700">
+                  + Peran
+                </button>
+                <button
+                  onClick={() => setResetting({ u, role: (u.assignments.find((a) => isPin(a.peran))?.peran ?? "owner") as Role })}
+                  className="rounded-lg border border-stone-300 py-2 text-stone-700"
+                >
+                  {u.email?.endsWith("@pin.matur.id") ? "Ganti PIN" : "Password"}
+                </button>
+                {u.id !== meId && (u.status === "aktif" || u.status === "nonaktif") ? (
                   <button
-                    onClick={() => setResetting({ u, role: (u.assignments.find((a) => isPin(a.peran))?.peran ?? "owner") as Role })}
-                    className="text-matur-700 hover:underline"
+                    disabled={busy}
+                    onClick={() => run(() => setUserStatus(u.id, u.status === "aktif" ? "nonaktif" : "aktif"))}
+                    className={`rounded-lg border py-2 ${u.status === "aktif" ? "border-red-200 text-red-600" : "border-green-300 text-green-700"}`}
                   >
-                    {u.email?.endsWith("@pin.matur.id") ? "Ganti PIN" : "Ganti password"}
+                    {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
                   </button>
-                  {u.id !== meId && (u.status === "aktif" || u.status === "nonaktif") && (
-                    <button
-                      disabled={busy}
-                      onClick={() => run(() => setUserStatus(u.id, u.status === "aktif" ? "nonaktif" : "aktif"))}
-                      className={`ml-3 hover:underline ${u.status === "aktif" ? "text-red-600" : "text-green-700"}`}
-                    >
-                      {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  <span />
+                )}
+              </div>
+            </li>
+          ))}
+      </ul>
 
       {removing && (
         <DeleteTwoStepDialog

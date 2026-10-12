@@ -11,7 +11,7 @@ async function guard(entityKey: string) {
   const entity = ENTITIES[entityKey];
   const s = await getSession();
   if (!entity || !s?.active) return null;
-  return { entity, supabase: await supabaseServer() };
+  return { entity, s, supabase: await supabaseServer() };
 }
 
 const friendly = (msg: string) =>
@@ -29,6 +29,8 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   // HPP per satuan pakai = harga beli ÷ isi kemasan bila tidak diisi
   if (g.entity.table === "bahan" && values.harga_pokok === null)
     values.harga_pokok = Math.round((Number(values.harga_beli ?? 0) / Math.max(Number(values.konversi ?? 1), 0.001)) * 10000) / 10000;
+  // nama pengusul tanggal opening disimpan sebagai teks (mitra tidak bisa membaca data pengguna lain)
+  if (g.entity.table === "usulan_tanggal" && !id) values.nama_pengusul = g.s.nama;
   if (g.entity.table === "item_rab" && values.harga_estimasi === null)
     values.harga_estimasi = Math.round(Number(values.qty ?? 0) * Number(values.harga_satuan ?? 0));
   const q = id ? g.supabase.from(g.entity.table).update(values).eq("id", id) : g.supabase.from(g.entity.table).insert(values);

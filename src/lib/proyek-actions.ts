@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { ROLES } from "./roles";
+import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
 
 export type Result = { error?: string; ok?: string };
@@ -105,4 +107,61 @@ export async function hapusDesain(proyekId: string, id: string): Promise<Result>
   if (error || !count) return { error: "Gagal menghapus (hanya Admin Pusat)." };
   revalidatePath(`/proyek/${proyekId}`);
   return { ok: "Desain dihapus." };
+}
+
+// Tetapkan tanggal Soft/Grand Opening yang dipakai (admin), mis. dari salah satu usulan
+export async function tetapkanOpening(proyekId: string, jenis: "Soft Opening" | "Grand Opening", tanggal: string | null): Promise<Result> {
+  if (tanggal && !/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return { error: "Tanggal tidak valid." };
+  const supabase = await supabaseServer();
+  const kolom = jenis === "Soft Opening" ? "tgl_soft_opening" : "target_buka";
+  const { error, count } = await supabase.from("proyek").update({ [kolom]: tanggal }, { count: "exact" }).eq("id", proyekId);
+  if (error || !count) return { error: "Hanya Admin Pusat yang bisa menetapkan tanggal." };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: `Tanggal ${jenis} ditetapkan.` };
+}
+
+// Diskusi admin ↔ mitra per proyek
+export async function kirimKomentar(proyekId: string, isi: string): Promise<Result> {
+  const teks = isi.trim().slice(0, 2000);
+  if (!teks) return { error: "Tulis pesan terlebih dahulu." };
+  const s = await getSession();
+  if (!s?.active) return { error: "Silakan login ulang." };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("komentar_proyek").insert({ proyek_id: proyekId, nama: s.nama, peran: ROLES[s.active.role].label, isi: teks });
+  if (error) return { error: error.message };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: "Terkirim." };
+}
+
+export async function hapusKomentar(proyekId: string, id: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error, count } = await supabase.from("komentar_proyek").delete({ count: "exact" }).eq("id", id);
+  if (error || !count) return { error: "Tidak bisa menghapus pesan ini." };
+  revalidatePath(`/proyek/${proyekId}`);
+  return {};
+}
+
+// Dokumen: file diunggah langsung dari browser ke Storage (bisa >4 MB), lalu dicatat di sini
+export async function catatDokumen(proyekId: string, d: { judul: string; jenis: string; path: string; tipe: string; ukuran: number }): Promise<Result> {
+  if (!d.path.startsWith(`${proyekId}/dokumen/`)) return { error: "Lokasi file tidak valid." };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("dokumen_proyek").insert({
+    proyek_id: proyekId,
+    judul: d.judul.slice(0, 150) || "Dokumen",
+    jenis: d.jenis.slice(0, 40) || "Lainnya",
+    path: d.path,
+    tipe: d.tipe.slice(0, 80),
+    ukuran: Math.round(d.ukuran),
+  });
+  if (error) return { error: error.message.includes("row-level") ? "Hanya Admin Pusat yang bisa mengunggah dokumen." : error.message };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: "Dokumen tersimpan." };
+}
+
+export async function hapusDokumen(proyekId: string, id: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error, count } = await supabase.from("dokumen_proyek").delete({ count: "exact" }).eq("id", id);
+  if (error || !count) return { error: "Gagal menghapus (hanya Admin Pusat)." };
+  revalidatePath(`/proyek/${proyekId}`);
+  return { ok: "Dokumen dihapus." };
 }
