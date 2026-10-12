@@ -51,7 +51,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/menu", label: "Menu", stage: 2 },
       { href: "/gudang/stok", label: "Stok Gudang", stage: 4 },
       { href: "/pengguna", label: "Pengguna & Akses", stage: 3 },
-      { href: "/laporan", label: "Laporan Mitra", stage: 7 },
+      { href: "/laporan", label: "Laporan Keuangan", stage: 4 },
       { href: "/simulasi", label: "Mode Simulasi", stage: 9 },
       { href: "/log", label: "Log Aktivitas", stage: 2 },
     ],
@@ -73,7 +73,7 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/biaya", label: "Biaya Operasional", stage: 7 },
-      { href: "/laporan", label: "Laporan Mitra", stage: 7 },
+      { href: "/laporan", label: "Laporan Keuangan", stage: 4 },
       { href: "/tutup-buku", label: "Tutup Buku", stage: 7 },
       { href: "/transfer", label: "Transfer Mitra", stage: 7 },
       { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },

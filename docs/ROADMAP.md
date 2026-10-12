@@ -17,12 +17,14 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 | 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | |
 
 Uji penerimaan laporan: angka periode **Agustus 2026 Ruma Kopiaksa** harus sama
-persis dengan laporan manual (laba bersih Rp32.181.189, bagi hasil mitra Rp17.699.654).
+persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti laporan terbit: 2 × 5% = Rp3.218.118, bukan angka contoh PRD Rp17.699.654).
 
 ## Pembaruan
 - Nama aplikasi menjadi **Matoer** (domain "matur" sudah dipakai pihak lain).
 - Dashboard visual (DSB-01..05): pilih cabang + periode, kartu KPI dengan perbandingan periode sebelumnya, tren omzet per outlet, perbandingan cabang, komposisi kanal, menu terlaris & kurang laku, heatmap jam ramai, progres pembangunan; mitra/PIC melihat grafik progres pekerjaan dan estimasi vs realisasi.
 - Data simulasi (mode `simulasi`, ±75 hari, 2 outlet) untuk mencoba dashboard; aktifkan dengan centang "Data simulasi" (Owner/Admin Pusat). Tidak pernah tampil di POS, data master, maupun laporan asli.
+
+- Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra masih dikunci.
 
 ## Catatan teknis
 - `supabase/migrations/0005_sampah_otomatis.sql` (hapus permanen sampah > 30 hari) belum terpasang; jalankan manual di SQL Editor.
