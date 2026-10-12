@@ -1,8 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { POS_ONLY, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
+import { PeranLink } from "./peran-link";
 
 export default async function PilihPeran() {
   const s = await getSession();
@@ -20,11 +20,11 @@ export default async function PilihPeran() {
           .map((a) => {
             const r = ROLES[a.role];
             return (
-              // tautan biasa (bukan server action) agar sesi dibaca ulang di request baru
-              <Link
+              <PeranLink
                 key={`${a.role}-${a.outletId}`}
                 href={`/masuk?role=${a.role}${a.outletId ? `&outlet=${a.outletId}` : ""}`}
-                prefetch={false}
+                mascot={r.mascot}
+                label={r.label}
                 className="flex w-full items-center gap-4 rounded-2xl border border-matur-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <Image src={`/mascot/${r.mascot}.png`} alt="" width={72} height={72} className="rounded-xl" />
@@ -32,7 +32,7 @@ export default async function PilihPeran() {
                   <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${r.accent}`}>{r.label}</span>
                   <span className="mt-1 block font-semibold">{a.outletNama}</span>
                 </span>
-              </Link>
+              </PeranLink>
             );
           })}
       </div>

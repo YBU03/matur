@@ -25,3 +25,12 @@ body {
   #struk, #struk * { visibility: visible; }
   #struk { position: fixed; left: 0; top: 0; width: 72mm; background: white; }
 }
+
+/* layar masuk (maskot) */
+@keyframes melayang { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+@keyframes bayang { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.75); opacity: .6; } }
+@keyframes jalan { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@keyframes masuk-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-overlay] * { animation: none !important; }
+}

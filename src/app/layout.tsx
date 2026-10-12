@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { MasukOverlay } from "@/components/masuk-overlay";
 
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
 
@@ -14,7 +15,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body className={`${jakarta.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${jakarta.variable} font-sans antialiased`}>
+        {children}
+        <MasukOverlay />
+      </body>
     </html>
   );
 }

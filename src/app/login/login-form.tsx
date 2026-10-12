@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { batalMasuk, mulaiMasuk } from "@/components/masuk-overlay";
 import { loginAction, otpAction, type LoginState } from "@/lib/actions";
 
 type Mode = "password" | "otp";
@@ -32,8 +33,11 @@ export function LoginForm() {
 
 function PasswordForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
+  useEffect(() => {
+    if (state.error) batalMasuk();
+  }, [state]);
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={() => mulaiMasuk({ label: "Masuk ke Matoer…" })} className="space-y-4">
       <Field name="login" label="Email" type="email" placeholder="nama@email.com" />
       <Field name="secret" label="Password" type="password" />
       <Error text={state.error} />
@@ -44,8 +48,11 @@ function PasswordForm() {
 
 function OtpForm() {
   const [state, action, pending] = useActionState<LoginState & { sent?: string }, FormData>(otpAction, {});
+  useEffect(() => {
+    if (state.error) batalMasuk();
+  }, [state]);
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={() => state.sent && mulaiMasuk({ label: "Masuk ke Matoer…" })} className="space-y-4">
       {state.sent ? (
         <>
           <input type="hidden" name="login" value={state.sent} />
