@@ -2,6 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/lib/actions";
 import { getSession } from "@/lib/session";
+import { LiveRefresh } from "@/components/live-refresh";
 import { AutoCek } from "./auto-cek";
 
 const PESAN: Record<string, [string, string]> = {
@@ -67,6 +68,7 @@ export default async function Menunggu() {
             ))}
           </ol>
           <AutoCek />
+          <LiveRefresh pantau={[{ table: "pengguna", filter: `id=eq.${s.userId}` }, { table: "penugasan", filter: `pengguna_id=eq.${s.userId}` }]} cadanganDetik={60} />
         </>
       )}
       <form action={logoutAction} className="mt-6">

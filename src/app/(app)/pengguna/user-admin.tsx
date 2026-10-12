@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import { Modal } from "@/components/confirm-edit";
-import { addAssignment, approveUser, createUser, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
+import { addAssignment, approveUser, createUser, hapusPengguna, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
 import { ROLES, type Role } from "@/lib/roles";
 
 type Assign = { id: string; peran: string; outlet_id: string | null };
@@ -30,6 +30,7 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
   const [removing, setRemoving] = useState<{ a: Assign; nama: string } | null>(null);
   const [resetting, setResetting] = useState<{ u: UserRow; role: Role } | null>(null);
   const [adding, setAdding] = useState<UserRow | null>(null);
+  const [hapus, setHapus] = useState<UserRow | null>(null);
   const [busy, start] = useTransition();
   const [q, setQ] = useState("");
   const [buat, setBuat] = useState(false);
@@ -43,6 +44,7 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
         setRemoving(null);
         setResetting(null);
         setAdding(null);
+        setHapus(null);
       }
     });
 
@@ -164,6 +166,11 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
                   <span />
                 )}
               </div>
+              {isOwner && u.id !== meId && !u.assignments.some((a) => a.peran === "owner") && (
+                <button onClick={() => setHapus(u)} className="mt-2 w-full rounded-lg py-1.5 text-xs text-red-600 hover:bg-red-50">
+                  🗑 Hapus akun
+                </button>
+              )}
             </li>
           ))}
       </ul>
@@ -174,6 +181,9 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
           onCancel={() => setRemoving(null)}
           onConfirm={() => run(() => removeAssignment(removing.a.id))}
         />
+      )}
+      {hapus && (
+        <DeleteTwoStepDialog name={hapus.nama} onCancel={() => setHapus(null)} onConfirm={() => run(() => hapusPengguna(hapus.id))} />
       )}
       {resetting && (
         <SecretDialog

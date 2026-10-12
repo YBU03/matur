@@ -104,3 +104,15 @@ export async function setUserStatus(uid: string, status: "aktif" | "nonaktif"): 
   revalidatePath("/pengguna");
   return { ok: status === "aktif" ? "Akun diaktifkan." : "Akun dinonaktifkan." };
 }
+
+// Hapus pengguna (Owner): permanen bila tanpa riwayat, selain itu diarsipkan (login mati, riwayat tetap)
+export async function hapusPengguna(uid: string): Promise<Result> {
+  const s = await getSession();
+  if (s?.active?.role !== "owner") return { error: "Hanya Owner yang bisa menghapus pengguna." };
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("hapus_pengguna", { p_uid: uid });
+  if (error)
+    return { error: error.message.includes("function") && error.message.includes("does not exist") ? "Fitur hapus belum aktif di database (jalankan 0023_hapus_pengguna.sql)." : error.message };
+  revalidatePath("/pengguna");
+  return { ok: data === "dihapus" ? "Pengguna dihapus permanen." : "Pengguna dihapus. Riwayat aktivitasnya tetap disimpan untuk catatan." };
+}

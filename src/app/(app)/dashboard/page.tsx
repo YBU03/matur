@@ -1,3 +1,4 @@
+import { LiveRefresh } from "@/components/live-refresh";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -36,6 +37,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
+      {canSim && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
       <section className="flex items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-matur-400 to-matur-600 p-5 text-white">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={96} height={96} priority className="hidden rounded-2xl sm:block" />
         <div>
