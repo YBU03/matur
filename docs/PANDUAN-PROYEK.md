@@ -65,6 +65,7 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 
 ## 11. Halaman proyek bertab
 Halaman proyek dibagi menjadi tab agar mudah dibaca di HP:
+- **Catatan Tambahan** (tab Ringkasan): admin mencatat info atau permintaan mitra dari chat, misalnya kode warna cat. Kode warna berformat #RRGGBB otomatis tampil sebagai contoh warna.
 - **Ringkasan**: tanggal Soft Opening & Grand Opening. Admin dan mitra bisa **+ Usulkan tanggal**; admin menekan **Pakai tanggal ini** untuk menetapkan tanggal resmi yang disepakati bersama. Tab ini juga berisi tahapan & progres, checklist persiapan buka (admin cukup mencentang), dan info lokasi (alamat, luas, sewa, kontak, link Google Maps).
 - **Jadwal**: timeline kegiatan yang bisa diubah (✏️), ditambah (+ Kegiatan), atau dihapus (🗑). Kegiatan boleh belum bertanggal. Status *mundur* dicoret lalu diberi tanggal baru di kolom Tanggal Realisasi.
 - **Biaya & Dana**: estimasi, realisasi, dana masuk dari mitra, sisa dana, rincian per kelompok (unduh Excel/PDF), dan catatan setoran dana mitra.

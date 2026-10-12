@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { MasterTable } from "./master-table";
 
 // tabel tanpa kolom mode (asli/simulasi)
-const NO_MODE = new Set(["pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal"]);
+const NO_MODE = new Set(["pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal", "catatan_proyek"]);
 
 export default async function MasterPage({
   params,

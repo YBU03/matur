@@ -39,7 +39,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
   if (!s?.active) notFound();
   const d = await detailProyek(id); // RLS: hanya proyek yang boleh dilihat
   if (!d) notFound();
-  const { proyek: p, pekerjaan, rab, foto, desain, usulan, jadwal, setoran, checklist, dokumen, komentar } = d;
+  const { proyek: p, pekerjaan, rab, foto, desain, usulan, jadwal, setoran, checklist, dokumen, komentar, catatan } = d;
   const admin = s.active.role === "owner" || s.active.role === "admin_pusat";
   const bisaUsul = admin || s.active.role === "mitra";
   const progres = progresTotal(pekerjaan);
@@ -178,6 +178,38 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                 );
               })}
             </div>
+          </section>
+
+          <section className={card}>
+            <div className="mb-1 flex items-center gap-2">
+              <h2 className="mr-auto font-bold">Catatan Tambahan</h2>
+              {admin && (
+                <RowEditor entityKey="catatan_proyek" row={null} initial={{ proyek_id: p.id, tanggal: new Date().toISOString().slice(0, 10) }} fields={["tanggal", "judul", "isi"]} label="+ Catatan" title="Tambah catatan" className={addBtn} />
+              )}
+            </div>
+            <p className="mb-2 text-xs text-stone-500">Info tambahan & permintaan mitra, mis. kode warna cat, merek, ukuran.</p>
+            {catatan.length === 0 && <p className="py-2 text-sm text-stone-400">Belum ada catatan.</p>}
+            <ul className="divide-y">
+              {catatan.map((c) => {
+                const hex = c.isi?.match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i)?.[0];
+                return (
+                  <li key={c.id} className="flex items-start gap-3 py-2.5">
+                    {hex && <span className="mt-0.5 size-8 shrink-0 rounded-lg border border-stone-200" style={{ backgroundColor: hex }} title={hex} />}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{c.judul}</p>
+                      {c.isi && <p className="whitespace-pre-wrap break-words text-sm text-stone-700">{c.isi}</p>}
+                      <p className="text-xs text-stone-400">{formatTanggal(c.tanggal)}</p>
+                    </div>
+                    {admin && (
+                      <span className="flex shrink-0">
+                        <RowEditor entityKey="catatan_proyek" row={c as unknown as Record<string, unknown>} fields={["tanggal", "judul", "isi"]} label="✏️" title="Ubah catatan" />
+                        <RowDeleter entityKey="catatan_proyek" id={c.id} name={`Catatan ${c.judul}`} />
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </section>
 
           {menunggu.length > 0 && (

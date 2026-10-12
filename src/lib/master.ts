@@ -267,6 +267,18 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "urutan", label: "Urutan", type: "number" },
     ],
   },
+  catatan_proyek: {
+    table: "catatan_proyek",
+    title: "Catatan Tambahan",
+    nameKey: "judul",
+    editors: ["owner", "admin_pusat"],
+    fields: [
+      { key: "proyek_id", label: "Proyek", type: "select", ref: { table: "proyek", label: "nama" }, required: true, list: false },
+      { key: "tanggal", label: "Tanggal", type: "date", required: true },
+      { key: "judul", label: "Judul (mis. Kode warna cat dinding)", type: "text", required: true },
+      { key: "isi", label: "Isi / detail (mis. Dulux 30YY 65/347, permintaan mitra via chat)", type: "text" },
+    ],
+  },
   usulan_tanggal: {
     table: "usulan_tanggal",
     title: "Usulan Tanggal",
