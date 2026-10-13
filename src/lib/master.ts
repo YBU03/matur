@@ -291,6 +291,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "outlet_id", label: "Outlet", type: "select", ref: { table: "outlet", label: "nama" }, required: true },
       { key: "kategori_id", label: "Kategori Biaya", type: "select", ref: { table: "kategori_biaya", label: "nama" }, required: true },
       { key: "jumlah", label: "Jumlah", type: "money", required: true },
+      { key: "sumber", label: "Sumber dana", type: "enum", options: ["laci", "pusat"], required: true },
       { key: "keterangan", label: "Keterangan (mis. token listrik, gaji Oktober)", type: "text" },
     ],
   },
