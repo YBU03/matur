@@ -5,7 +5,7 @@ import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
 import { batalDraft, bayar, bukaShift, izinDiskonSpv, simpanDraft, type Checkout, type DraftItem, type Receipt } from "@/lib/pos-actions";
 import { bacaAntrean, galatJaringan, hapusTertunda, simpanTertunda } from "@/lib/pos-offline";
-import { bisaBluetooth, cetakBluetooth, namaPrinter, sambungPrinter, susunStruk } from "@/lib/printer-bt";
+import { bisaBluetooth, cetakBluetooth, cetakRawBT, diAndroid, namaPrinter, sambungPrinter, susunStruk } from "@/lib/printer-bt";
 
 type Varian = { id: string; grup: string; nama: string; tambahan_harga: number };
 export type PosMenu = { id: string; nama: string; kategori_id: string | null; harga_langsung: number; harga_ojol: number; foto_url: string | null; varian: Varian[] };
@@ -535,33 +535,35 @@ function ReceiptDialog({
     r.kembalian ? `Kembali: ${formatRupiah(r.kembalian)}` : "",
     "Terima kasih 🙏",
   ].filter(Boolean);
+  const dataStruk = () => {
+    const lebar = kertas === "58" ? 32 : 48;
+    return susunStruk(
+      [
+        { teks: "RUMA", tengah: true, tebal: true, besar: true },
+        { teks: outletNama, tengah: true, tebal: true },
+        { teks: waktu, tengah: true },
+        { teks: `No. ${nomor} - ${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`, tengah: true },
+        "-".repeat(lebar),
+        ...lines.map((l) => ({ teks: "", kiriKanan: [`${l.qty}x ${l.menu.nama}${l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}`, formatRupiah(price(l) * l.qty)] as [string, string] })),
+        "-".repeat(lebar),
+        ...(r.diskon > 0 ? [{ teks: "", kiriKanan: ["Diskon", formatRupiah(-r.diskon)] as [string, string] }] : []),
+        { teks: "", tebal: true, kiriKanan: ["TOTAL", formatRupiah(r.total)] as [string, string] },
+        { teks: "", kiriKanan: ["Bayar", labelMetode] as [string, string] },
+        ...(r.kembalian > 0 ? [{ teks: "", kiriKanan: ["Kembali", formatRupiah(r.kembalian)] as [string, string] }] : []),
+        "-".repeat(lebar),
+        { teks: "Terima kasih", tengah: true },
+      ],
+      lebar,
+    );
+  };
   const cetakBt = async () => {
     setBtErr("");
     try {
       if (!namaPrinter()) setBt(await sambungPrinter());
-      const lebar = kertas === "58" ? 32 : 48;
-      await cetakBluetooth(
-        susunStruk(
-          [
-            { teks: "RUMA", tengah: true, tebal: true },
-            { teks: outletNama, tengah: true, tebal: true },
-            { teks: waktu, tengah: true },
-            { teks: `No. ${nomor} - ${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`, tengah: true },
-            "-".repeat(lebar),
-            ...lines.map((l) => ({ teks: "", kiriKanan: [`${l.qty}x ${l.menu.nama}${l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}`, formatRupiah(price(l) * l.qty)] as [string, string] })),
-            "-".repeat(lebar),
-            ...(r.diskon > 0 ? [{ teks: "", kiriKanan: ["Diskon", formatRupiah(-r.diskon)] as [string, string] }] : []),
-            { teks: "", tebal: true, kiriKanan: ["TOTAL", formatRupiah(r.total)] as [string, string] },
-            { teks: "", kiriKanan: ["Bayar", labelMetode] as [string, string] },
-            ...(r.kembalian > 0 ? [{ teks: "", kiriKanan: ["Kembali", formatRupiah(r.kembalian)] as [string, string] }] : []),
-            "-".repeat(lebar),
-            { teks: "Terima kasih", tengah: true },
-          ],
-          lebar,
-        ),
-      );
+      await cetakBluetooth(dataStruk());
     } catch (e) {
-      setBtErr(e instanceof Error ? e.message : "Gagal mencetak.");
+      const m = e instanceof Error ? e.message : "Gagal mencetak.";
+      setBtErr(/cancel|chooser/i.test(m) ? "Pemilihan printer dibatalkan." : m);
     }
   };
   return (
@@ -603,6 +605,11 @@ function ReceiptDialog({
         {bisaBluetooth() && (
           <button onClick={cetakBt} className="rounded-lg border px-4 py-2 text-sm" title={bt ? `Tersambung: ${bt}` : "Sambungkan printer Bluetooth"}>
             🖨 {bt ? "Cetak Bluetooth" : "Printer Bluetooth"}
+          </button>
+        )}
+        {diAndroid() && !bt && (
+          <button onClick={() => cetakRawBT(dataStruk())} className="rounded-lg border px-4 py-2 text-sm" title="Cetak lewat aplikasi RawBT (printer Bluetooth klasik)">
+            RawBT
           </button>
         )}
         <button onClick={() => window.print()} className="rounded-lg border px-4 py-2 text-sm">Cetak</button>

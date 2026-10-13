@@ -6,6 +6,7 @@ import { POS_ROLES, ROLES, BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { InstallButton } from "@/components/install-button";
 import { TerminalNav } from "./terminal-nav";
+import { PrinterTombol } from "./printer-tombol";
 import { MaintenanceScreen } from "@/components/maintenance-screen";
 import { statusMaintenance } from "@/lib/maintenance";
 import { pengingatShift } from "@/lib/sdm";
@@ -36,6 +37,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
           <p className="text-xs text-stone-500">{s.nama} · {ROLES[s.active.role].label}</p>
         </div>
         <TerminalNav items={items} />
+        {BISA_JUAL.includes(s.active.role) && <PrinterTombol />}
         <InstallButton className="!w-auto" />
         <form action={kasirLogoutAction}>
           <button className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">Keluar</button>
