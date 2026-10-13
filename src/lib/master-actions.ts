@@ -14,17 +14,24 @@ async function guard(entityKey: string) {
   return { entity, s, supabase: await supabaseServer() };
 }
 
-const friendly = (msg: string) =>
+const friendly = (msg: string, entity?: { fields: { key: string; label: string }[] }) => {
+  const kosong = msg.match(/null value in column "(\w+)"/);
+  if (kosong) return `${entity?.fields.find((f) => f.key === kosong[1])?.label ?? kosong[1]} wajib diisi`;
+  return pesan(msg);
+};
+const pesan = (msg: string) =>
   msg.includes("row-level security")
     ? "Peran Anda tidak punya izin mengubah data ini."
     : msg.includes("perjanjian_check")
       ? "Persentase mitra + pengelola harus 100%."
       : msg;
 
-export async function saveMaster(entityKey: string, id: string | null, form: Record<string, string | boolean>): Promise<Result> {
+/** `hanya`: saat mengubah dari form ringkas, hanya kolom ini yang diperiksa & disimpan (kolom lain tidak disentuh). */
+export async function saveMaster(entityKey: string, id: string | null, form: Record<string, string | boolean>, hanya?: string[]): Promise<Result> {
   const g = await guard(entityKey);
   if (!g) return { error: "Tidak diizinkan." };
-  const { values, errors } = parseForm(g.entity, form);
+  const entity = id && hanya?.length ? { ...g.entity, fields: g.entity.fields.filter((f) => hanya.includes(f.key)) } : g.entity;
+  const { values, errors } = parseForm(entity, form);
   if (errors.length) return { error: errors.join(", ") };
   // HPP per satuan pakai = harga beli ÷ isi kemasan bila tidak diisi
   if (g.entity.table === "bahan" && values.harga_pokok === null)
@@ -35,7 +42,7 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
     values.harga_estimasi = Math.round(Number(values.qty ?? 0) * Number(values.harga_satuan ?? 0));
   const q = id ? g.supabase.from(g.entity.table).update(values).eq("id", id) : g.supabase.from(g.entity.table).insert(values);
   const { error } = await q.select("id").single();
-  if (error) return { error: friendly(error.message) };
+  if (error) return { error: friendly(error.message, g.entity) };
   revalidatePath(`/master/${entityKey}`);
   return {};
 }

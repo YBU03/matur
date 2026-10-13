@@ -54,14 +54,14 @@ export function RowEditor({
     if (!form) return;
     const before = toForm(entity, row, initial);
     setConfirm(
-      entity.fields
+      shown
         .filter((f) => before[f.key] !== form[f.key])
         .map((f) => ({ field: f.label, before: row ? show(f, row[f.key], refs) : "-", after: show(f, f.type === "bool" ? form[f.key] : form[f.key] || null, refs) })),
     );
   };
   const save = () =>
     start(async () => {
-      const r = await saveMaster(entityKey, row ? String(row.id) : null, form!);
+      const r = await saveMaster(entityKey, row ? String(row.id) : null, form!, fields);
       if (r.error) {
         setErr(r.error);
         setConfirm(null);
