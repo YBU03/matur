@@ -3,22 +3,7 @@
 import { useState } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { hitung, namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
-
-// gambar dari /public sebagai data URL untuk jsPDF
-async function gambar(src: string) {
-  const blob = await (await fetch(src)).blob();
-  const url = await new Promise<string>((ok) => {
-    const r = new FileReader();
-    r.onload = () => ok(String(r.result));
-    r.readAsDataURL(blob);
-  });
-  const img = await new Promise<HTMLImageElement>((ok) => {
-    const i = new Image();
-    i.onload = () => ok(i);
-    i.src = url;
-  });
-  return { url, w: img.naturalWidth, h: img.naturalHeight };
-}
+import { gambar } from "@/lib/pdf-kop";
 
 // Unduh laporan resmi sebagai PDF (A4), urutan bagian sama dengan laporan manual
 export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
