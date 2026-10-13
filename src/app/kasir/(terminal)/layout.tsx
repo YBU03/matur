@@ -13,7 +13,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
   const items = [
     ...(BISA_JUAL.includes(s.active.role) ? [{ href: "/kasir/pos", label: "Kasir" }] : []),
     { href: "/kasir/antrean", label: "Antrean" },
-    { href: "/kasir/shift", label: "Shift & Absensi 🔒" },
+    { href: "/kasir/shift", label: "Kas & Pengeluaran" },
   ];
   return (
     <div className="min-h-screen">
