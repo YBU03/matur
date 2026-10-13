@@ -111,7 +111,7 @@ export function Approvals({ proyekId, admin, items }: { proyekId: string; admin:
 }
 
 // Unduh rincian keperluan langsung dari halaman proyek
-export function RabDownload({ judul, sub, items }: { judul: string; sub: string; items: RabRow[] }) {
+export function RabDownload({ judul, sub, items, split = false }: { judul: string; sub: string; items: RabRow[]; split?: boolean }) {
   const [busy, setBusy] = useState("");
   const run = async (k: string, fn: () => Promise<void>) => {
     setBusy(k);
@@ -124,10 +124,10 @@ export function RabDownload({ judul, sub, items }: { judul: string; sub: string;
   if (!items.length) return null;
   return (
     <div className="flex flex-wrap gap-2">
-      <button disabled={!!busy} onClick={() => run("x", () => exportExcel(judul, items))} className="rounded-lg border border-green-600 px-3 py-1.5 text-sm font-semibold text-green-700 disabled:opacity-50">
+      <button disabled={!!busy} onClick={() => run("x", () => exportExcel(judul, items, split))} className="rounded-lg border border-green-600 px-3 py-1.5 text-sm font-semibold text-green-700 disabled:opacity-50">
         {busy === "x" ? "Menyiapkan…" : "⬇ Excel"}
       </button>
-      <button disabled={!!busy} onClick={() => run("p", () => exportPdf(judul, sub, items))} className="rounded-lg border border-red-600 px-3 py-1.5 text-sm font-semibold text-red-700 disabled:opacity-50">
+      <button disabled={!!busy} onClick={() => run("p", () => exportPdf(judul, sub, items, split))} className="rounded-lg border border-red-600 px-3 py-1.5 text-sm font-semibold text-red-700 disabled:opacity-50">
         {busy === "p" ? "Menyiapkan…" : "⬇ PDF"}
       </button>
     </div>

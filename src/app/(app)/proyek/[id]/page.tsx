@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Progress, sisaHari } from "@/components/proyek-card";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { detailProyek, progresTotal } from "@/lib/proyek";
-import { groupRab } from "@/lib/rab-excel";
+import { groupRab, totalPembeli } from "@/lib/rab-excel";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { RowDeleter, RowEditor } from "@/components/row-editor";
@@ -20,7 +20,7 @@ const TABS = [
   { key: "diskusi", label: "Diskusi" },
 ] as const;
 
-const PROYEK_FIELDS = ["nama", "estimasi_budget", "tgl_mulai", "tgl_soft_opening", "target_buka", "status", "alamat", "maps_url", "luas", "sewa_tempat", "kontak_tempat", "catatan"];
+const PROYEK_FIELDS = ["nama", "estimasi_budget", "tgl_mulai", "tgl_soft_opening", "target_buka", "status", "mode_pembelian", "alamat", "maps_url", "luas", "sewa_tempat", "kontak_tempat", "catatan"];
 const TAHAP_FIELDS = ["nama", "pic_id", "bobot", "progres", "tgl_mulai", "tgl_selesai", "urutan"];
 const JADWAL_FIELDS = ["judul", "tgl_rencana", "tgl_realisasi", "status", "keterangan", "urutan"];
 const card = "rounded-2xl border border-matur-200 bg-white p-4";
@@ -71,6 +71,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
     realisasi,
     tahapan: pekerjaan.map((k) => ({ nama: k.nama, progres: k.progres, pic: k.pic?.nama ?? "-" })),
     biaya: grup.map((g) => ({ kelompok: g.kelompok, estimasi: g.estimasi, realisasi: g.realisasi })),
+    pembeli: p.mode_pembelian === "split" ? totalPembeli(rab) : undefined,
     setoran,
     jadwal,
     checklist,
@@ -382,17 +383,17 @@ export default async function DetailProyek({ params, searchParams }: { params: P
           <section className={card}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <h2 className="mr-auto font-bold">Rincian Keperluan</h2>
-              <RabDownload judul={`Rincian Keperluan ${p.nama}`} sub={`${p.outlet?.nama ?? ""} · Estimasi ${formatRupiah(estimasiRab)}`} items={rab} />
+              <RabDownload judul={`Rincian Keperluan ${p.nama}`} sub={`${p.outlet?.nama ?? ""} · Estimasi ${formatRupiah(estimasiRab)}`} items={rab} split={p.mode_pembelian === "split"} />
               <Link href={`/proyek/${p.id}/rab`} className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white">
                 Detail →
               </Link>
             </div>
             {rab.length === 0 && <p className="text-sm text-stone-400">Belum ada rincian keperluan.</p>}
-            {rab.length > 0 && (
+            {rab.length > 0 && p.mode_pembelian === "split" && (
               <div className="mb-2 grid grid-cols-2 gap-2 text-sm">
                 {(["kantor", "mitra"] as const).map((o) => (
                   <Link key={o} href={`/proyek/${p.id}/rab`} className="rounded-xl bg-stone-50 px-3 py-2">
-                    <p className="text-xs text-stone-500">{o === "kantor" ? "🏢 Dibeli kantor" : "🤝 Dibeli mitra"}</p>
+                    <p className="text-xs text-stone-500">{o === "kantor" ? "🏢 Dibeli pusat" : "🤝 Dibeli mitra"}</p>
                     <p className="font-bold">{formatRupiah(rab.filter((r) => r.dibeli_oleh === o).reduce((t, r) => t + r.harga_estimasi, 0))}</p>
                   </Link>
                 ))}

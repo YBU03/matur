@@ -16,6 +16,8 @@ export type Field = {
   /** untuk select: tabel rujukan dan kolom labelnya */
   ref?: { table: string; label: string };
   options?: string[];
+  /** label tampilan untuk opsi enum (nilai tersimpan tetap `options`) */
+  optionLabels?: Record<string, string>;
   /** tampil di tabel daftar (default true) */
   list?: boolean;
 };
@@ -189,6 +191,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "tgl_soft_opening", label: "Soft Opening", type: "date" },
       { key: "target_buka", label: "Grand Opening", type: "date" },
       { key: "status", label: "Status", type: "enum", options: ["berjalan", "selesai"], required: true },
+      { key: "mode_pembelian", label: "Pembelian barang", type: "enum", options: ["normal", "split"], optionLabels: { normal: "Normal (tanpa penandaan)", split: "Split: tandai dibeli pusat / mitra" }, required: true, list: false },
       { key: "alamat", label: "Alamat Lokasi", type: "text", list: false },
       { key: "maps_url", label: "Link Google Maps", type: "text", list: false },
       { key: "luas", label: "Luas Tempat", type: "text", list: false },
@@ -214,7 +217,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "harga_estimasi", label: "Total Estimasi (kosong = jumlah × harga satuan)", type: "money" },
       { key: "harga_realisasi", label: "Total Realisasi", type: "money" },
       { key: "status", label: "Status", type: "enum", options: ["rencana", "dibeli", "terpasang"], required: true },
-      { key: "dibeli_oleh", label: "Dibeli oleh", type: "enum", options: ["kantor", "mitra"], required: true },
+      { key: "dibeli_oleh", label: "Dibeli oleh", type: "enum", options: ["kantor", "mitra"], optionLabels: { kantor: "🏢 Pusat (kantor)", mitra: "🤝 Mitra" }, required: true },
       { key: "keterangan", label: "Keterangan", type: "text", list: false },
     ],
   },

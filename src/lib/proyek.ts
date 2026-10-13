@@ -17,6 +17,8 @@ export type Proyek = {
   luas: string | null;
   sewa_tempat: string | null;
   kontak_tempat: string | null;
+  /** normal = tanpa penandaan; split = tiap barang ditandai dibeli pusat / mitra */
+  mode_pembelian: "normal" | "split";
   outlet: { nama: string } | null;
 };
 export type Usulan = { id: string; jenis: "Soft Opening" | "Grand Opening"; tanggal: string; catatan: string | null; diusulkan_oleh: string | null; nama_pengusul: string | null; created_at: string };
@@ -74,7 +76,7 @@ export const progresTotal = (ks: Pick<Pekerjaan, "bobot" | "progres">[]) => {
 };
 
 const PROYEK_COLS =
-  "id, nama, outlet_id, estimasi_budget, tgl_mulai, target_buka, tgl_soft_opening, status, catatan, alamat, maps_url, luas, sewa_tempat, kontak_tempat, outlet(nama)";
+  "id, nama, outlet_id, estimasi_budget, tgl_mulai, target_buka, tgl_soft_opening, status, catatan, alamat, maps_url, luas, sewa_tempat, kontak_tempat, mode_pembelian, outlet(nama)";
 
 export async function daftarProyek(): Promise<Ringkasan[]> {
   const supabase = await supabaseServer();

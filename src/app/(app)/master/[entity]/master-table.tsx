@@ -27,6 +27,8 @@ export function show(f: Field, v: unknown, refs: Refs): string {
       return formatTanggal(String(v));
     case "select":
       return refs[f.key]?.find((o) => o.id === v)?.label ?? "-";
+    case "enum":
+      return f.optionLabels?.[String(v)] ?? String(v);
     default:
       return String(v);
   }
@@ -335,7 +337,7 @@ export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; valu
               ))
             : f.options!.map((o) => (
                 <option key={o} value={o}>
-                  {o}
+                  {f.optionLabels?.[o] ?? o}
                 </option>
               ))}
         </select>

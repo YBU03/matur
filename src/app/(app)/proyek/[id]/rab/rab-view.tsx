@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
+import { saveMaster } from "@/lib/master-actions";
 import { importRab, type Result } from "@/lib/proyek-actions";
 import { exportExcel, exportPdf, groupRab, parseWorkbook, type RabRow } from "@/lib/rab-excel";
 import { RowDeleter, RowEditor } from "@/components/row-editor";
@@ -17,20 +18,31 @@ const STATUS: Record<string, string> = {
   terpasang: "bg-green-100 text-green-800",
 };
 
-export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; budget: number; outlet: string }; items: Item[]; admin: boolean }) {
+// mode normal: tanpa penandaan pembeli; mode split: tiap barang ditandai dibeli pusat / mitra (dropdown)
+export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; budget: number; outlet: string; split: boolean }; items: Item[]; admin: boolean }) {
+  const router = useRouter();
+  const [pendingMode, startMode] = useTransition();
+  const split = proyek.split;
+  const fields = split ? RAB_FIELDS : RAB_FIELDS.filter((f) => f !== "dibeli_oleh");
   const [q, setQ] = useState("");
   const [oleh, setOleh] = useState<"" | "kantor" | "mitra">("");
   const kata = q.trim().toLowerCase();
   const items = semua.filter(
     (i) =>
-      (!oleh || (i.dibeli_oleh ?? "kantor") === oleh) &&
+      (!split || !oleh || (i.dibeli_oleh ?? "kantor") === oleh) &&
       (!kata || [i.nama, i.spesifikasi, i.bagian, i.keterangan, i.kategori].some((v) => v?.toLowerCase().includes(kata))),
   );
   const groups = groupRab(items);
   const total = groups.reduce((s, g) => s + g.estimasi, 0);
   const realisasi = groups.reduce((s, g) => s + g.realisasi, 0);
   const totalOleh = (o: string) => semua.filter((i) => (i.dibeli_oleh ?? "kantor") === o).reduce((s, i) => s + i.harga_estimasi, 0);
-  const judul = `Rincian Keperluan ${proyek.nama}`;
+  const judul = `Rincian Keperluan ${proyek.nama}${split && oleh ? (oleh === "mitra" ? " - Dibeli Mitra" : " - Dibeli Pusat") : ""}`;
+  const gantiMode = (m: "normal" | "split") =>
+    startMode(async () => {
+      await saveMaster("proyek", proyek.id, { mode_pembelian: m }, ["mode_pembelian"]);
+      setOleh("");
+      router.refresh();
+    });
   const [busy, setBusy] = useState("");
 
   const run = async (label: string, fn: () => Promise<void>) => {
@@ -50,12 +62,12 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-2xl font-bold">Rincian Keperluan</h1>
-          <button disabled={!!busy || !items.length} onClick={() => run("xlsx", () => exportExcel(judul, items))} className="rounded-xl border border-green-600 bg-white px-3 py-2 text-sm font-semibold text-green-700 disabled:opacity-50">
+          <button disabled={!!busy || !items.length} onClick={() => run("xlsx", () => exportExcel(judul, items, split))} className="rounded-xl border border-green-600 bg-white px-3 py-2 text-sm font-semibold text-green-700 disabled:opacity-50">
             {busy === "xlsx" ? "Menyiapkan…" : "⬇ Export Excel"}
           </button>
           <button
             disabled={!!busy || !items.length}
-            onClick={() => run("pdf", () => exportPdf(judul, `${proyek.outlet} · dicetak ${new Date().toLocaleDateString("id-ID", { dateStyle: "long" })}`, items))}
+            onClick={() => run("pdf", () => exportPdf(judul, `${proyek.outlet} · dicetak ${new Date().toLocaleDateString("id-ID", { dateStyle: "long" })}`, items, split))}
             className="rounded-xl border border-red-600 bg-white px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
           >
             {busy === "pdf" ? "Menyiapkan…" : "⬇ Export PDF"}
@@ -71,17 +83,35 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
 
       <section className="space-y-2 rounded-2xl border border-matur-200 bg-white p-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Cari barang, spesifikasi, bagian…" className="w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-matur-500" />
-        <div className="flex flex-wrap gap-2 text-sm">
-          {([
-            ["", "Semua", semua.reduce((s, i) => s + i.harga_estimasi, 0)],
-            ["kantor", "🏢 Dibeli kantor", totalOleh("kantor")],
-            ["mitra", "🤝 Dibeli mitra", totalOleh("mitra")],
-          ] as const).map(([k, l, t]) => (
-            <button key={k} onClick={() => setOleh(k)} className={`rounded-full px-3 py-1.5 ${oleh === k ? "bg-kopi-900 text-white" : "border border-matur-200 bg-white text-kopi-700"}`}>
-              {l} · <b>{formatRupiah(t)}</b>
-            </button>
-          ))}
-        </div>
+        {admin && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-stone-500">Pembelian barang:</span>
+            {(
+              [
+                ["normal", "Normal"],
+                ["split", "Split pusat / mitra"],
+              ] as const
+            ).map(([m, l]) => (
+              <button key={m} disabled={pendingMode} onClick={() => (split ? "split" : "normal") !== m && gantiMode(m)} className={`rounded-full px-3 py-1 ${(split ? "split" : "normal") === m ? "bg-matur-500 text-white" : "border border-matur-200 text-kopi-700"}`}>
+                {l}
+              </button>
+            ))}
+            <span className="text-xs text-stone-400">{split ? "Tiap barang dipilih dibeli pusat atau mitra; tampil juga di PDF & Excel." : "Semua barang tanpa penandaan pembeli."}</span>
+          </div>
+        )}
+        {split && (
+          <div className="flex flex-wrap gap-2 text-sm">
+            {([
+              ["", "Semua", semua.reduce((s, i) => s + i.harga_estimasi, 0)],
+              ["kantor", "🏢 Dibeli pusat", totalOleh("kantor")],
+              ["mitra", "🤝 Dibeli mitra", totalOleh("mitra")],
+            ] as const).map(([k, l, t]) => (
+              <button key={k} onClick={() => setOleh(k)} className={`rounded-full px-3 py-1.5 ${oleh === k ? "bg-kopi-900 text-white" : "border border-matur-200 bg-white text-kopi-700"}`}>
+                {l} · <b>{formatRupiah(t)}</b>
+              </button>
+            ))}
+          </div>
+        )}
         {(kata || oleh) && <p className="text-xs text-stone-500">{items.length} dari {semua.length} item ditampilkan.</p>}
       </section>
 
@@ -120,7 +150,7 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
                 entityKey="item_rab"
                 row={null}
                 initial={{ proyek_id: proyek.id, kategori: g.kelompok, qty: "1", status: "rencana", dibeli_oleh: oleh || "kantor" }}
-                fields={RAB_FIELDS}
+                fields={fields}
                 label="+ Tambah item"
                 className="rounded-lg border border-matur-300 bg-white px-2 py-1 text-xs font-semibold text-matur-700"
               />
@@ -138,13 +168,14 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
                   <th className="px-3 text-right">Total</th>
                   <th className="px-3 text-right">Realisasi</th>
                   <th className="px-3">Status</th>
+                  {split && <th className="px-3">Dibeli</th>}
                   <th className="px-3">Keterangan</th>
                   {admin && <th className="px-3" />}
                 </tr>
               </thead>
               <tbody>
                 {g.items.map((i, idx) => (
-                  <Rows key={i.id} item={i} proyekId={proyek.id} admin={admin} showBagian={i.bagian !== null && i.bagian !== g.items[idx - 1]?.bagian} />
+                  <Rows key={i.id} item={i} proyekId={proyek.id} admin={admin} split={split} fields={fields} showBagian={i.bagian !== null && i.bagian !== g.items[idx - 1]?.bagian} />
                 ))}
               </tbody>
             </table>
@@ -155,18 +186,40 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
   );
 }
 
-function Rows({ item: i, proyekId, admin, showBagian }: { item: Item; proyekId: string; admin: boolean; showBagian: boolean }) {
+function Dibeli({ item, admin }: { item: Item; admin: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const v = item.dibeli_oleh ?? "kantor";
+  if (!admin) return <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${v === "mitra" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"}`}>{v === "mitra" ? "Mitra" : "Pusat"}</span>;
+  return (
+    <select
+      disabled={pending}
+      value={v}
+      onChange={(e) =>
+        start(async () => {
+          await saveMaster("item_rab", item.id, { dibeli_oleh: e.target.value }, ["dibeli_oleh"]);
+          router.refresh();
+        })
+      }
+      className={`rounded-lg border px-1.5 py-1 text-xs font-semibold ${v === "mitra" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-orange-200 bg-orange-50 text-orange-700"}`}
+    >
+      <option value="kantor">🏢 Pusat</option>
+      <option value="mitra">🤝 Mitra</option>
+    </select>
+  );
+}
+
+function Rows({ item: i, proyekId, admin, split, fields, showBagian }: { item: Item; proyekId: string; admin: boolean; split: boolean; fields: string[]; showBagian: boolean }) {
   return (
     <>
       {showBagian && (
         <tr className="border-t bg-stone-50">
-          <td colSpan={admin ? 9 : 8} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-kopi-700">{i.bagian}</td>
+          <td colSpan={(admin ? 9 : 8) + (split ? 1 : 0)} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-kopi-700">{i.bagian}</td>
         </tr>
       )}
       <tr className="border-t border-stone-100">
         <td className="px-3 py-2 font-medium">
           {i.nama}
-          {i.dibeli_oleh === "mitra" && <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">dibeli mitra</span>}
         </td>
         <td className="px-3 text-stone-600">{i.spesifikasi ?? ""}</td>
         <td className="whitespace-nowrap px-3 text-right">{i.qty} {i.satuan ?? ""}</td>
@@ -174,10 +227,15 @@ function Rows({ item: i, proyekId, admin, showBagian }: { item: Item; proyekId: 
         <td className="whitespace-nowrap px-3 text-right font-semibold tabular-nums">{formatRupiah(i.harga_estimasi)}</td>
         <td className="whitespace-nowrap px-3 text-right tabular-nums">{i.harga_realisasi ? formatRupiah(i.harga_realisasi) : ""}</td>
         <td className="px-3"><span className={`rounded-full px-2 py-0.5 text-xs ${STATUS[i.status]}`}>{i.status}</span></td>
+        {split && (
+          <td className="px-3">
+            <Dibeli item={i} admin={admin} />
+          </td>
+        )}
         <td className="px-3 text-xs text-stone-500">{i.keterangan ?? ""}</td>
         {admin && (
           <td className="whitespace-nowrap px-1 text-right">
-            <RowEditor entityKey="item_rab" row={{ ...i, proyek_id: proyekId }} fields={RAB_FIELDS} label="✏️" title={`Ubah item · ${i.nama}`} />
+            <RowEditor entityKey="item_rab" row={{ ...i, proyek_id: proyekId }} fields={fields} label="✏️" title={`Ubah item · ${i.nama}`} />
             <RowDeleter entityKey="item_rab" id={i.id} name={`Rincian Keperluan ${i.nama}`} />
           </td>
         )}

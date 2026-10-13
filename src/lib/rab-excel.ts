@@ -199,19 +199,28 @@ export function groupRab<T extends Pick<RabRow, "kategori" | "harga_estimasi" | 
 
 const rp = (n: number | null) => (n ? "Rp " + new Intl.NumberFormat("id-ID").format(n) : "-");
 
-export async function exportExcel(judul: string, items: RabRow[]) {
+const pembeli = (i: Pick<RabRow, "dibeli_oleh">) => (i.dibeli_oleh === "mitra" ? "Mitra" : "Pusat");
+/** total per pembeli (mode split) */
+export const totalPembeli = (items: RabRow[]) =>
+  (["kantor", "mitra"] as const).map((o) => ({ label: o === "mitra" ? "Dibeli mitra" : "Dibeli pusat", estimasi: items.filter((i) => (i.dibeli_oleh ?? "kantor") === o).reduce((s, i) => s + i.harga_estimasi, 0), realisasi: items.filter((i) => (i.dibeli_oleh ?? "kantor") === o).reduce((s, i) => s + (i.harga_realisasi ?? 0), 0) }));
+
+/** `split`: tambah kolom "Dibeli Oleh" + subtotal pusat/mitra; mode normal tanpa penandaan. */
+export async function exportExcel(judul: string, items: RabRow[], split = false) {
   const { Workbook } = (await import("exceljs")).default;
   const wb = new Workbook();
   const ws = wb.addWorksheet("Rincian Keperluan");
   ws.addRow([judul]).font = { bold: true, size: 14 };
   ws.addRow([]);
-  const h = ws.addRow(HEADERS);
+  const h = ws.addRow(split ? HEADERS : HEADERS.filter((x) => x !== "Dibeli Oleh"));
   h.font = { bold: true };
   h.eachCell((c) => (c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFDE85" } }));
-  for (const i of items)
-    ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan, i.dibeli_oleh === "mitra" ? "Mitra" : "Kantor"]);
+  for (const i of items) {
+    const r = ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan, ...(split ? [pembeli(i)] : [])]);
+    if (split && i.dibeli_oleh === "mitra") r.getCell(12).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDBEAFE" } };
+  }
   ws.addRow([]);
   for (const g of groupRab(items)) ws.addRow([`Total ${g.kelompok}`, null, null, null, null, null, null, g.estimasi, g.realisasi || null]).font = { bold: true };
+  if (split) for (const t of totalPembeli(items)) ws.addRow([`Total ${t.label.toLowerCase()}`, null, null, null, null, null, null, t.estimasi, t.realisasi || null]).font = { bold: true, color: { argb: "FF1D4ED8" } };
   const all = groupRab(items).reduce((s, g) => [s[0] + g.estimasi, s[1] + g.realisasi], [0, 0]);
   ws.addRow(["GRAND TOTAL", null, null, null, null, null, null, all[0], all[1] || null]).font = { bold: true };
   [16, 18, 30, 18, 9, 10, 14, 16, 16, 11, 30, 12].forEach((w, i) => (ws.getColumn(i + 1).width = w));
@@ -220,7 +229,7 @@ export async function exportExcel(judul: string, items: RabRow[]) {
   download(blob, `${judul}.xlsx`);
 }
 
-export async function exportPdf(judul: string, sub: string, items: RabRow[]) {
+export async function exportPdf(judul: string, sub: string, items: RabRow[], split = false) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -231,9 +240,16 @@ export async function exportPdf(judul: string, sub: string, items: RabRow[]) {
   for (const g of groups) {
     autoTable(doc, {
       startY: y,
-      head: [[g.kelompok, "Bagian", "Spesifikasi", "Jumlah", "Satuan", "Harga Satuan", "Total", "Realisasi", "Status", "Keterangan"]],
-      body: g.items.map((i) => [i.nama, i.bagian ?? "", i.spesifikasi ?? "", String(i.qty), i.satuan ?? "", rp(i.harga_satuan), rp(i.harga_estimasi), rp(i.harga_realisasi), i.status, i.keterangan ?? ""]),
-      foot: [[`Subtotal ${g.kelompok}`, "", "", "", "", "", rp(g.estimasi), rp(g.realisasi), "", ""]],
+      head: [[g.kelompok, "Bagian", "Spesifikasi", "Jumlah", "Satuan", "Harga Satuan", "Total", "Realisasi", "Status", ...(split ? ["Dibeli"] : []), "Keterangan"]],
+      body: g.items.map((i) => [i.nama, i.bagian ?? "", i.spesifikasi ?? "", String(i.qty), i.satuan ?? "", rp(i.harga_satuan), rp(i.harga_estimasi), rp(i.harga_realisasi), i.status, ...(split ? [pembeli(i)] : []), i.keterangan ?? ""]),
+      foot: [[`Subtotal ${g.kelompok}`, "", "", "", "", "", rp(g.estimasi), rp(g.realisasi), "", ...(split ? [""] : []), ""]],
+      didParseCell: (d) => {
+        if (split && d.section === "body" && d.column.index === 9 && d.cell.raw === "Mitra") {
+          d.cell.styles.fillColor = [219, 234, 254];
+          d.cell.styles.textColor = [29, 78, 216];
+          d.cell.styles.fontStyle = "bold";
+        }
+      },
       styles: { fontSize: 7.5, cellPadding: 1.5 },
       headStyles: { fillColor: [255, 149, 0] },
       footStyles: { fillColor: [255, 239, 194], textColor: 20 },
@@ -246,6 +262,7 @@ export async function exportPdf(judul: string, sub: string, items: RabRow[]) {
     head: [["Ringkasan", "Estimasi", "Realisasi"]],
     body: [
       ...groups.map((g) => [g.kelompok, rp(g.estimasi), rp(g.realisasi)]),
+      ...(split ? totalPembeli(items).map((t) => [t.label, rp(t.estimasi), rp(t.realisasi)]) : []),
       ["GRAND TOTAL", rp(groups.reduce((s, g) => s + g.estimasi, 0)), rp(groups.reduce((s, g) => s + g.realisasi, 0))],
     ],
     styles: { fontSize: 9 },

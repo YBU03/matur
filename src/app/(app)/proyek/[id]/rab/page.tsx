@@ -9,7 +9,7 @@ export default async function RincianKeperluan({ params }: { params: Promise<{ i
   const s = await getSession();
   if (!s?.active) notFound();
   const supabase = await supabaseServer();
-  const { data: p } = await supabase.from("proyek").select("id, nama, estimasi_budget, outlet(nama)").eq("id", id).is("deleted_at", null).maybeSingle();
+  const { data: p } = await supabase.from("proyek").select("id, nama, estimasi_budget, mode_pembelian, outlet(nama)").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!p) notFound(); // RLS: hanya proyek yang boleh dilihat
   const { data } = await supabase
     .from("item_rab")
@@ -21,7 +21,7 @@ export default async function RincianKeperluan({ params }: { params: Promise<{ i
   const items = (data ?? []).map((r) => ({ ...r, qty: Number(r.qty) })) as (RabRow & { id: string })[];
   return (
     <RabView
-      proyek={{ id: p.id, nama: p.nama, budget: p.estimasi_budget, outlet: (p.outlet as unknown as { nama: string } | null)?.nama ?? "" }}
+      proyek={{ id: p.id, nama: p.nama, budget: p.estimasi_budget, outlet: (p.outlet as unknown as { nama: string } | null)?.nama ?? "", split: p.mode_pembelian === "split" }}
       items={items}
       admin={s.active.role === "owner" || s.active.role === "admin_pusat"}
     />

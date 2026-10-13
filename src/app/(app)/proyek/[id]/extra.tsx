@@ -248,6 +248,8 @@ export type LaporanData = {
   realisasi: number;
   tahapan: { nama: string; progres: number; pic: string }[];
   biaya: { kelompok: string; estimasi: number; realisasi: number }[];
+  /** mode split: rekap barang dibeli pusat / mitra */
+  pembeli?: { label: string; estimasi: number; realisasi: number }[];
   setoran: Setoran[];
   jadwal: Jadwal[];
   checklist: Checklist[];
@@ -310,6 +312,17 @@ export function LaporanPdf({ data, className = "" }: { data: LaporanData; classN
           columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
         });
         next();
+        if (data.pembeli?.length) {
+          autoTable(doc, {
+            startY: y,
+            head: [["Pembelian barang", "Estimasi", "Realisasi"]],
+            body: data.pembeli.map((b) => [b.label, formatRupiah(b.estimasi), formatRupiah(b.realisasi)]),
+            headStyles: head,
+            styles: { fontSize: 9 },
+            columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+          });
+          next();
+        }
       }
       if (data.setoran.length) {
         autoTable(doc, {
