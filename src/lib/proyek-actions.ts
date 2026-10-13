@@ -47,6 +47,7 @@ type ImportRow = {
   harga_realisasi: number | null;
   status: string;
   keterangan: string | null;
+  dibeli_oleh?: string;
 };
 
 const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
@@ -69,6 +70,7 @@ export async function importRab(proyekId: string, rows: ImportRow[], ganti: bool
     harga_realisasi: int(r.harga_realisasi),
     status: ["rencana", "dibeli", "terpasang"].includes(r.status) ? r.status : "rencana",
     keterangan: str(r.keterangan, 500),
+    dibeli_oleh: r.dibeli_oleh === "mitra" ? "mitra" : "kantor",
     urutan: i,
   }));
   const supabase = await supabaseServer();

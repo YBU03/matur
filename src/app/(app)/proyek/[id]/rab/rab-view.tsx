@@ -10,17 +10,26 @@ import { exportExcel, exportPdf, groupRab, parseWorkbook, type RabRow } from "@/
 import { RowDeleter, RowEditor } from "@/components/row-editor";
 
 type Item = RabRow & { id: string };
-const RAB_FIELDS = ["kategori", "bagian", "nama", "spesifikasi", "qty", "satuan", "harga_satuan", "harga_estimasi", "harga_realisasi", "status", "keterangan"];
+const RAB_FIELDS = ["kategori", "bagian", "nama", "spesifikasi", "qty", "satuan", "harga_satuan", "harga_estimasi", "harga_realisasi", "status", "dibeli_oleh", "keterangan"];
 const STATUS: Record<string, string> = {
   rencana: "bg-stone-100 text-stone-600",
   dibeli: "bg-amber-100 text-amber-800",
   terpasang: "bg-green-100 text-green-800",
 };
 
-export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: string; budget: number; outlet: string }; items: Item[]; admin: boolean }) {
+export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; budget: number; outlet: string }; items: Item[]; admin: boolean }) {
+  const [q, setQ] = useState("");
+  const [oleh, setOleh] = useState<"" | "kantor" | "mitra">("");
+  const kata = q.trim().toLowerCase();
+  const items = semua.filter(
+    (i) =>
+      (!oleh || (i.dibeli_oleh ?? "kantor") === oleh) &&
+      (!kata || [i.nama, i.spesifikasi, i.bagian, i.keterangan, i.kategori].some((v) => v?.toLowerCase().includes(kata))),
+  );
   const groups = groupRab(items);
   const total = groups.reduce((s, g) => s + g.estimasi, 0);
   const realisasi = groups.reduce((s, g) => s + g.realisasi, 0);
+  const totalOleh = (o: string) => semua.filter((i) => (i.dibeli_oleh ?? "kantor") === o).reduce((s, i) => s + i.harga_estimasi, 0);
   const judul = `Rincian Keperluan ${proyek.nama}`;
   const [busy, setBusy] = useState("");
 
@@ -36,7 +45,9 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
   return (
     <div className="space-y-5">
       <div>
-        <Link href={`/proyek/${proyek.id}`} className="text-sm text-matur-700">← {proyek.nama}</Link>
+        <Link href={`/proyek/${proyek.id}?tab=biaya`} className="inline-flex items-center gap-1 rounded-xl border border-matur-300 bg-white px-3 py-1.5 text-sm font-semibold text-matur-700">
+          ← Kembali ke {proyek.nama}
+        </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-2xl font-bold">Rincian Keperluan</h1>
           <button disabled={!!busy || !items.length} onClick={() => run("xlsx", () => exportExcel(judul, items))} className="rounded-xl border border-green-600 bg-white px-3 py-2 text-sm font-semibold text-green-700 disabled:opacity-50">
@@ -57,6 +68,22 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
           )}
         </div>
       </div>
+
+      <section className="space-y-2 rounded-2xl border border-matur-200 bg-white p-3">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Cari barang, spesifikasi, bagian…" className="w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-matur-500" />
+        <div className="flex flex-wrap gap-2 text-sm">
+          {([
+            ["", "Semua", semua.reduce((s, i) => s + i.harga_estimasi, 0)],
+            ["kantor", "🏢 Dibeli kantor", totalOleh("kantor")],
+            ["mitra", "🤝 Dibeli mitra", totalOleh("mitra")],
+          ] as const).map(([k, l, t]) => (
+            <button key={k} onClick={() => setOleh(k)} className={`rounded-full px-3 py-1.5 ${oleh === k ? "bg-kopi-900 text-white" : "border border-matur-200 bg-white text-kopi-700"}`}>
+              {l} · <b>{formatRupiah(t)}</b>
+            </button>
+          ))}
+        </div>
+        {(kata || oleh) && <p className="text-xs text-stone-500">{items.length} dari {semua.length} item ditampilkan.</p>}
+      </section>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {groups.map((g) => (
@@ -80,7 +107,7 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
 
       {items.length === 0 && (
         <p className="rounded-2xl border border-dashed border-matur-300 bg-white py-10 text-center text-stone-500">
-          Belum ada rincian. {admin ? "Import file Excel atau tambah item satu per satu." : ""}
+          {semua.length ? "Tidak ada item yang cocok dengan pencarian." : `Belum ada rincian. ${admin ? "Import file Excel atau tambah item satu per satu." : ""}`}
         </p>
       )}
 
@@ -92,7 +119,7 @@ export function RabView({ proyek, items, admin }: { proyek: { id: string; nama: 
               <RowEditor
                 entityKey="item_rab"
                 row={null}
-                initial={{ proyek_id: proyek.id, kategori: g.kelompok, qty: "1", status: "rencana" }}
+                initial={{ proyek_id: proyek.id, kategori: g.kelompok, qty: "1", status: "rencana", dibeli_oleh: oleh || "kantor" }}
                 fields={RAB_FIELDS}
                 label="+ Tambah item"
                 className="rounded-lg border border-matur-300 bg-white px-2 py-1 text-xs font-semibold text-matur-700"
@@ -137,7 +164,10 @@ function Rows({ item: i, proyekId, admin, showBagian }: { item: Item; proyekId: 
         </tr>
       )}
       <tr className="border-t border-stone-100">
-        <td className="px-3 py-2 font-medium">{i.nama}</td>
+        <td className="px-3 py-2 font-medium">
+          {i.nama}
+          {i.dibeli_oleh === "mitra" && <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">dibeli mitra</span>}
+        </td>
         <td className="px-3 text-stone-600">{i.spesifikasi ?? ""}</td>
         <td className="whitespace-nowrap px-3 text-right">{i.qty} {i.satuan ?? ""}</td>
         <td className="whitespace-nowrap px-3 text-right tabular-nums">{i.harga_satuan ? formatRupiah(i.harga_satuan) : ""}</td>

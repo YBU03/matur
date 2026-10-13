@@ -5,7 +5,7 @@ import { hitung, LAPORAN_COLS, namaBulan, type Laporan } from "@/lib/laporan";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 
-const BOLEH = ["owner", "admin_pusat", "finance", "manajer_area"];
+const BOLEH = ["owner", "admin_pusat", "finance", "manajer_area", "mitra"];
 
 // Daftar laporan keuangan bulanan per outlet (data tiap outlet terpisah)
 export default async function DaftarLaporan({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {
@@ -28,7 +28,7 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
       <h1 className="text-2xl font-bold">Laporan Keuangan</h1>
       <div className="-mx-4 overflow-x-auto px-4">
         <div className="flex w-max gap-2">
-          {daftar.map((o) => {
+          {daftar.length > 1 && daftar.map((o) => {
             const n = semua.filter((l) => l.outlet_id === o.id).length;
             return (
               <Link
@@ -43,7 +43,7 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      {(() => {
+      {s.active.role !== "mitra" && (() => {
         const sk = (daftar.find((o) => o.id === pilih)?.skema as unknown as { nama: string } | null)?.nama;
         return (
           <p className="text-sm text-stone-500">

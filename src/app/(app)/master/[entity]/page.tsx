@@ -53,6 +53,7 @@ export default async function MasterPage({
       refs={refs}
       trash={trash}
       filter={filter}
+      backHref={filter.proyek_id ? (key === "item_rab" ? `/proyek/${filter.proyek_id}/rab` : `/proyek/${filter.proyek_id}`) : undefined}
       canEdit={entity.editors.includes(s.active.role)}
     />
   );

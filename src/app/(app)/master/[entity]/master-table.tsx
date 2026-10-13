@@ -48,6 +48,7 @@ export function MasterTable({
   trash,
   filter = {},
   canEdit,
+  backHref,
 }: {
   entityKey: string;
   entity: Entity;
@@ -56,6 +57,7 @@ export function MasterTable({
   trash: boolean;
   filter?: Record<string, string>;
   canEdit: boolean;
+  backHref?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<{ row: Row | null; form: Form } | null>(null);
@@ -64,6 +66,9 @@ export function MasterTable({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const cols = entity.fields.filter((f) => f.list !== false);
+  const [q, setQ] = useState("");
+  const kata = q.trim().toLowerCase();
+  const tampil = kata ? rows.filter((r) => entity.fields.some((f) => show(f, r[f.key], refs).toLowerCase().includes(kata))) : rows;
   const nameField = entity.fields.find((f) => f.key === entity.nameKey)!;
 
   const run = (fn: () => Promise<{ error?: string }>, ok: string) =>
@@ -93,6 +98,11 @@ export function MasterTable({
 
   return (
     <div className="space-y-4">
+      {backHref && (
+        <Link href={backHref} className="inline-flex items-center gap-1 rounded-xl border border-matur-300 bg-white px-3 py-1.5 text-sm font-semibold text-matur-700">
+          ← Kembali ke proyek
+        </Link>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-2xl font-bold">
           {entity.title}
@@ -118,6 +128,9 @@ export function MasterTable({
         <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{msg.text}</p>
       )}
 
+      {rows.length > 5 && (
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
+      )}
       <div className="overflow-x-auto rounded-2xl border border-matur-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-matur-50 text-left text-kopi-700">
@@ -131,14 +144,14 @@ export function MasterTable({
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && (
+            {tampil.length === 0 && (
               <tr>
                 <td colSpan={cols.length + 1} className="px-3 py-8 text-center text-stone-400">
-                  Belum ada data.
+                  {rows.length ? "Tidak ada yang cocok dengan pencarian." : "Belum ada data."}
                 </td>
               </tr>
             )}
-            {rows.map((r) => (
+            {tampil.map((r) => (
               <tr key={String(r.id)} className="border-t border-stone-100">
                 {cols.map((f) => (
                   <td key={f.key} className={`whitespace-nowrap px-3 py-2 ${f.type === "money" ? "text-right tabular-nums" : ""}`}>

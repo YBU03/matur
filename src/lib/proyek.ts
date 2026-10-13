@@ -51,6 +51,7 @@ export type ItemRab = {
   harga_realisasi: number | null;
   status: "rencana" | "dibeli" | "terpasang";
   keterangan: string | null;
+  dibeli_oleh: "kantor" | "mitra";
 };
 export type Desain = { id: string; path: string; judul: string | null; created_at: string; url?: string };
 export type Foto = {
@@ -98,7 +99,7 @@ export async function detailProyek(id: string) {
     supabase.from("pekerjaan").select("id, proyek_id, urutan, nama, pic_id, bobot, progres, tgl_mulai, tgl_selesai, pic:pengguna(nama)").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_mulai"),
     supabase
       .from("item_rab")
-      .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan")
+      .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan, dibeli_oleh")
       .eq("proyek_id", id)
       .is("deleted_at", null)
       .order("urutan")
@@ -131,13 +132,13 @@ export async function detailProyek(id: string) {
 async function lainnya(id: string) {
   const supabase = await supabaseServer();
   const [us, jd, st, ck, dk, km, ct] = await Promise.all([
-    supabase.from("usulan_tanggal").select("id, jenis, tanggal, catatan, diusulkan_oleh, nama_pengusul, created_at").eq("proyek_id", id).is("deleted_at", null).order("created_at"),
-    supabase.from("jadwal_proyek").select("id, judul, tgl_rencana, tgl_realisasi, status, keterangan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_rencana"),
-    supabase.from("setoran_mitra").select("id, tanggal, jumlah, keterangan").eq("proyek_id", id).is("deleted_at", null).order("tanggal"),
-    supabase.from("checklist_proyek").select("id, nama, selesai, catatan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("nama"),
+    supabase.from("usulan_tanggal").select("id, proyek_id, jenis, tanggal, catatan, diusulkan_oleh, nama_pengusul, created_at").eq("proyek_id", id).is("deleted_at", null).order("created_at"),
+    supabase.from("jadwal_proyek").select("id, proyek_id, judul, tgl_rencana, tgl_realisasi, status, keterangan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_rencana"),
+    supabase.from("setoran_mitra").select("id, proyek_id, tanggal, jumlah, keterangan").eq("proyek_id", id).is("deleted_at", null).order("tanggal"),
+    supabase.from("checklist_proyek").select("id, proyek_id, nama, selesai, catatan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("nama"),
     supabase.from("dokumen_proyek").select("id, judul, jenis, path, tipe, ukuran, created_at").eq("proyek_id", id).order("created_at", { ascending: false }),
     supabase.from("komentar_proyek").select("id, pengguna_id, nama, peran, isi, created_at").eq("proyek_id", id).order("created_at").limit(300),
-    supabase.from("catatan_proyek").select("id, judul, isi, tanggal").eq("proyek_id", id).is("deleted_at", null).order("tanggal", { ascending: false }),
+    supabase.from("catatan_proyek").select("id, proyek_id, judul, isi, tanggal").eq("proyek_id", id).is("deleted_at", null).order("tanggal", { ascending: false }),
   ]);
   const dokumen = (dk.data ?? []) as Dokumen[];
   if (dokumen.length) {

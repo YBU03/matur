@@ -30,7 +30,10 @@ body {
 @media print {
   body * { visibility: hidden; }
   #struk, #struk * { visibility: visible; }
-  #struk { position: fixed; left: 0; top: 0; width: 72mm; background: white; }
+  #struk { position: fixed; left: 0; top: 0; width: 72mm; max-width: none; margin: 0; padding: 0 2mm; background: white; box-shadow: none; border-radius: 0; }
+  #struk[data-kertas="58"] { width: 48mm; font-size: 9pt; }
+  #struk[data-kertas="80"] { width: 72mm; font-size: 10pt; }
+  @page { margin: 0; }
 }
 
 /* layar masuk (maskot) */

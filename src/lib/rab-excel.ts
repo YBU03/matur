@@ -17,11 +17,13 @@ export type RabRow = {
   harga_realisasi: number | null;
   status: "rencana" | "dibeli" | "terpasang";
   keterangan: string | null;
+  /** siapa yang membeli: kantor pusat atau mitra (mis. untuk tukang mitra) */
+  dibeli_oleh?: "kantor" | "mitra";
 };
 
 export const KELOMPOK = ["Material", "Keperluan Interior", "Pertukangan", "Peralatan & Mesin", "Branding", "Lainnya"];
 
-const HEADERS = ["Kelompok", "Bagian", "Nama Barang", "Spesifikasi", "Jumlah", "Satuan", "Harga Satuan", "Total Estimasi", "Realisasi", "Status", "Keterangan"];
+const HEADERS = ["Kelompok", "Bagian", "Nama Barang", "Spesifikasi", "Jumlah", "Satuan", "Harga Satuan", "Total Estimasi", "Realisasi", "Status", "Keterangan", "Dibeli Oleh"];
 
 function text(v: ExcelJS.CellValue): string {
   if (v === null || v === undefined) return "";
@@ -85,6 +87,7 @@ export async function parseWorkbook(buf: ArrayBuffer): Promise<{ rows: RabRow[];
           harga_realisasi: num(r.v[c["Realisasi"]]),
           status: st === "dibeli" || st === "terpasang" ? st : "rencana",
           keterangan: text(r.v[c["Keterangan"]]) || null,
+          dibeli_oleh: /mitra/i.test(text(r.v[c["Dibeli Oleh"]])) ? "mitra" : "kantor",
         });
       }
     } else if (header.some((h) => h.startsWith("nama barang"))) {
@@ -206,12 +209,12 @@ export async function exportExcel(judul: string, items: RabRow[]) {
   h.font = { bold: true };
   h.eachCell((c) => (c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFDE85" } }));
   for (const i of items)
-    ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan]);
+    ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan, i.dibeli_oleh === "mitra" ? "Mitra" : "Kantor"]);
   ws.addRow([]);
   for (const g of groupRab(items)) ws.addRow([`Total ${g.kelompok}`, null, null, null, null, null, null, g.estimasi, g.realisasi || null]).font = { bold: true };
   const all = groupRab(items).reduce((s, g) => [s[0] + g.estimasi, s[1] + g.realisasi], [0, 0]);
   ws.addRow(["GRAND TOTAL", null, null, null, null, null, null, all[0], all[1] || null]).font = { bold: true };
-  [16, 18, 30, 18, 9, 10, 14, 16, 16, 11, 30].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  [16, 18, 30, 18, 9, 10, 14, 16, 16, 11, 30, 12].forEach((w, i) => (ws.getColumn(i + 1).width = w));
   [7, 8, 9].forEach((c) => (ws.getColumn(c).numFmt = '"Rp" #,##0'));
   const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   download(blob, `${judul}.xlsx`);

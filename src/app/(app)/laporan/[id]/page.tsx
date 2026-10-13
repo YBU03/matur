@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { UnduhPdf } from "./pdf";
 
-const BOLEH = ["owner", "admin_pusat", "finance", "manajer_area"];
+const BOLEH = ["owner", "admin_pusat", "finance", "manajer_area", "mitra"];
 
 export default async function DetailLaporan({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,10 +32,14 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
       </div>
 
       <article className="space-y-5 rounded-2xl border border-matur-200 bg-white p-4 sm:p-6">
-        <header className="border-b-2 border-kopi-900 pb-3 text-center">
-          <p className="text-lg font-extrabold">{pt?.nama ?? "CV. Hazna Berkah Indonesia"}</p>
-          {pt?.alamat && <p className="text-xs text-stone-600">{pt.alamat}</p>}
-          {(pt?.email || pt?.telepon) && <p className="text-xs text-stone-600">Email: {pt?.email} · Telp: {pt?.telepon}</p>}
+        <header className="flex items-center gap-3 border-b-2 border-kopi-900 pb-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo kop surat */}
+          <img src="/brand/hazna-logo.png" alt="Hazna Berkah Indonesia" className="h-14 w-auto shrink-0 sm:h-16" />
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-lg font-extrabold uppercase">{pt?.nama ?? "CV. Hazna Berkah Indonesia"}</p>
+            {pt?.alamat && <p className="text-xs text-stone-600">{pt.alamat}</p>}
+            {(pt?.email || pt?.telepon) && <p className="text-xs text-stone-600">Email: {pt?.email} · Telp: {pt?.telepon}</p>}
+          </div>
         </header>
         <h1 className="text-center text-xl font-bold uppercase">Laporan Keuangan {l.nama_outlet}</h1>
         <p className="-mt-3 text-center text-sm text-stone-500">Periode {bulan}</p>
@@ -134,7 +138,9 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
             <p>
               {l.kota_terbit}, {l.tgl_terbit ? formatTanggal(l.tgl_terbit) : "-"}
             </p>
-            <p className="mt-12 font-bold underline">{l.penandatangan}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element -- tanda tangan & stempel */}
+            <img src="/brand/ttd-hazna.png" alt="Tanda tangan" className="mx-auto my-1 h-20 w-auto" />
+            <p className="font-bold underline">{l.penandatangan}</p>
             <p className="text-stone-500">{l.jabatan_penandatangan}</p>
           </div>
         </footer>

@@ -378,6 +378,16 @@ export default async function DetailProyek({ params, searchParams }: { params: P
               </Link>
             </div>
             {rab.length === 0 && <p className="text-sm text-stone-400">Belum ada rincian keperluan.</p>}
+            {rab.length > 0 && (
+              <div className="mb-2 grid grid-cols-2 gap-2 text-sm">
+                {(["kantor", "mitra"] as const).map((o) => (
+                  <Link key={o} href={`/proyek/${p.id}/rab`} className="rounded-xl bg-stone-50 px-3 py-2">
+                    <p className="text-xs text-stone-500">{o === "kantor" ? "🏢 Dibeli kantor" : "🤝 Dibeli mitra"}</p>
+                    <p className="font-bold">{formatRupiah(rab.filter((r) => r.dibeli_oleh === o).reduce((t, r) => t + r.harga_estimasi, 0))}</p>
+                  </Link>
+                ))}
+              </div>
+            )}
             <ul className="divide-y text-sm">
               {grup.map((g) => (
                 <li key={g.kelompok} className="flex items-start gap-2 py-2">

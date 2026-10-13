@@ -4,6 +4,22 @@ import { useState } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { hitung, namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
 
+// gambar dari /public sebagai data URL untuk jsPDF
+async function gambar(src: string) {
+  const blob = await (await fetch(src)).blob();
+  const url = await new Promise<string>((ok) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result));
+    r.readAsDataURL(blob);
+  });
+  const img = await new Promise<HTMLImageElement>((ok) => {
+    const i = new Image();
+    i.onload = () => ok(i);
+    i.src = url;
+  });
+  return { url, w: img.naturalWidth, h: img.naturalHeight };
+}
+
 // Unduh laporan resmi sebagai PDF (A4), urutan bagian sama dengan laporan manual
 export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
   const [busy, setBusy] = useState(false);
@@ -16,11 +32,14 @@ export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
       const bulan = namaBulan(l.periode);
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const W = doc.internal.pageSize.getWidth();
+      const [logo, ttd] = await Promise.all([gambar("/brand/hazna-logo.png"), gambar("/brand/ttd-hazna.png")]);
+      doc.addImage(logo.url, "PNG", 14, 8, (18 * logo.w) / logo.h, 18);
       let y = 14;
-      doc.setFont("helvetica", "bold").setFontSize(13).text(pt.nama.toUpperCase(), W / 2, y, { align: "center" });
+      doc.setFont("helvetica", "bold").setFontSize(13).text(pt.nama.toUpperCase(), W / 2 + 8, y, { align: "center" });
       doc.setFont("helvetica", "normal").setFontSize(8);
-      if (pt.alamat) doc.text(pt.alamat, W / 2, (y += 5), { align: "center" });
-      if (pt.email || pt.telepon) doc.text(`Email: ${pt.email ?? "-"}  Telp: ${pt.telepon ?? "-"}`, W / 2, (y += 4), { align: "center" });
+      if (pt.alamat) doc.text(pt.alamat, W / 2 + 8, (y += 5), { align: "center" });
+      if (pt.email || pt.telepon) doc.text(`Email: ${pt.email ?? "-"}  Telp: ${pt.telepon ?? "-"}`, W / 2 + 8, (y += 4), { align: "center" });
+      y = Math.max(y, 26);
       doc.setLineWidth(0.6).line(14, (y += 3), W - 14, y);
       doc.setFont("helvetica", "bold").setFontSize(12).text(`LAPORAN KEUANGAN ${l.nama_outlet.toUpperCase()}`, W / 2, (y += 8), { align: "center" });
       const rp = (n: number) => formatRupiah(n);
@@ -91,14 +110,16 @@ export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
         columnStyles: { 2: { halign: "right" } },
       });
       let fy = after() + 6;
-      if (fy > 255) {
+      if (fy > 250) {
         doc.addPage();
         fy = 20;
       }
       doc.setFont("helvetica", "normal").setFontSize(9);
       doc.text(`${l.kota_terbit ?? ""}, ${l.tgl_terbit ? formatTanggal(l.tgl_terbit) : ""}`, W - 50, fy, { align: "center" });
-      doc.setFont("helvetica", "bold").text(l.penandatangan ?? "", W - 50, fy + 22, { align: "center" });
-      doc.setFont("helvetica", "normal").text(l.jabatan_penandatangan ?? "", W - 50, fy + 27, { align: "center" });
+      const th = 20, tw = (th * ttd.w) / ttd.h;
+      doc.addImage(ttd.url, "PNG", W - 50 - tw / 2, fy + 2, tw, th);
+      doc.setFont("helvetica", "bold").text(l.penandatangan ?? "", W - 50, fy + 27, { align: "center" });
+      doc.setFont("helvetica", "normal").text(l.jabatan_penandatangan ?? "", W - 50, fy + 32, { align: "center" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(doc.output("blob"));
       a.download = `Laporan Keuangan ${l.nama_outlet} ${bulan}.pdf`;

@@ -13,7 +13,7 @@ export default async function RincianKeperluan({ params }: { params: Promise<{ i
   if (!p) notFound(); // RLS: hanya proyek yang boleh dilihat
   const { data } = await supabase
     .from("item_rab")
-    .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan")
+    .select("id, kategori, bagian, nama, spesifikasi, qty, satuan, harga_satuan, harga_estimasi, harga_realisasi, status, keterangan, dibeli_oleh")
     .eq("proyek_id", id)
     .is("deleted_at", null)
     .order("urutan")

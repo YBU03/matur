@@ -34,7 +34,9 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
   const [busy, start] = useTransition();
   const [q, setQ] = useState("");
   const [buat, setBuat] = useState(false);
-  const aktif = users.filter((u) => u.status !== "menunggu");
+  const jumlah = (st: string) => users.filter((u) => u.status === st).length;
+  const [tab, setTab] = useState<string>(users.some((u) => u.status === "menunggu") ? "menunggu" : "aktif");
+  const aktif = users.filter((u) => u.status === tab);
   const outletName = (id: string | null) => (id ? (outlets.find((o) => o.id === id)?.nama ?? "-") : "Semua Outlet");
   const run = (fn: () => Promise<Result>) =>
     start(async () => {
@@ -51,7 +53,6 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pengguna & Akses</h1>
-      <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} busy={busy} onRun={run} />
       {isOwner && !buat && (
         <button onClick={() => setBuat(true)} className="w-full rounded-xl bg-matur-500 px-4 py-2.5 font-semibold text-white sm:w-auto">
           + Buat akun baru
@@ -109,8 +110,36 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
 
       {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
 
+      <nav className="-mx-4 overflow-x-auto px-4">
+        <div className="flex w-max gap-1.5">
+          {[
+            ["menunggu", "⏳ Menunggu persetujuan"],
+            ["aktif", "Aktif"],
+            ["nonaktif", "Nonaktif"],
+            ["ditolak", "Ditolak"],
+          ].map(([k, l]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${tab === k ? "bg-kopi-900 text-white" : "border border-matur-200 bg-white text-kopi-700"}`}
+            >
+              {l}{" "}
+              <span className={`ml-0.5 rounded-full px-1.5 text-xs ${k === "menunggu" && jumlah(k) ? "bg-amber-400 text-kopi-900" : "opacity-70"}`}>{jumlah(k)}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {tab === "menunggu" ? (
+        jumlah("menunggu") ? (
+          <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} busy={busy} onRun={run} />
+        ) : (
+          <p className="rounded-2xl border border-dashed border-matur-300 bg-white p-6 text-center text-sm text-stone-500">Tidak ada pendaftar yang menunggu persetujuan.</p>
+        )
+      ) : (
+      <>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto font-bold">Daftar pengguna ({aktif.length})</h2>
+        <h2 className="mr-auto font-bold">Pengguna {tab} ({aktif.length})</h2>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama / login…" className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm sm:w-64" />
       </div>
       <ul className="grid gap-3 lg:grid-cols-2">
@@ -174,6 +203,9 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
             </li>
           ))}
       </ul>
+      {aktif.length === 0 && <p className="text-center text-sm text-stone-400">Tidak ada pengguna di kategori ini.</p>}
+      </>
+      )}
 
       {removing && (
         <DeleteTwoStepDialog

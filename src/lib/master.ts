@@ -80,7 +80,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "kategori_menu",
     title: "Kategori Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat"],
+    editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "nama", label: "Nama Kategori", type: "text", required: true },
       { key: "urutan", label: "Urutan", type: "number" },
@@ -90,7 +90,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "menu",
     title: "Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat"],
+    editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "foto_url", label: "Foto", type: "image" },
       { key: "nama", label: "Nama Menu", type: "text", required: true },
@@ -105,7 +105,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "varian",
     title: "Varian Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat"],
+    editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "menu_id", label: "Menu", type: "select", ref: { table: "menu", label: "nama" }, required: true },
       { key: "grup", label: "Grup", type: "enum", options: ["Ukuran", "Suhu", "Gula", "Extra"], required: true },
@@ -126,6 +126,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "satuan_pakai", label: "Satuan Pakai", type: "text", required: true },
       { key: "konversi", label: "Isi per Satuan Beli", type: "number", required: true },
       { key: "harga_beli", label: "Harga Beli / Satuan Beli", type: "money", required: true },
+      { key: "harga_jual_gudang", label: "Harga Jual Gudang (per kemasan)", type: "money" },
       { key: "harga_pokok", label: "HPP / Satuan Pakai (kosong = otomatis)", type: "number", list: false },
       { key: "stok_min", label: "Stok Minimum (satuan pakai)", type: "number", list: false },
       { key: "supplier_id", label: "Supplier", type: "select", ref: { table: "supplier", label: "nama" }, list: false },
@@ -137,7 +138,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "resep",
     title: "Resep",
     nameKey: "menu_id",
-    editors: ["owner", "admin_pusat"],
+    editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "menu_id", label: "Menu", type: "select", ref: { table: "menu", label: "nama" }, required: true },
       { key: "varian_id", label: "Varian (kosong = semua)", type: "select", ref: { table: "varian", label: "nama" } },
@@ -208,6 +209,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "harga_estimasi", label: "Total Estimasi (kosong = jumlah × harga satuan)", type: "money" },
       { key: "harga_realisasi", label: "Total Realisasi", type: "money" },
       { key: "status", label: "Status", type: "enum", options: ["rencana", "dibeli", "terpasang"], required: true },
+      { key: "dibeli_oleh", label: "Dibeli oleh", type: "enum", options: ["kantor", "mitra"], required: true },
       { key: "keterangan", label: "Keterangan", type: "text", list: false },
     ],
   },

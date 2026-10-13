@@ -281,6 +281,21 @@ function ReceiptDialog({
   onClose: () => void;
 }) {
   const price = (l: Line) => priceFor(kanal, l);
+  // ukuran kertas printer thermal, diingat per perangkat kasir
+  const [kertas, setKertas] = useState<"58" | "80">(() => {
+    try {
+      return localStorage.getItem("matoer_kertas") === "80" ? "80" : "58";
+    } catch {
+      return "58";
+    }
+  });
+  const pilihKertas = (k: "58" | "80") => {
+    setKertas(k);
+    try {
+      localStorage.setItem("matoer_kertas", k);
+    } catch {}
+  };
+  const waktu = new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const text = [
     `*${outletNama}* · No. ${r.nomor}`,
     ...lines.map((l) => `${l.qty}x ${l.menu.nama}${l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}  ${formatRupiah(price(l) * l.qty)}`),
@@ -291,9 +306,12 @@ function ReceiptDialog({
   ].filter(Boolean);
   return (
     <Modal title="Transaksi berhasil">
-      <div id="struk" className="rounded-xl bg-stone-50 p-4 font-mono text-sm">
+      <div id="struk" data-kertas={kertas} className={`mx-auto rounded-xl bg-white p-3 font-mono text-black shadow-inner ${kertas === "58" ? "max-w-[230px] text-[11px]" : "max-w-[310px] text-xs"}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo struk */}
+        <img src="/brand/ruma-logo.png" alt="Ruma" className="mx-auto mb-1 h-8 w-auto grayscale" />
         <p className="text-center font-bold">{outletNama}</p>
-        <p className="mb-2 text-center text-xs">No. {r.nomor} · {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}</p>
+        <p className="text-center">{waktu}</p>
+        <p className="mb-2 text-center">No. {r.nomor} · {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}</p>
         {lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-2">
             <span>{l.qty}x {l.menu.nama}{l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}</span>
@@ -303,8 +321,18 @@ function ReceiptDialog({
         <div className="mt-2 border-t border-dashed pt-2">
           {r.diskon > 0 && <Row label="Diskon" value={formatRupiah(-r.diskon)} />}
           <Row label="Total" value={formatRupiah(r.total)} bold />
+          <Row label="Bayar" value={METODE.find(([k]) => k === metode)?.[1] ?? metode} />
           {r.kembalian > 0 && <Row label="Kembali" value={formatRupiah(r.kembalian)} />}
         </div>
+        <p className="mt-2 border-t border-dashed pt-2 text-center">Terima kasih 🙏</p>
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+        <span className="text-stone-500">Kertas:</span>
+        {(["58", "80"] as const).map((k) => (
+          <button key={k} onClick={() => pilihKertas(k)} className={`rounded-full px-3 py-1 ${kertas === k ? "bg-kopi-900 text-white" : "border"}`}>
+            {k} mm
+          </button>
+        ))}
       </div>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <a href={`https://wa.me/?text=${encodeURIComponent(text.join("\n"))}`} target="_blank" rel="noreferrer" className="rounded-lg border px-4 py-2 text-sm">

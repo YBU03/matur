@@ -27,6 +27,10 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 - Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra masih dikunci.
 
 ## Daftar tunda (dikerjakan nanti)
+- **Akunting otomatis dari POS & gudang** (permintaan 13 Okt no. 5): transaksi kasir, pembelian & kiriman gudang langsung menjadi jurnal harian; proyeksi laporan bulanan (format resmi) terisi otomatis.
+- **HRD & Admin Gudang membuat akun kasir/barista** (no. 9): dashboard mereka hanya menampilkan approval pendaftar kasir/barista; Super Admin tetap melihat semua.
+- **Dokumen gudang** (no. 13): invoice, surat jalan, dan proses kiriman bahan baku ke outlet.
+- **Pesanan draft / bayar nanti** khusus bos yang datang ke kantor (no. 8) — *jangan digarap dulu*.
 - **OTP email saat daftar + Lupa password.** Kode 6 digit ke email pendaftar sebelum masuk antrean ACC admin; lupa password lewat kode email. Akun Brevo (paket Free, ±300 email/hari) sudah dibuat. Sisa langkah:
   1. Tambah & verifikasi sender di Brevo (sementara Gmail; bisa masuk spam).
   2. Isi SMTP di Supabase → Authentication → SMTP: host `smtp-relay.brevo.com`, port `587`, username = login SMTP Brevo (`…@smtp-brevo.com`), password = SMTP key. SMTP key jangan dibagikan lewat chat.

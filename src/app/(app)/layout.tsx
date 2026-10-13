@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 
   // 4 pintasan di tombol melayang bawah: Beranda + menu terpenting peran ini yang sudah tersedia
-  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/gudang/stok", "/pengguna", "/kasir", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
+  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/laporan", "/hpp-menu", "/gudang/stok", "/pengguna", "/kasir", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
   const tersedia = r.menu.filter((m) => m.stage <= CURRENT_STAGE && m.href !== "/dashboard");
   const quick = [
     { href: "/dashboard", label: "Beranda" },
