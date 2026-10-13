@@ -114,8 +114,7 @@ export function ProyeksiForm(p: Props) {
   const terbit = () =>
     start(async () => {
       setErr("");
-      const { id: _, kota_terbit: __, laba_bersih: ___, ...d } = l;
-      const r = await terbitkanLaporan({ ...d, tgl_terbit: info.terbit } as Parameters<typeof terbitkanLaporan>[0], ganti);
+      const r = await terbitkanLaporan({ ...l, tgl_terbit: info.terbit }, ganti);
       if (r.error) return setErr(r.error);
       router.push(`/laporan/${r.id}`);
     });
