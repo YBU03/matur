@@ -1,3 +1,4 @@
+import { stokMenipis } from "@/lib/stok-menipis";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRupiah, formatTanggal } from "@/lib/format";
@@ -22,31 +23,7 @@ export default async function DaftarKiriman({ searchParams }: { searchParams: Pr
     gudang ? supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama") : Promise.resolve({ data: [] as { id: string; nama: string }[] }),
   ]);
   // kasir → gudang: stok outlet berkurang otomatis dari penjualan (resep); tampilkan bahan resep yang menipis
-  let menipis: { outlet: string; outletId: string; items: { nama: string; sisa: string }[] }[] = [];
-  if (gudang) {
-    const [{ data: st }, { data: rs }, { data: bh }] = await Promise.all([
-      supabase.from("stok").select("outlet_id, bahan_id, jumlah").eq("mode", "asli").not("outlet_id", "is", null),
-      supabase.from("resep").select("bahan_id").eq("mode", "asli").is("deleted_at", null),
-      supabase.from("bahan").select("id, nama, satuan_beli, satuan_pakai, konversi, stok_min").eq("mode", "asli").is("deleted_at", null),
-    ]);
-    const dipakai = new Set((rs ?? []).map((r) => r.bahan_id));
-    const bmap = new Map((bh ?? []).map((b) => [b.id, b]));
-    menipis = (outlets ?? [])
-      .map((o) => {
-        const items = [...dipakai]
-          .map((bid) => {
-            const b = bmap.get(bid);
-            if (!b) return null;
-            const jml = Number((st ?? []).find((x) => x.outlet_id === o.id && x.bahan_id === bid)?.jumlah ?? 0);
-            const min = Number(b.stok_min ?? 0) || Number(b.konversi ?? 1); // tanpa batas minimum: kurang dari 1 kemasan
-            return jml < min ? { nama: b.nama, sisa: `${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(Math.max(jml, 0) / (Number(b.konversi) || 1))} ${b.satuan_beli}`, urut: jml / min } : null;
-          })
-          .filter((x): x is { nama: string; sisa: string; urut: number } => !!x)
-          .sort((a, b) => a.urut - b.urut);
-        return { outlet: o.nama, outletId: o.id, items };
-      })
-      .filter((x) => x.items.length);
-  }
+  const menipis = gudang ? await stokMenipis(outlets ?? []) : [];
   const rows = (data ?? []) as unknown as { id: string; nomor: string; tanggal: string; status: string; total: number; outlet: { nama: string } | null; item_kiriman: { count: number }[] }[];
 
   return (

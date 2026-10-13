@@ -1,0 +1,4 @@
+-- ringkasan_penjualan: tambah rekap per kategori menu (Top kategori di dashboard Penjualan Harian)
+-- (definisi lengkap fungsi diterapkan lewat MCP; sama dengan versi sebelumnya + kunci 'kategori')
+-- 'kategori': select coalesce(k.nama,'Tanpa kategori') nama, sum(i.qty) qty, sum(i.qty*i.harga) omzet
+--             from t join item_transaksi i ... join menu m ... left join kategori_menu k on k.id = m.kategori_id group by 1

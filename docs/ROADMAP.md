@@ -12,7 +12,7 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 | **4** | **Prioritas launching November:** proyek pembangunan (budget vs realisasi, RAB, pekerjaan + PIC + bobot, progres tertimbang, galeri foto, timeline), PIC lapor progres + foto, persetujuan Admin Pusat, portal mitra memantau pembangunan; menu mitra lain dikunci | PRY-01–05, MTR-01 | ✅ |
 | 5 | Tutup shift & setoran kas, absensi & jadwal, izin/cuti · sisa POS: mode offline (PWA/IndexedDB), split payment/bill, void & diskon dengan PIN SPV, printer thermal langsung | SFT, ABS, POS-03/04/08 | 🟡 ±30% (kas & tutup shift sudah) |
 | 6 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | 🟡 ±65% (kiriman, terima, potong stok resep, opname sudah) |
-| 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | 🟡 ±85% (dashboard, laporan PDF visual, proyeksi, catatan harian, tutup buku, transfer sudah) |
+| 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | 🟡 ±90% (dashboard Penjualan Harian ala Luna + tab Laporan Keuangan, laporan PDF visual, proyeksi, catatan harian, tutup buku, transfer sudah) |
 | 8 | Penggajian & slip gaji | GJI-01–06 | ⬜ 0% |
 | 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | 🟡 ±70% (laporan bulanan & BEP mitra sudah; halaman mode simulasi belum) |
 

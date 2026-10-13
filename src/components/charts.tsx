@@ -21,7 +21,8 @@ import {
 } from "recharts";
 import { SINGLE, angka, rupiah, ringkas } from "@/lib/chart-utils";
 
-const HEAT = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+// gradasi beberapa warna (kuning → oranye → merah → ungu), makin gelap makin ramai
+const HEAT = ["#fdf0b5", "#fcd34d", "#f8a33c", "#ef6c2f", "#d9412b", "#a8234a", "#5e1a63"];
 const GRID = "#ece9e2";
 const INK2 = "#57534e";
 
@@ -177,10 +178,13 @@ export function GroupedBars({ data, series }: { data: Record<string, string | nu
 
 const HARI = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-/** Heatmap jam ramai: hari × jam, satu warna (biru) terang→gelap. */
-export function Heatmap({ cells }: { cells: { dow: number; jam: number; trx: number }[] }) {
+/** Heatmap jam ramai: hari × jam, gradasi kuning→ungu (terang = sepi, gelap = ramai). */
+export function Heatmap({ cells, buka = 7, tutup = 23 }: { cells: { dow: number; jam: number; trx: number }[]; buka?: number; tutup?: number }) {
   const [hover, setHover] = useState<string>("");
-  const jamList = Array.from({ length: 16 }, (_, i) => i + 7); // 07–22
+  // kolom dari jam buka sampai jam tutup outlet; diperlebar bila ada transaksi di luar jam itu
+  const dari = Math.min(buka, ...cells.map((c) => c.jam));
+  const sampai = Math.max(tutup, ...cells.map((c) => c.jam + 1));
+  const jamList = Array.from({ length: Math.max(sampai - dari, 1) }, (_, i) => i + dari);
   const map = new Map(cells.map((c) => [`${c.dow}-${c.jam}`, c.trx]));
   const max = Math.max(1, ...cells.map((c) => c.trx));
   const color = (v: number) => (v ? HEAT[Math.min(HEAT.length - 1, Math.floor((v / max) * HEAT.length))] : "#f5f5f4");

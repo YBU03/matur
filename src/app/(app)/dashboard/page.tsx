@@ -21,13 +21,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const r = ROLES[active.role];
   const sp = await searchParams;
   const pusat = PUSAT.includes(active.role);
-  const lihatPenjualan = pusat || OUTLET.includes(active.role);
+  const gudangPusat = active.role === "admin_gudang";
+  const lihatPenjualan = pusat || gudangPusat || OUTLET.includes(active.role);
   const canSim = active.role === "owner" || active.role === "admin_pusat";
 
-  let outlets: { id: string; nama: string }[] = [];
+  let outlets: { id: string; nama: string; jam_operasional: string | null }[] = [];
   if (lihatPenjualan) {
     const supabase = await supabaseServer();
-    const { data } = await supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama");
+    const { data } = await supabase.from("outlet").select("id, nama, jam_operasional").eq("mode", "asli").is("deleted_at", null).order("nama");
     outlets = data ?? [];
   }
   let pendaftar = 0;
@@ -40,10 +41,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     const { count } = await q;
     pendaftar = count ?? 0;
   }
-  const outletId = pusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
+  const outletId = pusat || gudangPusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
   const lihatLaporan = pusat || active.role === "mitra";
-  const r0 = rentang(sp.periode ?? "30", sp.dari, sp.sampai);
+  // tab: Harian (POS, seperti dasbor Luna) & Laporan Keuangan (bulanan); peran yang hanya punya salah satu tidak melihat tab
+  const duaTab = lihatPenjualan && lihatLaporan;
+  const tab = !lihatPenjualan ? "bulanan" : !lihatLaporan ? "harian" : sp.tab === "bulanan" ? "bulanan" : "harian";
+  const r0 = rentang(sp.periode ?? (tab === "bulanan" ? "12bln" : "30"), sp.dari, sp.sampai);
+  const simulasi = canSim && sp.mode === "simulasi";
+  const tabHref = (t: string) => `/dashboard?${new URLSearchParams({ ...Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && !["tab", "periode", "dari", "sampai"].includes(k))) as Record<string, string>, ...(t === "bulanan" ? { tab: t } : {}) })}`;
   return (
     <div className="space-y-6">
       {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
@@ -62,13 +68,25 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Link>
       )}
 
-      {(lihatPenjualan || lihatLaporan) && <Filters outlets={pusat ? outlets : null} canSim={canSim && lihatPenjualan} />}
-      {lihatLaporan && !(canSim && sp.mode === "simulasi") && (
+      {duaTab && (
+        <nav className="flex gap-1 rounded-2xl bg-matur-50 p-1 text-sm font-semibold">
+          {[
+            ["harian", "📈 Penjualan Harian (POS)"],
+            ["bulanan", "📊 Laporan Keuangan"],
+          ].map(([k, l]) => (
+            <Link key={k} href={tabHref(k)} className={`flex-1 rounded-xl px-3 py-2 text-center ${tab === k ? "bg-white text-kopi-900 shadow-sm" : "text-stone-500"}`}>
+              {l}
+            </Link>
+          ))}
+        </nav>
+      )}
+      {(lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} />}
+      {tab === "bulanan" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <LaporanRingkas outlets={outlets} outletId={pusat ? outletId : null} dari={r0.dari} sampai={r0.sampai} />
         </Suspense>
       )}
-      {lihatPenjualan && (
+      {tab === "harian" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <SalesDashboard
             outlets={outlets}
@@ -76,7 +94,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             periode={sp.periode ?? "30"}
             kDari={sp.dari}
             kSampai={sp.sampai}
-            mode={canSim && sp.mode === "simulasi" ? "simulasi" : "asli"}
+            mode={simulasi ? "simulasi" : "asli"}
+            tanpaRupiah={gudangPusat}
           />
         </Suspense>
       )}
