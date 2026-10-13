@@ -32,6 +32,16 @@ export function show(f: Field, v: unknown, refs: Refs): string {
   }
 }
 
+const TANPA = "Belum terhubung ke outlet";
+/** kelompokkan baris per nama kelompok (urut abjad, yang belum terhubung paling akhir) */
+function kelompokkan(rows: Row[], kelompok?: Record<string, string>): [string, Row[]][] {
+  if (!kelompok) return [["", rows]];
+  const g = (r: Row) => kelompok[String(r.id)] ?? TANPA;
+  return [...new Set(rows.map(g))]
+    .sort((a, b) => (a === TANPA ? 1 : b === TANPA ? -1 : a.localeCompare(b)))
+    .map((k) => [k, rows.filter((r) => g(r) === k)]);
+}
+
 export const toForm = (entity: Entity, row: Row | null, initial: Record<string, string> = {}): Form =>
   Object.fromEntries(
     entity.fields.map((f) => [
@@ -49,6 +59,7 @@ export function MasterTable({
   filter = {},
   canEdit,
   backHref,
+  kelompok,
 }: {
   entityKey: string;
   entity: Entity;
@@ -58,6 +69,8 @@ export function MasterTable({
   filter?: Record<string, string>;
   canEdit: boolean;
   backHref?: string;
+  /** id baris → nama kelompok (mis. outlet); kartu ditampilkan per kelompok */
+  kelompok?: Record<string, string>;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<{ row: Row | null; form: Form } | null>(null);
@@ -132,53 +145,67 @@ export function MasterTable({
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={entity.card ? `🔍 Cari nama ${entity.title.toLowerCase()}…` : `🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
       )}
       {entity.card ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {tampil.length === 0 && <p className="col-span-full rounded-2xl border border-matur-200 bg-white px-3 py-8 text-center text-sm text-stone-400">{rows.length ? "Tidak ada yang cocok dengan pencarian." : "Belum ada data."}</p>}
-          {tampil.map((r) => {
-            const status = String(r.status ?? "");
-            return (
-              <div key={String(r.id)} className="flex gap-3 rounded-2xl border border-matur-200 bg-white p-3 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element -- aset statis */}
-                <img src={entity.card} alt="" className="size-20 shrink-0 rounded-xl bg-matur-50 object-contain p-1" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 truncate font-bold text-kopi-900">{String(r[entity.nameKey] ?? "-")}</p>
-                    {status && (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${["operasional", "aktif"].includes(status) ? "bg-green-100 text-green-800" : status === "pembangunan" ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600"}`}>{status}</span>
-                    )}
-                  </div>
-                  <dl className="mt-1 space-y-0.5 text-xs">
-                    {cols
-                      .filter((f) => f.key !== entity.nameKey && f.key !== "status" && show(f, r[f.key], refs) !== "-")
-                      .map((f) => (
-                        <div key={f.key} className="flex gap-1">
-                          <dt className="shrink-0 text-stone-500">{f.label}:</dt>
-                          <dd className="truncate text-stone-800">{show(f, r[f.key], refs)}</dd>
-                        </div>
-                      ))}
-                  </dl>
-                  {canEdit && (
-                    <div className="mt-2 flex gap-3 text-xs font-semibold">
-                      {trash ? (
-                        <button disabled={pending} onClick={() => run(() => setDeleted(entityKey, String(r.id), false), "Data dipulihkan.")} className="text-matur-700 hover:underline">
-                          Pulihkan
-                        </button>
-                      ) : (
-                        <>
-                          <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="text-matur-700 hover:underline">
-                            Ubah
-                          </button>
-                          <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
-                            Hapus
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+        <div className="space-y-5">
+          {tampil.length === 0 && <p className="rounded-2xl border border-matur-200 bg-white px-3 py-8 text-center text-sm text-stone-400">{rows.length ? "Tidak ada yang cocok dengan pencarian." : "Belum ada data."}</p>}
+          {kelompokkan(tampil, kelompok).map(([g, daftar]) => (
+            <div key={g || "semua"}>
+              {g && (
+                <div className="mb-2 flex items-center gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- aset statis */}
+                  <img src="/brand/outlet.png" alt="" className="size-8 rounded-lg bg-matur-50" />
+                  <h2 className="font-bold text-kopi-900">{g}</h2>
+                  <span className="rounded-full bg-matur-100 px-2 text-xs font-semibold text-matur-700">{daftar.length}</span>
                 </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {daftar.map((r) => {
+                  const status = String(r.status ?? "");
+                  return (
+                    <div key={String(r.id)} className="flex gap-3 rounded-2xl border border-matur-200 bg-white p-3 shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- aset statis */}
+                      <img src={entity.card} alt="" className="size-20 shrink-0 rounded-xl bg-matur-50 object-contain p-1" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-2">
+                          <p className="min-w-0 flex-1 truncate font-bold text-kopi-900">{String(r[entity.nameKey] ?? "-")}</p>
+                          {status && (
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${["operasional", "aktif"].includes(status) ? "bg-green-100 text-green-800" : status === "pembangunan" ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600"}`}>{status}</span>
+                          )}
+                        </div>
+                        <dl className="mt-1 space-y-0.5 text-xs">
+                          {cols
+                            .filter((f) => f.key !== entity.nameKey && f.key !== "status" && show(f, r[f.key], refs) !== "-")
+                            .map((f) => (
+                              <div key={f.key} className="flex gap-1">
+                                <dt className="shrink-0 text-stone-500">{f.label}:</dt>
+                                <dd className="truncate text-stone-800">{show(f, r[f.key], refs)}</dd>
+                              </div>
+                            ))}
+                        </dl>
+                        {canEdit && (
+                          <div className="mt-2 flex gap-3 text-xs font-semibold">
+                            {trash ? (
+                              <button disabled={pending} onClick={() => run(() => setDeleted(entityKey, String(r.id), false), "Data dipulihkan.")} className="text-matur-700 hover:underline">
+                                Pulihkan
+                              </button>
+                            ) : (
+                              <>
+                                <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="text-matur-700 hover:underline">
+                                  Ubah
+                                </button>
+                                <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
+                                  Hapus
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       ) : (
       <div className="overflow-x-auto rounded-2xl border border-matur-200 bg-white">

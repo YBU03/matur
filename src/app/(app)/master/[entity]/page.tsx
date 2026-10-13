@@ -45,8 +45,31 @@ export default async function MasterPage({
       }),
   );
 
+  // pengelompokan kartu per outlet: mitra lewat perjanjian, karyawan lewat outlet utama
+  let kelompok: Record<string, string> | undefined;
+  if (key === "mitra") {
+    // investor tanpa perjanjian dikenali dari nama penerima bagi hasil di laporan outletnya
+    const [{ data: pj }, { data: lap }] = await Promise.all([
+      supabase.from("perjanjian").select("mitra_id, outlet(nama)").eq("mode", "asli").is("deleted_at", null),
+      supabase.from("laporan_bulanan").select("bagi_hasil, outlet(nama)").eq("mode", "asli").is("deleted_at", null),
+    ]);
+    kelompok = {};
+    const tambah = (id: string, n: string) => {
+      if (!kelompok![id]) kelompok![id] = n;
+      else if (!kelompok![id].includes(n)) kelompok![id] += ` & ${n}`;
+    };
+    for (const p of (pj ?? []) as unknown as { mitra_id: string; outlet: { nama: string } | null }[]) if (p.outlet) tambah(p.mitra_id, p.outlet.nama);
+    for (const l of (lap ?? []) as unknown as { bagi_hasil: { nama: string }[]; outlet: { nama: string } | null }[])
+      for (const b of l.bagi_hasil ?? [])
+        for (const m of (rows ?? []) as { id: string; nama: string }[])
+          if (l.outlet && m.nama && b.nama.toLowerCase().includes(m.nama.toLowerCase())) tambah(m.id, l.outlet.nama);
+  } else if (key === "karyawan") {
+    kelompok = Object.fromEntries(((rows ?? []) as Record<string, string>[]).map((r) => [r.id, refs.outlet_id?.find((o) => o.id === r.outlet_id)?.label ?? "Belum terhubung ke outlet"]));
+  }
+
   return (
     <MasterTable
+      kelompok={kelompok}
       entityKey={key}
       entity={entity}
       rows={(rows ?? []) as Record<string, unknown>[]}

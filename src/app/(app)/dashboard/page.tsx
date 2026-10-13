@@ -7,8 +7,9 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProjectDetailCharts, ProjectsOverview } from "./projects";
 import { SalesDashboard } from "./sales";
-import { MaintenanceToggle } from "@/components/maintenance-toggle";
-import { statusMaintenance } from "@/lib/maintenance";
+import { Filters } from "./filters";
+import { LaporanRingkas } from "./laporan-ringkas";
+import { rentang } from "./sales";
 
 const PUSAT: Role[] = ["owner", "admin_pusat", "finance", "manajer_area"];
 const OUTLET: Role[] = ["spv"];
@@ -41,7 +42,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
   const outletId = pusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
-  const maint = canSim ? await statusMaintenance() : null;
+  const lihatLaporan = pusat || active.role === "mitra";
+  const r0 = rentang(sp.periode ?? "30", sp.dari, sp.sampai);
   return (
     <div className="space-y-6">
       {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
@@ -53,7 +55,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-white/90">{active.outletNama}</p>
         </div>
       </section>
-      {maint && <MaintenanceToggle aktif={maint.aktif} pesan={maint.pesan} />}
 
       {pendaftar > 0 && (
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
@@ -61,16 +62,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Link>
       )}
 
+      {(lihatPenjualan || lihatLaporan) && <Filters outlets={pusat ? outlets : null} canSim={canSim && lihatPenjualan} />}
+      {lihatLaporan && !(canSim && sp.mode === "simulasi") && (
+        <Suspense fallback={<Skeleton h="h-96" />}>
+          <LaporanRingkas outlets={outlets} outletId={pusat ? outletId : null} dari={r0.dari} sampai={r0.sampai} />
+        </Suspense>
+      )}
       {lihatPenjualan && (
         <Suspense fallback={<Skeleton h="h-96" />}>
-        <SalesDashboard
-          outlets={outlets}
-          outletId={outletId}
-          periode={sp.periode ?? "30"}
-          mode={canSim && sp.mode === "simulasi" ? "simulasi" : "asli"}
-          canPick={pusat}
-          canSim={canSim}
-        />
+          <SalesDashboard
+            outlets={outlets}
+            outletId={outletId}
+            periode={sp.periode ?? "30"}
+            kDari={sp.dari}
+            kSampai={sp.sampai}
+            mode={canSim && sp.mode === "simulasi" ? "simulasi" : "asli"}
+          />
         </Suspense>
       )}
       {pusat && (

@@ -1,7 +1,6 @@
 import { BarList, ChartCard, Heatmap, StatTile, TrendChart } from "@/components/charts";
 import { SERIES, rupiah } from "@/lib/chart-utils";
 import { supabaseServer } from "@/lib/supabase/server";
-import { Filters } from "./filters";
 
 type Ringkasan = {
   kpi: { omzet: number; trx: number; hpp: number; diskon: number };
@@ -22,8 +21,16 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 function jakartaToday() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }).replace(/,.*/, "") + " UTC");
 }
-export function rentang(periode: string) {
+export function rentang(periode: string, kDari?: string, kSampai?: string) {
   const t = jakartaToday();
+  if (periode === "kustom" && /^\d{4}-\d{2}$/.test(kDari ?? "") && /^\d{4}-\d{2}$/.test(kSampai ?? "")) {
+    const [a, b] = [kDari!, kSampai!].sort();
+    const dari = new Date(a + "-01T00:00:00Z");
+    const akhir = new Date(Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)), 0));
+    const sampai = akhir > t ? t : akhir;
+    const hari = Math.max(Math.round((sampai.getTime() - dari.getTime()) / 86400000) + 1, 1);
+    return { dari: iso(dari), sampai: iso(sampai), hari, prevDari: iso(new Date(dari.getTime() - hari * 86400000)), prevSampai: iso(new Date(dari.getTime() - 86400000)) };
+  }
   const back = (n: number) => new Date(t.getTime() - n * 86400000);
   const dari =
     periode === "hari" ? t : periode === "7" ? back(6) : periode === "90" ? back(89) : periode === "12bln" ? back(364) : periode === "bulan" ? new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1)) : back(29);
@@ -48,18 +55,18 @@ export async function SalesDashboard({
   outlets,
   outletId,
   periode,
+  kDari,
+  kSampai,
   mode,
-  canPick,
-  canSim,
 }: {
   outlets: { id: string; nama: string }[];
   outletId: string | null;
   periode: string;
+  kDari?: string;
+  kSampai?: string;
   mode: "asli" | "simulasi";
-  canPick: boolean;
-  canSim: boolean;
 }) {
-  const r = rentang(periode);
+  const r = rentang(periode, kDari, kSampai);
   const supabase = await supabaseServer();
   const [{ data: now }, { data: prev }] = await Promise.all([
     supabase.rpc("ringkasan_penjualan", { p_outlet: outletId, p_dari: r.dari, p_sampai: r.sampai, p_mode: mode }),
@@ -95,7 +102,16 @@ export async function SalesDashboard({
           MODE SIMULASI — data latihan, bukan data asli
         </div>
       )}
-      <Filters outlets={canPick ? outlets : null} canSim={canSim} />
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-lg font-bold">Penjualan kasir (POS)</h2>
+        <p className="text-xs text-stone-500">langsung dari setiap transaksi kasir</p>
+      </div>
+      {k.trx === 0 && (
+        <p className="rounded-2xl border border-dashed border-matur-300 bg-white px-4 py-6 text-center text-sm text-stone-500">
+          Belum ada transaksi kasir {mode === "asli" ? "asli " : ""}pada rentang ini. Grafik POS akan terisi otomatis begitu kasir mulai berjualan lewat Matoer.
+        </p>
+      )}
+      {k.trx > 0 && (<>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatTile label="Omzet" value={rupiah(k.omzet)} sub={delta(k.omzet, p?.kpi.omzet ?? 0)} />
@@ -137,6 +153,7 @@ export async function SalesDashboard({
       <ChartCard title="Jam ramai" sub="Jumlah transaksi per hari dan jam" rows={(d?.jam ?? []).map((c) => ({ Hari: ["", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"][c.dow], Jam: `${c.jam}.00`, Transaksi: c.trx }))} cols={[{ key: "Hari", label: "Hari" }, { key: "Jam", label: "Jam" }, { key: "Transaksi", label: "Transaksi" }]}>
         <Heatmap cells={d?.jam ?? []} />
       </ChartCard>
+      </>)}
     </section>
   );
 }
