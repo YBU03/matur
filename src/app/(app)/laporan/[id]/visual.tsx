@@ -5,7 +5,7 @@
 import { BarList, ChartCard, TrendChart } from "@/components/charts";
 import { SERIES, rupiah } from "@/lib/chart-utils";
 
-export type Ringkas = { periode: string; label: string; penjualan: number; laba_kotor: number; laba_bersih: number };
+export type Ringkas = { periode: string; label: string; penjualan: number; hpp: number; laba_kotor: number; beban: number; laba_bersih: number };
 export type Visual = {
   bulan: string;
   penjualan: number;
@@ -62,6 +62,8 @@ export function LaporanVisual({ v }: { v: Visual }) {
           </div>
         ))}
       </section>
+
+      {v.prev && <Perbandingan v={v} />}
 
       <ChartCard
         title="Ke mana uang penjualan pergi"
@@ -124,9 +126,61 @@ export function LaporanVisual({ v }: { v: Visual }) {
 
       {v.bagiHasil.length > 0 && (
         <ChartCard title="Bagi hasil" sub="Pembagian laba bersih" rows={v.bagiHasil.map((p) => ({ penerima: p.name, nilai: p.value }))} cols={[{ key: "penerima", label: "Penerima" }, { key: "nilai", label: "Nilai", money: true }]}>
-          <BarList data={v.bagiHasil} />
+          <BarList data={v.bagiHasil} colors={v.bagiHasil.map(() => SERIES[3])} />
         </ChartCard>
       )}
     </div>
+  );
+}
+
+/** Tabel bulan ini vs bulan lalu; perubahan memakai panah + teks (bukan warna saja). */
+export function barisBanding(v: Visual) {
+  const p = v.prev!;
+  return [
+    { k: "Total penjualan", lalu: p.penjualan, kini: v.penjualan, naikBaik: true },
+    { k: "HPP (bahan baku)", lalu: p.hpp, kini: v.hpp, naikBaik: false },
+    { k: "Laba kotor", lalu: p.laba_kotor, kini: v.labaKotor, naikBaik: true },
+    { k: "Beban operasional + sedekah", lalu: p.beban, kini: v.beban + v.sedekah, naikBaik: false },
+    { k: "Laba bersih", lalu: p.laba_bersih, kini: v.labaBersih, naikBaik: true },
+  ];
+}
+
+function Perbandingan({ v }: { v: Visual }) {
+  const rows = barisBanding(v);
+  return (
+    <section className="rounded-2xl border border-matur-200 bg-white p-4">
+      <h3 className="font-semibold">Perbandingan dengan bulan lalu</h3>
+      <p className="mb-2 text-xs text-stone-500">
+        {v.prev!.label} → {v.bulan}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-stone-500">
+            <tr>
+              <th className="py-1">Pos</th>
+              <th className="text-right">Bulan lalu</th>
+              <th className="text-right">Bulan ini</th>
+              <th className="text-right">Perubahan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const d = r.lalu ? ((r.kini - r.lalu) / Math.abs(r.lalu)) * 100 : 0;
+              const baik = d === 0 ? null : (d > 0) === r.naikBaik;
+              return (
+                <tr key={r.k} className="border-t">
+                  <td className="py-1.5">{r.k}</td>
+                  <td className="text-right tabular-nums text-stone-500">{rupiah(r.lalu)}</td>
+                  <td className="text-right font-semibold tabular-nums">{rupiah(r.kini)}</td>
+                  <td className={`whitespace-nowrap text-right text-xs font-semibold ${baik === null ? "text-stone-500" : baik ? "text-green-700" : "text-red-600"}`}>
+                    {d > 0 ? "▲" : d < 0 ? "▼" : "="} {Math.abs(d).toFixed(1).replace(".", ",")}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

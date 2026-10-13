@@ -77,7 +77,7 @@ Halaman proyek dibagi menjadi tab agar mudah dibaca di HP:
 ## 12. Alur akunting terintegrasi (kasir → gudang → laporan)
 Mengikuti Excel Ruma (sheet *Transaksi* → *Laporan Keuangan*):
 1. **Kasir/barista (aplikasi POS → Kas & Pengeluaran):** catat pengeluaran harian (es kristal, galon, bahan baku/dessert, perlengkapan, parkir, listrik, marketing, dll.), pilih *uang laci* atau *dibayar pusat*. Bisa diubah/dihapus sendiri dalam 2 hari. **Tutup shift:** isi uang tunai aktual → sistem menghitung *penjualan tunai − pengeluaran laci* dan selisihnya.
-2. **Gudang:** kiriman bahan yang diterima outlet otomatis masuk *Pembelian bahan baku*.
+2. **Gudang:** kiriman bahan yang diterima outlet otomatis masuk *Pembelian bahan baku*. Setiap penjualan kasir **memotong stok bahan outlet** sesuai resep (dibentuk dari file HPP, seri Ice) dan mengisi HPP transaksi; halaman *Kiriman ke Outlet* menampilkan **stok outlet yang menipis** sebagai dasar kiriman berikutnya.
 3. **Catatan Harian (Owner/Admin/Finance/SPV):** tampilan per hari seperti sheet Transaksi; tambah/ubah/hapus pengeluaran; ekspor **Excel format Ruma**.
 4. **Stok & Opname (SPV/Gudang):** hitung stok fisik akhir bulan → nilainya jadi *Persediaan akhir*.
 5. **Proyeksi laporan (Finance):** penjualan per kanal, diskon, pembelian (kiriman + es kristal + bahan baku + galon), beban, sewa (dari perjanjian, rata per bulan), sedekah 2,5% laba kotor, bagi hasil dari skema. Isi angka **aplikasi GoFood/Grab/Shopee** → selisihnya + pengembalian discount menjadi *Pendapatan Lain-lain*. Simpan draft, lalu **Terbitkan**.

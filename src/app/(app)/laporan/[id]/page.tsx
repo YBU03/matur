@@ -26,7 +26,7 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
   const { data: semua } = await supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("outlet_id", l.outlet_id).eq("mode", "asli").lte("periode", l.periode).is("deleted_at", null).order("periode");
   const riwayat: Ringkas[] = ((semua ?? []) as unknown as Laporan[]).slice(-12).map((r) => {
     const x = hitung(r);
-    return { periode: r.periode, label: new Date(r.periode + "T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }), penjualan: x.totalPenjualan, laba_kotor: x.labaKotor, laba_bersih: x.labaBersih };
+    return { periode: r.periode, label: new Date(r.periode + "T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }), penjualan: x.totalPenjualan, hpp: x.hpp, laba_kotor: x.labaKotor, beban: x.totalBeban, laba_bersih: x.labaBersih };
   });
   const urut = (xs: { name: string; value: number }[]) => xs.filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
   const visual: Visual = {

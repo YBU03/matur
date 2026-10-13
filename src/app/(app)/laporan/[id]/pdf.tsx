@@ -5,7 +5,7 @@ import { formatRupiah, formatTanggal } from "@/lib/format";
 import { hitung, namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
 import { gambar } from "@/lib/pdf-kop";
 import { batang, bertumpuk, judul, kaki, kolom, kpi, WARNA } from "@/lib/pdf-grafik";
-import type { Visual } from "./visual";
+import { barisBanding, type Visual } from "./visual";
 
 // Unduh laporan resmi sebagai PDF (A4), urutan bagian sama dengan laporan manual
 export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; visual: Visual }) {
@@ -41,6 +41,30 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       const persen = (x: number) => (v.penjualan ? ((x / v.penjualan) * 100).toFixed(1).replace(".", ",") : "0");
       kpi(doc, 14 + 3 * (kw + 3), y, kw, "Margin laba bersih", `${persen(v.labaBersih)}%`, null, `HPP ${persen(v.hpp)}% dari penjualan`);
       y += 30;
+      // perbandingan bulan ini vs bulan lalu
+      if (v.prev) {
+        const yb = y;
+        judul(doc, 14, yb, "Perbandingan dengan bulan lalu", `${v.prev.label} -> ${bulan}`);
+        autoTable(doc, {
+          startY: yb + 6,
+          head: [["Pos", "Bulan lalu", "Bulan ini", "Perubahan"]],
+          body: barisBanding(v).map((r) => {
+            const d = r.lalu ? ((r.kini - r.lalu) / Math.abs(r.lalu)) * 100 : 0;
+            return [r.k, formatRupiah(r.lalu), formatRupiah(r.kini), `${d > 0 ? "Naik" : d < 0 ? "Turun" : "Tetap"} ${Math.abs(d).toFixed(1).replace(".", ",")}%`];
+          }),
+          styles: { fontSize: 8, cellPadding: 1 },
+          headStyles: { fillColor: [58, 31, 11] },
+          columnStyles: { 1: { halign: "right" }, 2: { halign: "right", fontStyle: "bold" }, 3: { halign: "right" } },
+          didParseCell: (c) => {
+            if (c.section === "head" && c.column.index > 0) c.cell.styles.halign = "right";
+            if (c.section !== "body" || c.column.index !== 3) return;
+            const r = barisBanding(v)[c.row.index];
+            const naik = r.kini > r.lalu;
+            if (r.kini !== r.lalu) c.cell.styles.textColor = naik === r.naikBaik ? [21, 128, 61] : [220, 38, 38];
+          },
+        });
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9;
+      }
       judul(doc, 14, y, "Ke mana uang penjualan pergi", `Dari total penjualan ${formatRupiah(v.penjualan)}`);
       y = bertumpuk(doc, 14, y + 7, W - 28, [
         { name: "HPP (bahan baku)", value: v.hpp },
@@ -50,7 +74,7 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       ]) + 6;
       if (v.riwayat.length > 1) {
         judul(doc, 14, y, "Tren bulanan", "Penjualan dan laba bersih");
-        y = kolom(doc, 14, y + 8, W - 28, 38, v.riwayat.map((r) => ({ label: r.label, a: r.penjualan, b: r.laba_bersih })), ["Penjualan", "Laba bersih"]) + 6;
+        y = kolom(doc, 14, y + 8, W - 28, 30, v.riwayat.map((r) => ({ label: r.label, a: r.penjualan, b: r.laba_bersih })), ["Penjualan", "Laba bersih"]) + 6;
       }
       const half = (W - 28 - 8) / 2;
       judul(doc, 14, y, "Komposisi pendapatan");
@@ -58,11 +82,11 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       const y1 = batang(doc, 14, y + 5, half, v.pendapatan.slice(0, 8), WARNA[0]);
       const y2 = batang(doc, 14 + half + 8, y + 5, half, v.bebanRinci.slice(0, 8), WARNA[1]);
       y = Math.max(y1, y2) + 6;
-      if (v.bagiHasil.length && y < 250) {
+      if (v.bagiHasil.length && y + 8 + v.bagiHasil.length * 6.5 < 278) {
         judul(doc, 14, y, "Bagi hasil laba bersih");
         batang(doc, 14, y + 5, W - 28, v.bagiHasil, WARNA[3], 62);
       }
-      // ===== Halaman 2 dst: laporan resmi (format tetap) =====
+      // ===== Halaman berikutnya: laporan resmi (format tetap) =====
       doc.addPage();
       y = 10;
       doc.setFont("helvetica", "bold").setFontSize(12).text(`LAPORAN KEUANGAN ${l.nama_outlet.toUpperCase()}`, W / 2, (y += 8), { align: "center" });

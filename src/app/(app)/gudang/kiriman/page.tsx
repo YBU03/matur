@@ -21,6 +21,32 @@ export default async function DaftarKiriman({ searchParams }: { searchParams: Pr
     q,
     gudang ? supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama") : Promise.resolve({ data: [] as { id: string; nama: string }[] }),
   ]);
+  // kasir → gudang: stok outlet berkurang otomatis dari penjualan (resep); tampilkan bahan resep yang menipis
+  let menipis: { outlet: string; outletId: string; items: { nama: string; sisa: string }[] }[] = [];
+  if (gudang) {
+    const [{ data: st }, { data: rs }, { data: bh }] = await Promise.all([
+      supabase.from("stok").select("outlet_id, bahan_id, jumlah").eq("mode", "asli").not("outlet_id", "is", null),
+      supabase.from("resep").select("bahan_id").eq("mode", "asli").is("deleted_at", null),
+      supabase.from("bahan").select("id, nama, satuan_beli, satuan_pakai, konversi, stok_min").eq("mode", "asli").is("deleted_at", null),
+    ]);
+    const dipakai = new Set((rs ?? []).map((r) => r.bahan_id));
+    const bmap = new Map((bh ?? []).map((b) => [b.id, b]));
+    menipis = (outlets ?? [])
+      .map((o) => {
+        const items = [...dipakai]
+          .map((bid) => {
+            const b = bmap.get(bid);
+            if (!b) return null;
+            const jml = Number((st ?? []).find((x) => x.outlet_id === o.id && x.bahan_id === bid)?.jumlah ?? 0);
+            const min = Number(b.stok_min ?? 0) || Number(b.konversi ?? 1); // tanpa batas minimum: kurang dari 1 kemasan
+            return jml < min ? { nama: b.nama, sisa: `${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(Math.max(jml, 0) / (Number(b.konversi) || 1))} ${b.satuan_beli}`, urut: jml / min } : null;
+          })
+          .filter((x): x is { nama: string; sisa: string; urut: number } => !!x)
+          .sort((a, b) => a.urut - b.urut);
+        return { outlet: o.nama, outletId: o.id, items };
+      })
+      .filter((x) => x.items.length);
+  }
   const rows = (data ?? []) as unknown as { id: string; nomor: string; tanggal: string; status: string; total: number; outlet: { nama: string } | null; item_kiriman: { count: number }[] }[];
 
   return (
@@ -39,6 +65,21 @@ export default async function DaftarKiriman({ searchParams }: { searchParams: Pr
           <button className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white">+ Buat kiriman</button>
         </form>
       )}
+      {menipis.map((m) => (
+        <details key={m.outletId} className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
+          <summary className="cursor-pointer font-bold">
+            ⚠️ Stok {m.outlet} menipis: {m.items.length} bahan <span className="text-sm font-normal text-stone-600">(berkurang otomatis dari penjualan kasir)</span>
+          </summary>
+          <ul className="mt-2 grid gap-x-6 text-sm sm:grid-cols-2">
+            {m.items.map((i) => (
+              <li key={i.nama} className="flex justify-between border-b border-amber-200 py-1">
+                <span>{i.nama}</span>
+                <span className="tabular-nums text-stone-600">sisa {i.sisa}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
       <nav className="-mx-4 overflow-x-auto px-4">
         <div className="flex w-max gap-1.5">
           {[["", "Semua"], ...Object.entries(STATUS_KIRIMAN).map(([k, [l]]) => [k, l])].map(([k, l]) => (
