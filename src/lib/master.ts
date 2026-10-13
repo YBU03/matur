@@ -281,6 +281,19 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "isi", label: "Isi / detail (mis. Dulux 30YY 65/347, permintaan mitra via chat)", type: "text" },
     ],
   },
+  biaya_outlet: {
+    table: "biaya_outlet",
+    title: "Biaya Operasional",
+    nameKey: "keterangan",
+    editors: ["owner", "admin_pusat", "finance", "spv"],
+    fields: [
+      { key: "tanggal", label: "Tanggal", type: "date", required: true },
+      { key: "outlet_id", label: "Outlet", type: "select", ref: { table: "outlet", label: "nama" }, required: true },
+      { key: "kategori_id", label: "Kategori Biaya", type: "select", ref: { table: "kategori_biaya", label: "nama" }, required: true },
+      { key: "jumlah", label: "Jumlah", type: "money", required: true },
+      { key: "keterangan", label: "Keterangan (mis. token listrik, gaji Oktober)", type: "text" },
+    ],
+  },
   usulan_tanggal: {
     table: "usulan_tanggal",
     title: "Usulan Tanggal",

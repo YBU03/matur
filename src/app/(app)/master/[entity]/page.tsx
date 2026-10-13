@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { MasterTable } from "./master-table";
 
 // tabel tanpa kolom mode (asli/simulasi)
-const NO_MODE = new Set(["pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal", "catatan_proyek"]);
+const NO_MODE = new Set(["kategori_biaya", "pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal", "catatan_proyek"]);
 
 export default async function MasterPage({
   params,
@@ -38,7 +38,7 @@ export default async function MasterPage({
       .filter((f) => f.ref)
       .map(async (f) => {
         let rq = supabase.from(f.ref!.table).select(`id, ${f.ref!.label}`).order(f.ref!.label).limit(500);
-        if (f.ref!.table !== "pengguna") rq = rq.is("deleted_at", null);
+        if (!["pengguna", "kategori_biaya"].includes(f.ref!.table)) rq = rq.is("deleted_at", null);
         if (!NO_MODE.has(f.ref!.table)) rq = rq.eq("mode", "asli");
         const { data } = await rq;
         refs[f.key] = ((data ?? []) as unknown as Record<string, string>[]).map((r) => ({ id: r.id, label: r[f.ref!.label] }));

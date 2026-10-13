@@ -53,3 +53,27 @@ export function hitung(l: Laporan) {
 }
 
 export const namaBulan = (periode: string) => new Date(periode + "T00:00:00").toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
+/** Nama baris pendapatan laporan resmi dari kanal/metode POS */
+export const BARIS_PENDAPATAN: [string, string][] = [
+  ["tunai", "Penjualan tunai"],
+  ["non_tunai", "Penjualan non tunai"],
+  ["gofood", "Go Food"],
+  ["grabfood", "Grab Food"],
+  ["shopeefood", "Shopee Food"],
+  ["tiktok", "Tiktok Go"],
+  ["ruma_app", "Ruma App"],
+  ["tumbler", "Tumbler"],
+];
+export const PENDAPATAN_LAIN = "Pendapatan Lain-Lain (Online Food dan pendapatan kotor)";
+
+export type Proyeksi = {
+  jumlah_transaksi: number;
+  pendapatan: Record<string, number>;
+  diskon: number;
+  pembelian: number;
+  jumlah_kiriman: number;
+  persediaan_akhir_sistem: number;
+  beban: Baris[];
+  harian: { tanggal: string; penjualan: number; diskon: number; transaksi: number; pembelian: number; biaya: number }[];
+};
