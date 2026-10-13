@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
-import { bayar, bukaShift, izinDiskonSpv, type Checkout, type Receipt } from "@/lib/pos-actions";
+import { batalDraft, bayar, bukaShift, izinDiskonSpv, simpanDraft, type Checkout, type DraftItem, type Receipt } from "@/lib/pos-actions";
 import { bacaAntrean, galatJaringan, hapusTertunda, simpanTertunda } from "@/lib/pos-offline";
 import { bisaBluetooth, cetakBluetooth, namaPrinter, sambungPrinter, susunStruk } from "@/lib/printer-bt";
 
 type Varian = { id: string; grup: string; nama: string; tambahan_harga: number };
 export type PosMenu = { id: string; nama: string; kategori_id: string | null; harga_langsung: number; harga_ojol: number; foto_url: string | null; varian: Varian[] };
 type Line = { key: string; menu: PosMenu; varian: Varian[]; qty: number };
+export type Draft = { id: string; label: string | null; kanal: string; tipe: "dine_in" | "take_away"; pelanggan: string | null; meja: string | null; diskon: number; items: DraftItem[]; total: number; created_at: string; nama_pembuat: string | null };
 
 // POS-02: kanal penjualan sesuai baris pendapatan di laporan
 const KANAL = [
@@ -99,7 +100,7 @@ function useAntreanOffline() {
   return { jumlah, kirim, kirimSemua };
 }
 
-export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number }) {
+export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, drafts }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number; drafts: Draft[] }) {
   const [kat, setKat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [cart, setCart] = useState<Line[]>([]);
@@ -118,6 +119,9 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
   const [bayarList, setBayarList] = useState<Bayar[]>([{ metode: "tunai", nominal: "", diterima: "" }, { metode: "qris", nominal: "", diterima: "" }]);
   const [mintaSpv, setMintaSpv] = useState(false);
   const antrean = useAntreanOffline();
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [lihatDraft, setLihatDraft] = useState(false);
+  const [info, setInfo] = useState("");
 
   const price = (l: Pick<Line, "menu" | "varian">) => priceFor(kanal, l);
   const subtotal = cart.reduce((s, l) => s + price(l) * l.qty, 0);
@@ -143,6 +147,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
     setPelanggan("");
     setMeja("");
     setSplit(false);
+    setDraftId(null);
     setBayarList([{ metode: "tunai", nominal: "", diterima: "" }, { metode: "qris", nominal: "", diterima: "" }]);
   };
   const checkout = (otorisasi?: string) => {
@@ -159,6 +164,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
       diterima: !split && metode === "tunai" ? num(diterima) || total : undefined,
       pembayaran: split ? bayarList.filter((b) => num(b.nominal) > 0).map((b) => ({ metode: b.metode, nominal: num(b.nominal), diterima: b.metode === "tunai" ? num(b.diterima) || num(b.nominal) : undefined })) : undefined,
       otorisasi,
+      draft_id: draftId ?? undefined,
       items: cart.map((l) => ({ menu_id: l.menu.id, varian_ids: l.varian.map((v) => v.id), qty: l.qty })),
     };
     start(async () => {
@@ -176,6 +182,53 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
         setReceipt({ r: { id: c.client_id, nomor: 0, subtotal, diskon: num(diskon), total, kembalian: kembali }, lines: cart, kanal, metode: c.metode, offline: true });
       }
       reset();
+    });
+  };
+
+  const itemsDraft = (): DraftItem[] => cart.map((l) => ({ menu_id: l.menu.id, varian_ids: l.varian.map((v) => v.id), qty: l.qty, nama: l.menu.nama + (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""), harga: price(l) }));
+  const simpanSebagaiDraft = () =>
+    start(async () => {
+      setErr("");
+      const label = pelanggan || (meja ? `Meja ${meja}` : "") || prompt("Nama/penanda draft (mis. nama pelanggan atau meja):") || "";
+      try {
+        const r = await simpanDraft({ id: draftId ?? undefined, label, kanal, tipe, pelanggan, meja, diskon: num(diskon), items: itemsDraft(), total });
+        if (r.error) return setErr(r.error);
+        setInfo(`💾 Draft “${label || "tanpa nama"}” disimpan. Buka lagi dari tombol Draft saat pelanggan siap bayar.`);
+        reset();
+      } catch {
+        setErr("Simpan draft butuh internet.");
+      }
+    });
+  const lanjutkanDraft = (d: Draft) => {
+    const byId = new Map(menus.map((m) => [m.id, m]));
+    const hilang: string[] = [];
+    const lines: Line[] = [];
+    for (const it of d.items) {
+      const m = byId.get(it.menu_id);
+      if (!m) {
+        hilang.push(it.nama);
+        continue;
+      }
+      const varian = m.varian.filter((v) => it.varian_ids.includes(v.id));
+      lines.push({ key: m.id + ":" + varian.map((v) => v.id).sort().join(","), menu: m, varian, qty: it.qty });
+    }
+    setCart(lines);
+    setKanal(d.kanal);
+    setTipe(d.tipe);
+    setPelanggan(d.pelanggan ?? "");
+    setMeja(d.meja ?? "");
+    setDiskon(d.diskon ? String(d.diskon) : "");
+    setDraftId(d.id);
+    setLihatDraft(false);
+    setInfo(hilang.length ? `⚠️ Menu tidak tersedia lagi dan dilewati: ${hilang.join(", ")}` : `Melanjutkan draft “${d.label ?? "tanpa nama"}”.`);
+  };
+  const batalkanDraft = (d: Draft) => {
+    const alasan = prompt(`Batalkan draft “${d.label ?? "tanpa nama"}”? Tulis alasannya:`);
+    if (!alasan?.trim()) return;
+    start(async () => {
+      const r = await batalDraft(d.id, alasan);
+      if (r.error) setErr(r.error);
+      else if (draftId === d.id) reset();
     });
   };
 
@@ -218,6 +271,17 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
       </section>
 
       <aside className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4 lg:sticky lg:top-4 lg:self-start">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setLihatDraft(true)} className="rounded-lg border border-matur-300 px-3 py-1.5 text-sm font-semibold text-matur-700">
+            📋 Draft {drafts.length > 0 && <span className="ml-1 rounded-full bg-matur-500 px-1.5 text-xs text-white">{drafts.length}</span>}
+          </button>
+          {draftId && (
+            <span className="truncate text-xs text-amber-700">
+              ✏️ dari draft · <button onClick={reset} className="underline">lepas</button>
+            </span>
+          )}
+        </div>
+        {info && <p className="rounded-lg bg-matur-50 px-3 py-2 text-xs text-kopi-900" onClick={() => setInfo("")}>{info}</p>}
         <div className="flex flex-wrap gap-1">
           {KANAL.map(([k, l]) => (
             <button key={k} onClick={() => setKanal(k)} className={chip(kanal === k)}>{l}</button>
@@ -297,6 +361,9 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
           </p>
         )}
         {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+        <button disabled={pending || cart.length === 0} onClick={simpanSebagaiDraft} className="w-full rounded-xl border-2 border-matur-300 py-2 text-sm font-semibold text-matur-700 disabled:opacity-40">
+          💾 {draftId ? "Perbarui draft" : "Simpan sebagai draft (bayar nanti)"}
+        </button>
         <button
           disabled={pending || cart.length === 0}
           onClick={() => checkout()}
@@ -307,6 +374,35 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: {
       </aside>
 
       {picking && <VariantPicker menu={picking} onCancel={() => setPicking(null)} onPick={(v) => (add(picking, v), setPicking(null))} />}
+      {lihatDraft && (
+        <Modal title="📋 Pesanan draft">
+          <p className="mb-2 text-xs text-stone-500">Pesanan yang disimpan dulu dan belum dibayar. Semua draft tercatat (siapa membuat, dibayar, atau dibatalkan beserta alasannya).</p>
+          <ul className="max-h-[55vh] divide-y overflow-y-auto">
+            {drafts.length === 0 && <li className="py-6 text-center text-sm text-stone-400">Tidak ada draft.</li>}
+            {drafts.map((d) => (
+              <li key={d.id} className="py-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{d.label ?? "Tanpa nama"}</p>
+                    <p className="truncate text-xs text-stone-500">{d.items.map((i) => `${i.qty}× ${i.nama}`).join(", ")}</p>
+                    <p className="text-[11px] text-stone-400">
+                      {new Date(d.created_at).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · oleh {d.nama_pembuat ?? "-"}
+                    </p>
+                  </div>
+                  <b className="tabular-nums">{formatRupiah(d.total)}</b>
+                </div>
+                <div className="mt-1 flex justify-end gap-3 text-xs font-semibold">
+                  <button onClick={() => batalkanDraft(d)} className="text-red-600">Batalkan</button>
+                  <button onClick={() => lanjutkanDraft(d)} className="text-matur-700">Lanjutkan & bayar →</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 text-right">
+            <button onClick={() => setLihatDraft(false)} className="rounded-lg border px-4 py-2 text-sm">Tutup</button>
+          </div>
+        </Modal>
+      )}
       {receipt && <ReceiptDialog {...receipt} outletNama={outletNama} kasir={kasir} onClose={() => setReceipt(null)} />}
       {mintaSpv && <PinSpv judul={`Setujui diskon ${Math.round(persenDiskon)}%`} onBatal={() => setMintaSpv(false)} onOk={async (login, pin) => {
         const r = await izinDiskonSpv(login, pin, persenDiskon);

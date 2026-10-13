@@ -19,6 +19,8 @@ export type Checkout = {
   pembayaran?: { metode: string; nominal: number; diterima?: number }[];
   /** izin diskon besar dari SPV (sekali pakai) */
   otorisasi?: string;
+  /** dibayar dari pesanan draft → draft otomatis berstatus dibayar */
+  draft_id?: string;
   items: CartLine[];
 };
 export type Receipt = { id: string; nomor: number; subtotal: number; diskon: number; total: number; kembalian: number };
@@ -90,4 +92,44 @@ export async function voidTransaksi(id: string, alasan: string, login: string, r
   revalidatePath("/kasir/riwayat");
   revalidatePath("/kasir/antrean");
   return { ok: "Transaksi dibatalkan (void). Stok bahan dikembalikan." };
+}
+
+// ---------- Pesanan draft (simpan dulu, bayar nanti) ----------
+export type DraftItem = CartLine & { nama: string; harga: number };
+export type DraftInput = { id?: string; label: string; kanal: string; tipe: string; pelanggan: string; meja: string; diskon: number; items: DraftItem[]; total: number };
+
+export async function simpanDraft(d: DraftInput): Promise<{ error?: string; id?: string }> {
+  const o = await outlet();
+  if (!o) return { error: "Pilih outlet terlebih dahulu." };
+  if (!d.items.length) return { error: "Keranjang kosong." };
+  const supabase = await supabaseServer();
+  const { data: u } = await supabase.auth.getUser();
+  const v = {
+    label: d.label.trim().slice(0, 60) || d.pelanggan.trim() || (d.meja.trim() ? `Meja ${d.meja.trim()}` : null),
+    kanal: d.kanal,
+    tipe: d.tipe,
+    pelanggan: d.pelanggan.trim() || null,
+    meja: d.meja.trim() || null,
+    diskon: Math.max(Math.round(d.diskon) || 0, 0),
+    items: d.items,
+    total: Math.max(Math.round(d.total) || 0, 0),
+    updated_at: new Date().toISOString(),
+    diubah_oleh: u.user?.id,
+  };
+  const { data, error } = d.id
+    ? await supabase.from("pesanan_draft").update(v).eq("id", d.id).eq("status", "draft").select("id").single()
+    : await supabase.from("pesanan_draft").insert({ ...v, outlet_id: o }).select("id").single();
+  if (error) return { error: error.message.includes("0 rows") || error.code === "PGRST116" ? "Draft sudah dibayar/dibatalkan." : pesanDb(error.message) };
+  revalidatePath("/kasir/pos");
+  revalidatePath("/kasir/riwayat");
+  return { id: data.id };
+}
+
+export async function batalDraft(id: string, alasan: string): Promise<{ error?: string }> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("batal_draft", { p_id: id, p_alasan: alasan });
+  if (error) return { error: pesanDb(error.message) };
+  revalidatePath("/kasir/pos");
+  revalidatePath("/kasir/riwayat");
+  return {};
 }

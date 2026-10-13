@@ -20,7 +20,23 @@ export type Trx = {
   pembayaran: { metode: string; nominal: number }[];
 };
 
-export function RiwayatView({ trx }: { trx: Trx[] }) {
+export type DraftRiwayat = {
+  id: string;
+  label: string | null;
+  items: { nama: string; qty: number }[];
+  total: number;
+  status: "draft" | "dibayar" | "dibatalkan";
+  alasan_batal: string | null;
+  nama_pembuat: string | null;
+  nama_penutup: string | null;
+  created_at: string;
+  selesai_at: string | null;
+  transaksi: { nomor: number } | null;
+};
+const jam = (t: string) => new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+export function RiwayatView({ trx, drafts, outletNama }: { trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string }) {
+  const [tab, setTab] = useState<"trx" | "draft">("trx");
   const router = useRouter();
   const [q, setQ] = useState("");
   const [batal, setBatal] = useState<Trx | null>(null);
@@ -36,6 +52,44 @@ export function RiwayatView({ trx }: { trx: Trx[] }) {
           {lunas.length} lunas · {formatRupiah(lunas.reduce((s, t) => s + Number(t.total), 0))}
         </p>
       </div>
+      <nav className="flex gap-1 rounded-xl bg-matur-50 p-1 text-sm font-semibold">
+        {(
+          [
+            ["trx", `🧾 Transaksi (${trx.length})`],
+            ["draft", `📋 Draft (${drafts.filter((d) => d.status === "draft").length} menunggu)`],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 rounded-lg px-3 py-2 ${tab === k ? "bg-white shadow-sm" : "text-stone-500"}`}>
+            {l}
+          </button>
+        ))}
+      </nav>
+      {tab === "draft" ? (
+        <ul className="space-y-2">
+          {drafts.length === 0 && <li className="rounded-2xl border bg-white p-6 text-center text-sm text-stone-400">Belum ada draft 7 hari terakhir.</li>}
+          {drafts.map((d) => (
+            <li key={d.id} className="rounded-2xl border bg-white p-3 text-sm">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    {d.label ?? "Tanpa nama"}{" "}
+                    <span className={`ml-1 rounded-full px-2 text-xs font-bold ${d.status === "draft" ? "bg-amber-100 text-amber-800" : d.status === "dibayar" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
+                      {d.status === "draft" ? "menunggu bayar" : d.status === "dibayar" ? `dibayar · struk #${d.transaksi?.nomor ?? "-"}` : "dibatalkan"}
+                    </span>
+                  </p>
+                  <p className="truncate text-stone-600">{d.items.map((i) => `${i.qty}× ${i.nama}`).join(", ")}</p>
+                  <p className="text-xs text-stone-500">
+                    dibuat {jam(d.created_at)} oleh {d.nama_pembuat ?? "-"}
+                    {d.selesai_at && ` · ${d.status === "dibayar" ? "dibayar" : "dibatalkan"} ${jam(d.selesai_at)} oleh ${d.nama_penutup ?? "-"}`}
+                    {d.alasan_batal && ` · alasan: ${d.alasan_batal}`}
+                  </p>
+                </div>
+                <b className="tabular-nums">{formatRupiah(d.total)}</b>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (<>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Cari no. struk / menu / pelanggan…" className="w-full rounded-xl border px-3 py-2" />
       {ok && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
       <ul className="space-y-2">
@@ -57,8 +111,16 @@ export function RiwayatView({ trx }: { trx: Trx[] }) {
               <b className={`tabular-nums ${t.status === "void" ? "line-through" : ""}`}>{formatRupiah(t.total)}</b>
             </div>
             {t.status === "lunas" && (
-              <div className="mt-1 text-right">
-                <button onClick={() => (setBatal(t), setAlasan(""), setOk(""))} className="text-xs font-semibold text-red-600">
+              <div className="mt-1 flex justify-end gap-4 text-xs font-semibold">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent([`*${outletNama}* · No. ${t.nomor}`, ...t.item_transaksi.map((i) => `${i.qty}x ${i.nama}`), t.diskon ? `Diskon: ${formatRupiah(-t.diskon)}` : "", `Total: ${formatRupiah(t.total)}`, "Terima kasih 🙏"].filter(Boolean).join("\n"))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-matur-700"
+                >
+                  Kirim ulang struk (WA)
+                </a>
+                <button onClick={() => (setBatal(t), setAlasan(""), setOk(""))} className="text-red-600">
                   Void (batalkan)
                 </button>
               </div>
@@ -66,6 +128,7 @@ export function RiwayatView({ trx }: { trx: Trx[] }) {
           </li>
         ))}
       </ul>
+      </>)}
       {batal && (
         <PinSpv
           judul={`Void struk #${batal.nomor} (${formatRupiah(batal.total)})`}
