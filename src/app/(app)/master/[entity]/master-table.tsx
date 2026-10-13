@@ -128,9 +128,59 @@ export function MasterTable({
         <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{msg.text}</p>
       )}
 
-      {rows.length > 5 && (
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
+      {(rows.length > 5 || entity.card) && (
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={entity.card ? `🔍 Cari nama ${entity.title.toLowerCase()}…` : `🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
       )}
+      {entity.card ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {tampil.length === 0 && <p className="col-span-full rounded-2xl border border-matur-200 bg-white px-3 py-8 text-center text-sm text-stone-400">{rows.length ? "Tidak ada yang cocok dengan pencarian." : "Belum ada data."}</p>}
+          {tampil.map((r) => {
+            const status = String(r.status ?? "");
+            return (
+              <div key={String(r.id)} className="flex gap-3 rounded-2xl border border-matur-200 bg-white p-3 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element -- aset statis */}
+                <img src={entity.card} alt="" className="size-20 shrink-0 rounded-xl bg-matur-50 object-contain p-1" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2">
+                    <p className="min-w-0 flex-1 truncate font-bold text-kopi-900">{String(r[entity.nameKey] ?? "-")}</p>
+                    {status && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${["operasional", "aktif"].includes(status) ? "bg-green-100 text-green-800" : status === "pembangunan" ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600"}`}>{status}</span>
+                    )}
+                  </div>
+                  <dl className="mt-1 space-y-0.5 text-xs">
+                    {cols
+                      .filter((f) => f.key !== entity.nameKey && f.key !== "status" && show(f, r[f.key], refs) !== "-")
+                      .map((f) => (
+                        <div key={f.key} className="flex gap-1">
+                          <dt className="shrink-0 text-stone-500">{f.label}:</dt>
+                          <dd className="truncate text-stone-800">{show(f, r[f.key], refs)}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                  {canEdit && (
+                    <div className="mt-2 flex gap-3 text-xs font-semibold">
+                      {trash ? (
+                        <button disabled={pending} onClick={() => run(() => setDeleted(entityKey, String(r.id), false), "Data dipulihkan.")} className="text-matur-700 hover:underline">
+                          Pulihkan
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="text-matur-700 hover:underline">
+                            Ubah
+                          </button>
+                          <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
+                            Hapus
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div className="overflow-x-auto rounded-2xl border border-matur-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-matur-50 text-left text-kopi-700">
@@ -194,6 +244,7 @@ export function MasterTable({
           </tbody>
         </table>
       </div>
+      )}
 
       {editing && !confirm && (
         <Modal title={`${editing.row ? "Ubah" : "Tambah"} ${entity.title}`}>

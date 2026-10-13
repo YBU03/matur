@@ -31,6 +31,7 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 - ✅ (13 Okt) **Akunting otomatis** (no. 5): menu Biaya Operasional (input harian per outlet, SPV/Finance) + halaman *Proyeksi laporan otomatis* (penjualan POS per kanal/metode, diskon, pembelian = kiriman gudang diterima, beban = biaya harian, sedekah & bagi hasil dari skema) → tombol Terbitkan menjadi laporan resmi. Lanjutan: potong stok otomatis dari resep (HPP pemakaian), opname outlet, gaji dari penggajian.
 - ✅ (13 Okt) **HRD & Admin Gudang mengelola akun kasir/barista** (no. 9) + penanda "karyawan outlet" saat daftar.
 - ✅ (13 Okt) **Kiriman gudang → outlet** (no. 13): draft → kirim (stok gudang berkurang) → diterima outlet (stok outlet bertambah, selisih kembali ke gudang), Surat Jalan & Invoice PDF, riwayat mutasi stok.
+- **Buka/tutup kunci laporan** (admin pusat & akunting): laporan bulan tertentu bisa dikunci agar tidak bisa diubah/terlihat mitra sebelum final, lalu dibuka lagi — *antrean, belum digarap*.
 - **Pesanan draft / bayar nanti** khusus bos yang datang ke kantor (no. 8) — *jangan digarap dulu*.
 - **OTP email saat daftar + Lupa password.** Kode 6 digit ke email pendaftar sebelum masuk antrean ACC admin; lupa password lewat kode email. Akun Brevo (paket Free, ±300 email/hari) sudah dibuat. Sisa langkah:
   1. Tambah & verifikasi sender di Brevo (sementara Gmail; bisa masuk spam).

@@ -6,6 +6,8 @@ import { getSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
 import { SideNav } from "@/components/side-nav";
+import { MaintenanceScreen } from "@/components/maintenance-screen";
+import { KEBAL_MAINTENANCE, statusMaintenance } from "@/lib/maintenance";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
@@ -13,6 +15,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
   if (POS_ONLY.includes(s.active.role)) redirect("/kasir");
+  if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
+    const m = await statusMaintenance();
+    if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
+  }
   const r = ROLES[s.active.role];
 
   const sidebar = (

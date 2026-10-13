@@ -27,6 +27,8 @@ export type Entity = {
   nameKey: string;
   editors: Role[];
   fields: Field[];
+  /** tampil sebagai kartu bergambar (bukan tabel) */
+  card?: string;
 };
 
 export const ENTITIES: Record<string, Entity> = {
@@ -34,6 +36,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "outlet",
     title: "Outlet",
     nameKey: "nama",
+    card: "/brand/outlet.png",
     editors: ["owner", "admin_pusat"],
     fields: [
       { key: "nama", label: "Nama Outlet", type: "text", required: true },
@@ -50,6 +53,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "mitra",
     title: "Mitra",
     nameKey: "nama",
+    card: "/mascot/mitra-card.png",
     editors: ["owner", "admin_pusat"],
     fields: [
       { key: "nama", label: "Nama Mitra", type: "text", required: true },
@@ -161,6 +165,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "karyawan",
     title: "Karyawan",
     nameKey: "nama",
+    card: "/mascot/karyawan.png",
     editors: ["owner", "hrd"],
     fields: [
       { key: "nama", label: "Nama", type: "text", required: true },

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { MasukOverlay } from "@/components/masuk-overlay";
+import { OfflineOverlay } from "@/components/offline-overlay";
 
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${jakarta.variable} font-sans antialiased`}>
         {children}
         <MasukOverlay />
+        <OfflineOverlay />
       </body>
     </html>
   );

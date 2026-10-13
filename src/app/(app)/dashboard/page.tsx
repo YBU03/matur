@@ -7,6 +7,8 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProjectDetailCharts, ProjectsOverview } from "./projects";
 import { SalesDashboard } from "./sales";
+import { MaintenanceToggle } from "@/components/maintenance-toggle";
+import { statusMaintenance } from "@/lib/maintenance";
 
 const PUSAT: Role[] = ["owner", "admin_pusat", "finance", "manajer_area"];
 const OUTLET: Role[] = ["spv"];
@@ -39,6 +41,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
   const outletId = pusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
+  const maint = canSim ? await statusMaintenance() : null;
   return (
     <div className="space-y-6">
       {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
@@ -50,6 +53,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-white/90">{active.outletNama}</p>
         </div>
       </section>
+      {maint && <MaintenanceToggle aktif={maint.aktif} pesan={maint.pesan} />}
 
       {pendaftar > 0 && (
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">

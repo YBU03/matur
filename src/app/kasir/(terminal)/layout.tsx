@@ -5,11 +5,15 @@ import { POS_ROLES, ROLES, BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { InstallButton } from "@/components/install-button";
 import { TerminalNav } from "./terminal-nav";
+import { MaintenanceScreen } from "@/components/maintenance-screen";
+import { statusMaintenance } from "@/lib/maintenance";
 
 // Tampilan aplikasi POS: tanpa menu admin, khusus perangkat di outlet.
 export default async function TerminalLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
   if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) redirect("/kasir");
+  const m = await statusMaintenance();
+  if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
   const items = [
     ...(BISA_JUAL.includes(s.active.role) ? [{ href: "/kasir/pos", label: "Kasir" }] : []),
     { href: "/kasir/antrean", label: "Antrean" },
