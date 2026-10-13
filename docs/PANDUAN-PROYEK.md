@@ -42,7 +42,7 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 ## 7. Aplikasi POS kasir & barista (terpisah)
 - Alamat khusus: **https://matoer.vercel.app/kasir** — dipakai di tablet/HP outlet. Bisa dipasang sebagai aplikasi (*Add to Home Screen*) dan langsung terbuka ke POS.
 - Login dengan **kode staf + PIN** (akun dibuat Owner di *Pengguna & Akses*), atau email untuk kasir yang mendaftar sendiri.
-- Kasir: layar **Kasir** (POS) dan **Antrean**; Barista: **Antrean**; Shift & absensi menyusul.
+- Kasir: layar **Kasir** (POS) dan **Antrean**; Barista: **Antrean**. Keduanya juga punya **Absen**, **Jadwal**, dan **Izin** (lihat bagian SDM outlet).
 - Halaman login utama (**/login**) hanya untuk email: owner, admin, pusat, gudang, mitra. Kasir/barista yang login di sana otomatis diarahkan ke /kasir. SPV membuka POS lewat menu **Buka Aplikasi POS**.
 
 ## 8. Menu POS, tombol Pasang Aplikasi, menu ☰
@@ -82,3 +82,15 @@ Mengikuti Excel Ruma (sheet *Transaksi* → *Laporan Keuangan*):
 4. **Stok & Opname (SPV/Gudang):** pilih *Stok awal* (pertama kali) atau *Opname rutin* (akhir bulan). Isi per bahan: kemasan utuh + sisa terbuka (gram/ml), atau unduh template Excel, isi di outlet, lalu unggah. Nilainya jadi *Persediaan akhir*.
 5. **Proyeksi laporan (Finance):** penjualan per kanal, diskon, pembelian (kiriman + es kristal + bahan baku + galon), beban, sewa (dari perjanjian, rata per bulan), sedekah 2,5% laba kotor, bagi hasil dari skema. Isi angka **aplikasi GoFood/Grab/Shopee** → selisihnya + pengembalian discount menjadi *Pendapatan Lain-lain*. Simpan draft, lalu **Terbitkan**.
 6. **Laporan terbit:** ringkasan visual (KPI vs bulan lalu, struktur penjualan, tren, komposisi, beban, bagi hasil) di web dan PDF (halaman 1 grafik, halaman berikutnya format resmi).
+
+## SDM outlet: shift, jadwal, absensi, izin (konsep Makaryo)
+- **HRD** (semua outlet) dan **Owner** mengelola lewat menu **Jadwal Shift**, **Rekap Absensi**, **Persetujuan Izin & Tukar**. **SPV** mendapat menu yang sama untuk outletnya sendiri.
+- **Jadwal Shift → tab Shift**: atur shift per outlet (nama, jam, minimal orang). Tombol *Isi 3 shift standar* membagi jam operasional outlet. Shift dinonaktifkan, tidak dihapus.
+- **Tab Kalender**: pilih cakupan → **Susun draft otomatis** (jatah libur mingguan, izin yang disetujui, minimal orang, beban merata, anti-bentrok, rotasi shift) → periksa/ubah (ketuk nama untuk hapus, + untuk tambah) → **Terbitkan**. Hanya jadwal terbit yang terlihat staf. Slot kurang orang ditandai merah.
+- **Tab Staf**: jatah libur per minggu per orang (bawaan 1). **Tab Aturan** (HRD/Owner): toleransi telat (**5 menit**), izin minimal H-3, buka/tutup pengajuan libur mingguan.
+- **Absen** (aplikasi POS → *Absen*): selfie + lokasi GPS, jam server. Bisa dari **HP sendiri** atau **perangkat outlet**; di perangkat outlet rekan lain absen dengan **kode staf + PIN** tanpa mengganti kasir yang sedang login. Lokasi ditolak tetap tersimpan, ditandai tanpa lokasi. Status: tepat waktu / telat / tanpa jadwal / tidak absen.
+- **Izin** (aplikasi POS → *Izin*): izin min. H-3, sakit untuk hari ini, libur mingguan saat dibuka HRD. HRD/SPV menyetujui/menolak (dengan alasan), atau mencatat izin/sakit untuk staf yang mengabari lewat WA. Izin disetujui otomatis melepas jadwal orang itu di tanggal tersebut.
+- **Tukar shift** (aplikasi POS → *Jadwal*): ajukan ke rekan (paling lambat H-1) → rekan menerima → HRD/SPV menyetujui → jadwal tertukar otomatis.
+- **Pengingat**: banner di aplikasi POS mulai 60 menit sebelum shift bila belum absen masuk (merah ≤15 menit / sudah lewat), dan saat ada permintaan tukar menunggu.
+- **Rekap Absensi**: status hari ini, ringkasan per staf (jadwal, hadir, tepat, telat + menit, tidak absen, izin, jam kerja), detail dengan foto selfie & tautan peta, koreksi (catatan / isi jam pulang), **Unduh Excel**. Data ini menjadi dasar penggajian (Tahap 8).
+- Shift kerja (kehadiran) **terpisah** dari shift kas (buka/tutup laci di *Kas & Pengeluaran*).

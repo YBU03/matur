@@ -10,6 +10,7 @@ import { SalesDashboard } from "./sales";
 import { Filters } from "./filters";
 import { LaporanRingkas } from "./laporan-ringkas";
 import { rentang } from "./sales";
+import { RingkasSdm } from "./ringkas-sdm";
 
 const PUSAT: Role[] = ["owner", "admin_pusat", "finance", "manajer_area"];
 const OUTLET: Role[] = ["spv"];
@@ -66,6 +67,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           🔔 {pendaftar} {staf ? "pendaftar kasir/barista" : "pendaftar baru"} menunggu persetujuan → buka {staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}
         </Link>
+      )}
+
+      {["owner", "hrd", "spv"].includes(active.role) && (
+        <Suspense fallback={<Skeleton h="h-32" />}>
+          <RingkasSdm s={s} />
+        </Suspense>
       )}
 
       {duaTab && (

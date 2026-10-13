@@ -10,7 +10,7 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 | **2** | Supabase (project `matur`, Singapura) + login sungguhan & RLS, CRUD data master (outlet, mitra, perjanjian & investasi awal, karyawan, kategori menu, menu, varian, resep, bahan, supplier), kategori biaya sesuai format laporan, log aktivitas, tempat sampah + pulihkan | AKS-03–07, MST-01–08 | ✅ |
 | **3** | Kelola pengguna & akses (buat akun, password/PIN, tambah/cabut peran), login OTP email untuk mitra/PIC, POS kasir (kanal, varian, diskon dengan batas, metode bayar, struk cetak/WhatsApp), buka shift + modal laci, antrean barista, HPP teoritis per transaksi | AKS-02, POS-01–07 | ✅ |
 | **4** | **Prioritas launching November:** proyek pembangunan (budget vs realisasi, RAB, pekerjaan + PIC + bobot, progres tertimbang, galeri foto, timeline), PIC lapor progres + foto, persetujuan Admin Pusat, portal mitra memantau pembangunan; menu mitra lain dikunci | PRY-01–05, MTR-01 | ✅ |
-| 5 | Tutup shift & setoran kas, absensi & jadwal, izin/cuti · sisa POS: mode offline (PWA/IndexedDB), split payment/bill, void & diskon dengan PIN SPV, printer thermal langsung | SFT, ABS, POS-03/04/08 | 🟡 ±30% (kas & tutup shift sudah) |
+| 5 | Tutup shift & setoran kas, absensi & jadwal, izin/cuti · sisa POS: mode offline (PWA/IndexedDB), split payment/bill, void & diskon dengan PIN SPV, printer thermal langsung | SFT, ABS, POS-03/04/08 | 🟡 ±70% (kas & tutup shift; SDM outlet ala Makaryo: shift per outlet, jadwal otomatis, absen selfie+GPS, izin/libur, tukar shift, rekap + Excel sudah; sisa POS belum) |
 | 6 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | 🟡 ±65% (kiriman, terima, potong stok resep, opname sudah) |
 | 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | 🟡 ±90% (dashboard Penjualan Harian ala Luna + tab Laporan Keuangan, laporan PDF visual, proyeksi, catatan harian, tutup buku, transfer sudah) |
 | 8 | Penggajian & slip gaji | GJI-01–06 | ⬜ 0% |
@@ -27,6 +27,7 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 - Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra sudah dibuka (13 Okt).
 
 ## Daftar tunda (dikerjakan nanti)
+- ✅ (14 Okt) **SDM outlet kasir & barista** memakai konsep & mesin jadwal Makaryo (`src/lib/jadwal`, ada unit test `npm test`): pengaturan shift per outlet, susun draft otomatis → terbitkan, absen selfie + GPS dari HP sendiri atau perangkat outlet (kode staf + PIN), toleransi telat 5 menit, izin H-3 / sakit / libur mingguan, tukar shift, persetujuan HRD (SPV untuk outletnya), rekap + Excel, ringkasan kehadiran di dashboard. Lanjutan: **push notification** pengingat shift ke HP (butuh kunci VAPID + Vercel Cron; sementara banner di aplikasi POS), ekspor PDF rekap, hubungkan ke penggajian (Tahap 8).
 - ✅ (13 Okt) **Alur akunting format Ruma**: pengeluaran harian di kasir (laci/pusat) + tutup shift cocok kas, Catatan Harian (+ ekspor Excel format Ruma), opname outlet, cocok ojol → pendapatan lain-lain, sewa rata per bulan ke rekening mitra, laporan visual web & PDF. Lanjutan: foto nota pengeluaran, potong stok otomatis dari resep, penggajian.
 - ✅ (13 Okt) **Akunting otomatis** (no. 5): menu Biaya Operasional (input harian per outlet, SPV/Finance) + halaman *Proyeksi laporan otomatis* (penjualan POS per kanal/metode, diskon, pembelian = kiriman gudang diterima, beban = biaya harian, sedekah & bagi hasil dari skema) → tombol Terbitkan menjadi laporan resmi. Lanjutan: potong stok otomatis dari resep (HPP pemakaian), opname outlet, gaji dari penggajian.
 - ✅ (13 Okt) **HRD & Admin Gudang mengelola akun kasir/barista** (no. 9) + penanda "karyawan outlet" saat daftar.
@@ -51,5 +52,5 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 - Kiriman pusat dinilai harga beli pusat atau ada markup?
 - Sewa tidak dihitung dalam BEP (default) — konfirmasi.
 - Penandatangan laporan & tanda tangan digital?
-- Jam 3 shift tiap outlet & toleransi terlambat?
+- ~~Jam 3 shift tiap outlet & toleransi terlambat?~~ → shift diatur per outlet di menu Jadwal Shift (bisa diisi otomatis dari jam operasional), toleransi telat 5 menit (bisa diubah HRD).
 - Batas diskon kasir tanpa PIN SPV?

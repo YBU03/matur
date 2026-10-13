@@ -30,7 +30,7 @@ type RoleDef = {
 };
 
 /** tahap pengembangan yang sudah selesai */
-export const CURRENT_STAGE = 4;
+export const CURRENT_STAGE = 5;
 
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
 
@@ -48,6 +48,9 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/perjanjian", label: "Perjanjian Mitra", stage: 2 },
       { href: "/proyek", label: "Proyek Pembangunan", stage: 4 },
       { href: "/master/karyawan", label: "Karyawan", stage: 2 },
+      { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
+      { href: "/absensi", label: "Rekap Absensi", stage: 5 },
+      { href: "/persetujuan", label: "Persetujuan Izin & Tukar", stage: 5 },
       { href: "/master/menu", label: "Menu", stage: 2 },
       { href: "/gudang/stok", label: "Stok Gudang", stage: 4 },
       { href: "/gudang/kiriman", label: "Kiriman Bahan", stage: 4 },
@@ -103,6 +106,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengguna", label: "Akun Kasir & Barista", stage: 4 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
+      { href: "/persetujuan", label: "Persetujuan Izin & Tukar", stage: 5 },
       { href: "/penggajian", label: "Penggajian", stage: 8 },
     ],
   },
@@ -169,7 +173,8 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/stok", label: "Stok & Opname", stage: 4 },
       { href: "/permintaan", label: "Permintaan Barang", stage: 6 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
-      { href: "/persetujuan", label: "Persetujuan", stage: 5 },
+      { href: "/absensi", label: "Rekap Absensi", stage: 5 },
+      { href: "/persetujuan", label: "Persetujuan Izin & Tukar", stage: 5 },
     ],
   },
   kasir: {

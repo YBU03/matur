@@ -1,0 +1,65 @@
+import { notFound } from "next/navigation";
+import { LiveRefresh } from "@/components/live-refresh";
+import { hitungRekap } from "@/lib/jadwal/rekap";
+import { hariIni } from "@/lib/jadwal/waktu";
+import { muatAbsensi, muatIzin, muatJadwal, muatShift, muatStaf, outletSdm, PENGELOLA_SDM, urlFoto } from "@/lib/sdm";
+import { getSession } from "@/lib/session";
+import { supabaseServer } from "@/lib/supabase/server";
+import { RekapView } from "./rekap-view";
+
+// Rekap absensi: status hari ini, ringkasan per staf, dan detail (selfie, lokasi, jam kerja) + ekspor Excel.
+export default async function AbsensiPage({ searchParams }: { searchParams: Promise<{ outlet?: string; dari?: string; sampai?: string; staf?: string }> }) {
+  const s = await getSession();
+  if (!s?.active || !PENGELOLA_SDM.includes(s.active.role)) notFound();
+  const sp = await searchParams;
+  const outlets = await outletSdm(s);
+  const outlet = outlets.find((o) => o.id === sp.outlet) ?? outlets[0];
+  if (!outlet) notFound();
+  const today = hariIni();
+  const tgl = (v: string | undefined, d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v ?? "") ? v! : d);
+  const dari = tgl(sp.dari, `${today.slice(0, 8)}01`);
+  const sampai = tgl(sp.sampai, today);
+  const staf = sp.staf || undefined;
+
+  const [shifts, daftarStaf, jadwal, izin, absensi, jadwalHariIni, absenHariIni] = await Promise.all([
+    muatShift(outlet.id),
+    muatStaf(outlet.id),
+    muatJadwal(outlet.id, dari, sampai, staf),
+    muatIzin(outlet.id, dari, sampai, { status: ["disetujui"], penggunaId: staf }),
+    muatAbsensi(outlet.id, dari, sampai, staf),
+    muatJadwal(outlet.id, today, today),
+    muatAbsensi(outlet.id, today, today),
+  ]);
+  const terbit = jadwal.filter((j) => j.status === "terbit");
+  const rekap = hitungRekap({ shifts, jadwal: terbit, absensi, izin });
+  const hariIniRekap = hitungRekap({ shifts, jadwal: jadwalHariIni.filter((j) => j.status === "terbit"), absensi: absenHariIni, izin: [] });
+
+  // nama staf yang sudah tidak bertugas tetap tampil (HRD/Owner bisa membaca tabel pengguna)
+  const nama: Record<string, string> = Object.fromEntries(daftarStaf.map((x) => [x.id, x.nama]));
+  const hilang = [...new Set([...absensi, ...absenHariIni].map((a) => a.pengguna_id).filter((id) => !nama[id]))];
+  if (hilang.length) {
+    const supabase = await supabaseServer();
+    const { data } = await supabase.from("pengguna").select("id, nama").in("id", hilang);
+    for (const u of data ?? []) nama[u.id] = u.nama;
+  }
+  const foto = await urlFoto([...absensi, ...absenHariIni].flatMap((a) => [a.masuk_foto, a.pulang_foto]));
+
+  return (
+    <>
+      <LiveRefresh pantau={[{ table: "absensi", filter: `outlet_id=eq.${outlet.id}` }]} cadanganDetik={60} />
+      <RekapView
+        outlets={outlets.map((o) => ({ id: o.id, nama: o.nama }))}
+        outlet={{ id: outlet.id, nama: outlet.nama }}
+        dari={dari}
+        sampai={sampai}
+        staf={staf ?? ""}
+        daftarStaf={daftarStaf.map((x) => ({ id: x.id, nama: x.nama }))}
+        nama={nama}
+        rekap={rekap}
+        hariIni={hariIniRekap.baris}
+        absensi={Object.fromEntries([...absensi, ...absenHariIni].map((a) => [a.id, a]))}
+        foto={foto}
+      />
+    </>
+  );
+}

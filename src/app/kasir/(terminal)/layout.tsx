@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { kasirLogoutAction } from "@/lib/actions";
 import { POS_ROLES, ROLES, BISA_JUAL } from "@/lib/roles";
@@ -7,6 +8,7 @@ import { InstallButton } from "@/components/install-button";
 import { TerminalNav } from "./terminal-nav";
 import { MaintenanceScreen } from "@/components/maintenance-screen";
 import { statusMaintenance } from "@/lib/maintenance";
+import { pengingatShift } from "@/lib/sdm";
 
 // Tampilan aplikasi POS: tanpa menu admin, khusus perangkat di outlet.
 export default async function TerminalLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +20,11 @@ export default async function TerminalLayout({ children }: { children: React.Rea
     ...(BISA_JUAL.includes(s.active.role) ? [{ href: "/kasir/pos", label: "Kasir" }] : []),
     { href: "/kasir/antrean", label: "Antrean" },
     { href: "/kasir/shift", label: "Kas & Pengeluaran" },
+    { href: "/kasir/absen", label: "Absen" },
+    { href: "/kasir/jadwal", label: "Jadwal" },
+    { href: "/kasir/izin", label: "Izin" },
   ];
+  const ingat = await pengingatShift(s.userId, s.active.outletId);
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-matur-200 bg-white px-4 py-2">
@@ -33,6 +39,11 @@ export default async function TerminalLayout({ children }: { children: React.Rea
           <button className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">Keluar</button>
         </form>
       </header>
+      {ingat && (
+        <Link href={ingat.href} className={`block px-4 py-2 text-sm font-semibold ${ingat.mendesak ? "bg-red-600 text-white" : "bg-matur-100 text-kopi-900"}`}>
+          {ingat.teks} ›
+        </Link>
+      )}
       <main className="p-3 sm:p-4">{children}</main>
     </div>
   );
