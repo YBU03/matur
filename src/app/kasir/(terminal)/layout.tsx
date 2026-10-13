@@ -23,6 +23,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
     { href: "/kasir/absen", label: "Absen" },
     { href: "/kasir/jadwal", label: "Jadwal" },
     { href: "/kasir/izin", label: "Izin" },
+    { href: "/kasir/slip", label: "Slip Gaji" },
   ];
   const ingat = await pengingatShift(s.userId, s.active.outletId);
   return (

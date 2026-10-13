@@ -51,6 +51,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
       { href: "/persetujuan", label: "Persetujuan Izin & Tukar", stage: 5 },
+      { href: "/penggajian", label: "Penggajian & Slip Gaji", stage: 5 },
       { href: "/master/menu", label: "Menu", stage: 2 },
       { href: "/gudang/stok", label: "Stok Gudang", stage: 4 },
       { href: "/gudang/kiriman", label: "Kiriman Bahan", stage: 4 },
@@ -91,6 +92,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/tutup-buku", label: "Tutup Buku", stage: 4 },
       { href: "/transfer", label: "Transfer Mitra", stage: 4 },
       { href: "/portal/bep", label: "BEP Outlet", stage: 4 },
+      { href: "/penggajian", label: "Penggajian (lihat)", stage: 5 },
       { href: "/master/perjanjian", label: "Perjanjian & Investasi", stage: 2 },
     ],
   },
@@ -107,7 +109,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
       { href: "/persetujuan", label: "Persetujuan Izin & Tukar", stage: 5 },
-      { href: "/penggajian", label: "Penggajian", stage: 8 },
+      { href: "/penggajian", label: "Penggajian & Slip Gaji", stage: 5 },
     ],
   },
   admin_pusat: {
@@ -187,7 +189,7 @@ export const ROLES: Record<Role, RoleDef> = {
       dash,
       { href: "/pos", label: "Layar POS", stage: 3 },
       { href: "/shift", label: "Shift Saya", stage: 5 },
-      { href: "/slip", label: "Absensi & Slip Gaji", stage: 8 },
+      { href: "/slip", label: "Absensi & Slip Gaji", stage: 5 },
     ],
   },
   barista: {
@@ -200,7 +202,7 @@ export const ROLES: Record<Role, RoleDef> = {
       dash,
       { href: "/antrean", label: "Antrean Pesanan", stage: 3 },
       { href: "/shift", label: "Shift Saya", stage: 5 },
-      { href: "/slip", label: "Absensi & Slip Gaji", stage: 8 },
+      { href: "/slip", label: "Absensi & Slip Gaji", stage: 5 },
     ],
   },
   mitra: {
