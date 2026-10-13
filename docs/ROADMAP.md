@@ -10,11 +10,11 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 | **2** | Supabase (project `matur`, Singapura) + login sungguhan & RLS, CRUD data master (outlet, mitra, perjanjian & investasi awal, karyawan, kategori menu, menu, varian, resep, bahan, supplier), kategori biaya sesuai format laporan, log aktivitas, tempat sampah + pulihkan | AKS-03–07, MST-01–08 | ✅ |
 | **3** | Kelola pengguna & akses (buat akun, password/PIN, tambah/cabut peran), login OTP email untuk mitra/PIC, POS kasir (kanal, varian, diskon dengan batas, metode bayar, struk cetak/WhatsApp), buka shift + modal laci, antrean barista, HPP teoritis per transaksi | AKS-02, POS-01–07 | ✅ |
 | **4** | **Prioritas launching November:** proyek pembangunan (budget vs realisasi, RAB, pekerjaan + PIC + bobot, progres tertimbang, galeri foto, timeline), PIC lapor progres + foto, persetujuan Admin Pusat, portal mitra memantau pembangunan; menu mitra lain dikunci | PRY-01–05, MTR-01 | ✅ |
-| 5 | Tutup shift & setoran kas, absensi & jadwal, izin/cuti · sisa POS: mode offline (PWA/IndexedDB), split payment/bill, void & diskon dengan PIN SPV, printer thermal langsung | SFT, ABS, POS-03/04/08 | |
-| 6 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | |
-| 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | |
-| 8 | Penggajian & slip gaji | GJI-01–06 | |
-| 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | |
+| 5 | Tutup shift & setoran kas, absensi & jadwal, izin/cuti · sisa POS: mode offline (PWA/IndexedDB), split payment/bill, void & diskon dengan PIN SPV, printer thermal langsung | SFT, ABS, POS-03/04/08 | 🟡 ±30% (kas & tutup shift sudah) |
+| 6 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | 🟡 ±65% (kiriman, terima, potong stok resep, opname sudah) |
+| 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | 🟡 ±85% (dashboard, laporan PDF visual, proyeksi, catatan harian, tutup buku, transfer sudah) |
+| 8 | Penggajian & slip gaji | GJI-01–06 | ⬜ 0% |
+| 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | 🟡 ±70% (laporan bulanan & BEP mitra sudah; halaman mode simulasi belum) |
 
 Uji penerimaan laporan: angka periode **Agustus 2026 Ruma Kopiaksa** harus sama
 persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti laporan terbit: 2 × 5% = Rp3.218.118, bukan angka contoh PRD Rp17.699.654).
@@ -24,7 +24,7 @@ persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti
 - Dashboard visual (DSB-01..05): pilih cabang + periode, kartu KPI dengan perbandingan periode sebelumnya, tren omzet per outlet, perbandingan cabang, komposisi kanal, menu terlaris & kurang laku, heatmap jam ramai, progres pembangunan; mitra/PIC melihat grafik progres pekerjaan dan estimasi vs realisasi.
 - Data simulasi (mode `simulasi`, ±75 hari, 2 outlet) untuk mencoba dashboard; aktifkan dengan centang "Data simulasi" (Owner/Admin Pusat). Tidak pernah tampil di POS, data master, maupun laporan asli.
 
-- Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra masih dikunci.
+- Laporan keuangan resmi Juni–September 2026 outlet pertama (Ruma Kopi Usman Janatin, nama di laporan "Ruma Kopiaksa") sudah masuk dan bisa dilihat/diunduh PDF di menu **Laporan Keuangan** (Owner/Admin/Finance). Bagi hasil sesuai laporan: Pengelola 90%, Ibu Prasetya Ida Suntari 5%, Ibu Oktantina Ratnasari 5%; sedekah 2,5% dari laba kotor; sewa Rp1.416.667 ke Dwi Suyoko. Outlet kedua (UHB) belum punya laporan. Menu laporan untuk mitra sudah dibuka (13 Okt).
 
 ## Daftar tunda (dikerjakan nanti)
 - ✅ (13 Okt) **Alur akunting format Ruma**: pengeluaran harian di kasir (laci/pusat) + tutup shift cocok kas, Catatan Harian (+ ekspor Excel format Ruma), opname outlet, cocok ojol → pendapatan lain-lain, sewa rata per bulan ke rekening mitra, laporan visual web & PDF. Lanjutan: foto nota pengeluaran, potong stok otomatis dari resep, penggajian.
