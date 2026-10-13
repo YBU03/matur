@@ -20,14 +20,15 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
   const periode = `${bulan}-01`;
   const sim = sp.sim === "1" && s.active.role === "owner";
 
-  const [{ data: proy }, { data: prev }, { data: sekarang }, { data: kb }, { data: pj }, { data: kar }, { data: pt }] = await Promise.all([
+  const [{ data: proy }, { data: prev }, { data: sekarang }, { data: kb }, { data: pj }, { data: kar }, { data: pt }, { data: tutup }] = await Promise.all([
     supabase.rpc("proyeksi_laporan", { p_outlet: outlet.id, p_periode: periode, p_mode: sim ? "simulasi" : "asli" }),
     supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("outlet_id", outlet.id).eq("mode", "asli").lt("periode", periode).is("deleted_at", null).order("periode", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("laporan_bulanan").select("id").eq("outlet_id", outlet.id).eq("mode", "asli").eq("periode", periode).is("deleted_at", null).maybeSingle(),
-    supabase.from("kategori_biaya").select("nama, urutan").order("urutan"),
-    supabase.from("perjanjian").select("modal_outlet, sewa_bulanan, mitra(nama)").eq("outlet_id", outlet.id).eq("mode", "asli").is("deleted_at", null).limit(1).maybeSingle(),
+    supabase.from("kategori_biaya").select("nama, urutan").eq("grup", "beban").order("urutan"),
+    supabase.from("perjanjian").select("modal_outlet, sewa_bulanan, bank, no_rekening, atas_nama, mitra(nama)").eq("outlet_id", outlet.id).eq("mode", "asli").is("deleted_at", null).limit(1).maybeSingle(),
     supabase.from("karyawan").select("nama, jabatan, is_spv").eq("outlet_id", outlet.id).eq("mode", "asli").eq("status", "aktif").is("deleted_at", null).order("nama"),
     supabase.from("perusahaan").select("nama, penandatangan_nama, penandatangan_jabatan, kota_terbit").limit(1).maybeSingle(),
+    supabase.from("penutupan_bulan").select("ojol, koreksi_lain, persediaan_akhir, catatan").eq("outlet_id", outlet.id).eq("periode", periode).eq("mode", "asli").maybeSingle(),
   ]);
   const sebelum = prev as unknown as Laporan | null;
   return (
@@ -43,7 +44,12 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
       sudahTerbit={sekarang?.id ?? null}
       kategori={(kb ?? []).map((k) => k.nama)}
       skema={outlet.skema}
-      perjanjian={pj ? { modal: Number(pj.modal_outlet ?? 0), sewa: Number(pj.sewa_bulanan ?? 0), mitra: (pj.mitra as unknown as { nama: string } | null)?.nama ?? null } : null}
+      perjanjian={
+        pj
+          ? { modal: Number(pj.modal_outlet ?? 0), sewa: Number(pj.sewa_bulanan ?? 0), mitra: (pj.mitra as unknown as { nama: string } | null)?.nama ?? null, bank: pj.bank, no_rekening: pj.no_rekening, atas_nama: pj.atas_nama }
+          : null
+      }
+      penutupan={sim ? null : (tutup as { ojol: Record<string, number>; koreksi_lain: number | null; persediaan_akhir: number | null; catatan: string | null } | null)}
       karyawan={(kar ?? []).map((k) => (k.is_spv ? `${k.nama} (SPV)` : k.nama))}
       penandatangan={{ nama: pt?.penandatangan_nama ?? null, jabatan: pt?.penandatangan_jabatan ?? null }}
       namaOutlet={sebelum?.nama_outlet ?? outlet.nama}

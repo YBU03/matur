@@ -71,3 +71,29 @@ export async function terbitkanLaporan(d: DataTerbit, ganti: boolean): Promise<{
   revalidatePath("/laporan");
   return { id: data.id };
 }
+
+export type Penutupan = { ojol: Record<string, number | null>; koreksi_lain: number | null; persediaan_akhir: number | null; catatan: string | null };
+
+// Draft penutupan bulan (cocok ojol, koreksi, persediaan akhir) agar isian Finance tidak hilang
+export async function simpanPenutupan(outletId: string, periode: string, d: Penutupan): Promise<{ error?: string; ok?: string }> {
+  const s = await getSession();
+  if (!s?.active || !["owner", "admin_pusat", "finance"].includes(s.active.role)) return { error: "Tidak diizinkan." };
+  if (!/^\d{4}-\d{2}-01$/.test(periode)) return { error: "Periode tidak valid." };
+  const ojol = Object.fromEntries(Object.entries(d.ojol ?? {}).filter(([k, v]) => ["gofood", "grabfood", "shopeefood"].includes(k) && v !== null && Number.isFinite(Number(v))).map(([k, v]) => [k, bulat(v)]));
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("penutupan_bulan").upsert(
+    {
+      mode: "asli",
+      outlet_id: outletId,
+      periode,
+      ojol,
+      koreksi_lain: d.koreksi_lain === null ? null : bulat(d.koreksi_lain),
+      persediaan_akhir: d.persediaan_akhir === null ? null : bulat(d.persediaan_akhir),
+      catatan: d.catatan?.slice(0, 500) || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "outlet_id,periode,mode" },
+  );
+  if (error) return { error: error.message };
+  return { ok: "Draft penutupan bulan tersimpan." };
+}

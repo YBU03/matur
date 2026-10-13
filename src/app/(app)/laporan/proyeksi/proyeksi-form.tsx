@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { BARIS_PENDAPATAN, hitung, namaBulan, PENDAPATAN_LAIN, type Laporan, type Proyeksi, type Transfer } from "@/lib/laporan";
-import { terbitkanLaporan } from "@/lib/laporan-actions";
+import { simpanPenutupan, terbitkanLaporan } from "@/lib/laporan-actions";
 import type { Rincian } from "@/lib/skema-actions";
 
 type Props = {
@@ -19,7 +19,8 @@ type Props = {
   sudahTerbit: string | null;
   kategori: string[];
   skema: { nama: string; persen_sedekah: number; rincian: Rincian[] } | null;
-  perjanjian: { modal: number; sewa: number; mitra: string | null } | null;
+  perjanjian: { modal: number; sewa: number; mitra: string | null; bank: string | null; no_rekening: string | null; atas_nama: string | null } | null;
+  penutupan: { ojol: Record<string, number>; koreksi_lain: number | null; persediaan_akhir: number | null; catatan: string | null } | null;
   karyawan: string[];
   penandatangan: { nama: string | null; jabatan: string | null };
   namaOutlet: string;
@@ -39,15 +40,20 @@ export function ProyeksiForm(p: Props) {
 
   const [pend, setPend] = useState<Record<string, string>>(() => ({
     ...Object.fromEntries(BARIS_PENDAPATAN.map(([k]) => [k, String(Math.round(p.proy?.pendapatan?.[k] ?? 0))])),
-    lain: "0",
   }));
+  // cocok ojol: angka asli dari aplikasi vs catatan kasir → selisihnya jadi Pendapatan Lain-lain (format Ruma)
+  const [ojol, setOjol] = useState<Record<string, string>>(() =>
+    Object.fromEntries(["gofood", "grabfood", "shopeefood"].map((k) => [k, p.penutupan?.ojol?.[k] !== undefined ? String(p.penutupan.ojol[k]) : ""])),
+  );
+  const [koreksi, setKoreksi] = useState(String(p.penutupan?.koreksi_lain ?? Math.round(p.proy?.diskon ?? 0)));
+  const [draftMsg, setDraftMsg] = useState("");
   const [beban, setBeban] = useState<Record<string, string>>(() =>
     Object.fromEntries(p.kategori.map((k) => [k, String(p.proy?.beban?.find((b) => b.nama === k)?.jumlah ?? sewaAuto(k))])),
   );
   const [stok, setStok] = useState({
     awal: String(p.sebelum?.persediaan_akhir ?? 0),
     pembelian: String(p.proy?.pembelian ?? 0),
-    akhir: String(p.proy?.persediaan_akhir_sistem ?? 0),
+    akhir: String(p.penutupan?.persediaan_akhir ?? p.proy?.opname?.nilai ?? p.proy?.persediaan_akhir_sistem ?? 0),
   });
   const [info, setInfo] = useState({
     nama_outlet: p.namaOutlet,
@@ -59,14 +65,16 @@ export function ProyeksiForm(p: Props) {
       d.setMonth(d.getMonth() + 1, 10);
       return d.toISOString().slice(0, 10);
     })(),
-    catatan: "",
+    catatan: p.penutupan?.catatan ?? "",
   });
+  const selisihOjol = (["gofood", "grabfood", "shopeefood"] as const).reduce((t, k) => t + (ojol[k] === "" ? 0 : n(ojol[k]) - n(pend[k])), 0);
+  const lain = selisihOjol + n(koreksi);
   const persenSedekah = Number(p.skema?.persen_sedekah ?? 2.5);
   const modalAwal = p.sebelum?.modal_awal ?? p.perjanjian?.modal ?? 0;
 
   // susun laporan dari isian, lalu hitung (sama persis dengan halaman laporan resmi)
   const l = useMemo(() => {
-    const pendapatan = [...BARIS_PENDAPATAN.map(([k, nama]) => ({ nama, jumlah: n(pend[k]) })), { nama: PENDAPATAN_LAIN, jumlah: n(pend.lain) }];
+    const pendapatan = [...BARIS_PENDAPATAN.map(([k, nama]) => ({ nama, jumlah: n(pend[k]) })), { nama: PENDAPATAN_LAIN, jumlah: lain }];
     const bebanRows = p.kategori.map((k) => ({ nama: k, jumlah: n(beban[k] ?? "0") }));
     const base: Laporan = {
       id: "",
@@ -104,16 +112,30 @@ export function ProyeksiForm(p: Props) {
       ...(p.skema?.rincian ?? [])
         .filter((r) => !r.pengelola)
         .map((r): Transfer => ({ keterangan: `Bagi hasil ${r.penerima}`, jumlah: base.bagi_hasil.find((b) => b.nama === r.penerima)?.jumlah ?? 0, bank: r.bank ?? null, no_rekening: r.no_rekening ?? null, atas_nama: r.atas_nama ?? null })),
-      ...(sewa ? [{ keterangan: "Sewa", jumlah: sewa, bank: sewaLama?.bank ?? null, no_rekening: sewaLama?.no_rekening ?? null, atas_nama: sewaLama?.atas_nama ?? null }] : []),
+      ...(sewa
+        ? [{ keterangan: "Sewa", jumlah: sewa, bank: p.perjanjian?.bank ?? sewaLama?.bank ?? null, no_rekening: p.perjanjian?.no_rekening ?? sewaLama?.no_rekening ?? null, atas_nama: p.perjanjian?.atas_nama ?? sewaLama?.atas_nama ?? null }]
+        : []),
     ];
     return base;
-  }, [pend, beban, stok, info, p, periode, persenSedekah, modalAwal]);
+  }, [pend, beban, stok, info, p, periode, persenSedekah, modalAwal, lain]);
   const h = hitung(l);
 
   const pindah = (q: Record<string, string>) => router.push(`/laporan/proyeksi?${new URLSearchParams({ outlet: p.outletId, bulan: p.bulan, ...(p.sim ? { sim: "1" } : {}), ...q })}`);
+  const dataTutup = () => ({
+    ojol: Object.fromEntries(Object.entries(ojol).map(([k, v]) => [k, v === "" ? null : n(v)])),
+    koreksi_lain: n(koreksi),
+    persediaan_akhir: n(stok.akhir),
+    catatan: info.catatan || null,
+  });
+  const simpanDraft = () =>
+    start(async () => {
+      const r = await simpanPenutupan(p.outletId, periode, dataTutup());
+      setDraftMsg(r.error ?? r.ok ?? "");
+    });
   const terbit = () =>
     start(async () => {
       setErr("");
+      if (!p.sim) await simpanPenutupan(p.outletId, periode, dataTutup());
       const r = await terbitkanLaporan({ ...l, tgl_terbit: info.terbit }, ganti);
       if (r.error) return setErr(r.error);
       router.push(`/laporan/${r.id}`);
@@ -204,13 +226,29 @@ export function ProyeksiForm(p: Props) {
         <Baris k="Persediaan awal (akhir bulan lalu)">
           <Angka v={stok.awal} onChange={(v) => setStok({ ...stok, awal: v })} auto={!!p.sebelum} />
         </Baris>
-        <Baris k={`Pembelian bahan baku (${p.proy?.jumlah_kiriman ?? 0} kiriman diterima)`}>
+        <Baris k="Pembelian bahan baku">
           <Angka v={stok.pembelian} onChange={(v) => setStok({ ...stok, pembelian: v })} auto />
         </Baris>
         <Baris k="Persediaan akhir (isi dengan hasil opname)">
           <Angka v={stok.akhir} onChange={(v) => setStok({ ...stok, akhir: v })} />
         </Baris>
-        <p className="text-xs text-stone-500">Perkiraan sistem dari stok outlet: {formatRupiah(p.proy?.persediaan_akhir_sistem ?? 0)}. Pemakaian bahan dari resep belum dipotong otomatis, jadi pakai hasil hitung fisik (opname).</p>
+        <p className="text-xs text-stone-500">
+          Pembelian = kiriman gudang ({p.proy?.jumlah_kiriman ?? 0}× {formatRupiah(p.proy?.pembelian_rincian?.kiriman_gudang ?? 0)})
+          {Object.entries(p.proy?.pembelian_rincian ?? {})
+            .filter(([k]) => k !== "kiriman_gudang")
+            .map(([k, v]) => ` + ${k} ${formatRupiah(Number(v))}`)
+            .join("")}
+          .{" "}
+          {p.proy?.opname ? (
+            <>
+              Persediaan akhir dari opname {formatTanggal(p.proy.opname.tanggal)} ({formatRupiah(p.proy.opname.nilai)}).
+            </>
+          ) : (
+            <>
+              Belum ada opname bulan ini — <Link href="/stok" className="text-matur-700 underline">lakukan opname</Link> (perkiraan sistem {formatRupiah(p.proy?.persediaan_akhir_sistem ?? 0)}).
+            </>
+          )}
+        </p>
         <Baris k="Harga pokok penjualan" tebal>
           <span className="tabular-nums">{formatRupiah(h.hpp)}</span>
         </Baris>
@@ -223,8 +261,25 @@ export function ProyeksiForm(p: Props) {
             <Angka v={pend[k]} onChange={(v) => setPend({ ...pend, [k]: v })} auto />
           </Baris>
         ))}
+        <div className="my-2 space-y-1 rounded-xl bg-blue-50 p-3">
+          <p className="text-sm font-semibold text-blue-900">Cocok ojol (angka asli dari aplikasi)</p>
+          {(
+            [
+              ["gofood", "GoFood"],
+              ["grabfood", "GrabFood"],
+              ["shopeefood", "ShopeeFood"],
+            ] as const
+          ).map(([k, l]) => (
+            <Baris key={k} k={`${l} menurut aplikasi${ojol[k] !== "" ? ` (selisih ${formatRupiah(n(ojol[k]) - n(pend[k]))})` : ""}`}>
+              <Angka v={ojol[k]} onChange={(v) => setOjol({ ...ojol, [k]: v })} />
+            </Baris>
+          ))}
+          <Baris k="Koreksi lain (format Ruma: discount dikembalikan)">
+            <Angka v={koreksi} onChange={setKoreksi} />
+          </Baris>
+        </div>
         <Baris k={PENDAPATAN_LAIN}>
-          <Angka v={pend.lain} onChange={(v) => setPend({ ...pend, lain: v })} />
+          <span className="text-sm font-semibold tabular-nums">{formatRupiah(lain)}</span>
         </Baris>
         <Baris k="Discount">
           <span className="text-sm tabular-nums">{formatRupiah(-l.diskon)}</span>
@@ -296,6 +351,12 @@ export function ProyeksiForm(p: Props) {
       </section>
 
       {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+      {!p.sim && (
+        <button disabled={pending} onClick={simpanDraft} className="w-full rounded-xl border-2 border-matur-400 bg-white py-2.5 text-sm font-semibold text-matur-700">
+          💾 Simpan draft (cocok ojol, koreksi, persediaan, catatan)
+        </button>
+      )}
+      {draftMsg && <p className="text-center text-sm text-stone-600">{draftMsg}</p>}
       {p.sudahTerbit && !p.sim && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={ganti} onChange={(e) => setGanti(e.target.checked)} className="accent-matur-500" />

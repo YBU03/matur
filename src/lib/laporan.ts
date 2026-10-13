@@ -72,6 +72,8 @@ export type Proyeksi = {
   pendapatan: Record<string, number>;
   diskon: number;
   pembelian: number;
+  pembelian_rincian?: Record<string, number>;
+  opname?: { tanggal: string; nilai: number } | null;
   jumlah_kiriman: number;
   persediaan_akhir_sistem: number;
   beban: Baris[];
