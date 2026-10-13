@@ -13,7 +13,7 @@ export type UserRow = {
   email: string | null;
   no_hp: string | null;
   status: string;
-  permintaan: { catatan?: string } | null;
+  permintaan: { catatan?: string; jenis?: string } | null;
   created_at: string;
   assignments: Assign[];
 };
@@ -23,7 +23,10 @@ const ROLE_KEYS = Object.keys(ROLES) as Role[];
 const isPin = (r: string) => r === "kasir" || r === "barista";
 const cls = "mt-1 w-full rounded-lg border border-stone-300 px-3 py-2";
 
-export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[]; outlets: Outlet[]; isOwner: boolean; meId: string }) {
+export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { users: UserRow[]; outlets: Outlet[]; isOwner: boolean; staf?: boolean; meId: string }) {
+  // HRD & Admin Gudang hanya bisa memberi peran kasir/barista
+  const roleKeys: Role[] = staf ? ["kasir", "barista"] : ROLE_KEYS;
+  const bisaBuat = isOwner || staf;
   const [state, action, pending] = useActionState<Result, FormData>(createUser, {});
   const [role, setRole] = useState<Role>("kasir");
   const [msg, setMsg] = useState<Result | null>(null);
@@ -52,13 +55,14 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Pengguna & Akses</h1>
-      {isOwner && !buat && (
+      <h1 className="text-2xl font-bold">{staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}</h1>
+      {staf && <p className="-mt-4 text-sm text-stone-500">Buat akun kasir/barista, ganti PIN, aktif/nonaktifkan, dan setujui pendaftar karyawan outlet.</p>}
+      {bisaBuat && !buat && (
         <button onClick={() => setBuat(true)} className="w-full rounded-xl bg-matur-500 px-4 py-2.5 font-semibold text-white sm:w-auto">
           + Buat akun baru
         </button>
       )}
-      {isOwner && buat && <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      {bisaBuat && buat && <form action={action} className="grid gap-3 rounded-2xl border border-matur-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <p className="flex items-center font-bold sm:col-span-2 lg:col-span-5">
           <span className="mr-auto">Buat akun baru</span>
           <button type="button" onClick={() => setBuat(false)} className="text-sm font-normal text-stone-500">Tutup ✕</button>
@@ -70,7 +74,7 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
         <label className="text-sm font-medium">
           Peran
           <select name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className={cls}>
-            {ROLE_KEYS.map((r) => (
+            {roleKeys.map((r) => (
               <option key={r} value={r}>
                 {ROLES[r].label}
               </option>
@@ -132,7 +136,7 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
 
       {tab === "menunggu" ? (
         jumlah("menunggu") ? (
-          <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} busy={busy} onRun={run} />
+          <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} roleKeys={roleKeys} busy={busy} onRun={run} />
         ) : (
           <p className="rounded-2xl border border-dashed border-matur-300 bg-white p-6 text-center text-sm text-stone-500">Tidak ada pendaftar yang menunggu persetujuan.</p>
         )
@@ -226,7 +230,7 @@ export function UserAdmin({ users, outlets, isOwner, meId }: { users: UserRow[];
           onSave={(v) => run(() => resetSecret(resetting.u.id, resetting.role, v))}
         />
       )}
-      {adding && <AddRoleDialog user={adding} outlets={outlets} busy={busy} onCancel={() => setAdding(null)} onSave={(r, o) => run(() => addAssignment(adding.id, r, o))} />}
+      {adding && <AddRoleDialog user={adding} outlets={outlets} roleKeys={roleKeys} busy={busy} onCancel={() => setAdding(null)} onSave={(r, o) => run(() => addAssignment(adding.id, r, o))} />}
     </div>
   );
 }
@@ -244,13 +248,13 @@ function SecretDialog({ title, pin, busy, onCancel, onSave }: { title: string; p
   );
 }
 
-function AddRoleDialog({ user, outlets, busy, onCancel, onSave }: { user: UserRow; outlets: Outlet[]; busy: boolean; onCancel: () => void; onSave: (r: Role, o: string | null) => void }) {
-  const [role, setRole] = useState<Role>("spv");
+function AddRoleDialog({ user, outlets, roleKeys, busy, onCancel, onSave }: { user: UserRow; outlets: Outlet[]; roleKeys: Role[]; busy: boolean; onCancel: () => void; onSave: (r: Role, o: string | null) => void }) {
+  const [role, setRole] = useState<Role>(roleKeys.includes("spv") ? "spv" : roleKeys[0]);
   const [outlet, setOutlet] = useState(outlets[0]?.id ?? "");
   return (
     <Modal title={`Tambah peran untuk ${user.nama}`}>
       <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={cls}>
-        {ROLE_KEYS.map((r) => (
+        {roleKeys.map((r) => (
           <option key={r} value={r}>{ROLES[r].label}</option>
         ))}
       </select>
@@ -274,12 +278,14 @@ function Pending({
   users,
   outlets,
   isOwner,
+  roleKeys,
   busy,
   onRun,
 }: {
   users: UserRow[];
   outlets: Outlet[];
   isOwner: boolean;
+  roleKeys: Role[];
   busy: boolean;
   onRun: (fn: () => Promise<Result>) => void;
 }) {
@@ -289,21 +295,22 @@ function Pending({
       <h2 className="mb-3 font-bold">Pendaftar menunggu persetujuan ({users.length})</h2>
       <div className="grid gap-3 lg:grid-cols-2">
         {users.map((u) => (
-          <PendingCard key={u.id} u={u} outlets={outlets} isOwner={isOwner} busy={busy} onRun={onRun} />
+          <PendingCard key={u.id} u={u} outlets={outlets} isOwner={isOwner} roleKeys={roleKeys} busy={busy} onRun={onRun} />
         ))}
       </div>
     </section>
   );
 }
 
-function PendingCard({ u, outlets, isOwner, busy, onRun }: { u: UserRow; outlets: Outlet[]; isOwner: boolean; busy: boolean; onRun: (fn: () => Promise<Result>) => void }) {
+function PendingCard({ u, outlets, isOwner, roleKeys, busy, onRun }: { u: UserRow; outlets: Outlet[]; isOwner: boolean; roleKeys: Role[]; busy: boolean; onRun: (fn: () => Promise<Result>) => void }) {
   const [role, setRole] = useState<Role | "">("");
   const [outlet, setOutlet] = useState("");
-  const pilihan = ROLE_KEYS.filter((r) => isOwner || r !== "owner");
+  const pilihan = roleKeys.filter((r) => isOwner || r !== "owner");
   return (
     <div className="rounded-xl border bg-white p-3 text-sm">
       <p className="font-semibold">{u.nama}</p>
       <p className="text-stone-600">{u.email}{u.no_hp && ` · ${u.no_hp}`}</p>
+      {u.permintaan?.jenis === "staf_outlet" && <span className="mt-1 inline-block rounded-md bg-matur-100 px-2 py-0.5 text-xs font-semibold text-kopi-700">Karyawan outlet (kasir/barista)</span>}
       {u.permintaan?.catatan && <p className="mt-1 text-xs text-stone-500">Keterangan: “{u.permintaan.catatan}”</p>}
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="rounded-lg border px-2 py-1.5">

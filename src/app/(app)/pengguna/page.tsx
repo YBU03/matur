@@ -14,14 +14,23 @@ export default async function PenggunaPage() {
     supabase.from("penugasan").select("id, pengguna_id, peran, outlet_id"),
     supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama"),
   ]);
-  const rows: UserRow[] = (users ?? []).map((u) => ({
-    ...u,
-    assignments: (tugas ?? []).filter((t) => t.pengguna_id === u.id),
-  }));
+  // HRD & Admin Gudang hanya mengelola akun kasir/barista dan pendaftar karyawan outlet
+  const staf = s.active.role === "hrd" || s.active.role === "admin_gudang";
+  let ids: Set<string> | null = null;
+  if (staf) {
+    const { data } = await supabase.rpc("id_staf_outlet");
+    ids = new Set(((data ?? []) as unknown as string[]).map(String));
+  }
+  const rows: UserRow[] = (users ?? [])
+    .filter((u) => !ids || ids.has(u.id) || (u.status === "menunggu" && (u.permintaan as { jenis?: string } | null)?.jenis === "staf_outlet"))
+    .map((u) => ({
+      ...u,
+      assignments: (tugas ?? []).filter((t) => t.pengguna_id === u.id),
+    }));
   return (
     <>
       <LiveRefresh pantau={[{ table: "pengguna" }, { table: "penugasan" }]} />
-      <UserAdmin users={rows} outlets={outlets ?? []} isOwner={s.active.role === "owner"} meId={s.userId} />
+      <UserAdmin users={rows} outlets={outlets ?? []} isOwner={s.active.role === "owner"} staf={staf} meId={s.userId} />
     </>
   );
 }

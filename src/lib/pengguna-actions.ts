@@ -9,6 +9,11 @@ import { supabaseServer } from "./supabase/server";
 export type Result = { error?: string; ok?: string };
 
 const PIN_ROLES: Role[] = ["kasir", "barista"];
+/** HRD & Admin Gudang hanya mengelola akun kasir/barista */
+const pengelolaStaf = async () => {
+  const r = (await getSession())?.active?.role;
+  return r === "hrd" || r === "admin_gudang";
+};
 const pinPassword = (pin: string) => `pin:${pin}:${process.env.PIN_PEPPER}`;
 
 /** Akun PIN memakai kode staf → email internal kode@pin.matur.id */
@@ -64,7 +69,7 @@ export async function addAssignment(uid: string, role: Role, outlet: string | nu
   const { error } = await supabase
     .from("penugasan")
     .insert({ pengguna_id: uid, peran: role, outlet_id: ROLES[role].allOutlets ? null : outlet });
-  if (error) return { error: error.message.includes("row-level") ? "Hanya owner yang bisa mengatur peran." : error.message };
+  if (error) return { error: error.message.includes("row-level") ? "Peran ini tidak bisa Anda atur." : error.message };
   revalidatePath("/pengguna");
   return { ok: "Peran ditambahkan." };
 }
@@ -81,6 +86,12 @@ export async function removeAssignment(id: string): Promise<Result> {
 export async function approveUser(uid: string, role: Role, outlet: string | null): Promise<Result> {
   if (!ROLES[role]) return { error: "Peran tidak valid." };
   const supabase = await supabaseServer();
+  if (await pengelolaStaf()) {
+    const { error } = await supabase.rpc("setujui_staf", { p_uid: uid, p_peran: role, p_outlet: outlet });
+    if (error) return { error: error.message };
+    revalidatePath("/pengguna");
+    return { ok: `Disetujui sebagai ${ROLES[role].label}.` };
+  }
   const { error } = await supabase.rpc("setujui_pengguna", { p_uid: uid, p_peran: role, p_outlet: ROLES[role].allOutlets ? null : outlet });
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
@@ -89,7 +100,7 @@ export async function approveUser(uid: string, role: Role, outlet: string | null
 
 export async function rejectUser(uid: string): Promise<Result> {
   const supabase = await supabaseServer();
-  const { error } = await supabase.rpc("tolak_pengguna", { p_uid: uid });
+  const { error } = await supabase.rpc((await pengelolaStaf()) ? "tolak_staf" : "tolak_pengguna", { p_uid: uid });
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
   return { ok: "Pendaftaran ditolak." };
@@ -99,6 +110,12 @@ export async function setUserStatus(uid: string, status: "aktif" | "nonaktif"): 
   const s = await getSession();
   if (s?.userId === uid) return { error: "Tidak bisa menonaktifkan akun sendiri." };
   const supabase = await supabaseServer();
+  if (await pengelolaStaf()) {
+    const { error } = await supabase.rpc("atur_status_staf", { p_uid: uid, p_status: status });
+    if (error) return { error: error.message };
+    revalidatePath("/pengguna");
+    return { ok: status === "aktif" ? "Akun diaktifkan." : "Akun dinonaktifkan." };
+  }
   const { error, count } = await supabase.from("pengguna").update({ status }, { count: "exact" }).eq("id", uid);
   if (error || !count) return { error: "Tidak diizinkan mengubah status akun ini." };
   revalidatePath("/pengguna");

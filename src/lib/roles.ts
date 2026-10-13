@@ -91,6 +91,7 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/master/karyawan", label: "Karyawan", stage: 2 },
+      { href: "/pengguna", label: "Akun Kasir & Barista", stage: 4 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
       { href: "/penggajian", label: "Penggajian", stage: 8 },
@@ -134,6 +135,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/menu", label: "Menu & Harga POS", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/hpp-menu", label: "HPP Menu", stage: 4 },
+      { href: "/pengguna", label: "Akun Kasir & Barista", stage: 4 },
       { href: "/master/supplier", label: "Supplier", stage: 2 },
     ],
   },

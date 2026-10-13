@@ -28,16 +28,20 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     outlets = data ?? [];
   }
   let pendaftar = 0;
-  if (canSim) {
+  // HRD & Admin Gudang: hanya pendaftar karyawan outlet (kasir/barista)
+  const staf = active.role === "hrd" || active.role === "admin_gudang";
+  if (canSim || staf) {
     const supabase = await supabaseServer();
-    const { count } = await supabase.from("pengguna").select("id", { count: "exact", head: true }).eq("status", "menunggu");
+    let q = supabase.from("pengguna").select("id", { count: "exact", head: true }).eq("status", "menunggu");
+    if (staf) q = q.eq("permintaan->>jenis", "staf_outlet");
+    const { count } = await q;
     pendaftar = count ?? 0;
   }
   const outletId = pusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
   return (
     <div className="space-y-6">
-      {canSim && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
+      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
       <section className="flex items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-matur-400 to-matur-600 p-5 text-white">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={96} height={96} priority className="hidden rounded-2xl sm:block" />
         <div>
@@ -49,7 +53,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {pendaftar > 0 && (
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-          🔔 {pendaftar} pendaftar baru menunggu persetujuan → buka Pengguna & Akses
+          🔔 {pendaftar} {staf ? "pendaftar kasir/barista" : "pendaftar baru"} menunggu persetujuan → buka {staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}
         </Link>
       )}
 

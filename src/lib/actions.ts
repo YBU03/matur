@@ -55,7 +55,7 @@ export async function daftarAction(_: DaftarState, form: FormData): Promise<Daft
     p_email: email,
     p_hp: String(form.get("hp") ?? ""),
     p_password: password,
-    p_permintaan: { catatan: String(form.get("catatan") ?? "") },
+    p_permintaan: { catatan: String(form.get("catatan") ?? ""), ...(form.get("staf_outlet") ? { jenis: "staf_outlet" } : {}) },
   });
   if (error) return { error: error.message };
   const { error: e2 } = await supabase.auth.signInWithPassword({ email, password });
