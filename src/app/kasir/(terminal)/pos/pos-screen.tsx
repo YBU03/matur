@@ -315,7 +315,7 @@ function ReceiptDialog({
         {lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-2">
             <span>{l.qty}x {l.menu.nama}{l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}</span>
-            <span>{formatRupiah(price(l) * l.qty)}</span>
+            <span className="shrink-0 whitespace-nowrap">{formatRupiah(price(l) * l.qty)}</span>
           </div>
         ))}
         <div className="mt-2 border-t border-dashed pt-2">
