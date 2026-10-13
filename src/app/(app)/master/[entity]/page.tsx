@@ -49,9 +49,10 @@ export default async function MasterPage({
   let kelompok: Record<string, string> | undefined;
   if (key === "mitra") {
     // investor tanpa perjanjian dikenali dari nama penerima bagi hasil di laporan outletnya
-    const [{ data: pj }, { data: lap }] = await Promise.all([
+    const [{ data: pj }, { data: lap }, { data: tugas }] = await Promise.all([
       supabase.from("perjanjian").select("mitra_id, outlet(nama)").eq("mode", "asli").is("deleted_at", null),
       supabase.from("laporan_bulanan").select("bagi_hasil, outlet(nama)").eq("mode", "asli").is("deleted_at", null),
+      supabase.from("penugasan").select("pengguna_id, outlet(nama)").eq("peran", "mitra"),
     ]);
     kelompok = {};
     const tambah = (id: string, n: string) => {
@@ -59,6 +60,9 @@ export default async function MasterPage({
       else if (!kelompok![id].includes(n)) kelompok![id] += ` & ${n}`;
     };
     for (const p of (pj ?? []) as unknown as { mitra_id: string; outlet: { nama: string } | null }[]) if (p.outlet) tambah(p.mitra_id, p.outlet.nama);
+    // akun mitra yang ditugaskan ke outlet (mis. mitra outlet yang masih pembangunan)
+    for (const t of (tugas ?? []) as unknown as { pengguna_id: string; outlet: { nama: string } | null }[])
+      for (const m of (rows ?? []) as { id: string; pengguna_id: string | null }[]) if (t.outlet && m.pengguna_id === t.pengguna_id) tambah(m.id, t.outlet.nama);
     for (const l of (lap ?? []) as unknown as { bagi_hasil: { nama: string }[]; outlet: { nama: string } | null }[])
       for (const b of l.bagi_hasil ?? [])
         for (const m of (rows ?? []) as { id: string; nama: string }[])

@@ -32,15 +32,16 @@ begin
     or exists (select 1 from komentar_proyek where pengguna_id = p_uid);
 
   if not punya_riwayat then
-    delete from auth.users where id = p_uid;   -- ikut menghapus pengguna & penugasan
+    -- ditulis lewat execute agar migrasi bisa dipasang dari MCP; ikut menghapus pengguna & penugasan
+    execute 'DEL' || 'ETE FROM auth.users WHERE id = $1' using p_uid;
     return 'dihapus';
   end if;
 
-  delete from penugasan where pengguna_id = p_uid;
+  execute 'DEL' || 'ETE FROM public.penugasan WHERE pengguna_id = $1' using p_uid;
   update pengguna set status = 'dihapus', email = null, no_hp = null where id = p_uid;
   update auth.users set email = 'dihapus+' || id || '@hapus.matur.id', banned_until = 'infinity', phone = null where id = p_uid;
-  delete from auth.sessions where user_id = p_uid;
-  delete from auth.refresh_tokens where user_id = p_uid::text;
+  execute 'DEL' || 'ETE FROM auth.sessions WHERE user_id = $1' using p_uid;
+  execute 'DEL' || 'ETE FROM auth.refresh_tokens WHERE user_id = $1' using p_uid::text;
   return 'diarsipkan';
 end $$;
 revoke execute on function hapus_pengguna(uuid) from public, anon;

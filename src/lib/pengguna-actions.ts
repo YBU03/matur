@@ -129,7 +129,7 @@ export async function hapusPengguna(uid: string): Promise<Result> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase.rpc("hapus_pengguna", { p_uid: uid });
   if (error)
-    return { error: error.message.includes("function") && error.message.includes("does not exist") ? "Fitur hapus belum aktif di database (jalankan 0023_hapus_pengguna.sql)." : error.message };
+    return { error: error.message };
   revalidatePath("/pengguna");
   return { ok: data === "dihapus" ? "Pengguna dihapus permanen." : "Pengguna dihapus. Riwayat aktivitasnya tetap disimpan untuk catatan." };
 }
