@@ -3,6 +3,7 @@ import { addDays, hariIni } from "@/lib/jadwal/waktu";
 import { muatIzin, muatJadwal, muatShift, muatStaf } from "@/lib/sdm";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
+import { AktifkanPush } from "@/components/aktifkan-push";
 import { JadwalSaya } from "./jadwal-saya";
 
 // Jadwal terbit untuk staf: milik sendiri + rekan satu outlet, dan tukar shift.
@@ -26,6 +27,8 @@ export default async function JadwalStafPage() {
       .limit(20),
   ]);
   return (
+    <div className="space-y-3">
+    <div className="mx-auto max-w-3xl"><AktifkanPush /></div>
     <JadwalSaya
       saya={s.userId}
       today={today}
@@ -35,5 +38,6 @@ export default async function JadwalStafPage() {
       izin={izin}
       tukar={tukar ?? []}
     />
+    </div>
   );
 }
