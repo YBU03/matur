@@ -5,6 +5,7 @@ import { PilihOutlet } from "@/components/pilih-outlet";
 import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
 import { hitung, LAPORAN_COLS, namaBulan, type Laporan } from "@/lib/laporan";
+import { penerimaanMitra } from "@/lib/penerimaan-mitra";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -32,6 +33,17 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
   const persen = investasi ? Math.min((akum / investasi) * 100, 100) : 0;
   const sisa = Math.max(investasi - akum, 0);
   const bulanLagi = rata > 0 ? Math.ceil(sisa / rata) : null;
+
+  // penerimaan: mitra melihat miliknya sendiri; pusat melihat semua penerima (mitra & investor) outlet ini
+  let namaPenerima: string[];
+  if (s.active.role === "mitra") {
+    const { data: m } = await supabase.from("mitra").select("nama").eq("pengguna_id", s.userId).is("deleted_at", null);
+    namaPenerima = (m ?? []).map((x) => x.nama).filter(Boolean);
+    if (!namaPenerima.length) namaPenerima = [s.nama];
+  } else {
+    namaPenerima = [...new Set([...p.map((j) => j.mitra?.nama ?? ""), ...list.flatMap((l) => l.bagi_hasil.filter((b) => !/pengelola/i.test(b.nama)).map((b) => b.nama.replace(/^(ibu|bapak)\s+/i, "")))].filter(Boolean))];
+  }
+  const penerima = namaPenerima.map((n) => ({ nama: n, data: penerimaanMitra(list, n) })).filter((x) => x.data.length);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -74,6 +86,36 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
             <ChartCard title="Akumulasi laba bersih" sub="Naik setiap bulan menuju nilai investasi" rows={tren} cols={[{ key: "label", label: "Bulan" }, { key: "laba", label: "Laba bulan itu", money: true }, { key: "akumulasi", label: "Akumulasi", money: true }]}>
               <TrendChart data={tren} series={[{ key: "akumulasi", name: "Akumulasi", color: SERIES[2] }, { key: "laba", name: "Laba bulan itu", color: SERIES[0] }]} />
             </ChartCard>
+          )}
+          {penerima.length > 0 && (
+            <section className="rounded-2xl border border-matur-200 bg-white p-4">
+              <h2 className="font-bold">{s.active.role === "mitra" ? "Penerimaan Anda" : "Penerimaan mitra & investor"}</h2>
+              <p className="mb-2 text-xs text-stone-500">Bagi hasil dan sewa yang ditransfer sesuai laporan bulanan terbit.</p>
+              <div className="space-y-3">
+                {penerima.map((x) => {
+                  const tot = x.data.reduce((t, d) => t + d.total, 0);
+                  return (
+                    <div key={x.nama}>
+                      <p className="flex justify-between text-sm font-semibold">
+                        <span>{x.nama}</span>
+                        <span className="tabular-nums">{formatRupiah(tot)}</span>
+                      </p>
+                      <ul className="mt-1 divide-y text-sm">
+                        {x.data.map((d) => (
+                          <li key={d.periode} className="flex flex-wrap justify-between gap-2 py-1">
+                            <span>
+                              {namaBulan(d.periode)} <span className="text-xs text-stone-500">· {d.rincian.map((r) => r.keterangan).join(", ")}</span>
+                            </span>
+                            <span className="tabular-nums">{formatRupiah(d.total)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {s.active!.role === "mitra" && x.data.at(-1)?.rincian[0]?.rekening && <p className="text-xs text-stone-400">Rekening: {x.data.at(-1)!.rincian[0].rekening}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           )}
           <p className="text-xs text-stone-400">Perkiraan memakai rata-rata laba bersih bulanan; angka sebenarnya bisa berbeda.</p>
         </>

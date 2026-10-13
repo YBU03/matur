@@ -9,6 +9,7 @@ import { ProjectDetailCharts, ProjectsOverview } from "./projects";
 import { SalesDashboard } from "./sales";
 import { Filters } from "./filters";
 import { LaporanRingkas } from "./laporan-ringkas";
+import { MitraRingkas } from "./mitra-ringkas";
 import { rentang } from "./sales";
 import { RingkasSdm } from "./ringkas-sdm";
 
@@ -75,6 +76,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Suspense>
       )}
 
+      {active.role === "mitra" && (
+        <Suspense fallback={<Skeleton h="h-40" />}>
+          <MitraRingkas userId={s.userId} nama={s.nama} />
+        </Suspense>
+      )}
       {duaTab && (
         <nav className="flex gap-1 rounded-2xl bg-matur-50 p-1 text-sm font-semibold">
           {[

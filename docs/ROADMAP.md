@@ -14,7 +14,7 @@ pengembangan selesai, bisa dicoba, dan tidak menghabiskan kuota sekaligus.
 | 6 | Gudang & stok (pembelian, kiriman, penerimaan, potong stok via resep, opname, waste, transfer) | GDG-01–09 | 🟢 ±90% (pembelian supplier, kiriman & terima, potong stok resep, opname, waste, transfer antar outlet; sisa: permintaan barang SPV → gudang) |
 | 7 | Dashboard pusat (grafik) + Akunting & **laporan mitra format resmi** (PDF/Excel, tutup buku, transfer) | DSB, AKT | 🟡 ±90% (dashboard Penjualan Harian ala Luna + tab Laporan Keuangan, laporan PDF visual, proyeksi, catatan harian, tutup buku, transfer sudah) |
 | 8 | Penggajian & slip gaji | GJI-01–06 | 🟢 ±85% (komponen gaji, hitung dari absensi, bonus/lembur/kasbon, final → Biaya Gaji laporan, slip PDF, slip di POS; sisa: BPJS/PPh21, lembur otomatis) |
-| 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | 🟡 ±70% (laporan bulanan & BEP mitra sudah; halaman mode simulasi belum) |
+| 9 | Portal mitra (laporan bulanan, BEP), mode simulasi | MTR-02–06, SIM | 🟢 ±85% (laporan bulanan, BEP outlet, penerimaan bagi hasil/sewa per mitra, ringkasan mitra di dashboard, Simulasi Kemitraan untuk calon mitra; sisa: kunci/buka laporan) |
 
 Uji penerimaan laporan: angka periode **Agustus 2026 Ruma Kopiaksa** harus sama
 persis dengan laporan manual (laba bersih Rp32.181.189 ✅; bagi hasil mengikuti laporan terbit: 2 × 5% = Rp3.218.118, bukan angka contoh PRD Rp17.699.654).
