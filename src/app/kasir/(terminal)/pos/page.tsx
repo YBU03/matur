@@ -18,11 +18,12 @@ export default async function PosPage() {
     .maybeSingle();
   if (!sesi) return <OpenShift outletNama={s.active.outletNama} />;
 
-  const [{ data: kategori }, { data: menu }, { data: varian }] = await Promise.all([
+  const [{ data: kategori }, { data: menu }, { data: varian }, { data: pt }] = await Promise.all([
     supabase.from("kategori_menu").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
     supabase.from("menu").select("id, nama, kategori_id, harga_langsung, harga_ojol, foto_url").eq("mode", "asli").is("deleted_at", null).eq("aktif", true).order("urutan").order("nama"),
     supabase.from("varian").select("id, menu_id, grup, nama, tambahan_harga").eq("mode", "asli").is("deleted_at", null),
+    supabase.from("perusahaan").select("batas_diskon_persen").limit(1).maybeSingle(),
   ]);
   const menus: PosMenu[] = (menu ?? []).map((m) => ({ ...m, varian: (varian ?? []).filter((v) => v.menu_id === m.id) }));
-  return <PosScreen kategori={kategori ?? []} menus={menus} outletNama={s.active.outletNama} kasir={s.nama} />;
+  return <PosScreen kategori={kategori ?? []} menus={menus} outletNama={s.active.outletNama} kasir={s.nama} batasDiskon={s.active.role === "spv" ? 100 : (pt?.batas_diskon_persen ?? 10)} />;
 }

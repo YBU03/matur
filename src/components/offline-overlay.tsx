@@ -1,10 +1,12 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // Tampil menutupi layar saat perangkat kehilangan koneksi internet, hilang otomatis saat tersambung lagi.
 export function OfflineOverlay() {
   const [offline, setOffline] = useState(false);
+  const path = usePathname();
   useEffect(() => {
     const cek = () => setOffline(!navigator.onLine);
     cek();
@@ -16,6 +18,9 @@ export function OfflineOverlay() {
     };
   }, []);
   if (!offline) return null;
+  // di layar kasir tetap bisa berjualan offline: cukup pita peringatan, tidak menutup layar
+  if (path.startsWith("/kasir/pos"))
+    return <div className="fixed inset-x-0 bottom-0 z-[100] bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-white">📴 Offline — transaksi disimpan di perangkat & terkirim otomatis saat online</div>;
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-[#fffaf2]/95 p-6 text-center backdrop-blur-sm" role="alert">
       <div className="max-w-sm">

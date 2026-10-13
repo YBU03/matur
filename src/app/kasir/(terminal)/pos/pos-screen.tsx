@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
-import { bayar, bukaShift, type Receipt } from "@/lib/pos-actions";
+import { bayar, bukaShift, izinDiskonSpv, type Checkout, type Receipt } from "@/lib/pos-actions";
+import { bacaAntrean, galatJaringan, hapusTertunda, simpanTertunda } from "@/lib/pos-offline";
+import { bisaBluetooth, cetakBluetooth, namaPrinter, sambungPrinter, susunStruk } from "@/lib/printer-bt";
 
 type Varian = { id: string; grup: string; nama: string; tambahan_harga: number };
 export type PosMenu = { id: string; nama: string; kategori_id: string | null; harga_langsung: number; harga_ojol: number; foto_url: string | null; varian: Varian[] };
@@ -57,7 +59,47 @@ export function OpenShift({ outletNama }: { outletNama: string }) {
   );
 }
 
-export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string }) {
+type Bayar = { metode: string; nominal: string; diterima: string };
+
+/** Kirim ulang transaksi offline begitu online (server menolak duplikat lewat client_id). */
+function useAntreanOffline() {
+  const [jumlah, setJumlah] = useState(0);
+  const [kirim, setKirim] = useState(false);
+  const segarkan = useCallback(() => setJumlah(bacaAntrean().length), []);
+  const kirimSemua = useCallback(async () => {
+    if (!navigator.onLine) return;
+    setKirim(true);
+    try {
+      for (const t of bacaAntrean()) {
+        try {
+          const r = await bayar(t.checkout);
+          // ditolak server (mis. shift sudah ditutup) tetap disimpan agar bisa dicek SPV
+          if (!r.error) hapusTertunda(t.checkout.client_id);
+        } catch {
+          break; // masih offline
+        }
+      }
+    } finally {
+      setKirim(false);
+      segarkan();
+    }
+  }, [segarkan]);
+  useEffect(() => {
+    segarkan();
+    kirimSemua();
+    const t = setInterval(kirimSemua, 30_000);
+    window.addEventListener("online", kirimSemua);
+    window.addEventListener("matoer-antrean", segarkan);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("online", kirimSemua);
+      window.removeEventListener("matoer-antrean", segarkan);
+    };
+  }, [kirimSemua, segarkan]);
+  return { jumlah, kirim, kirimSemua };
+}
+
+export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number }) {
   const [kat, setKat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [cart, setCart] = useState<Line[]>([]);
@@ -70,8 +112,12 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
   const [metode, setMetode] = useState<string>("tunai");
   const [diterima, setDiterima] = useState("");
   const [err, setErr] = useState("");
-  const [receipt, setReceipt] = useState<{ r: Receipt; lines: Line[]; kanal: string; metode: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ r: Receipt; lines: Line[]; kanal: string; metode: string; offline?: boolean } | null>(null);
   const [pending, start] = useTransition();
+  const [split, setSplit] = useState(false);
+  const [bayarList, setBayarList] = useState<Bayar[]>([{ metode: "tunai", nominal: "", diterima: "" }, { metode: "qris", nominal: "", diterima: "" }]);
+  const [mintaSpv, setMintaSpv] = useState(false);
+  const antrean = useAntreanOffline();
 
   const price = (l: Pick<Line, "menu" | "varian">) => priceFor(kanal, l);
   const subtotal = cart.reduce((s, l) => s + price(l) * l.qty, 0);
@@ -88,28 +134,50 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
   const qtyOf = (menuId: string) => cart.filter((l) => l.menu.id === menuId).reduce((s, l) => s + l.qty, 0);
   const setQty = (key: string, d: number) => setCart((c) => c.flatMap((l) => (l.key !== key ? [l] : l.qty + d > 0 ? [{ ...l, qty: l.qty + d }] : [])));
 
-  const checkout = () =>
+  const persenDiskon = subtotal ? (num(diskon) / subtotal) * 100 : 0;
+  const sisaSplit = total - bayarList.reduce((t, b) => t + num(b.nominal), 0);
+  const reset = () => {
+    setCart([]);
+    setDiskon("");
+    setDiterima("");
+    setPelanggan("");
+    setMeja("");
+    setSplit(false);
+    setBayarList([{ metode: "tunai", nominal: "", diterima: "" }, { metode: "qris", nominal: "", diterima: "" }]);
+  };
+  const checkout = (otorisasi?: string) => {
+    if (persenDiskon > batasDiskon && !otorisasi) return setMintaSpv(true);
+    if (split && sisaSplit !== 0) return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
+    const c: Checkout = {
+      client_id: crypto.randomUUID(),
+      kanal,
+      tipe,
+      pelanggan,
+      meja,
+      diskon: num(diskon),
+      metode: split ? "split" : metode,
+      diterima: !split && metode === "tunai" ? num(diterima) || total : undefined,
+      pembayaran: split ? bayarList.filter((b) => num(b.nominal) > 0).map((b) => ({ metode: b.metode, nominal: num(b.nominal), diterima: b.metode === "tunai" ? num(b.diterima) || num(b.nominal) : undefined })) : undefined,
+      otorisasi,
+      items: cart.map((l) => ({ menu_id: l.menu.id, varian_ids: l.varian.map((v) => v.id), qty: l.qty })),
+    };
     start(async () => {
       setErr("");
-      const res = await bayar({
-        client_id: crypto.randomUUID(),
-        kanal,
-        tipe,
-        pelanggan,
-        meja,
-        diskon: num(diskon),
-        metode,
-        diterima: metode === "tunai" ? num(diterima) || total : undefined,
-        items: cart.map((l) => ({ menu_id: l.menu.id, varian_ids: l.varian.map((v) => v.id), qty: l.qty })),
-      });
-      if (res.error || !res.receipt) return setErr(res.error ?? "Gagal menyimpan");
-      setReceipt({ r: res.receipt, lines: cart, kanal, metode });
-      setCart([]);
-      setDiskon("");
-      setDiterima("");
-      setPelanggan("");
-      setMeja("");
+      try {
+        const res = await bayar(c);
+        if (res.error || !res.receipt) return setErr(res.error ?? "Gagal menyimpan");
+        setReceipt({ r: res.receipt, lines: cart, kanal, metode: c.metode });
+      } catch (e) {
+        if (!galatJaringan(e)) return setErr("Gagal menyimpan transaksi.");
+        // offline: simpan di perangkat, struk tetap bisa diberikan; terkirim otomatis saat online
+        const sementara = `OFF-${new Date().toTimeString().slice(0, 5).replace(":", "")}`;
+        simpanTertunda({ checkout: c, waktu: new Date().toISOString(), total, nomorSementara: sementara });
+        const kembali = c.pembayaran ? c.pembayaran.reduce((t, b) => t + (b.metode === "tunai" ? (b.diterima ?? b.nominal) - b.nominal : 0), 0) : c.metode === "tunai" ? (c.diterima ?? total) - total : 0;
+        setReceipt({ r: { id: c.client_id, nomor: 0, subtotal, diskon: num(diskon), total, kembalian: kembali }, lines: cart, kanal, metode: c.metode, offline: true });
+      }
+      reset();
     });
+  };
 
   const chip = (active: boolean) => `rounded-lg px-3 py-1.5 text-sm font-medium ${active ? "bg-matur-500 text-white" : "bg-matur-50 text-kopi-700"}`;
 
@@ -188,21 +256,50 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
           </label>
           <Row label="Total" value={formatRupiah(total)} bold />
         </div>
-        <div className="flex flex-wrap gap-1">
-          {METODE.map(([k, l]) => (
-            <button key={k} onClick={() => setMetode(k)} className={chip(metode === k)}>{l}</button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1">
+          {!split &&
+            METODE.map(([k, l]) => (
+              <button key={k} onClick={() => setMetode(k)} className={chip(metode === k)}>{l}</button>
+            ))}
+          <button onClick={() => setSplit(!split)} className={`${chip(split)} ml-auto`}>{split ? "✕ Satu metode" : "➗ Split bayar"}</button>
         </div>
-        {metode === "tunai" && (
+        {!split && metode === "tunai" && (
           <label className="flex items-center justify-between text-sm">
             Uang diterima
             <input value={diterima} onChange={(e) => setDiterima(e.target.value)} inputMode="numeric" placeholder={String(total)} className="w-32 rounded-lg border px-2 py-1 text-right" />
           </label>
         )}
+        {split && (
+          <div className="space-y-1.5 rounded-xl bg-matur-50 p-2 text-sm">
+            {bayarList.map((b, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-1">
+                <select value={b.metode} onChange={(e) => setBayarList(bayarList.map((x, j) => (j === i ? { ...x, metode: e.target.value } : x)))} className="rounded-lg border bg-white px-2 py-1">
+                  {METODE.map(([k, l]) => (
+                    <option key={k} value={k}>{l}</option>
+                  ))}
+                </select>
+                <input value={b.nominal} onChange={(e) => setBayarList(bayarList.map((x, j) => (j === i ? { ...x, nominal: e.target.value } : x)))} onFocus={() => !b.nominal && sisaSplit > 0 && setBayarList(bayarList.map((x, j) => (j === i ? { ...x, nominal: String(sisaSplit) } : x)))} inputMode="numeric" placeholder="nominal" className="w-24 flex-1 rounded-lg border bg-white px-2 py-1 text-right" />
+                {b.metode === "tunai" && <input value={b.diterima} onChange={(e) => setBayarList(bayarList.map((x, j) => (j === i ? { ...x, diterima: e.target.value } : x)))} inputMode="numeric" placeholder="diterima" className="w-24 rounded-lg border bg-white px-2 py-1 text-right" />}
+                {bayarList.length > 2 && <button onClick={() => setBayarList(bayarList.filter((_, j) => j !== i))} className="px-1 text-red-600">✕</button>}
+              </div>
+            ))}
+            <div className="flex items-center justify-between text-xs">
+              <button onClick={() => setBayarList([...bayarList, { metode: "debit", nominal: "", diterima: "" }])} className="font-semibold text-matur-700">+ metode lain</button>
+              <span className={sisaSplit === 0 ? "font-semibold text-green-700" : "text-amber-700"}>{sisaSplit === 0 ? "✓ pas" : `sisa ${formatRupiah(sisaSplit)}`}</span>
+            </div>
+          </div>
+        )}
+        {persenDiskon > batasDiskon && <p className="text-xs text-amber-700">Diskon {Math.round(persenDiskon)}% melebihi batas {batasDiskon}% — perlu PIN SPV saat bayar.</p>}
+        {antrean.jumlah > 0 && (
+          <p className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <span>📴 {antrean.jumlah} transaksi offline menunggu terkirim</span>
+            <button disabled={antrean.kirim} onClick={antrean.kirimSemua} className="font-semibold underline">{antrean.kirim ? "mengirim…" : "kirim sekarang"}</button>
+          </p>
+        )}
         {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
         <button
           disabled={pending || cart.length === 0}
-          onClick={checkout}
+          onClick={() => checkout()}
           className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
         >
           {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
@@ -211,7 +308,39 @@ export function PosScreen({ kategori, menus, outletNama, kasir }: { kategori: { 
 
       {picking && <VariantPicker menu={picking} onCancel={() => setPicking(null)} onPick={(v) => (add(picking, v), setPicking(null))} />}
       {receipt && <ReceiptDialog {...receipt} outletNama={outletNama} kasir={kasir} onClose={() => setReceipt(null)} />}
+      {mintaSpv && <PinSpv judul={`Setujui diskon ${Math.round(persenDiskon)}%`} onBatal={() => setMintaSpv(false)} onOk={async (login, pin) => {
+        const r = await izinDiskonSpv(login, pin, persenDiskon);
+        if (r.error) return r.error;
+        setMintaSpv(false);
+        checkout(r.otorisasi);
+        return null;
+      }} />}
     </div>
+  );
+}
+
+/** Dialog persetujuan SPV di perangkat kasir: kode staf + PIN (atau email + password). Sesi kasir tidak berubah. */
+export function PinSpv({ judul, keterangan, onOk, onBatal }: { judul: string; keterangan?: React.ReactNode; onOk: (login: string, pin: string) => Promise<string | null>; onBatal: () => void }) {
+  const [login, setLogin] = useState("");
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  return (
+    <Modal title={`🔐 ${judul}`}>
+      {keterangan}
+      <p className="mb-3 text-sm text-stone-500">Minta SPV memasukkan kode staf & PIN (atau email & password).</p>
+      <div className="space-y-2">
+        <input value={login} onChange={(e) => setLogin(e.target.value)} placeholder="Kode staf / email SPV" autoCapitalize="none" className="w-full rounded-lg border px-3 py-2" />
+        <input value={pin} onChange={(e) => setPin(e.target.value)} type="password" inputMode={login.includes("@") ? "text" : "numeric"} placeholder="PIN / password" className="w-full rounded-lg border px-3 py-2" />
+      </div>
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={onBatal} className="rounded-lg border px-4 py-2 text-sm">Batal</button>
+        <button disabled={pending || !login || !pin} onClick={() => start(async () => setErr((await onOk(login, pin)) ?? ""))} className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          {pending ? "Memeriksa…" : "Setujui"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -268,11 +397,13 @@ function ReceiptDialog({
   lines,
   kanal,
   metode,
+  offline,
   outletNama,
   kasir,
   onClose,
 }: {
   r: Receipt;
+  offline?: boolean;
   lines: Line[];
   kanal: string;
   metode: string;
@@ -295,23 +426,57 @@ function ReceiptDialog({
       localStorage.setItem("matoer_kertas", k);
     } catch {}
   };
+  const labelMetode = metode === "split" ? "Split" : (METODE.find(([k]) => k === metode)?.[1] ?? metode);
+  const nomor = offline ? "OFFLINE" : String(r.nomor);
+  const [bt, setBt] = useState<string | null>(namaPrinter());
+  const [btErr, setBtErr] = useState("");
   const waktu = new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const text = [
-    `*${outletNama}* · No. ${r.nomor}`,
+    `*${outletNama}* · No. ${nomor}`,
     ...lines.map((l) => `${l.qty}x ${l.menu.nama}${l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}  ${formatRupiah(price(l) * l.qty)}`),
     r.diskon ? `Diskon: ${formatRupiah(-r.diskon)}` : "",
-    `Total: ${formatRupiah(r.total)} (${METODE.find(([k]) => k === metode)?.[1]})`,
+    `Total: ${formatRupiah(r.total)} (${labelMetode})`,
     r.kembalian ? `Kembali: ${formatRupiah(r.kembalian)}` : "",
     "Terima kasih 🙏",
   ].filter(Boolean);
+  const cetakBt = async () => {
+    setBtErr("");
+    try {
+      if (!namaPrinter()) setBt(await sambungPrinter());
+      const lebar = kertas === "58" ? 32 : 48;
+      await cetakBluetooth(
+        susunStruk(
+          [
+            { teks: "RUMA", tengah: true, tebal: true },
+            { teks: outletNama, tengah: true, tebal: true },
+            { teks: waktu, tengah: true },
+            { teks: `No. ${nomor} - ${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`, tengah: true },
+            "-".repeat(lebar),
+            ...lines.map((l) => ({ teks: "", kiriKanan: [`${l.qty}x ${l.menu.nama}${l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}`, formatRupiah(price(l) * l.qty)] as [string, string] })),
+            "-".repeat(lebar),
+            ...(r.diskon > 0 ? [{ teks: "", kiriKanan: ["Diskon", formatRupiah(-r.diskon)] as [string, string] }] : []),
+            { teks: "", tebal: true, kiriKanan: ["TOTAL", formatRupiah(r.total)] as [string, string] },
+            { teks: "", kiriKanan: ["Bayar", labelMetode] as [string, string] },
+            ...(r.kembalian > 0 ? [{ teks: "", kiriKanan: ["Kembali", formatRupiah(r.kembalian)] as [string, string] }] : []),
+            "-".repeat(lebar),
+            { teks: "Terima kasih", tengah: true },
+          ],
+          lebar,
+        ),
+      );
+    } catch (e) {
+      setBtErr(e instanceof Error ? e.message : "Gagal mencetak.");
+    }
+  };
   return (
-    <Modal title="Transaksi berhasil">
+    <Modal title={offline ? "Tersimpan offline" : "Transaksi berhasil"}>
+      {offline && <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">📴 Internet terputus. Transaksi disimpan di perangkat ini dan terkirim otomatis saat online (nomor struk menyusul).</p>}
       <div id="struk" data-kertas={kertas} className={`mx-auto rounded-xl bg-white p-3 font-mono text-black shadow-inner ${kertas === "58" ? "max-w-[230px] text-[11px]" : "max-w-[310px] text-xs"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- logo struk */}
         <img src="/brand/ruma-logo.png" alt="Ruma" className="mx-auto mb-1 h-8 w-auto grayscale" />
         <p className="text-center font-bold">{outletNama}</p>
         <p className="text-center">{waktu}</p>
-        <p className="mb-2 text-center">No. {r.nomor} · {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}</p>
+        <p className="mb-2 text-center">No. {nomor} · {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}</p>
         {lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-2">
             <span>{l.qty}x {l.menu.nama}{l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""}</span>
@@ -321,7 +486,7 @@ function ReceiptDialog({
         <div className="mt-2 border-t border-dashed pt-2">
           {r.diskon > 0 && <Row label="Diskon" value={formatRupiah(-r.diskon)} />}
           <Row label="Total" value={formatRupiah(r.total)} bold />
-          <Row label="Bayar" value={METODE.find(([k]) => k === metode)?.[1] ?? metode} />
+          <Row label="Bayar" value={labelMetode} />
           {r.kembalian > 0 && <Row label="Kembali" value={formatRupiah(r.kembalian)} />}
         </div>
         <p className="mt-2 border-t border-dashed pt-2 text-center">Terima kasih 🙏</p>
@@ -334,10 +499,16 @@ function ReceiptDialog({
           </button>
         ))}
       </div>
+      {btErr && <p className="mt-2 text-center text-xs text-red-600">{btErr}</p>}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <a href={`https://wa.me/?text=${encodeURIComponent(text.join("\n"))}`} target="_blank" rel="noreferrer" className="rounded-lg border px-4 py-2 text-sm">
           Kirim WhatsApp
         </a>
+        {bisaBluetooth() && (
+          <button onClick={cetakBt} className="rounded-lg border px-4 py-2 text-sm" title={bt ? `Tersambung: ${bt}` : "Sambungkan printer Bluetooth"}>
+            🖨 {bt ? "Cetak Bluetooth" : "Printer Bluetooth"}
+          </button>
+        )}
         <button onClick={() => window.print()} className="rounded-lg border px-4 py-2 text-sm">Cetak</button>
         <button onClick={onClose} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">Pesanan baru</button>
       </div>
