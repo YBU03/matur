@@ -7,6 +7,7 @@ import { groupRab } from "@/lib/rab-excel";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { RowDeleter, RowEditor } from "@/components/row-editor";
+import { Pegangan, Urutkan } from "@/components/urutkan";
 import { Approvals, DesainGallery, RabDownload, ReportButton } from "./client";
 import { CentangChecklist, Diskusi, DokumenPanel, LaporanPdf, PakaiTanggal } from "./extra";
 
@@ -227,6 +228,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
             </div>
             {pekerjaan.length === 0 && <p className="text-sm text-stone-400">Belum ada tahapan.</p>}
             <ul className="divide-y">
+              <Urutkan entityKey="pekerjaan" grup="tahapan">
               {pekerjaan.map((k) => (
                 <li key={k.id} className="py-3">
                   <div className="flex items-start gap-2">
@@ -240,6 +242,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                     </div>
                     {admin && (
                       <span className="flex shrink-0">
+                        <Pegangan id={k.id} />
                         <RowEditor entityKey="pekerjaan" row={k as unknown as Record<string, unknown>} fields={TAHAP_FIELDS} refs={{ pic_id: picRefs }} label="✏️" title={`Ubah tahapan · ${k.nama}`} />
                         <RowDeleter entityKey="pekerjaan" id={k.id} name={`Tahapan / Pekerjaan ${k.nama}`} />
                       </span>
@@ -252,6 +255,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                   </div>
                 </li>
               ))}
+              </Urutkan>
             </ul>
           </section>
 
@@ -265,6 +269,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
               {ckSelesai}/{checklist.length} selesai
             </div>
             <ul className="divide-y">
+              <Urutkan entityKey="checklist_proyek" grup="checklist">
               {checklist.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 py-2">
                   <CentangChecklist proyekId={p.id} item={c} admin={admin} />
@@ -274,12 +279,14 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                   </div>
                   {admin && (
                     <span className="flex shrink-0">
+                      <Pegangan id={c.id} />
                       <RowEditor entityKey="checklist_proyek" row={c as unknown as Record<string, unknown>} fields={["nama", "selesai", "catatan", "urutan"]} label="✏️" title="Ubah checklist" />
                       <RowDeleter entityKey="checklist_proyek" id={c.id} name={`Checklist ${c.nama}`} />
                     </span>
                   )}
                 </li>
               ))}
+              </Urutkan>
             </ul>
           </section>
 
@@ -317,6 +324,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
             {admin && <RowEditor entityKey="jadwal_proyek" row={null} initial={{ proyek_id: p.id, status: "rencana", urutan: String(jadwal.length + 1) }} fields={JADWAL_FIELDS} label="+ Kegiatan" className={addBtn} />}
           </div>
           <ol className="relative ml-2 border-l-2 border-matur-200">
+            <Urutkan entityKey="jadwal_proyek" grup="jadwal">
             {jadwal.map((j) => (
               <li key={j.id} className="mb-4 ml-5">
                 <span className={`absolute -left-[9px] mt-1 size-4 rounded-full border-2 border-white ${j.status === "selesai" ? "bg-green-500" : j.status === "mundur" ? "bg-red-500" : j.tgl_rencana ? "bg-matur-400" : "bg-stone-300"}`} />
@@ -346,6 +354,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                   </div>
                   {admin && (
                     <span className="flex shrink-0">
+                      <Pegangan id={j.id} />
                       <RowEditor entityKey="jadwal_proyek" row={j as unknown as Record<string, unknown>} fields={JADWAL_FIELDS} label="✏️" title={`Ubah · ${j.judul}`} />
                       <RowDeleter entityKey="jadwal_proyek" id={j.id} name={`Jadwal ${j.judul}`} />
                     </span>
@@ -353,10 +362,11 @@ export default async function DetailProyek({ params, searchParams }: { params: P
                 </div>
               </li>
             ))}
+            </Urutkan>
             <Step date={p.tgl_soft_opening} title="Soft Opening" />
             <Step date={p.target_buka} title="Grand Opening 🎉" done={p.status === "selesai"} big />
           </ol>
-          {admin && <p className="text-xs text-stone-400">Status “mundur”: isi Tanggal Realisasi dengan tanggal baru.</p>}
+          {admin && <p className="text-xs text-stone-400">Status “mundur”: isi Tanggal Realisasi dengan tanggal baru. Tahan ⋮⋮ lalu geser untuk mengubah urutan, atau isi nomor Urutan — kegiatan lain otomatis bergeser.</p>}
         </section>
       )}
 
