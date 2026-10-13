@@ -73,3 +73,12 @@ Halaman proyek dibagi menjadi tab agar mudah dibaca di HP:
 - **Dokumen**: unggah PDF atau gambar (MoU, RAB, izin, kuitansi), maksimal 10 MB per file.
 - **Diskusi**: obrolan admin ↔ mitra per proyek.
 - Tombol **⬇ Laporan PDF** di bagian atas membuat laporan ringkas untuk dikirim ke mitra.
+
+## 12. Alur akunting terintegrasi (kasir → gudang → laporan)
+Mengikuti Excel Ruma (sheet *Transaksi* → *Laporan Keuangan*):
+1. **Kasir/barista (aplikasi POS → Kas & Pengeluaran):** catat pengeluaran harian (es kristal, galon, bahan baku/dessert, perlengkapan, parkir, listrik, marketing, dll.), pilih *uang laci* atau *dibayar pusat*. Bisa diubah/dihapus sendiri dalam 2 hari. **Tutup shift:** isi uang tunai aktual → sistem menghitung *penjualan tunai − pengeluaran laci* dan selisihnya.
+2. **Gudang:** kiriman bahan yang diterima outlet otomatis masuk *Pembelian bahan baku*.
+3. **Catatan Harian (Owner/Admin/Finance/SPV):** tampilan per hari seperti sheet Transaksi; tambah/ubah/hapus pengeluaran; ekspor **Excel format Ruma**.
+4. **Stok & Opname (SPV/Gudang):** hitung stok fisik akhir bulan → nilainya jadi *Persediaan akhir*.
+5. **Proyeksi laporan (Finance):** penjualan per kanal, diskon, pembelian (kiriman + es kristal + bahan baku + galon), beban, sewa (dari perjanjian, rata per bulan), sedekah 2,5% laba kotor, bagi hasil dari skema. Isi angka **aplikasi GoFood/Grab/Shopee** → selisihnya + pengembalian discount menjadi *Pendapatan Lain-lain*. Simpan draft, lalu **Terbitkan**.
+6. **Laporan terbit:** ringkasan visual (KPI vs bulan lalu, struktur penjualan, tren, komposisi, beban, bagi hasil) di web dan PDF (halaman 1 grafik, halaman berikutnya format resmi).

@@ -5,6 +5,7 @@ import { hitung, LAPORAN_COLS, namaBulan, type Laporan, type Perusahaan } from "
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { UnduhPdf } from "./pdf";
+import { LaporanVisual, type Ringkas, type Visual } from "./visual";
 
 const BOLEH = ["owner", "admin_pusat", "finance", "manajer_area", "mitra"];
 
@@ -21,6 +22,27 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
   const l = data as unknown as Laporan;
   const h = hitung(l);
   const bulan = namaBulan(l.periode);
+  // riwayat laporan outlet ini (untuk tren & pembanding bulan lalu)
+  const { data: semua } = await supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("outlet_id", l.outlet_id).eq("mode", "asli").lte("periode", l.periode).is("deleted_at", null).order("periode");
+  const riwayat: Ringkas[] = ((semua ?? []) as unknown as Laporan[]).slice(-12).map((r) => {
+    const x = hitung(r);
+    return { periode: r.periode, label: new Date(r.periode + "T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }), penjualan: x.totalPenjualan, laba_kotor: x.labaKotor, laba_bersih: x.labaBersih };
+  });
+  const urut = (xs: { name: string; value: number }[]) => xs.filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
+  const visual: Visual = {
+    bulan,
+    penjualan: h.totalPenjualan,
+    hpp: h.hpp,
+    labaKotor: h.labaKotor,
+    beban: h.totalBeban - l.sedekah,
+    sedekah: l.sedekah,
+    labaBersih: h.labaBersih,
+    pendapatan: urut(l.pendapatan.map((p) => ({ name: p.nama.replace(/ \(.*\)$/, ""), value: Number(p.jumlah) }))),
+    bebanRinci: urut([{ name: "Sedekah", value: l.sedekah }, ...l.beban.map((b) => ({ name: b.nama.replace(/^Biaya /, ""), value: Number(b.jumlah) }))]).slice(0, 8),
+    bagiHasil: l.bagi_hasil.map((b) => ({ name: `${b.nama} ${b.persen}%`, value: Number(b.jumlah) })),
+    prev: riwayat.length > 1 ? riwayat[riwayat.length - 2] : null,
+    riwayat,
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -28,8 +50,10 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
         <Link href={`/laporan?outlet=${l.outlet_id}`} className="mr-auto text-sm text-matur-700">
           ← Semua laporan
         </Link>
-        <UnduhPdf l={l} pt={(pt ?? { nama: "CV. Hazna Berkah Indonesia", alamat: null, email: null, telepon: null }) as Perusahaan} />
+        <UnduhPdf l={l} visual={visual} pt={(pt ?? { nama: "CV. Hazna Berkah Indonesia", alamat: null, email: null, telepon: null }) as Perusahaan} />
       </div>
+
+      <LaporanVisual v={visual} />
 
       <article className="space-y-5 rounded-2xl border border-matur-200 bg-white p-4 sm:p-6">
         <header className="flex items-center gap-3 border-b-2 border-kopi-900 pb-3">

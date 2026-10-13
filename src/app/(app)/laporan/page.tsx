@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChartCard, TrendChart } from "@/components/charts";
+import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
 import { hitung, LAPORAN_COLS, namaBulan, type Laporan } from "@/lib/laporan";
 import { getSession } from "@/lib/session";
@@ -77,6 +79,18 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
               </div>
             ))}
           </section>
+          {ringkas.length > 1 && (() => {
+            const tren = [...ringkas].reverse().map(({ l, h }) => ({
+              label: new Date(l.periode + "T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }),
+              penjualan: h.totalPenjualan,
+              laba: h.labaBersih,
+            }));
+            return (
+              <ChartCard title="Tren penjualan & laba bersih" sub="Per bulan laporan terbit" rows={tren} cols={[{ key: "label", label: "Bulan" }, { key: "penjualan", label: "Penjualan", money: true }, { key: "laba", label: "Laba bersih", money: true }]}>
+                <TrendChart data={tren} series={[{ key: "penjualan", name: "Penjualan", color: SERIES[0] }, { key: "laba", name: "Laba bersih", color: SERIES[3] }]} />
+              </ChartCard>
+            );
+          })()}
           <ul className="space-y-2">
             {ringkas.map(({ l, h }) => (
               <li key={l.id}>

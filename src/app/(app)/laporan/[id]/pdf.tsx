@@ -4,9 +4,11 @@ import { useState } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { hitung, namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
 import { gambar } from "@/lib/pdf-kop";
+import { batang, bertumpuk, judul, kaki, kolom, kpi, WARNA } from "@/lib/pdf-grafik";
+import type { Visual } from "./visual";
 
 // Unduh laporan resmi sebagai PDF (A4), urutan bagian sama dengan laporan manual
-export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
+export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; visual: Visual }) {
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
@@ -26,6 +28,43 @@ export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
       if (pt.email || pt.telepon) doc.text(`Email: ${pt.email ?? "-"}  Telp: ${pt.telepon ?? "-"}`, W / 2 + 8, (y += 4), { align: "center" });
       y = Math.max(y, 26);
       doc.setLineWidth(0.6).line(14, (y += 3), W - 14, y);
+      // ===== Halaman 1: ringkasan kinerja visual =====
+      doc.setFont("helvetica", "bold").setFontSize(15).text(`LAPORAN KEUANGAN ${l.nama_outlet.toUpperCase()}`, W / 2, (y += 10), { align: "center" });
+      doc.setFont("helvetica", "normal").setFontSize(9.5).setTextColor(120, 113, 108).text(`Ringkasan kinerja · Periode ${bulan}`, W / 2, (y += 5.5), { align: "center" });
+      doc.setTextColor(0);
+      const delta = (a: number, b?: number) => (b ? ((a - b) / Math.abs(b)) * 100 : null);
+      const kw = (W - 28 - 9) / 4;
+      y += 6;
+      kpi(doc, 14, y, kw, "Total penjualan", v.penjualan, delta(v.penjualan, v.prev?.penjualan));
+      kpi(doc, 14 + (kw + 3), y, kw, "Laba kotor", v.labaKotor, delta(v.labaKotor, v.prev?.laba_kotor));
+      kpi(doc, 14 + 2 * (kw + 3), y, kw, "Laba bersih", v.labaBersih, delta(v.labaBersih, v.prev?.laba_bersih));
+      const persen = (x: number) => (v.penjualan ? ((x / v.penjualan) * 100).toFixed(1).replace(".", ",") : "0");
+      kpi(doc, 14 + 3 * (kw + 3), y, kw, "Margin laba bersih", `${persen(v.labaBersih)}%`, null, `HPP ${persen(v.hpp)}% dari penjualan`);
+      y += 30;
+      judul(doc, 14, y, "Ke mana uang penjualan pergi", `Dari total penjualan ${formatRupiah(v.penjualan)}`);
+      y = bertumpuk(doc, 14, y + 7, W - 28, [
+        { name: "HPP (bahan baku)", value: v.hpp },
+        { name: "Beban operasional", value: v.beban },
+        { name: "Sedekah", value: v.sedekah },
+        { name: "Laba bersih", value: Math.max(v.labaBersih, 0) },
+      ]) + 6;
+      if (v.riwayat.length > 1) {
+        judul(doc, 14, y, "Tren bulanan", "Penjualan dan laba bersih");
+        y = kolom(doc, 14, y + 8, W - 28, 38, v.riwayat.map((r) => ({ label: r.label, a: r.penjualan, b: r.laba_bersih })), ["Penjualan", "Laba bersih"]) + 6;
+      }
+      const half = (W - 28 - 8) / 2;
+      judul(doc, 14, y, "Komposisi pendapatan");
+      judul(doc, 14 + half + 8, y, "Beban operasional terbesar");
+      const y1 = batang(doc, 14, y + 5, half, v.pendapatan.slice(0, 8), WARNA[0]);
+      const y2 = batang(doc, 14 + half + 8, y + 5, half, v.bebanRinci.slice(0, 8), WARNA[1]);
+      y = Math.max(y1, y2) + 6;
+      if (v.bagiHasil.length && y < 250) {
+        judul(doc, 14, y, "Bagi hasil laba bersih");
+        batang(doc, 14, y + 5, W - 28, v.bagiHasil, WARNA[3], 62);
+      }
+      // ===== Halaman 2 dst: laporan resmi (format tetap) =====
+      doc.addPage();
+      y = 10;
       doc.setFont("helvetica", "bold").setFontSize(12).text(`LAPORAN KEUANGAN ${l.nama_outlet.toUpperCase()}`, W / 2, (y += 8), { align: "center" });
       const rp = (n: number) => formatRupiah(n);
       const after = () => (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
@@ -49,7 +88,7 @@ export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
           ...plain,
           startY: after(),
           head: [[{ content: judul, colSpan: 3 }]],
-          headStyles: { fillColor: [255, 239, 194], textColor: 20, fontStyle: "bold" },
+          headStyles: { fillColor: [58, 31, 11], textColor: 255, fontStyle: "bold" },
           body: body.map((r) => [r[0], typeof r[1] === "number" ? rp(r[1]) : r[1], r[2] ?? ""]),
           columnStyles: { 1: { halign: "right", cellWidth: 40 }, 2: { cellWidth: 8, textColor: 120 } },
           didParseCell: (d) => {
@@ -105,6 +144,7 @@ export function UnduhPdf({ l, pt }: { l: Laporan; pt: Perusahaan }) {
       doc.addImage(ttd.url, "PNG", W - 50 - tw / 2, fy + 2, tw, th);
       doc.setFont("helvetica", "bold").text(l.penandatangan ?? "", W - 50, fy + 27, { align: "center" });
       doc.setFont("helvetica", "normal").text(l.jabatan_penandatangan ?? "", W - 50, fy + 32, { align: "center" });
+      kaki(doc, `${pt.nama} · Laporan Keuangan ${l.nama_outlet} ${bulan} · dibuat dengan Matoer`);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(doc.output("blob"));
       a.download = `Laporan Keuangan ${l.nama_outlet} ${bulan}.pdf`;
