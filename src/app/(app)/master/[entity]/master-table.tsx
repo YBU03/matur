@@ -62,6 +62,7 @@ export function MasterTable({
   canEdit,
   backHref,
   kelompok,
+  periode,
 }: {
   entityKey: string;
   entity: Entity;
@@ -73,6 +74,8 @@ export function MasterTable({
   backHref?: string;
   /** id baris → nama kelompok (mis. outlet); kartu ditampilkan per kelompok */
   kelompok?: Record<string, string>;
+  /** filter periode aktif (entitas bertanggal, mis. biaya operasional) */
+  periode?: { bulan: string | null; dari: string; sampai: string };
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<{ row: Row | null; form: Form } | null>(null);
@@ -143,7 +146,19 @@ export function MasterTable({
         <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{msg.text}</p>
       )}
 
-      {(rows.length > 5 || entity.card) && (
+      {periode && <PeriodeBar entityKey={entityKey} periode={periode} filter={filter} outletRef={entity.fields.some((f) => f.key === "outlet_id") ? refs.outlet_id : undefined} />}
+      {periode && (
+        <div className="flex flex-wrap gap-2 text-sm">
+          {entity.fields
+            .filter((f) => f.type === "money")
+            .map((f) => (
+              <span key={f.key} className="rounded-xl bg-matur-50 px-3 py-1.5">
+                Total {f.label.toLowerCase()} {kata ? "(hasil cari)" : ""}: <b className="tabular-nums">Rp {tampil.reduce((t, r) => t + (Number(r[f.key]) || 0), 0).toLocaleString("id-ID")}</b> · {tampil.length} catatan
+              </span>
+            ))}
+        </div>
+      )}
+      {(rows.length > 5 || entity.card || periode) && (
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={entity.card ? `🔍 Cari nama ${entity.title.toLowerCase()}…` : `🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
       )}
       {entity.card ? (
@@ -391,5 +406,67 @@ function ImageInput({ label, value, onChange }: { label: string; value: string; 
         {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
       </div>
     </div>
+  );
+}
+
+/** Filter per bulan atau rentang tanggal bebas (+ outlet) untuk data bertanggal. */
+function PeriodeBar({ entityKey, periode, filter, outletRef }: { entityKey: string; periode: { bulan: string | null; dari: string; sampai: string }; filter: Record<string, string>; outletRef?: { id: string; label: string }[] }) {
+  const router = useRouter();
+  const [mode, setMode] = useState<"bulan" | "rentang">(periode.bulan ? "bulan" : "rentang");
+  const [dari, setDari] = useState(periode.dari);
+  const [sampai, setSampai] = useState(periode.sampai);
+  const buka = (q: Record<string, string>) => router.push(`/master/${entityKey}?${new URLSearchParams({ ...filter, ...q })}`);
+  const tanpaOutlet = Object.fromEntries(Object.entries(filter).filter(([k]) => k !== "outlet_id"));
+  const pq: Record<string, string> = periode.bulan ? { bulan: periode.bulan } : { dari: periode.dari, sampai: periode.sampai };
+  return (
+    <section className="flex flex-wrap items-end gap-2 rounded-2xl border border-matur-200 bg-white p-3 text-sm">
+      {outletRef && (
+        <label className="text-xs font-semibold text-stone-600">
+          Outlet
+          <select
+            value={filter.outlet_id ?? ""}
+            onChange={(e) => router.push(`/master/${entityKey}?${new URLSearchParams({ ...tanpaOutlet, ...pq, ...(e.target.value ? { outlet_id: e.target.value } : {}) })}`)}
+            className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal"
+          >
+            <option value="">Semua outlet</option>
+            {outletRef.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div className="flex overflow-hidden rounded-lg border">
+        {(["bulan", "rentang"] as const).map((m) => (
+          <button key={m} onClick={() => setMode(m)} className={`px-3 py-2 text-xs font-semibold ${mode === m ? "bg-kopi-900 text-white" : "bg-white text-kopi-700"}`}>
+            {m === "bulan" ? "Per bulan" : "Rentang tanggal"}
+          </button>
+        ))}
+      </div>
+      {mode === "bulan" ? (
+        <label className="text-xs font-semibold text-stone-600">
+          Bulan
+          <input type="month" value={periode.bulan ?? periode.sampai.slice(0, 7)} onChange={(e) => e.target.value && buka({ bulan: e.target.value })} className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" />
+        </label>
+      ) : (
+        <>
+          <label className="text-xs font-semibold text-stone-600">
+            Dari
+            <input type="date" value={dari} max={sampai} onChange={(e) => setDari(e.target.value)} className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Sampai
+            <input type="date" value={sampai} min={dari} onChange={(e) => setSampai(e.target.value)} className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" />
+          </label>
+          <button onClick={() => dari && sampai && buka({ dari, sampai })} className="rounded-lg bg-kopi-900 px-4 py-2 text-xs font-semibold text-white">
+            Terapkan
+          </button>
+        </>
+      )}
+      <span className="ml-auto text-xs text-stone-500">
+        Menampilkan {new Date(periode.dari + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} – {new Date(periode.sampai + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+      </span>
+    </section>
   );
 }

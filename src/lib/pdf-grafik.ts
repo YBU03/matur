@@ -32,7 +32,7 @@ export function judul(doc: jsPDF, x: number, y: number, teks: string, sub?: stri
 }
 
 /** Batang 100% bertumpuk + legenda bernilai (part-to-whole). */
-export function bertumpuk(doc: jsPDF, x: number, y: number, w: number, bagian: { name: string; value: number }[]) {
+export function bertumpuk(doc: jsPDF, x: number, y: number, w: number, bagian: { name: string; value: number; persen?: number }[]) {
   const total = bagian.reduce((s, b) => s + Math.max(b.value, 0), 0) || 1;
   let cx = x;
   bagian.forEach((b, i) => {
@@ -46,7 +46,8 @@ export function bertumpuk(doc: jsPDF, x: number, y: number, w: number, bagian: {
     const lx = x + col * (w / 2), ly = y + 14 + row * 6;
     doc.setFillColor(...WARNA[i % WARNA.length]).rect(lx, ly - 2.6, 3, 3, "F");
     doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...INK).text(b.name, lx + 5, ly);
-    const p = ((Math.max(b.value, 0) / total) * 100).toFixed(1).replace(".", ",");
+    // persen tetap (mis. sedekah 2,5% dari laba kotor) bila diberikan, selain itu porsi dari total
+    const p = (b.persen ?? (Math.max(b.value, 0) / total) * 100).toFixed(1).replace(".", ",");
     doc.setFont("helvetica", "bold").text(`${p}%`, lx + w / 2 - 34, ly, { align: "right" });
     doc.setFont("helvetica", "normal").setTextColor(...INK2).text(rp(b.value), lx + w / 2 - 3, ly, { align: "right" });
   });

@@ -68,12 +68,12 @@ function Kartu({ o }: { o: OutletQris }) {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="mr-auto text-lg font-bold">{o.nama}</h2>
         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.qris_dinamis ? "bg-green-100 text-green-700" : o.qris_url ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-500"}`}>
-          {o.qris_dinamis ? "QRIS dinamis (nominal otomatis)" : o.qris_url ? "QRIS gambar" : "Belum diatur"}
+          {o.qris_dinamis ? "Dinamis (nominal otomatis)" : o.qris_url || o.qris_payload ? "Statis" : "Belum diatur"}
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
         <div className="rounded-xl bg-stone-50 p-3 text-center">
-          {url || (dinamis && payload) ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis }} nominal={dinamis ? 10000 : undefined} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
+          {url || payload ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis }} nominal={dinamis ? 10000 : undefined} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
           {dinamis && payload && <p className="mt-1 text-xs text-stone-500">Contoh: {formatRupiah(10000)} sudah tertanam</p>}
         </div>
         <div className="space-y-3 text-sm">
@@ -95,13 +95,23 @@ function Kartu({ o }: { o: OutletQris }) {
               </p>
             )}
           </details>
-          <label className={`flex items-start gap-2 rounded-xl border p-3 ${info?.valid ? "" : "opacity-50"}`}>
-            <input type="checkbox" checked={dinamis && !!info?.valid} disabled={!info?.valid} onChange={(e) => setDinamis(e.target.checked)} className="mt-0.5 size-4 accent-green-600" />
-            <span>
-              <b>Nominal otomatis (QRIS dinamis)</b>
-              <span className="block text-xs text-stone-500">Kasir menampilkan QR yang sudah berisi total belanja — pelanggan tinggal scan & bayar, tanpa salah ketik nominal. Dana tetap masuk ke rekening merchant QRIS yang sama.</span>
-            </span>
-          </label>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 font-semibold">3. Jenis QRIS yang tampil di kasir (pilih salah satu)</legend>
+            <label className={`flex cursor-pointer items-start gap-2 rounded-xl border-2 p-3 ${!dinamis ? "border-sky-500 bg-sky-50" : "border-stone-200"}`}>
+              <input type="radio" name={`jenis-${o.id}`} checked={!dinamis} onChange={() => setDinamis(false)} className="mt-0.5 size-4 accent-sky-600" />
+              <span>
+                <b>QRIS statis</b>
+                <span className="block text-xs text-stone-500">Kasir menampilkan QRIS apa adanya — pelanggan mengetik nominal sendiri di aplikasinya.</span>
+              </span>
+            </label>
+            <label className={`flex items-start gap-2 rounded-xl border-2 p-3 ${info?.valid ? "cursor-pointer" : "opacity-50"} ${dinamis ? "border-green-600 bg-green-50" : "border-stone-200"}`}>
+              <input type="radio" name={`jenis-${o.id}`} checked={dinamis} disabled={!info?.valid} onChange={() => setDinamis(true)} className="mt-0.5 size-4 accent-green-600" />
+              <span>
+                <b>QRIS dinamis (nominal otomatis)</b>
+                <span className="block text-xs text-stone-500">QR berisi total belanja — pelanggan tinggal scan & bayar, tanpa salah ketik nominal. Dana tetap masuk ke merchant QRIS yang sama.{!info?.valid && " Butuh kode QRIS yang terbaca/valid."}</span>
+              </span>
+            </label>
+          </fieldset>
           {msg && <p className={`rounded-lg px-3 py-2 text-xs ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
           <div className="flex flex-wrap gap-2">
             <button disabled={pending || !berubah} onClick={() => start(async () => { const r = await aturQris(o.id, { url, payload: payload || null, nama, dinamis: dinamis && !!info?.valid }); setMsg(r); if (!r.error) router.refresh(); })} className="rounded-xl bg-kopi-900 px-4 py-2 font-semibold text-white disabled:opacity-40">

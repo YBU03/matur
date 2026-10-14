@@ -32,7 +32,7 @@ export function TitipanView({
   if (!menu.length)
     return (
       <p className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-        Belum ada menu titipan. Buka <Link href="/master/menu" className="font-semibold underline">Data Menu</Link>, ubah menu cheesecake/dessert lalu centang <b>Produk titipan</b>, isi <b>Produsen</b> dan <b>Harga dari produsen / pcs</b>.
+        Belum ada menu titipan. Buka <Link href="/master/menu" className="font-semibold underline">Data Menu</Link>, ubah menunya lalu centang <b>Produk titipan</b>, pilih <b>Produsen</b> (daftar di <Link href="/master/produsen_titipan" className="font-semibold underline">Produsen Titipan</Link>) dan <b>Harga dari produsen / pcs</b>.
       </p>
     );
 

@@ -13,6 +13,8 @@ export type Visual = {
   labaKotor: number;
   beban: number;
   sedekah: number;
+  /** persen sedekah dari laba kotor (aturan skema, mis. 2,5) */
+  persenSedekah: number;
   labaBersih: number;
   pendapatan: { name: string; value: number }[];
   bebanRinci: { name: string; value: number }[];
@@ -38,10 +40,12 @@ export function LaporanVisual({ v }: { v: Visual }) {
   const bagian = [
     { name: "HPP (bahan baku)", value: v.hpp, color: SERIES[0] },
     { name: "Beban operasional", value: v.beban, color: SERIES[1] },
-    { name: "Sedekah", value: v.sedekah, color: SERIES[2] },
+    { name: `Sedekah (${String(v.persenSedekah).replace(".", ",")}% dari laba kotor)`, value: v.sedekah, color: SERIES[2], persen: v.persenSedekah },
     { name: "Laba bersih", value: Math.max(v.labaBersih, 0), color: SERIES[3] },
   ];
   const total = bagian.reduce((s, b) => s + b.value, 0) || 1;
+  // sedekah ditampilkan sesuai aturannya (persen dari laba kotor), bukan porsi dari penjualan
+  const porsi = (b: { value: number; persen?: number }) => (b.persen !== undefined ? b.persen : pct(b.value, total));
   const kpi = [
     { k: "Total penjualan", now: v.penjualan, prev: v.prev?.penjualan },
     { k: "Laba kotor", now: v.labaKotor, prev: v.prev?.laba_kotor, sub: `margin ${pct(v.labaKotor, v.penjualan).toString().replace(".", ",")}%` },
@@ -68,7 +72,7 @@ export function LaporanVisual({ v }: { v: Visual }) {
       <ChartCard
         title="Ke mana uang penjualan pergi"
         sub={`Dari setiap Rp100 penjualan ${v.bulan}`}
-        rows={bagian.map((b) => ({ bagian: b.name, nilai: b.value, persen: `${pct(b.value, total)}%` }))}
+        rows={bagian.map((b) => ({ bagian: b.name, nilai: b.value, persen: `${porsi(b)}%` }))}
         cols={[
           { key: "bagian", label: "Bagian" },
           { key: "nilai", label: "Nilai", money: true },
@@ -87,7 +91,7 @@ export function LaporanVisual({ v }: { v: Visual }) {
             <li key={b.name} className="flex items-center gap-2">
               <span className="size-3 shrink-0 rounded-sm" style={{ background: b.color }} />
               <span className="flex-1 text-stone-700">{b.name}</span>
-              <b className="tabular-nums">{pct(b.value, total).toString().replace(".", ",")}%</b>
+              <b className="tabular-nums">{porsi(b).toString().replace(".", ",")}%</b>
               <span className="w-28 text-right text-xs tabular-nums text-stone-500">{rupiah(b.value)}</span>
             </li>
           ))}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ImporRuma } from "@/components/impor-ruma";
 import { ChartCard, TrendChart } from "@/components/charts";
 import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
@@ -29,6 +30,7 @@ export default async function DaftarLaporan({ searchParams }: { searchParams: Pr
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-2xl font-bold">Laporan Keuangan</h1>
+        {["owner", "admin_pusat", "finance"].includes(s.active.role) && pilih && <ImporRuma outlets={daftar.map((o) => ({ id: o.id, nama: o.nama }))} outletId={pilih} label="⬆ Impor laporan (Excel)" />}
         {["owner", "admin_pusat", "finance"].includes(s.active.role) && (
           <Link href={`/laporan/proyeksi${pilih ? `?outlet=${pilih}` : ""}`} className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white">
             📊 Proyeksi otomatis bulan ini

@@ -16,6 +16,7 @@ export type DataTerbit = {
   persediaan_awal: number;
   pembelian: number;
   tagihan_titipan?: number;
+  rincian_titipan?: { produsen: string; jumlah: number }[];
   persediaan_akhir: number;
   pendapatan: Baris[];
   diskon: number;
@@ -50,6 +51,7 @@ export async function terbitkanLaporan(d: DataTerbit, ganti: boolean): Promise<{
     persediaan_awal: bulat(d.persediaan_awal),
     pembelian: bulat(d.pembelian),
     tagihan_titipan: bulat(d.tagihan_titipan),
+    rincian_titipan: (d.rincian_titipan ?? []).filter((r) => r.produsen && bulat(r.jumlah)).map((r) => ({ produsen: String(r.produsen).slice(0, 100), jumlah: bulat(r.jumlah) })),
     persediaan_akhir: bulat(d.persediaan_akhir),
     pendapatan: baris(d.pendapatan),
     diskon: bulat(d.diskon),

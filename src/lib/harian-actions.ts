@@ -30,7 +30,7 @@ export async function simpanAngkaPlatform(outletId: string, tanggal: string, ang
     if (error) return { error: pesan(error.message) };
   }
   segarkan();
-  return { ok: "Angka online food tersimpan." };
+  return { ok: "Angka penjualan tersimpan." };
 }
 
 /** Koreksi (±) satu kanal pada satu tanggal, mis. salah input kasir. */

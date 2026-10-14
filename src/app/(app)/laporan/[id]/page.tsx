@@ -4,6 +4,7 @@ import { formatRupiah, formatTanggal } from "@/lib/format";
 import { hitung, LAPORAN_COLS, namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
+import { UnduhExcel } from "./excel";
 import { UnduhPdf } from "./pdf";
 import { LaporanVisual, type Ringkas, type Visual } from "./visual";
 
@@ -36,6 +37,7 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
     labaKotor: h.labaKotor,
     beban: h.totalBeban - l.sedekah,
     sedekah: l.sedekah,
+    persenSedekah: Number(l.persen_sedekah),
     labaBersih: h.labaBersih,
     pendapatan: urut(l.pendapatan.map((p) => ({ name: p.nama.replace(/ \(.*\)$/, ""), value: Number(p.jumlah) }))),
     bebanRinci: urut([{ name: "Sedekah", value: l.sedekah }, ...l.beban.map((b) => ({ name: b.nama.replace(/^Biaya /, ""), value: Number(b.jumlah) }))]).slice(0, 8),
@@ -50,6 +52,7 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
         <Link href={`/laporan?outlet=${l.outlet_id}`} className="mr-auto text-sm text-matur-700">
           ← Semua laporan
         </Link>
+        <UnduhExcel l={l} pt={(pt ?? { nama: "CV. Hazna Berkah Indonesia", alamat: null, email: null, telepon: null }) as Perusahaan} />
         <UnduhPdf l={l} visual={visual} pt={(pt ?? { nama: "CV. Hazna Berkah Indonesia", alamat: null, email: null, telepon: null }) as Perusahaan} />
       </div>
 
@@ -99,7 +102,8 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
         <Bagian judul="Harga Pokok Penjualan">
           <Row k="Persediaan awal barang dagangan" v={l.persediaan_awal} />
           <Row k="Pembelian bahan baku" v={l.pembelian} op="+" />
-          {Number(l.tagihan_titipan ?? 0) > 0 && <Row k="Tagihan dessert & cheesecake (titipan terjual)" v={Number(l.tagihan_titipan)} op="+" />}
+          {Number(l.tagihan_titipan ?? 0) > 0 && <Row k={(l.rincian_titipan ?? []).length === 1 ? `Tagihan titipan ${l.rincian_titipan![0].produsen} (yang terjual)` : "Tagihan titipan produsen (yang terjual)"} v={Number(l.tagihan_titipan)} op="+" />}
+          {(l.rincian_titipan ?? []).length > 1 && l.rincian_titipan!.map((r) => <Row key={r.produsen} k={`· ${r.produsen}`} v={r.jumlah} indent />)}
           <Row k="Barang yang tersedia untuk dijual" v={h.tersedia} sub />
           <Row k="Persediaan akhir barang dagangan" v={l.persediaan_akhir} op="−" />
           <Row k="Harga pokok penjualan" v={h.hpp} total />

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
+import { ImporRuma } from "@/components/impor-ruma";
 import { FormPengeluaran, label } from "@/components/form-pengeluaran";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { KANAL_HARIAN, LABEL_KANAL, OJOL, nilaiHari, totalBulan, type KanalHarian, type Manual } from "@/lib/harian";
@@ -52,6 +53,7 @@ export function CatatanHarian({
   produk,
   sesi,
   menu,
+  bolehImpor = false,
 }: {
   outlets: { id: string; nama: string }[];
   outletId: string;
@@ -66,6 +68,7 @@ export function CatatanHarian({
   produk: ProdukKeluar[];
   sesi: Sesi[];
   menu: { id: string; nama: string }[];
+  bolehImpor?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -73,7 +76,8 @@ export function CatatanHarian({
   const [buka, setBuka] = useState<string | null>(null);
   const [cari, setCari] = useState(cariAwal);
   const [form, setForm] = useState<{ tanggal: string; item?: Biaya } | null>(null);
-  const [platform, setPlatform] = useState<{ tanggal: string; isi: Record<string, string>; ket: string } | null>(null);
+  const [platform, setPlatform] = useState<{ tanggal: string; isi: Record<string, string>; ket: string; semua?: boolean } | null>(null);
+  const [tambah, setTambah] = useState<string | null>(null);
   const [koreksi, setKoreksi] = useState<{ tanggal: string; id?: string; kanal: KanalHarian; jumlah: string; ket: string } | null>(null);
   const [mkt, setMkt] = useState<{ tanggal: string; penerima: string; jenis: string; catatan: string; items: { menu_id: string; qty: string }[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -97,6 +101,10 @@ export function CatatanHarian({
         router.refresh();
       }
     });
+  const SEMUA: KanalHarian[] = [...KANAL_HARIAN, "diskon"];
+  const bukaPlatform = (t: string, semua = false) =>
+    (setMsg(null),
+    setPlatform({ tanggal: t, ket: "", semua, isi: Object.fromEntries((semua ? SEMUA : OJOL).map((k) => [k, nilai.get(t)?.[k].platform != null ? String(nilai.get(t)![k].platform) : ""])) }));
   const pindah = (q: Record<string, string>) => router.push(`/catatan-harian?${new URLSearchParams({ outlet: outletId, bulan, ...(sim ? { sim: "1" } : {}), ...q })}`);
 
   // nilai akhir tiap hari (POS + angka platform + koreksi)
@@ -147,6 +155,10 @@ export function CatatanHarian({
           <h1 className="text-2xl font-bold">Catatan Harian</h1>
           <p className="text-sm text-stone-500">Otomatis dari kasir POS per tanggal — tetap bisa dikoreksi, ditambah, dan diisi angka online food dari dashboard platform.</p>
         </div>
+        <button onClick={() => (setMsg(null), setTambah(hari.length ? hari[hari.length - 1].tanggal : `${bulan}-01`))} className="rounded-xl bg-kopi-900 px-3 py-2 text-sm font-semibold text-white">
+          + Tambah data
+        </button>
+        {bolehImpor && <ImporRuma outlets={outlets} outletId={outletId} />}
         <button disabled={busy} onClick={unduh} className="rounded-xl border border-green-600 bg-white px-3 py-2 text-sm font-semibold text-green-700 disabled:opacity-50">
           {busy ? "Menyiapkan…" : "⬇ Excel (format Ruma)"}
         </button>
@@ -239,10 +251,13 @@ export function CatatanHarian({
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <p className="mr-auto text-sm font-semibold">Penjualan</p>
                       <button
-                        onClick={() => (setMsg(null), setPlatform({ tanggal: t, ket: "", isi: Object.fromEntries(OJOL.map((k) => [k, v[k].platform !== null ? String(v[k].platform) : ""])) }))}
+                        onClick={() => bukaPlatform(t)}
                         className="rounded-lg border border-sky-300 px-2.5 py-1 text-xs font-semibold text-sky-700"
                       >
                         🛵 Input online food
+                      </button>
+                      <button onClick={() => bukaPlatform(t, true)} className="rounded-lg border border-violet-300 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                        ✏️ Input manual semua kanal
                       </button>
                       <button onClick={() => (setMsg(null), setKoreksi({ tanggal: t, kanal: "tunai", jumlah: "", ket: "" }))} className="rounded-lg border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-700">
                         ± Koreksi
@@ -415,11 +430,45 @@ export function CatatanHarian({
         </Modal>
       )}
 
+      {tambah && (
+        <Modal title="+ Tambah data harian">
+          <label className="block text-sm font-semibold">
+            Tanggal
+            <input type="date" value={tambah} min={`${bulan}-01`} max={hari.length ? hari[hari.length - 1].tanggal : undefined} onChange={(e) => e.target.value && setTambah(e.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2 font-normal" />
+          </label>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["✏️ Penjualan manual", "tunai, non tunai, online food, Ruma App, diskon", () => bukaPlatform(tambah, true)],
+                ["🛵 Online food", "angka dari dashboard GoFood/Grab/Shopee/TikTok", () => bukaPlatform(tambah)],
+                ["± Koreksi penjualan", "tambah / kurangi angka satu kanal", () => setKoreksi({ tanggal: tambah, kanal: "tunai", jumlah: "", ket: "" })],
+                ["🧾 Pengeluaran", "es kristal, galon, bahan baku, gaji, dll.", () => setForm({ tanggal: tambah })],
+                ["🎁 Produk marketing", "endorse / sampel / promo", () => setMkt({ tanggal: tambah, penerima: "", jenis: "endorse", catatan: "", items: [{ menu_id: menu[0]?.id ?? "", qty: "1" }] })],
+              ] as [string, string, () => void][]
+            ).map(([j, ket, fn]) => (
+              <button key={j} onClick={() => (setTambah(null), setBuka(tambah), fn())} className="rounded-xl border-2 border-stone-200 p-3 text-left hover:border-kopi-700">
+                <span className="block font-semibold">{j}</span>
+                <span className="text-xs text-stone-500">{ket}</span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button onClick={() => setTambah(null)} className="rounded-lg border px-4 py-2 text-sm">
+              Batal
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {platform && (
-        <Modal title={`🛵 Online food · ${formatTanggal(platform.tanggal)}`}>
-          <p className="mb-2 text-xs text-stone-500">Isi angka dari dashboard masing-masing platform. Kosongkan bila ingin tetap memakai angka dari kasir POS.</p>
+        <Modal title={`${platform.semua ? "✏️ Penjualan manual" : "🛵 Online food"} · ${formatTanggal(platform.tanggal)}`}>
+          <p className="mb-2 text-xs text-stone-500">
+            {platform.semua
+              ? "Isi angka penjualan per kanal secara manual (mis. hari sebelum memakai POS Matoer, atau data dari catatan kertas). Angka ini menggantikan angka POS untuk tanggal tsb. Kosongkan = tetap pakai angka POS."
+              : "Isi angka dari dashboard masing-masing platform. Kosongkan bila ingin tetap memakai angka dari kasir POS."}
+          </p>
           <div className="space-y-2">
-            {OJOL.map((k) => (
+            {(platform.semua ? SEMUA : OJOL).map((k) => (
               <label key={k} className="flex items-center gap-2 text-sm">
                 <span className="w-24">{LABEL_KANAL[k]}</span>
                 <span className="w-28 text-right text-xs text-stone-500">POS {formatRupiah(nilai.get(platform.tanggal)?.[k].pos ?? 0)}</span>
@@ -433,7 +482,7 @@ export function CatatanHarian({
             <button onClick={() => setPlatform(null)} className="rounded-lg border px-4 py-2 text-sm">
               Batal
             </button>
-            <button disabled={pending} onClick={() => run(() => simpanAngkaPlatform(outletId, platform.tanggal, Object.fromEntries(OJOL.map((k) => [k, num(platform.isi[k] ?? "")])), platform.ket), () => setPlatform(null))} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white">
+            <button disabled={pending} onClick={() => run(() => simpanAngkaPlatform(outletId, platform.tanggal, Object.fromEntries((platform.semua ? SEMUA : OJOL).map((k) => [k, num(platform.isi[k] ?? "")])), platform.ket || (platform.semua ? "input manual" : "")), () => setPlatform(null))} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white">
               Simpan
             </button>
           </div>

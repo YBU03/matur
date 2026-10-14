@@ -31,6 +31,8 @@ export type Entity = {
   fields: Field[];
   /** tampil sebagai kartu bergambar (bukan tabel) */
   card?: string;
+  /** kolom tanggal untuk filter per bulan / rentang tanggal */
+  periode?: string;
 };
 
 export const ENTITIES: Record<string, Entity> = {
@@ -105,7 +107,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "harga_ojol", label: "Harga Ojol", type: "money", required: true },
       { key: "aktif", label: "Aktif", type: "bool" },
       { key: "titipan", label: "Produk titipan (konsinyasi)", type: "bool", list: false },
-      { key: "produsen", label: "Produsen titipan (mis. Bu Ratna)", type: "text", list: false },
+      { key: "produsen_id", label: "Produsen titipan", type: "select", ref: { table: "produsen_titipan", label: "nama" }, list: false },
       { key: "harga_titip", label: "Harga dari produsen / pcs", type: "money", list: false },
       { key: "urutan", label: "Urutan di POS", type: "number", list: false },
     ],
@@ -153,6 +155,17 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "varian_id", label: "Varian (kosong = semua)", type: "select", ref: { table: "varian", label: "nama" } },
       { key: "bahan_id", label: "Bahan", type: "select", ref: { table: "bahan", label: "nama" }, required: true },
       { key: "takaran", label: "Takaran (satuan pakai)", type: "number", required: true },
+    ],
+  },
+  produsen_titipan: {
+    table: "produsen_titipan",
+    title: "Produsen Titipan",
+    nameKey: "nama",
+    editors: ["owner", "admin_pusat", "finance", "admin_gudang"],
+    fields: [
+      { key: "nama", label: "Nama Produsen", type: "text", required: true },
+      { key: "kontak", label: "Kontak / No. HP", type: "text" },
+      { key: "catatan", label: "Catatan (produk, rekening, dll.)", type: "text" },
     ],
   },
   supplier: {
@@ -296,6 +309,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "biaya_outlet",
     title: "Biaya Operasional",
     nameKey: "keterangan",
+    periode: "tanggal",
     editors: ["owner", "admin_pusat", "finance", "spv"],
     fields: [
       { key: "tanggal", label: "Tanggal", type: "date", required: true },

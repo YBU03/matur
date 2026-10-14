@@ -29,6 +29,13 @@ type Props = {
 };
 
 const cls = "w-full rounded-lg border border-stone-300 px-2 py-1.5 text-right text-sm tabular-nums outline-none focus:border-matur-500";
+/** Tagihan titipan per produsen; bila total diubah manual & tidak cocok lagi, dicatat satu baris "Titipan (disesuaikan)". */
+function rincianTitipan(xs: { produsen: string; tagihan: number }[], total: number) {
+  const per = new Map<string, number>();
+  for (const x of xs) per.set(x.produsen || "-", (per.get(x.produsen || "-") ?? 0) + Number(x.tagihan));
+  const r = [...per].map(([produsen, jumlah]) => ({ produsen, jumlah: Math.round(jumlah) }));
+  return r.reduce((t, x) => t + x.jumlah, 0) === total ? r : total ? [{ produsen: "Titipan (disesuaikan)", jumlah: total }] : [];
+}
 const n = (v: string) => Math.round(Number(v.replace(/[^\d-]/g, "")) || 0);
 
 export function ProyeksiForm(p: Props) {
@@ -91,6 +98,7 @@ export function ProyeksiForm(p: Props) {
       persediaan_awal: n(stok.awal),
       pembelian: n(stok.pembelian),
       tagihan_titipan: n(stok.titipan),
+      rincian_titipan: rincianTitipan(p.titipan ?? [], n(stok.titipan)),
       persediaan_akhir: n(stok.akhir),
       pendapatan,
       diskon: Math.round(p.proy?.diskon ?? 0),
@@ -233,7 +241,7 @@ export function ProyeksiForm(p: Props) {
         <Baris k="Pembelian bahan baku">
           <Angka v={stok.pembelian} onChange={(v) => setStok({ ...stok, pembelian: v })} auto />
         </Baris>
-        <Baris k="Tagihan dessert & cheesecake (titipan terjual)">
+        <Baris k="Tagihan titipan produsen (yang terjual)">
           <Angka v={stok.titipan} onChange={(v) => setStok({ ...stok, titipan: v })} auto={(p.titipan ?? []).length > 0} />
         </Baris>
         {(p.titipan ?? []).length > 0 && (

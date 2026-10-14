@@ -10,13 +10,15 @@ export function QrisTampil({ q, nominal, ukuran = 280 }: { q: QrisOutlet; nomina
   const [src, setSrc] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const pakaiDinamis = q.dinamis && !!q.payload && !!nominal && nominal > 0;
+  // statis tanpa gambar: QR dibuat dari kode QRIS apa adanya (tanpa nominal)
+  const dariKode = !pakaiDinamis && !q.url && !!q.payload;
   useEffect(() => {
     let aktif = true;
-    if (!pakaiDinamis) return;
+    if (!pakaiDinamis && !dariKode) return;
     (async () => {
       try {
         const QR = (await import("qrcode")).default;
-        const url = await QR.toDataURL(qrisDinamis(q.payload!, nominal!), { width: ukuran * 2, margin: 1, errorCorrectionLevel: "M" });
+        const url = await QR.toDataURL(pakaiDinamis ? qrisDinamis(q.payload!, nominal!) : q.payload!.trim(), { width: ukuran * 2, margin: 1, errorCorrectionLevel: "M" });
         if (aktif) setSrc(url);
       } catch (e) {
         if (aktif) setErr((e as Error).message);
@@ -25,9 +27,9 @@ export function QrisTampil({ q, nominal, ukuran = 280 }: { q: QrisOutlet; nomina
     return () => {
       aktif = false;
     };
-  }, [pakaiDinamis, q.payload, nominal, ukuran]);
+  }, [pakaiDinamis, dariKode, q.payload, nominal, ukuran]);
 
-  if (pakaiDinamis && !err)
+  if ((pakaiDinamis || dariKode) && !err)
     return src ? (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={src} alt="QRIS dengan nominal" width={ukuran} height={ukuran} className="mx-auto rounded-lg bg-white" />

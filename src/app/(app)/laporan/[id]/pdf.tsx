@@ -69,7 +69,7 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       y = bertumpuk(doc, 14, y + 7, W - 28, [
         { name: "HPP (bahan baku)", value: v.hpp },
         { name: "Beban operasional", value: v.beban },
-        { name: "Sedekah", value: v.sedekah },
+        { name: `Sedekah (${String(v.persenSedekah).replace(".", ",")}% laba kotor)`, value: v.sedekah, persen: v.persenSedekah },
         { name: "Laba bersih", value: Math.max(v.labaBersih, 0) },
       ]) + 6;
       if (v.riwayat.length > 1) {
@@ -123,7 +123,9 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       sec("HARGA POKOK PENJUALAN", [
         ["Persediaan awal barang dagangan", l.persediaan_awal],
         ["Pembelian bahan baku", l.pembelian, "(+)"],
-        ...(Number(l.tagihan_titipan ?? 0) > 0 ? [["Tagihan dessert & cheesecake", Number(l.tagihan_titipan), "(+)"] as [string, number, string]] : []),
+        ...(Number(l.tagihan_titipan ?? 0) > 0
+          ? [[(l.rincian_titipan ?? []).length === 1 ? `Tagihan titipan (${l.rincian_titipan![0].produsen})` : "Tagihan titipan produsen", Number(l.tagihan_titipan), "(+)"] as [string, number, string]]
+          : []),
         ["Barang yang tersedia untuk dijual", h.tersedia],
         ["Persediaan akhir barang dagangan", l.persediaan_akhir, "(-)"],
         ["Harga pokok penjualan", h.hpp],

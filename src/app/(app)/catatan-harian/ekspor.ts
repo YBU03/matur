@@ -2,6 +2,7 @@
 // A Tanggal · B–C Keterangan · D–K Penjualan · L–AA Pengeluaran · AB Penjualan · AC Pengeluaran.
 // Angka penjualan memakai nilai akhir (POS / dashboard platform + koreksi).
 import { nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
+import { KELUAR, kolomKategori } from "@/lib/ruma-excel";
 import type { Biaya, Hari, ProdukKeluar } from "./catatan-view";
 
 type Kat = { id: string; nama: string; grup: string; urutan: number };
@@ -16,40 +17,12 @@ const JUAL: [KanalHarian, string][] = [
   ["shopeefood", "Shopee Food"],
   ["diskon", "Discount"],
 ];
-// kolom pengeluaran Ruma + kata kunci untuk mencocokkan nama kategori biaya di Matoer
-const KELUAR: [string, RegExp][] = [
-  ["Es Kristal", /es kristal|es batu/],
-  ["Bahan Baku", /bahan baku|dessert|snack|titip/],
-  ["Biaya Galon", /galon/],
-  ["Sewa Outlet", /sewa/],
-  ["Listrik", /listrik|pln|token/],
-  ["Internet", /internet|wifi|indihome/],
-  ["Air", /^(biaya )?air|pdam/],
-  ["Maintenance", /maintenance|servis|service/],
-  ["B. Gaji", /gaji|upah|lembur/],
-  ["Biaya Perlengkapan", /perlengkapan/],
-  ["Biaya Pemeliharaan Lingkungan", /lingkungan|kebersihan|sampah|keamanan/],
-  ["Biaya Lain-lain", /lain/],
-  ["Reimburse", /reimburse/],
-  ["Sedekah", /sedekah|donasi|infaq|zakat/],
-  ["Distribusi", /distribusi|ongkir|kirim/],
-  ["Marketing", /marketing|promosi|iklan|endorse|influencer/],
-];
 const KOL_JUAL = 4; // D
 const KOL_KELUAR = KOL_JUAL + JUAL.length; // L
 const KOL_AB = KOL_KELUAR + KELUAR.length; // AB
 const LEBAR = KOL_AB + 1; // AC
 const HIJAU = "FFC5E0B3";
 const RP = '_("Rp"* #,##0_);_("Rp"* (#,##0);_("Rp"* "-"_);_(@_)';
-const LAIN = KELUAR.findIndex(([n]) => n === "Biaya Lain-lain");
-
-/** Indeks kolom pengeluaran (0-based dalam KELUAR) untuk sebuah nama kategori. */
-export function kolomKategori(nama: string) {
-  const n = nama.toLowerCase().trim();
-  const i = KELUAR.findIndex(([, re]) => re.test(n));
-  return i < 0 ? LAIN : i;
-}
-
 const huruf = (c: number) => {
   let s = "";
   for (let n = c; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;

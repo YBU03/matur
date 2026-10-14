@@ -16,6 +16,8 @@ export type Laporan = {
   pembelian: number;
   /** tagihan dessert & cheesecake titipan: yang terjual × harga produsen (masuk HPP) */
   tagihan_titipan?: number;
+  /** rincian tagihan titipan per produsen (mis. Bu Ratna) */
+  rincian_titipan?: { produsen: string; jumlah: number }[];
   persediaan_akhir: number;
   pendapatan: Baris[];
   diskon: number;
@@ -35,7 +37,7 @@ export type Laporan = {
 export type Perusahaan = { nama: string; alamat: string | null; email: string | null; telepon: string | null };
 
 export const LAPORAN_COLS =
-  "id, outlet_id, periode, nama_outlet, mitra, pj_laporan, karyawan, modal_awal, persediaan_awal, pembelian, tagihan_titipan, persediaan_akhir, pendapatan, diskon, persen_sedekah, sedekah, beban, bagi_hasil, transfer, tgl_terbit, kota_terbit, penandatangan, jabatan_penandatangan, catatan, laba_bersih, outlet(nama, tgl_mulai, jam_operasional)";
+  "id, outlet_id, periode, nama_outlet, mitra, pj_laporan, karyawan, modal_awal, persediaan_awal, pembelian, tagihan_titipan, rincian_titipan, persediaan_akhir, pendapatan, diskon, persen_sedekah, sedekah, beban, bagi_hasil, transfer, tgl_terbit, kota_terbit, penandatangan, jabatan_penandatangan, catatan, laba_bersih, outlet(nama, tgl_mulai, jam_operasional)";
 
 const sum = (xs: { jumlah: number }[]) => xs.reduce((s, x) => s + Number(x.jumlah || 0), 0);
 

@@ -26,7 +26,7 @@ export default async function Titipan({ searchParams }: { searchParams: Promise<
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Titipan Dessert & Cheesecake</h1>
+        <h1 className="text-2xl font-bold">Titipan Produk</h1>
         <p className="text-sm text-stone-500">Barang titipan produsen (mis. Bu Ratna). Barang masuk tidak dibebankan — yang menjadi HPP hanya yang <b>terjual</b> (tercatat otomatis dari kasir) × harga produsen.</p>
       </div>
       <PilihOutlet outlets={outlets} pilih={outlet.id} href={(id) => `/titipan?outlet=${id}&bulan=${bulan}`} />

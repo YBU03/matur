@@ -57,6 +57,7 @@ export default async function CatatanHarianPage({ searchParams }: { searchParams
       produk={(produk ?? []) as ProdukKeluar[]}
       sesi={(sesi ?? []) as Sesi[]}
       menu={menu ?? []}
+      bolehImpor={["owner", "admin_pusat", "finance"].includes(s.active.role)}
     />
   );
 }

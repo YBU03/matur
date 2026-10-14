@@ -7,7 +7,7 @@ import { AkunKaryawan, type AkunBebas, type KaryawanAkun } from "./akun-karyawan
 import { MasterTable } from "./master-table";
 
 // tabel tanpa kolom mode (asli/simulasi)
-const NO_MODE = new Set(["kategori_biaya", "pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal", "catatan_proyek"]);
+const NO_MODE = new Set(["produsen_titipan", "kategori_biaya", "pengguna", "mitra", "jadwal_proyek", "setoran_mitra", "checklist_proyek", "usulan_tanggal", "catatan_proyek"]);
 
 export default async function MasterPage({
   params,
@@ -30,6 +30,16 @@ export default async function MasterPage({
   if (!NO_MODE.has(entity.table)) q = q.eq("mode", "asli"); // data simulasi tidak tampil di data master
   q = trash ? q.not("deleted_at", "is", null).order("deleted_at", { ascending: false }) : q.is("deleted_at", null);
   for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+  // filter periode (per bulan atau rentang tanggal bebas), bawaan: bulan berjalan
+  let periode: { bulan: string | null; dari: string; sampai: string } | undefined;
+  if (entity.periode && !trash) {
+    const tgl = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+    const kini = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+    const bulan = /^\d{4}-\d{2}$/.test(sp.bulan ?? "") ? sp.bulan! : tgl(sp.dari) ? null : kini.slice(0, 7);
+    const akhirBulan = (b: string) => new Date(Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)), 0)).toISOString().slice(0, 10);
+    periode = bulan ? { bulan, dari: `${bulan}-01`, sampai: akhirBulan(bulan) } : { bulan: null, dari: tgl(sp.dari)!, sampai: tgl(sp.sampai) ?? kini };
+    q = q.gte(entity.periode, periode.dari).lte(entity.periode, periode.sampai).order(entity.periode, { ascending: false }).limit(3000);
+  }
   const { data: rows } = await q;
 
   // opsi untuk kolom rujukan (select)
@@ -91,6 +101,7 @@ export default async function MasterPage({
     {akun && <AkunKaryawan data={akun.data} bebas={akun.bebas} />}
     <MasterTable
       kelompok={kelompok}
+      periode={periode}
       entityKey={key}
       entity={entity}
       rows={(rows ?? []) as Record<string, unknown>[]}
