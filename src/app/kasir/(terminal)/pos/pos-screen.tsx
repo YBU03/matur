@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
+import { QrisTampil, type QrisOutlet } from "@/components/qris-tampil";
 import { formatRupiah } from "@/lib/format";
 import { batalDraft, bayar, izinDiskonSpv, simpanDraft, type Checkout, type DraftItem, type Receipt } from "@/lib/pos-actions";
 import { bacaAntrean, galatJaringan, hapusTertunda, simpanTertunda } from "@/lib/pos-offline";
@@ -77,7 +78,7 @@ function useAntreanOffline() {
   return { jumlah, kirim, kirimSemua };
 }
 
-export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, drafts, sesiId }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number; drafts: Draft[]; sesiId: string }) {
+export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, drafts, sesiId, qris }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number; drafts: Draft[]; sesiId: string; qris: QrisOutlet | null }) {
   const [kat, setKat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [cart, setCart] = useState<Line[]>([]);
@@ -88,6 +89,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
   const [meja, setMeja] = useState("");
   const [diskon, setDiskon] = useState("");
   const [metode, setMetode] = useState<string>("tunai");
+  const [lihatQris, setLihatQris] = useState<number | null>(null);
   const [diterima, setDiterima] = useState("");
   const [err, setErr] = useState("");
   const [receipt, setReceipt] = useState<{ r: Receipt; lines: Line[]; kanal: string; metode: string; offline?: boolean } | null>(null);
@@ -313,6 +315,16 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
             ))}
           <button onClick={() => setSplit(!split)} className={`${chip(split)} ml-auto`}>{split ? "✕ Satu metode" : "➗ Split bayar"}</button>
         </div>
+        {!split && metode === "qris" && total > 0 && (
+          <button onClick={() => setLihatQris(total)} disabled={!qris} className="w-full rounded-xl border-2 border-sky-500 bg-sky-50 py-2 text-sm font-bold text-sky-700 disabled:opacity-50">
+            {qris ? `📱 Tampilkan QRIS ${qris.dinamis ? formatRupiah(total) : ""}` : "QRIS outlet belum diatur (Pengaturan → QRIS Outlet)"}
+          </button>
+        )}
+        {split && qris && bayarList.some((b) => b.metode === "qris" && num(b.nominal) > 0) && (
+          <button onClick={() => setLihatQris(bayarList.filter((b) => b.metode === "qris").reduce((t, b) => t + num(b.nominal), 0))} className="w-full rounded-xl border-2 border-sky-500 bg-sky-50 py-2 text-sm font-bold text-sky-700">
+            📱 Tampilkan QRIS bagian split
+          </button>
+        )}
         {!split && metode === "tunai" && (
           <label className="flex items-center justify-between text-sm">
             Uang diterima
@@ -386,6 +398,19 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
           </ul>
           <div className="mt-3 text-right">
             <button onClick={() => setLihatDraft(false)} className="rounded-lg border px-4 py-2 text-sm">Tutup</button>
+          </div>
+        </Modal>
+      )}
+      {lihatQris !== null && qris && (
+        <Modal title="Scan untuk bayar">
+          <div className="space-y-2 text-center">
+            <QrisTampil q={qris} nominal={lihatQris} ukuran={300} />
+            {qris.nama && <p className="font-semibold">{qris.nama}</p>}
+            <p className="text-3xl font-bold tabular-nums">{formatRupiah(lihatQris)}</p>
+            <p className="text-xs text-stone-500">{qris.dinamis ? "Nominal sudah tertera otomatis — pelanggan tinggal scan & konfirmasi." : "Minta pelanggan mengetik nominal di atas."} Cek notifikasi dana masuk sebelum menekan Bayar.</p>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button onClick={() => setLihatQris(null)} className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white">Tutup</button>
           </div>
         </Modal>
       )}
