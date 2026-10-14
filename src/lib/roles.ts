@@ -43,6 +43,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/mitra", label: "Mitra", stage: 2 },
       { href: "/master/perjanjian", label: "Perjanjian Mitra", stage: 2 },
@@ -83,7 +84,7 @@ export const ROLES: Record<Role, RoleDef> = {
     accent: "bg-violet-600",
     login: "password",
     allOutlets: false,
-    menu: [dash, { href: "/master/outlet", label: "Outlet Wilayah", stage: 2 }, { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 }],
+    menu: [dash, { href: "/stok-realtime", label: "Stok Real-time", stage: 4 }, { href: "/master/outlet", label: "Outlet Wilayah", stage: 2 }, { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 }],
   },
   finance: {
     label: "Finance / Akuntan",
@@ -93,6 +94,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
       { href: "/master/biaya_outlet", label: "Biaya Operasional", stage: 4 },
       { href: "/persediaan", label: "Persediaan & HPP", stage: 4 },
@@ -135,6 +137,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/pengguna", label: "Pengguna & Persetujuan", stage: 3 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
@@ -172,6 +175,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/gudang/stok", label: "Bahan & Stok Gudang", stage: 4 },
       { href: "/pengaturan/qris", label: "QRIS Outlet", stage: 4 },
       { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
@@ -198,6 +202,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [
       dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
       { href: "/kasir", label: "Buka Aplikasi POS", stage: 3 },
       { href: "/gudang/kiriman", label: "Kiriman Masuk", stage: 4 },
