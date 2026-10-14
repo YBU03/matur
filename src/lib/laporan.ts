@@ -14,6 +14,8 @@ export type Laporan = {
   modal_awal: number;
   persediaan_awal: number;
   pembelian: number;
+  /** tagihan dessert & cheesecake titipan: yang terjual × harga produsen (masuk HPP) */
+  tagihan_titipan?: number;
   persediaan_akhir: number;
   pendapatan: Baris[];
   diskon: number;
@@ -33,14 +35,15 @@ export type Laporan = {
 export type Perusahaan = { nama: string; alamat: string | null; email: string | null; telepon: string | null };
 
 export const LAPORAN_COLS =
-  "id, outlet_id, periode, nama_outlet, mitra, pj_laporan, karyawan, modal_awal, persediaan_awal, pembelian, persediaan_akhir, pendapatan, diskon, persen_sedekah, sedekah, beban, bagi_hasil, transfer, tgl_terbit, kota_terbit, penandatangan, jabatan_penandatangan, catatan, laba_bersih, outlet(nama, tgl_mulai, jam_operasional)";
+  "id, outlet_id, periode, nama_outlet, mitra, pj_laporan, karyawan, modal_awal, persediaan_awal, pembelian, tagihan_titipan, persediaan_akhir, pendapatan, diskon, persen_sedekah, sedekah, beban, bagi_hasil, transfer, tgl_terbit, kota_terbit, penandatangan, jabatan_penandatangan, catatan, laba_bersih, outlet(nama, tgl_mulai, jam_operasional)";
 
 const sum = (xs: { jumlah: number }[]) => xs.reduce((s, x) => s + Number(x.jumlah || 0), 0);
 
 /** Hitungan laporan; laba bersih memakai angka resmi bila tersimpan (selisih pembulatan Excel ±Rp1). */
 export function hitung(l: Laporan) {
   const totalPenjualan = sum(l.pendapatan) - l.diskon;
-  const tersedia = l.persediaan_awal + l.pembelian;
+  // HPP = persediaan awal + pembelian bahan baku + tagihan dessert & cheesecake − persediaan akhir
+  const tersedia = l.persediaan_awal + l.pembelian + Number(l.tagihan_titipan ?? 0);
   const hpp = tersedia - l.persediaan_akhir;
   const labaKotor = totalPenjualan - hpp;
   const labaBersih = l.laba_bersih ?? labaKotor - l.sedekah - sum(l.beban);

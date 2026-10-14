@@ -99,6 +99,7 @@ export default async function DetailLaporan({ params }: { params: Promise<{ id: 
         <Bagian judul="Harga Pokok Penjualan">
           <Row k="Persediaan awal barang dagangan" v={l.persediaan_awal} />
           <Row k="Pembelian bahan baku" v={l.pembelian} op="+" />
+          {Number(l.tagihan_titipan ?? 0) > 0 && <Row k="Tagihan dessert & cheesecake (titipan terjual)" v={Number(l.tagihan_titipan)} op="+" />}
           <Row k="Barang yang tersedia untuk dijual" v={h.tersedia} sub />
           <Row k="Persediaan akhir barang dagangan" v={l.persediaan_akhir} op="−" />
           <Row k="Harga pokok penjualan" v={h.hpp} total />

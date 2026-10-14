@@ -15,6 +15,7 @@ export type DataTerbit = {
   modal_awal: number;
   persediaan_awal: number;
   pembelian: number;
+  tagihan_titipan?: number;
   persediaan_akhir: number;
   pendapatan: Baris[];
   diskon: number;
@@ -48,6 +49,7 @@ export async function terbitkanLaporan(d: DataTerbit, ganti: boolean): Promise<{
     modal_awal: bulat(d.modal_awal),
     persediaan_awal: bulat(d.persediaan_awal),
     pembelian: bulat(d.pembelian),
+    tagihan_titipan: bulat(d.tagihan_titipan),
     persediaan_akhir: bulat(d.persediaan_akhir),
     pendapatan: baris(d.pendapatan),
     diskon: bulat(d.diskon),

@@ -31,6 +31,8 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
     supabase.from("penutupan_bulan").select("ojol, koreksi_lain, persediaan_akhir, catatan").eq("outlet_id", outlet.id).eq("periode", periode).eq("mode", "asli").maybeSingle(),
   ]);
   const sebelum = prev as unknown as Laporan | null;
+  // titipan (cheesecake & dessert): yang dibebankan hanya yang terjual × harga produsen
+  const { data: rekapTitip } = await supabase.rpc("rekap_titipan", { p_outlet: outlet.id, p_periode: periode });
   return (
     <ProyeksiForm
       key={`${outlet.id}-${bulan}-${sim}`}
@@ -53,6 +55,7 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
       karyawan={(kar ?? []).map((k) => (k.is_spv ? `${k.nama} (SPV)` : k.nama))}
       penandatangan={{ nama: pt?.penandatangan_nama ?? null, jabatan: pt?.penandatangan_jabatan ?? null }}
       namaOutlet={sebelum?.nama_outlet ?? outlet.nama}
+      titipan={((rekapTitip ?? []) as { nama: string; produsen: string; terjual: number; harga: number; tagihan: number }[]).filter((x) => x.terjual)}
     />
   );
 }

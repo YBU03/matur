@@ -1,5 +1,6 @@
 "use client";
 
+import { hariLibur } from "@/lib/jadwal/hari-libur";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addDays, eachDate } from "@/lib/jadwal/waktu";
@@ -32,6 +33,8 @@ export function JadwalSaya({ saya, today, shifts, nama, jadwal, izin, tukar }: {
   const besok = addDays(today, 1);
   const urut = (a: Jadwal, b: Jadwal) => a.tanggal.localeCompare(b.tanggal) || (shift.get(a.shift_id)?.jam_mulai ?? "").localeCompare(shift.get(b.shift_id)?.jam_mulai ?? "");
   const milikSaya = jadwal.filter((j) => j.pengguna_id === saya).sort(urut);
+  // hari libur: tanggal yang sudah dijadwalkan untuk outlet tapi saya tidak dapat shift (dan bukan izin)
+  const liburSaya = [...hariLibur([saya], jadwal, izin as never)].map(([t]) => t).filter((t) => t >= today).sort();
   const sedangDitukar = new Set(tukar.filter((t) => ["menunggu_rekan", "menunggu_atasan"].includes(t.status)).flatMap((t) => [t.jadwal_pengaju, t.jadwal_rekan]));
   const pilihan = jadwal.filter((j) => j.pengguna_id !== saya && j.tanggal >= besok && !sedangDitukar.has(j.id)).sort(urut);
   const label = (j: Jadwal | undefined) => (j ? `${tgl(j.tanggal)} · ${shift.get(j.shift_id)?.nama ?? ""} ${shift.get(j.shift_id)?.jam_mulai ?? ""}` : "jadwal lama");
@@ -81,7 +84,12 @@ export function JadwalSaya({ saya, today, shifts, nama, jadwal, izin, tukar }: {
 
       {tab === "saya" ? (
         <ul className="space-y-2">
-          {!milikSaya.length && <li className="rounded-xl bg-white p-4 text-center text-sm text-stone-500">Belum ada jadwal terbit untuk Anda.</li>}
+          {!milikSaya.length && !liburSaya.length && <li className="rounded-xl bg-white p-4 text-center text-sm text-stone-500">Belum ada jadwal terbit untuk Anda.</li>}
+          {liburSaya.length > 0 && (
+            <li className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              🌴 <b>Hari libur Anda:</b> {liburSaya.map((t) => (t === today ? "hari ini" : tgl(t))).join(", ")}
+            </li>
+          )}
           {milikSaya.map((j) => {
             const s = shift.get(j.shift_id);
             return (

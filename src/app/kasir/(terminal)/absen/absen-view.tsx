@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { compressImage } from "@/lib/compress-image";
 import { formatDurasi, menitKerja } from "@/lib/jadwal/rekap";
 import { absen, type Result } from "@/lib/sdm-actions";
+import { KameraSelfie } from "./kamera-selfie";
 
 type Shift = { nama: string; jam_mulai: string; jam_selesai: string };
 type Riwayat = { id: string; tanggal: string; masuk_at: string; pulang_at: string | null; status: string; telat_menit: number };
@@ -36,6 +37,12 @@ export function AbsenView({ nama, outletNama, jadwalHariIni, terbuka, riwayat }:
   const [preview, setPreview] = useState<string | null>(null);
   const [proses, setProses] = useState("");
   const [hasil, setHasil] = useState<(Result & { lokasiKosong?: boolean }) | null>(null);
+  const [kameraBuka, setKameraBuka] = useState(false);
+  // bila kamera langsung tidak bisa dipakai, jatuh ke pemilih foto bawaan perangkat
+  const pakaiPemilih = useCallback(() => {
+    setKameraBuka(false);
+    kamera.current?.click();
+  }, []);
 
   useEffect(() => {
     try {
@@ -58,7 +65,8 @@ export function AbsenView({ nama, outletNama, jadwalHariIni, terbuka, riwayat }:
     setJenis(j);
     setHasil(null);
     lokasi.current = ambilLokasi(); // minta izin lokasi bersamaan dengan membuka kamera
-    kamera.current?.click();
+    if (typeof navigator.mediaDevices?.getUserMedia === "function") setKameraBuka(true);
+    else kamera.current?.click();
   };
 
   const kirim = async (file: File | undefined) => {
@@ -101,6 +109,18 @@ export function AbsenView({ nama, outletNama, jadwalHariIni, terbuka, riwayat }:
   return (
     <div className="mx-auto max-w-md space-y-4">
       <input ref={kamera} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => kirim(e.target.files?.[0])} />
+      {kameraBuka && (
+        <KameraSelfie
+          jenis={jenis}
+          nama={mode === "lain" ? `Kode staf: ${kode.login}` : nama}
+          onAmbil={(f) => {
+            setKameraBuka(false);
+            kirim(f);
+          }}
+          onBatal={() => setKameraBuka(false)}
+          onGagal={pakaiPemilih}
+        />
+      )}
       <div className="flex rounded-xl bg-matur-50 p-1 text-sm font-semibold">
         {(["saya", "lain"] as const).map((m) => (
           <button key={m} onClick={() => {
@@ -139,11 +159,11 @@ export function AbsenView({ nama, outletNama, jadwalHariIni, terbuka, riwayat }:
           <div className="flex gap-2">
             {terbuka ? (
               <button disabled={!!proses} onClick={() => mulai("pulang")} className={`${tombol} bg-kopi-700`}>
-                📷 Absen Pulang
+                📸 Clock Out (pulang)
               </button>
             ) : (
               <button disabled={!!proses} onClick={() => mulai("masuk")} className={`${tombol} bg-green-700`}>
-                📷 Absen Masuk
+                📸 Clock In (masuk)
               </button>
             )}
           </div>
@@ -161,10 +181,10 @@ export function AbsenView({ nama, outletNama, jadwalHariIni, terbuka, riwayat }:
           </label>
           <div className="flex gap-2">
             <button disabled={!!proses} onClick={() => mulai("masuk")} className={`${tombol} bg-green-700`}>
-              Masuk
+              Clock In
             </button>
             <button disabled={!!proses} onClick={() => mulai("pulang")} className={`${tombol} bg-kopi-700`}>
-              Pulang
+              Clock Out
             </button>
           </div>
         </section>

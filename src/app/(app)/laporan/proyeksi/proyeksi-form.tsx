@@ -9,6 +9,8 @@ import { simpanPenutupan, terbitkanLaporan } from "@/lib/laporan-actions";
 import type { Rincian } from "@/lib/skema-actions";
 
 type Props = {
+  /** titipan terjual bulan ini (cheesecake & dessert) */
+  titipan?: { nama: string; produsen: string; terjual: number; harga: number; tagihan: number }[];
   outlets: { id: string; nama: string }[];
   outletId: string;
   bulan: string;
@@ -54,6 +56,7 @@ export function ProyeksiForm(p: Props) {
     awal: String(p.sebelum?.persediaan_akhir ?? 0),
     pembelian: String(p.proy?.pembelian ?? 0),
     akhir: String(p.penutupan?.persediaan_akhir ?? p.proy?.opname?.nilai ?? p.proy?.persediaan_akhir_sistem ?? 0),
+    titipan: String((p.titipan ?? []).reduce((t, x) => t + Number(x.tagihan), 0)),
   });
   const [info, setInfo] = useState({
     nama_outlet: p.namaOutlet,
@@ -87,6 +90,7 @@ export function ProyeksiForm(p: Props) {
       modal_awal: modalAwal,
       persediaan_awal: n(stok.awal),
       pembelian: n(stok.pembelian),
+      tagihan_titipan: n(stok.titipan),
       persediaan_akhir: n(stok.akhir),
       pendapatan,
       diskon: Math.round(p.proy?.diskon ?? 0),
@@ -229,6 +233,14 @@ export function ProyeksiForm(p: Props) {
         <Baris k="Pembelian bahan baku">
           <Angka v={stok.pembelian} onChange={(v) => setStok({ ...stok, pembelian: v })} auto />
         </Baris>
+        <Baris k="Tagihan dessert & cheesecake (titipan terjual)">
+          <Angka v={stok.titipan} onChange={(v) => setStok({ ...stok, titipan: v })} auto={(p.titipan ?? []).length > 0} />
+        </Baris>
+        {(p.titipan ?? []).length > 0 && (
+          <p className="pl-3 text-xs text-stone-500">
+            {p.titipan!.map((x) => `${x.nama} ${x.terjual} pcs × ${formatRupiah(x.harga)}`).join(" · ")} (produsen: {[...new Set(p.titipan!.map((x) => x.produsen))].join(", ")}). Yang dibebankan hanya yang terjual.
+          </p>
+        )}
         <Baris k="Persediaan akhir (isi dengan hasil opname)">
           <Angka v={stok.akhir} onChange={(v) => setStok({ ...stok, akhir: v })} />
         </Baris>

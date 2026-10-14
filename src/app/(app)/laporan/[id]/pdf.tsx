@@ -123,10 +123,11 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       sec("HARGA POKOK PENJUALAN", [
         ["Persediaan awal barang dagangan", l.persediaan_awal],
         ["Pembelian bahan baku", l.pembelian, "(+)"],
+        ...(Number(l.tagihan_titipan ?? 0) > 0 ? [["Tagihan dessert & cheesecake", Number(l.tagihan_titipan), "(+)"] as [string, number, string]] : []),
         ["Barang yang tersedia untuk dijual", h.tersedia],
         ["Persediaan akhir barang dagangan", l.persediaan_akhir, "(-)"],
         ["Harga pokok penjualan", h.hpp],
-      ], [4]);
+      ], [Number(l.tagihan_titipan ?? 0) > 0 ? 5 : 4]);
       const pend = [...l.pendapatan.map((p) => [`   ${p.nama}`, p.jumlah]), ["   Discount", -l.diskon, "(+)"]];
       const beban = [[`   Sedekah ${String(l.persen_sedekah).replace(".", ",")}%`, l.sedekah], ...l.beban.map((b) => [`   ${b.nama}`, b.jumlah])];
       const lr: (string | number)[][] = [

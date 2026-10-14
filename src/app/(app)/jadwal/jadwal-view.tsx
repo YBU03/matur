@@ -1,5 +1,6 @@
 "use client";
 
+import { hariLibur, rekapLibur } from "@/lib/jadwal/hari-libur";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -130,6 +131,9 @@ function Kalender(p: Props & Aksi) {
   const izinHari = new Map<string, Izin[]>();
   for (const i of p.izin) izinHari.set(i.tanggal, [...(izinHari.get(i.tanggal) ?? []), i]);
   const draft = p.jadwal.filter((j) => j.status === "draft").length;
+  // hari libur gaya Makaryo: staf tanpa shift pada hari yang sudah dijadwalkan (bukan izin/sakit)
+  const libur = hariLibur(p.staf.map((x) => x.id), p.jadwal, p.izin);
+  const rekap = rekapLibur(p.staf.map((x) => x.id), p.jadwal, p.izin);
   const range = resolveGenerateRange({ month: p.bulan, scope, weekIndex: minggu, today });
   const shiftLama = new Set(p.jadwal.map((j) => j.shift_id).filter((id) => !aktif.some((s) => s.id === id)));
   const tampilShift = [...aktif, ...p.shifts.filter((s) => shiftLama.has(s.id))];
@@ -258,6 +262,12 @@ function Kalender(p: Props & Aksi) {
                   </div>
                 );
               })}
+              {!!libur.get(d)?.length && (
+                <p className="mt-1 text-[11px]">
+                  <span className="mr-1 inline-block rounded bg-emerald-50 px-1 font-semibold text-emerald-800">🌴 Libur:</span>
+                  {libur.get(d)!.map((id) => namaDepan(nama.get(id) ?? "?")).join(", ")}
+                </p>
+              )}
               {!!izinD.length && (
                 <p className="mt-1 text-[11px] text-stone-500">
                   {izinD.map((i) => (
@@ -272,6 +282,44 @@ function Kalender(p: Props & Aksi) {
           );
         })}
       </div>
+      {p.jadwal.length > 0 && (
+        <section className="rounded-2xl border border-matur-200 bg-white p-3">
+          <h3 className="mb-1 font-bold">🌴 Jadwal libur bulan ini</h3>
+          <p className="mb-2 text-xs text-stone-500">Hari tanpa shift pada tanggal yang sudah dijadwalkan (izin/sakit dihitung terpisah). Jatah libur diatur di tab Staf.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-stone-500">
+                <tr>
+                  <th className="py-1">Staf</th>
+                  <th>Hari libur</th>
+                  <th className="text-right">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.staf.map((st) => {
+                  const xs = rekap.get(st.id) ?? [];
+                  return (
+                    <tr key={st.id} className="border-t align-top">
+                      <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{st.nama}</td>
+                      <td className="py-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {xs.map((t) => (
+                            <span key={t} className="rounded bg-emerald-50 px-1.5 text-xs text-emerald-800">
+                              {WEEKDAY_LABELS[weekdayIndex(t)]} {Number(t.slice(8))}
+                            </span>
+                          ))}
+                          {!xs.length && <span className="text-xs text-stone-400">—</span>}
+                        </div>
+                      </td>
+                      <td className="text-right tabular-nums">{xs.length}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -56,8 +56,8 @@ export async function hapusSkema(id: string): Promise<Result> {
 export async function pilihSkema(outletId: string, skemaId: string | null): Promise<Result> {
   if (!(await izin())) return { error: "Tidak diizinkan." };
   const supabase = await supabaseServer();
-  const { error, count } = await supabase.from("outlet").update({ skema_bagi_hasil_id: skemaId }, { count: "exact" }).eq("id", outletId);
-  if (error || !count) return { error: "Gagal menyimpan pilihan skema." };
+  const { error } = await supabase.rpc("atur_skema_outlet", { p_outlet: outletId, p_skema: skemaId });
+  if (error) return { error: `Gagal menyimpan pilihan skema: ${error.message.replace(/^.*?ERROR:\s*/, "")}` };
   revalidatePath("/skema-bagi-hasil");
   return { ok: "Skema outlet diperbarui." };
 }
