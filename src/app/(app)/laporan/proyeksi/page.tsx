@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { totalBulan, type Manual, type PosHari } from "@/lib/harian";
 import { LAPORAN_COLS, type Laporan, type Proyeksi } from "@/lib/laporan";
 import type { Rincian } from "@/lib/skema-actions";
 import { getSession } from "@/lib/session";
@@ -31,8 +32,27 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
     supabase.from("penutupan_bulan").select("ojol, koreksi_lain, persediaan_akhir, catatan").eq("outlet_id", outlet.id).eq("periode", periode).eq("mode", "asli").maybeSingle(),
   ]);
   const sebelum = prev as unknown as Laporan | null;
+  const akhirBulan = new Date(Date.UTC(Number(bulan.slice(0, 4)), Number(bulan.slice(5, 7)), 1)).toISOString().slice(0, 10);
+  const mode = sim ? "simulasi" : "asli";
   // titipan (cheesecake & dessert): yang dibebankan hanya yang terjual × harga produsen
-  const { data: rekapTitip } = await supabase.rpc("rekap_titipan", { p_outlet: outlet.id, p_periode: periode });
+  const [{ data: rekapTitip }, { data: harian }, { data: manual }, { data: rumus }] = await Promise.all([
+    supabase.rpc("rekap_titipan", { p_outlet: outlet.id, p_periode: periode }),
+    supabase.rpc("rekap_harian", { p_outlet: outlet.id, p_periode: periode, p_mode: mode }),
+    supabase.from("penjualan_manual").select("id, tanggal, kanal, jenis, jumlah, keterangan, nama_pembuat, created_at").eq("mode", mode).eq("outlet_id", outlet.id).gte("tanggal", periode).lt("tanggal", akhirBulan).is("deleted_at", null),
+    supabase.from("perusahaan").select("rumus_hpp").limit(1).maybeSingle(),
+  ]);
+  // angka catatan harian (dashboard platform & koreksi) ikut ke pendapatan awal proyeksi
+  const p0 = proy as Proyeksi;
+  const pos = (harian ?? []) as PosHari[];
+  const sesudah = totalBulan(pos, (manual ?? []) as Manual[]);
+  const tanpa = totalBulan(pos, []);
+  const pendapatan = { ...(p0?.pendapatan ?? {}) };
+  for (const k of Object.keys(sesudah) as (keyof typeof sesudah)[]) if (k !== "diskon" && sesudah[k] !== tanpa[k]) pendapatan[k] = (pendapatan[k] ?? 0) + sesudah[k] - tanpa[k];
+  const r = (rumus?.rumus_hpp ?? {}) as { kiriman_gudang?: boolean; titipan?: boolean };
+  const pembelianTanpaKiriman = Object.values(p0?.pembelian_rincian ?? {}).reduce((t, v) => t + Number(v), 0);
+  const proyFinal: Proyeksi | null = p0
+    ? { ...p0, pendapatan, diskon: p0.diskon + sesudah.diskon - tanpa.diskon, pembelian: r.kiriman_gudang === false ? pembelianTanpaKiriman : p0.pembelian }
+    : null;
   return (
     <ProyeksiForm
       key={`${outlet.id}-${bulan}-${sim}`}
@@ -41,7 +61,7 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
       bulan={bulan}
       sim={sim}
       bolehSim={s.active.role === "owner"}
-      proy={proy as Proyeksi}
+      proy={proyFinal as Proyeksi}
       sebelum={sebelum}
       sudahTerbit={sekarang?.id ?? null}
       kategori={(kb ?? []).map((k) => k.nama)}
@@ -55,7 +75,7 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
       karyawan={(kar ?? []).map((k) => (k.is_spv ? `${k.nama} (SPV)` : k.nama))}
       penandatangan={{ nama: pt?.penandatangan_nama ?? null, jabatan: pt?.penandatangan_jabatan ?? null }}
       namaOutlet={sebelum?.nama_outlet ?? outlet.nama}
-      titipan={((rekapTitip ?? []) as { nama: string; produsen: string; terjual: number; harga: number; tagihan: number }[]).filter((x) => x.terjual)}
+      titipan={r.titipan === false ? [] : ((rekapTitip ?? []) as { nama: string; produsen: string; terjual: number; harga: number; tagihan: number }[]).filter((x) => x.terjual)}
     />
   );
 }

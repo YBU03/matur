@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
-import { batalDraft, bayar, bukaShift, izinDiskonSpv, simpanDraft, type Checkout, type DraftItem, type Receipt } from "@/lib/pos-actions";
+import { batalDraft, bayar, izinDiskonSpv, simpanDraft, type Checkout, type DraftItem, type Receipt } from "@/lib/pos-actions";
 import { bacaAntrean, galatJaringan, hapusTertunda, simpanTertunda } from "@/lib/pos-offline";
 import { bisaBluetooth, cetakBluetooth, cetakRawBT, diAndroid, namaPrinter, sambungPrinter, susunStruk } from "@/lib/printer-bt";
 
@@ -35,30 +36,6 @@ const priceFor = (kanal: string, l: Pick<Line, "menu" | "varian">) =>
   (OJOL.has(kanal) ? l.menu.harga_ojol : l.menu.harga_langsung) + l.varian.reduce((s, v) => s + v.tambahan_harga, 0);
 
 const num = (s: string) => Number(s.replace(/\D/g, "")) || 0;
-
-export function OpenShift({ outletNama }: { outletNama: string }) {
-  const [modal, setModal] = useState("");
-  const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
-  return (
-    <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-matur-200 bg-white p-6 shadow-sm">
-      <h1 className="text-xl font-bold">Mulai Shift</h1>
-      <p className="mb-4 text-sm text-stone-500">{outletNama} · transaksi baru bisa dilakukan setelah shift dibuka.</p>
-      <label className="block text-sm font-medium">
-        Modal awal laci
-        <input value={modal} onChange={(e) => setModal(e.target.value)} inputMode="numeric" placeholder="200000" className="mt-1 w-full rounded-lg border px-3 py-2" />
-      </label>
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
-      <button
-        disabled={pending}
-        onClick={() => start(async () => setErr((await bukaShift(num(modal))).error ?? ""))}
-        className="mt-4 w-full rounded-xl bg-matur-500 py-3 font-semibold text-white disabled:opacity-60"
-      >
-        Mulai Shift
-      </button>
-    </div>
-  );
-}
 
 type Bayar = { metode: string; nominal: string; diterima: string };
 
@@ -100,7 +77,7 @@ function useAntreanOffline() {
   return { jumlah, kirim, kirimSemua };
 }
 
-export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, drafts }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number; drafts: Draft[] }) {
+export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, drafts, sesiId }: { kategori: { id: string; nama: string }[]; menus: PosMenu[]; outletNama: string; kasir: string; batasDiskon: number; drafts: Draft[]; sesiId: string }) {
   const [kat, setKat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [cart, setCart] = useState<Line[]>([]);
@@ -155,6 +132,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
     if (split && sisaSplit !== 0) return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
     const c: Checkout = {
       client_id: crypto.randomUUID(),
+      sesi_id: sesiId,
       kanal,
       tipe,
       pelanggan,
@@ -237,6 +215,14 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
       <section className="min-w-0 space-y-3">
+        <div className="flex items-center gap-2 rounded-xl bg-matur-50 px-3 py-1.5 text-sm">
+          <span className="mr-auto">
+            👤 Kasir bertugas: <b>{kasir}</b>
+          </span>
+          <Link href="/kasir/shift" className="rounded-lg border border-matur-300 bg-white px-2.5 py-1 text-xs font-semibold text-kopi-700">
+            Tutup / ganti kasir
+          </Link>
+        </div>
         <div className="flex flex-wrap gap-2">
           <input value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Cari menu…" className="min-w-40 flex-1 rounded-xl border px-3 py-2" />
           <button onClick={() => setKat(null)} className={chip(!kat)}>Semua</button>

@@ -3,6 +3,7 @@ import { ENTITIES } from "@/lib/master";
 import { findMenu } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
+import { AkunKaryawan, type AkunBebas, type KaryawanAkun } from "./akun-karyawan";
 import { MasterTable } from "./master-table";
 
 // tabel tanpa kolom mode (asli/simulasi)
@@ -71,7 +72,23 @@ export default async function MasterPage({
     kelompok = Object.fromEntries(((rows ?? []) as Record<string, string>[]).map((r) => [r.id, refs.outlet_id?.find((o) => o.id === r.outlet_id)?.label ?? "Belum terhubung ke outlet"]));
   }
 
+  // HRD/Owner: akun login & PIN dikelola langsung dari data karyawan
+  let akun: { data: KaryawanAkun[]; bebas: AkunBebas[] } | null = null;
+  if (key === "karyawan" && !trash && ["owner", "hrd"].includes(s.active.role)) {
+    const [{ data: info }, { data: bebas }] = await Promise.all([supabase.rpc("info_akun_karyawan"), supabase.rpc("akun_tanpa_karyawan")]);
+    const per = new Map(((info ?? []) as { karyawan_id: string; pengguna_id: string | null; email: string | null; ada_pin: boolean; peran: string[]; status: string | null }[]).map((i) => [i.karyawan_id, i]));
+    akun = {
+      data: ((rows ?? []) as { id: string; nama: string; jabatan: string | null; is_spv: boolean; outlet_id: string | null }[]).map((r) => {
+        const i = per.get(r.id);
+        return { ...r, outlet: refs.outlet_id?.find((o) => o.id === r.outlet_id)?.label ?? null, akun: i?.pengguna_id ? { id: i.pengguna_id, email: i.email ?? "", ada_pin: i.ada_pin, peran: i.peran, status: i.status ?? "aktif" } : null };
+      }),
+      bebas: (bebas ?? []) as AkunBebas[],
+    };
+  }
+
   return (
+    <>
+    {akun && <AkunKaryawan data={akun.data} bebas={akun.bebas} />}
     <MasterTable
       kelompok={kelompok}
       entityKey={key}
@@ -83,5 +100,6 @@ export default async function MasterPage({
       backHref={filter.proyek_id ? (key === "item_rab" ? `/proyek/${filter.proyek_id}/rab` : `/proyek/${filter.proyek_id}`) : undefined}
       canEdit={entity.editors.includes(s.active.role)}
     />
+    </>
   );
 }

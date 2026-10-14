@@ -82,6 +82,7 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
             <Link href="/stok" className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">Opname / stok awal</Link>
             <Link href={`/titipan?outlet=${outlet.id}`} className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">Titipan dessert</Link>
             {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href={`/laporan/proyeksi?outlet=${outlet.id}`} className="rounded-lg bg-kopi-900 px-3 py-1.5 font-semibold text-white">Tutup buku / proyeksi</Link>}
+            {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href="/rumus-hpp" className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">⚙ Atur rumus HPP</Link>}
           </div>
           {ini.sumber_akhir === "perkiraan stok sistem" && <p className="mt-2 text-xs text-amber-700">Persediaan akhir masih perkiraan sistem. Lakukan opname di akhir bulan agar angkanya pasti.</p>}
         </section>

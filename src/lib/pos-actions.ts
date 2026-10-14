@@ -3,11 +3,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { getSession } from "./session";
+import { idSesiPerangkat } from "./shift";
 import { supabaseServer } from "./supabase/server";
 
 export type CartLine = { menu_id: string; varian_ids: string[]; qty: number; catatan?: string };
 export type Checkout = {
   client_id: string;
+  /** shift saat transaksi dibuat (penting untuk antrean offline yang dikirim belakangan) */
+  sesi_id?: string;
   kanal: string;
   tipe: "dine_in" | "take_away";
   pelanggan?: string;
@@ -44,7 +47,8 @@ export async function bayar(c: Checkout): Promise<{ error?: string; receipt?: Re
   const o = await outlet();
   if (!o) return { error: "Pilih outlet terlebih dahulu." };
   const supabase = await supabaseServer();
-  const { data, error } = await supabase.rpc("buat_transaksi", { p: { ...c, outlet_id: o } });
+  // shift aktif perangkat (dimulai staf dengan PIN) ikut dikirim; server memvalidasi
+  const { data, error } = await supabase.rpc("buat_transaksi", { p: { ...c, outlet_id: o, sesi_id: c.sesi_id ?? (await idSesiPerangkat()) } });
   if (error) return { error: error.message };
   revalidatePath("/kasir/antrean");
   return { receipt: data as Receipt };

@@ -2,21 +2,19 @@ import { notFound } from "next/navigation";
 import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
-import { OpenShift, PosScreen, type Draft, type PosMenu } from "./pos-screen";
+import { sesiAktif } from "@/lib/shift";
+import { MulaiShift, type StafShift } from "./mulai-shift";
+import { PosScreen, type Draft, type PosMenu } from "./pos-screen";
 
 export default async function PosPage() {
   const s = await getSession();
   if (!s?.active?.outletId || !BISA_JUAL.includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
-  const { data: sesi } = await supabase
-    .from("sesi_kas")
-    .select("id, modal_laci, dibuka_at")
-    .eq("mode", "asli")
-    .eq("outlet_id", s.active.outletId)
-    .eq("kasir_id", s.userId)
-    .is("ditutup_at", null)
-    .maybeSingle();
-  if (!sesi) return <OpenShift outletNama={s.active.outletNama} />;
+  const sesi = await sesiAktif(supabase, s.active.outletId, s.userId);
+  if (!sesi) {
+    const { data: staf } = await supabase.rpc("staf_shift", { p_outlet: s.active.outletId });
+    return <MulaiShift outletNama={s.active.outletNama} staf={(staf ?? []) as StafShift[]} meId={s.userId} meNama={s.nama} />;
+  }
 
   const [{ data: kategori }, { data: menu }, { data: varian }, { data: pt }, { data: draft }] = await Promise.all([
     supabase.from("kategori_menu").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
@@ -26,5 +24,5 @@ export default async function PosPage() {
     supabase.from("pesanan_draft").select("id, label, kanal, tipe, pelanggan, meja, diskon, items, total, created_at, nama_pembuat").eq("outlet_id", s.active.outletId).eq("status", "draft").order("created_at"),
   ]);
   const menus: PosMenu[] = (menu ?? []).map((m) => ({ ...m, varian: (varian ?? []).filter((v) => v.menu_id === m.id) }));
-  return <PosScreen kategori={kategori ?? []} menus={menus} outletNama={s.active.outletNama} kasir={s.nama} batasDiskon={s.active.role === "spv" ? 100 : (pt?.batas_diskon_persen ?? 10)} drafts={(draft ?? []) as unknown as Draft[]} />;
+  return <PosScreen kategori={kategori ?? []} menus={menus} outletNama={s.active.outletNama} kasir={sesi.nama_kasir ?? s.nama} batasDiskon={s.active.role === "spv" ? 100 : (pt?.batas_diskon_persen ?? 10)} drafts={(draft ?? []) as unknown as Draft[]} sesiId={sesi.id} />;
 }

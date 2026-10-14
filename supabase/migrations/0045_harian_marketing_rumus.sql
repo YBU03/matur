@@ -1,0 +1,9 @@
+-- Catatan harian: koreksi & angka platform per tanggal; produk keluar untuk marketing; rumus HPP yang bisa diatur Akunting.
+-- (Definisi lengkap diterapkan lewat MCP: 0045 & 0045b.)
+-- penjualan_manual(outlet, tanggal, kanal, jenis platform|koreksi, jumlah, keterangan) — RLS: baca boleh_outlet, kelola owner/admin/finance/SPV outlet; log aktivitas.
+--   Nilai harian kanal = (angka platform bila ada, selain itu angka POS) + Σ koreksi.
+-- produk_keluar(outlet, tanggal, jenis endorse|endorse_fee|sampel|promo|lainnya, penerima, items, total_hpp, nilai_jual) +
+--   catat_produk_keluar(jsonb) memotong stok resep (mutasi 'marketing'); hapus_produk_keluar(id) mengembalikan stok.
+--   Titipan yang keluar untuk marketing tetap ditagih produsen (rekap_titipan ikut menghitung).
+-- perusahaan.rumus_hpp {kiriman_gudang, titipan} + atur_rumus_hpp(rumus, {kategori_id: grup}) — Owner/Admin/Akunting.
+--   persediaan_bulanan() mengikuti rumus_hpp.

@@ -40,7 +40,7 @@ export async function createUser(_: Result, form: FormData): Promise<Result> {
   if (bad) return { error: bad };
 
   const supabase = await supabaseServer();
-  const { error } = await supabase.rpc("buat_pengguna", {
+  const { data: uid, error } = await supabase.rpc("buat_pengguna", {
     p_email: loginEmail(role, login),
     p_password: PIN_ROLES.includes(role) ? pinPassword(secret) : secret,
     p_nama: nama,
@@ -48,6 +48,8 @@ export async function createUser(_: Result, form: FormData): Promise<Result> {
     p_outlet: ROLES[role].allOutlets ? null : outlet,
   });
   if (error) return { error: error.message };
+  // PIN login kasir/barista sekaligus jadi PIN mulai shift di perangkat outlet
+  if (PIN_ROLES.includes(role) && uid) await supabase.rpc("atur_pin", { p_uid: uid, p_rahasia: pinPassword(secret) });
   revalidatePath("/pengguna");
   return { ok: `Akun ${nama} dibuat.` };
 }
@@ -60,6 +62,7 @@ export async function resetSecret(uid: string, role: Role, secret: string): Prom
     p_uid: uid,
     p_password: PIN_ROLES.includes(role) ? pinPassword(secret) : secret,
   });
+  if (!error && PIN_ROLES.includes(role)) await supabase.rpc("atur_pin", { p_uid: uid, p_rahasia: pinPassword(secret) });
   return error ? { error: error.message } : { ok: PIN_ROLES.includes(role) ? "PIN diperbarui." : "Password diperbarui." };
 }
 

@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { FormPengeluaran, label, type Kat } from "@/components/form-pengeluaran";
-import { catatPengeluaran, hapusPengeluaran, tutupShift, ubahPengeluaran, type Result } from "@/lib/kas-actions";
+import { catatPengeluaran, hapusPengeluaran, ubahPengeluaran, type Result } from "@/lib/kas-actions";
+import { tutupShiftPin } from "@/lib/shift-actions";
 
 export type Catatan = {
   id: string;
@@ -36,7 +37,7 @@ export function KasView({
   kategori: Kat[];
   catatan: Catatan[];
   meId: string;
-  sesi: { id: string; modal: number; dibuka: string } | null;
+  sesi: { id: string; modal: number; dibuka: string; kasirId: string; nama: string } | null;
   adaShiftBuka: boolean;
   ringkas: { tunai: number; nonTunai: number; laci: number; transaksi: number } | null;
   outletNama: string;
@@ -110,7 +111,7 @@ export function KasView({
         </ul>
       </section>
 
-      {sesi && ringkas && <TutupShift sesi={sesi} ringkas={ringkas} pending={pending} onTutup={(a) => run(() => tutupShift(sesi.id, a))} />}
+      {sesi && ringkas && <TutupShift sesi={sesi} ringkas={ringkas} pending={pending} perluPin={sesi.kasirId !== meId && !spv} onTutup={(a, pin) => run(() => tutupShiftPin(sesi.id, pin, a))} />}
 
       {ubah && (
         <Modal title="Ubah pengeluaran">
@@ -132,19 +133,24 @@ function TutupShift({
   sesi,
   ringkas,
   pending,
+  perluPin,
   onTutup,
 }: {
-  sesi: { id: string; modal: number; dibuka: string };
+  sesi: { id: string; modal: number; dibuka: string; nama: string };
   ringkas: { tunai: number; nonTunai: number; laci: number; transaksi: number };
   pending: boolean;
-  onTutup: (aktual: number) => void;
+  perluPin: boolean;
+  onTutup: (aktual: number, pin: string) => void;
 }) {
   const [aktual, setAktual] = useState("");
+  const [pin, setPin] = useState("");
   const seharusnya = ringkas.tunai - ringkas.laci;
   const selisih = aktual ? angka(aktual) - seharusnya : null;
   return (
     <section className="space-y-3 rounded-2xl border-2 border-kopi-700 bg-white p-4">
-      <h2 className="font-bold">Shift saya · buka {new Date(sesi.dibuka).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</h2>
+      <h2 className="font-bold">
+        Shift {sesi.nama} · buka {new Date(sesi.dibuka).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+      </h2>
       <dl className="grid grid-cols-2 gap-2 text-sm">
         {[
           ["Transaksi", String(ringkas.transaksi)],
@@ -169,12 +175,18 @@ function TutupShift({
           {selisih === 0 ? "✓ Pas, tidak ada selisih" : `Selisih ${formatRupiah(selisih)} ${selisih > 0 ? "(lebih)" : "(kurang)"}`}
         </p>
       )}
+      {perluPin && (
+        <label className="block text-sm font-medium">
+          PIN {sesi.nama} (konfirmasi tutup shift)
+          <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} type="password" inputMode="numeric" autoComplete="off" className={`mt-1 ${cls} text-center text-lg tracking-[0.5em]`} />
+        </label>
+      )}
       <button
-        disabled={pending || !aktual}
-        onClick={() => confirm(`Tutup shift dengan setoran ${formatRupiah(angka(aktual))}?`) && onTutup(angka(aktual))}
+        disabled={pending || !aktual || (perluPin && pin.length < 4)}
+        onClick={() => confirm(`Tutup shift ${sesi.nama} dengan setoran ${formatRupiah(angka(aktual))}?`) && onTutup(angka(aktual), pin)}
         className="w-full rounded-xl bg-kopi-900 py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
-        🔒 Tutup shift
+        🔒 Tutup shift & serah terima
       </button>
     </section>
   );
