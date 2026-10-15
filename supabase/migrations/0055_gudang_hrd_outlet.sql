@@ -106,3 +106,6 @@ begin
   return new;
 end $$;
 create trigger qris_menunggu_konfigurasi before insert on pembayaran for each row execute function cek_qris_belum_aktif();
+
+-- Hanya dipanggil oleh trigger pembayaran, bukan API publik.
+revoke execute on function public.cek_qris_belum_aktif() from public, anon, authenticated;
