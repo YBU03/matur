@@ -17,7 +17,7 @@ export async function KirimanOperasionalPage({
     "kiriman",
     sp.outlet,
   );
-  const base = terminal ? "/kasir/kiriman" : "/operasional/kiriman";
+  const base = terminal ? "/karyawan/kiriman" : "/operasional/kiriman";
   const { data: list, error } = await db
     .from("kiriman")
     .select("id,nomor,status,pemeriksaan_status,tanggal,total,total_kirim")

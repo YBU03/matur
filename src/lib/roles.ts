@@ -277,6 +277,8 @@ const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
 };
 for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].menu.push(...items);
 
+for (const role of ["owner","hrd","admin_gudang","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":"POS Tim, PIN & Tablet",stage:5});
+
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }

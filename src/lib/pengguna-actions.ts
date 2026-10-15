@@ -17,10 +17,7 @@ const pengelolaStaf = async () => {
 const pinPassword = (pin: string) => `pin:${pin}:${process.env.PIN_PEPPER}`;
 
 /** Akun PIN memakai kode staf → email internal kode@pin.matur.id */
-function loginEmail(role: Role, login: string) {
-  const l = login.trim().toLowerCase();
-  return PIN_ROLES.includes(role) ? `${l.replace(/[^a-z0-9._-]/g, "")}@pin.matur.id` : l;
-}
+function loginEmail(_role: Role, login: string) { return login.trim().toLowerCase(); }
 
 function checkSecret(role: Role, secret: string): string | null {
   if (PIN_ROLES.includes(role)) return /^\d{4,6}$/.test(secret) ? null : "PIN harus 4–6 digit angka";
@@ -36,20 +33,22 @@ export async function createUser(_: Result, form: FormData): Promise<Result> {
   const outlet = String(form.get("outlet") ?? "") || null;
   if (!ROLES[role] || !nama || !login) return { error: "Lengkapi nama, peran, dan email/kode." };
   if (!ROLES[role].allOutlets && !outlet) return { error: "Peran ini wajib memilih outlet." };
-  const bad = checkSecret(role, secret);
-  if (bad) return { error: bad };
+  if(secret.length<8)return {error:"Password akun minimal 8 karakter."};
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)||login.endsWith("@pin.matur.id"))return {error:"Gunakan email pribadi karyawan."};
+  const kode=String(form.get("kode_staf")??"").trim().toLowerCase();const pin=String(form.get("pin_pos")??"");
+  if(PIN_ROLES.includes(role)&&(!/^[a-z0-9._-]{3,60}$/.test(kode)||!/^\d{4,6}$/.test(pin)))return {error:"Isi kode staf 3–60 karakter dan PIN POS 4–6 angka."};
 
   const supabase = await supabaseServer();
   const { data: uid, error } = await supabase.rpc("buat_pengguna", {
     p_email: loginEmail(role, login),
-    p_password: PIN_ROLES.includes(role) ? pinPassword(secret) : secret,
+    p_password: secret,
     p_nama: nama,
     p_peran: role,
     p_outlet: ROLES[role].allOutlets ? null : outlet,
   });
   if (error) return { error: error.message };
   // PIN login kasir/barista sekaligus jadi PIN mulai shift di perangkat outlet
-  if (PIN_ROLES.includes(role) && uid) await supabase.rpc("atur_pin", { p_uid: uid, p_rahasia: pinPassword(secret) });
+  if (PIN_ROLES.includes(role) && uid) {const {error:ep}=await supabase.rpc("atur_pos_pin",{p_uid:uid,p_kode:kode,p_pin:pin});if(ep)return {error:`Akun sudah dibuat, tetapi PIN belum disimpan: ${ep.message}. Atur di POS Tim, PIN & Tablet.`};}
   revalidatePath("/pengguna");
   return { ok: `Akun ${nama} dibuat.` };
 }
@@ -58,11 +57,9 @@ export async function resetSecret(uid: string, role: Role, secret: string): Prom
   const bad = checkSecret(role, secret);
   if (bad) return { error: bad };
   const supabase = await supabaseServer();
-  const { error } = await supabase.rpc("atur_password", {
-    p_uid: uid,
-    p_password: PIN_ROLES.includes(role) ? pinPassword(secret) : secret,
-  });
-  if (!error && PIN_ROLES.includes(role)) await supabase.rpc("atur_pin", { p_uid: uid, p_rahasia: pinPassword(secret) });
+  const { error } = PIN_ROLES.includes(role)
+    ? await supabase.rpc("atur_pin",{p_uid:uid,p_rahasia:pinPassword(secret)})
+    : await supabase.rpc("atur_password",{p_uid:uid,p_password:secret});
   return error ? { error: error.message } : { ok: PIN_ROLES.includes(role) ? "PIN diperbarui." : "Password diperbarui." };
 }
 

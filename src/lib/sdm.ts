@@ -82,6 +82,10 @@ export type Absen = {
   pulang_lat: number | null;
   pulang_lng: number | null;
   perangkat: "hp" | "outlet" | null;
+  masuk_catatan?: string | null;
+  pulang_catatan?: string | null;
+  masuk_lokasi_valid?: boolean | null;
+  pulang_lokasi_valid?: boolean | null;
   catatan: string | null;
 };
 
@@ -89,7 +93,7 @@ export async function muatAbsensi(outletId: string, dari: string, sampai: string
   const supabase = await supabaseServer();
   let q = supabase
     .from("absensi")
-    .select("id, pengguna_id, jadwal_id, tanggal, masuk_at, pulang_at, status, telat_menit, masuk_foto, pulang_foto, masuk_lat, masuk_lng, pulang_lat, pulang_lng, perangkat, catatan")
+    .select("id, pengguna_id, jadwal_id, tanggal, masuk_at, pulang_at, status, telat_menit, masuk_foto, pulang_foto, masuk_lat, masuk_lng, pulang_lat, pulang_lng, perangkat, catatan, masuk_catatan, pulang_catatan, masuk_lokasi_valid, pulang_lokasi_valid")
     .eq("outlet_id", outletId)
     .gte("tanggal", dari)
     .lte("tanggal", sampai);

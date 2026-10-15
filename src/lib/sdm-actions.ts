@@ -2,7 +2,7 @@
 
 // Aksi SDM outlet: pengaturan shift, susun & terbitkan jadwal, absen, izin, tukar shift.
 // Hak akses akhirnya dijaga RLS & fungsi database (kelola_sdm / peran_di_outlet).
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
 import { revalidatePath } from "next/cache";
 import { generateSchedule } from "./jadwal/engine";
 import { addDays, daysBetween, hariIni } from "./jadwal/waktu";
@@ -227,62 +227,21 @@ const angka = (v: FormDataEntryValue | null) => {
  * Tanpa `login`: atas nama akun yang sedang masuk (HP sendiri / terminal).
  * Dengan `login` + `pin`: staf lain absen di perangkat outlet tanpa mengganti sesi kasir yang aktif.
  */
-export async function absen(form: FormData): Promise<Result & { nama?: string; status?: string; telat?: number; shift?: string | null; menit?: number }> {
-  const s = await getSession();
-  const outlet = s?.active?.outletId;
-  if (!s || !outlet) return { error: "Sesi berakhir, silakan masuk lagi." };
-  const jenis = form.get("jenis") === "pulang" ? "pulang" : "masuk";
-  const foto = form.get("foto");
-  if (!(foto instanceof File) || !foto.size) return { error: "Ambil foto selfie dulu." };
-  if (foto.size > 3 * 1024 * 1024) return { error: "Foto terlalu besar." };
-
-  const login = String(form.get("login") ?? "").trim().toLowerCase();
-  let supabase: SupabaseClient = await supabaseServer();
-  let uid = s.userId;
-  let nama = s.nama;
-  let perangkat = form.get("perangkat") === "outlet" ? "outlet" : "hp";
-  if (login) {
-    // klien terpisah tanpa cookie: sesi kasir di perangkat ini tidak berubah
-    supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await supabase.auth.signInWithPassword({ email: `${login}@pin.matur.id`, password: `pin:${String(form.get("pin") ?? "")}:${process.env.PIN_PEPPER}` });
-    if (error || !data.user) return { error: "Kode staf atau PIN salah." };
-    uid = data.user.id;
-    const { data: u } = await supabase.from("pengguna").select("nama").eq("id", uid).single();
-    nama = u?.nama ?? login;
-    perangkat = "outlet";
-  }
-  try {
-    const path = `${uid}/${hariIni()}/${jenis}-${Date.now()}.jpg`;
-    const up = await supabase.storage.from("absensi").upload(path, foto, { contentType: "image/jpeg" });
-    if (up.error) return { error: "Foto gagal diunggah: " + up.error.message };
-    const lat = angka(form.get("lat")), lng = angka(form.get("lng")), akurasi = angka(form.get("akurasi"));
-    const { data, error } =
-      jenis === "masuk"
-        ? await supabase.rpc("absen_masuk", { p_outlet: outlet, p_foto: path, p_lat: lat, p_lng: lng, p_akurasi: akurasi, p_perangkat: perangkat })
-        : await supabase.rpc("absen_pulang", { p_foto: path, p_lat: lat, p_lng: lng, p_akurasi: akurasi });
-    if (error) {
-      await supabase.storage.from("absensi").remove([path]);
-      return { error: pesan(error.message) };
-    }
-    segarkan();
-    const r = data as { status?: string; telat_menit?: number; shift?: string | null; menit?: number };
-    if (jenis === "pulang") return { ok: `${nama}: absen pulang tercatat. Terima kasih, hati-hati di jalan!`, nama, menit: r.menit };
-    return {
-      ok:
-        r.status === "telat"
-          ? `${nama}: absen masuk tercatat — telat ${r.telat_menit} menit.`
-          : r.status === "tepat"
-            ? `${nama}: absen masuk tercatat — tepat waktu. Semangat!`
-            : `${nama}: absen masuk tercatat (tidak ada jadwal terbit hari ini).`,
-      nama,
-      status: r.status,
-      telat: r.telat_menit,
-      shift: r.shift,
-    };
-  } finally {
-    // scope local: jangan mengeluarkan sesi staf itu di HP-nya sendiri
-    if (login) await supabase.auth.signOut({ scope: "local" });
-  }
+export async function absen(form: FormData): Promise<Result & { nama?: string; status?: string; telat?: number; shift?: string | null; menit?: number;lokasiValid?:boolean }> {
+ const s=await getSession();const outlet=s?.active?.outletId;if(!s||!outlet)return {error:"Sesi berakhir, silakan masuk lagi."};
+ const jenis=form.get("jenis")==="pulang"?"pulang":"masuk";const foto=form.get("foto");const client=String(form.get("client_id"));
+ if(!/^[0-9a-f-]{36}$/i.test(client))return {error:"Identitas absensi tidak valid."};
+ if(!(foto instanceof File)||!foto.size||foto.size>3*1024*1024||foto.type!=="image/jpeg")return {error:"Ambil foto langsung melalui kamera (JPG maksimal 3 MB)."};
+ const bytes=new Uint8Array(await foto.slice(0,3).arrayBuffer());if(bytes[0]!==255||bytes[1]!==216||bytes[2]!==255)return {error:"Foto kamera tidak valid."};
+ const lat=angka(form.get("lat")),lng=angka(form.get("lng")),akurasi=angka(form.get("akurasi"));if(lat===null||lng===null||akurasi===null||!Number.isFinite(lat)||!Number.isFinite(lng)||!Number.isFinite(akurasi))return {error:"Lokasi GPS wajib terbaca."};
+ const db=await supabaseServer();const path=`${s.userId}/${hariIni()}/${jenis}-${client}.jpg`;
+ const up=await db.storage.from("absensi").upload(path,foto,{contentType:"image/jpeg"});
+ if(up.error&&String(up.error.statusCode)!=="409"&&!/already exists|duplicate/i.test(up.error.message))return {error:"Foto gagal diunggah. Periksa koneksi lalu coba lagi."};
+ const {data,error}=await db.rpc("absen_karyawan",{p_outlet:outlet,p_jenis:jenis,p_foto:path,p_lat:lat,p_lng:lng,p_akurasi:akurasi,p_catatan:String(form.get("catatan")??""),p_client:client});
+ if(error)return {error:pesan(error.message)};
+ segarkan();revalidatePath("/karyawan");
+ const r=data as {status?:string;telat_menit?:number;shift?:string;menit?:number;lokasi_valid?:boolean};
+ return {ok:jenis==="pulang"?`Absen pulang berhasil pada waktu server. Durasi kehadiran ${r.menit??0} menit.`:r.status==="telat"?`Anda terlambat ${r.telat_menit} menit.`:r.status==="tepat"?"Anda tepat waktu. Selamat bekerja!":"Kehadiran tercatat tanpa jadwal; hubungi HRD untuk pemeriksaan.",nama:s.nama,status:r.status,telat:r.telat_menit,shift:r.shift,menit:r.menit,lokasiValid:r.lokasi_valid};
 }
 
 export async function ajukanIzin(jenis: string, tanggal: string, alasan: string): Promise<Result> {

@@ -93,6 +93,8 @@ export async function buatSetoran(d: {
   bukti_path: string;
   catatan: string;
   rincian: { tanggal: string; jumlah: number }[];
+  sesi_kas_id?: string;
+  pengganti_id?: string;
 }): Promise<Result> {
   return rpc(
     "buat_setoran",

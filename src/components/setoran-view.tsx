@@ -25,6 +25,7 @@ export type HariSetoran = {
   sisa: number;
 };
 export type Setoran = {
+  perpindahan_id?: string | null;
   id: string;
   cara: string;
   waktu: string;
@@ -54,6 +55,7 @@ export function SetoranView({
   riwayat,
   urls,
   error,
+  sesi,
 }: {
   outlet: { id: string; nama: string };
   outlets: { id: string; nama: string }[];
@@ -66,6 +68,7 @@ export function SetoranView({
   riwayat: Setoran[];
   urls: Record<string, string>;
   error?: string;
+  sesi: { id: string; nama_kasir: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -73,6 +76,7 @@ export function SetoranView({
   const [nilai, setNilai] = useState<Record<string, string>>({});
   const [foto, setFoto] = useState("");
   const [client, setClient] = useState(() => crypto.randomUUID());
+  const [sumber, setSumber] = useState("");
   const [cara, setCara] = useState("tunai");
   const [filter, setFilter] = useState({ outlet: outlet.id, dari, sampai });
   const run = (fn: () => Promise<Result>) =>
@@ -181,6 +185,11 @@ export function SetoranView({
               client_id: client,
               outlet_id: outlet.id,
               cara,
+              ...(sumber.startsWith("ganti:")
+                ? { pengganti_id: sumber.slice(6) }
+                : sumber
+                  ? { sesi_kas_id: sumber }
+                  : {}),
               waktu: new Date(String(fd.get("waktu")) + "+07:00").toISOString(),
               pengambil: String(fd.get("pengambil") ?? ""),
               penanggung_jawab: String(fd.get("pic")),
@@ -190,6 +199,7 @@ export function SetoranView({
               rincian,
             });
             if (!r.error) {
+              setSumber("");
               setNilai({});
               setFoto("");
               setClient(crypto.randomUUID());
@@ -278,6 +288,34 @@ export function SetoranView({
         <h2 className="font-bold">Penyerahan / transfer · {rp(total)}</h2>
         <p className="text-sm">
           Staf yang menyerahkan/mengirim: <b>{nama}</b>
+        </p>
+        <label className="block text-sm">
+          Sumber uang / perbaikan bukti
+          <select
+            className={input}
+            value={sumber}
+            onChange={(e) => setSumber(e.target.value)}
+          >
+            <option value="">Uang di luar laci shift aktif</option>
+            {sesi.map((x) => (
+              <option key={x.id} value={x.id}>
+                Laci tim · {x.nama_kasir}
+              </option>
+            ))}
+            {riwayat
+              .filter((x) => x.status === "ditolak" && x.perpindahan_id)
+              .map((x) => (
+                <option key={x.id} value={`ganti:${x.id}`}>
+                  Perbaiki bukti uang yang sudah diserahkan · {waktu(x.waktu)}
+                </option>
+              ))}
+          </select>
+        </label>
+        <p className="text-xs text-stone-500">
+          Pilih laci tim jika uang diambil dari kas shift aktif: sisa laci
+          langsung berkurang meskipun bukti belum disetujui. Jika bukti ditolak,
+          gunakan perbaikan bukti dengan nominal sama agar uang tidak terpotong
+          dua kali.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label>

@@ -263,6 +263,10 @@ function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; 
             </>
           )}
         </p>
+        {a?.masuk_catatan&&<p className="mt-1 text-xs text-stone-600">Catatan Clock In: {a.masuk_catatan}</p>}
+        {a?.pulang_catatan&&<p className="mt-1 text-xs text-stone-600">Catatan Clock Out: {a.pulang_catatan}</p>}
+        {a?.masuk_lokasi_valid===false&&<p className="mt-1 text-xs text-amber-700">Koordinat masuk tercatat; titik/radius outlet belum diatur.</p>}
+        {a?.pulang_lokasi_valid===false&&<p className="mt-1 text-xs text-amber-700">Koordinat pulang tercatat; titik/radius outlet belum diatur.</p>}
         {a?.catatan && !edit && <p className="mt-1 text-xs italic text-stone-600">Catatan: {a.catatan}</p>}
         {edit && a && (
           <div className="mt-2 flex flex-wrap items-end gap-2">
