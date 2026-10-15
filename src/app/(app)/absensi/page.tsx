@@ -21,7 +21,7 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
   const sampai = tgl(sp.sampai, today);
   const staf = sp.staf || undefined;
 
-  const [shifts, daftarStaf, jadwal, izin, absensi, jadwalHariIni, absenHariIni] = await Promise.all([
+  const [shifts, daftarStaf, jadwal, izin, absensi, jadwalHariIni, absenHariIni, izinHariIni] = await Promise.all([
     muatShift(outlet.id),
     muatStaf(outlet.id),
     muatJadwal(outlet.id, dari, sampai, staf),
@@ -29,10 +29,11 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
     muatAbsensi(outlet.id, dari, sampai, staf),
     muatJadwal(outlet.id, today, today),
     muatAbsensi(outlet.id, today, today),
+    muatIzin(outlet.id, today, today, { status: ["disetujui"] }),
   ]);
   const terbit = jadwal.filter((j) => j.status === "terbit");
   const rekap = hitungRekap({ shifts, jadwal: terbit, absensi, izin });
-  const hariIniRekap = hitungRekap({ shifts, jadwal: jadwalHariIni.filter((j) => j.status === "terbit"), absensi: absenHariIni, izin: [] });
+  const hariIniRekap = hitungRekap({ shifts, jadwal: jadwalHariIni.filter((j) => j.status === "terbit"), absensi: absenHariIni, izin: izinHariIni });
 
   // nama staf yang sudah tidak bertugas tetap tampil (HRD/Owner bisa membaca tabel pengguna)
   const nama: Record<string, string> = Object.fromEntries(daftarStaf.map((x) => [x.id, x.nama]));

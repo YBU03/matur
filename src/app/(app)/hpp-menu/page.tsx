@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
+import { TambahHpp } from "./tambah-hpp";
 import { PilihMenu } from "./pilih-menu";
 
 type Komponen = { nama: string; qty: number | null; satuan: string | null; harga_unit: number | null; biaya: number | null };
@@ -15,9 +16,12 @@ export default async function HppMenu() {
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance"].includes(s.active.role)) notFound();
   const bisaUbah = s.active.role !== "finance";
   const supabase = await supabaseServer();
-  const [{ data: h }, { data: m }] = await Promise.all([
+  const [{ data: h }, { data: m }, { data: bahan }, { data: kategori }, { data: resep }] = await Promise.all([
     supabase.from("hpp_menu").select("id, menu_id, nama_hpp, seri, komponen, total_hpp, harga_jual").is("deleted_at", null),
     supabase.from("menu").select("id, nama, harga_langsung, kategori_menu(nama, urutan), urutan").eq("mode", "asli").is("deleted_at", null).order("urutan"),
+    supabase.from("bahan").select("id, nama, satuan_pakai, harga_pokok").eq("mode", "asli").is("deleted_at", null).order("nama"),
+    supabase.from("kategori_menu").select("id, nama").is("deleted_at", null).order("nama"),
+    supabase.from("resep").select("menu_id").eq("mode", "asli").is("deleted_at", null),
   ]);
   const hpp = (h ?? []) as Hpp[];
   const menus = (m ?? []) as unknown as { id: string; nama: string; harga_langsung: number; kategori_menu: { nama: string; urutan: number } | null }[];
@@ -28,9 +32,10 @@ export default async function HppMenu() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">HPP Menu</h1>
-        <p className="text-sm text-stone-500">Biaya bahan per cup dari file HPP RUMA, dibandingkan harga jual POS.</p>
+        <p className="text-sm text-stone-500">Biaya bahan per menu dan margin harga jual POS. Tambahkan HPP beserta resep untuk menu baru.</p>
       </div>
 
+      {bisaUbah && <TambahHpp menus={menus.filter((m) => !(resep ?? []).some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
       {lepas.length > 0 && (
         <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
           <h2 className="font-bold">HPP belum terhubung ke menu POS ({lepas.length})</h2>

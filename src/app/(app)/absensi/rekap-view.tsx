@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { formatDurasi, LABEL_STATUS, type BarisRekap, type RingkasStaf, type StatusHari } from "@/lib/jadwal/rekap";
 import type { Absen } from "@/lib/sdm";
-import { ubahAbsensi, type Result } from "@/lib/sdm-actions";
+import { editAbsensi, ubahAbsensi, type Result } from "@/lib/sdm-actions";
 
 export const WARNA_STATUS: Record<StatusHari, string> = {
   tepat: "bg-green-100 text-green-800",
@@ -283,6 +283,7 @@ function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; 
         )}
         {msg?.error && <p className="mt-1 text-xs text-red-600">{msg.error}</p>}
       </div>
+      {a && <EditAbsensi a={a} nama={nama} />}
       {a && !edit && (
         <button onClick={() => setEdit(true)} className="text-xs text-matur-700 underline">
           Koreksi
@@ -290,4 +291,36 @@ function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; 
       )}
     </div>
   );
+}
+
+function EditAbsensi({ a, nama }: { a: Absen; nama: string }) {
+  const router = useRouter();
+  const lokal = (s: string | null) => s ? new Date(Date.parse(s) + 7 * 3600_000).toISOString().slice(0,16) : "";
+  const [open, setOpen] = useState(false);
+  const [masuk, setMasuk] = useState(lokal(a.masuk_at));
+  const [pulang, setPulang] = useState(lokal(a.pulang_at));
+  const [catatan, setCatatan] = useState(a.catatan ?? "");
+  const [alasan, setAlasan] = useState("");
+  const [msg, setMsg] = useState<Result>({});
+  const [pending, start] = useTransition();
+  const jalankan = (hapus: boolean) => start(async () => {
+    const r = await editAbsensi(a.id, { masuk: hapus ? a.masuk_at : new Date(masuk + ":00+07:00").toISOString(), pulang: !hapus && pulang ? new Date(pulang + ":00+07:00").toISOString() : null, catatan, alasan, hapus });
+    setMsg(r); if (!r.error) { setOpen(false); router.refresh(); }
+  });
+  return <div className="w-full">
+    <button onClick={() => setOpen(!open)} className="mr-3 text-xs text-matur-700 underline">Edit / Hapus</button>
+    {open && <form className="mt-2 grid gap-2 rounded-xl bg-stone-50 p-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); jalankan(false); }}>
+      <p className="text-xs text-stone-600 sm:col-span-2">{nama} · Jam WIB. Status dan menit telat dihitung ulang. Gaji final mengunci perubahan; draft gaji perlu dihitung ulang.</p>
+      <label>Masuk<input required type="datetime-local" value={masuk} onChange={(e) => setMasuk(e.target.value)} className="block w-full rounded border p-2" /></label>
+      <label>Pulang<input type="datetime-local" value={pulang} onChange={(e) => setPulang(e.target.value)} className="block w-full rounded border p-2" /></label>
+      <label>Catatan<input maxLength={300} value={catatan} onChange={(e) => setCatatan(e.target.value)} className="block w-full rounded border p-2" /></label>
+      <label>Alasan perubahan / hapus<input required minLength={3} maxLength={300} value={alasan} onChange={(e) => setAlasan(e.target.value)} className="block w-full rounded border p-2" /></label>
+      <div className="flex flex-wrap gap-3 sm:col-span-2">
+        <button disabled={pending} className="rounded-lg bg-matur-500 px-3 py-2 font-semibold text-white">Simpan edit</button>
+        <button type="button" disabled={pending || alasan.trim().length < 3} onClick={() => { if (confirm(`Hapus absensi ${nama}? Kehadiran dan perhitungan gaji akan berubah.`) && prompt(`Ketik HAPUS untuk menghapus absensi ${nama}`) === "HAPUS") jalankan(true); }} className="rounded-lg border border-red-300 px-3 py-2 text-red-700 disabled:opacity-40">Hapus absensi</button>
+        <button type="button" onClick={() => setOpen(false)}>Batal</button>
+      </div>
+    </form>}
+    {(msg.error || msg.ok) && <p role="status" className={`mt-1 text-xs ${msg.error ? "text-red-700" : "text-green-700"}`}>{msg.error ?? msg.ok}</p>}
+  </div>;
 }

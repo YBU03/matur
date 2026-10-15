@@ -407,7 +407,7 @@ export function PosScreen({ kategori, menus, outletNama, kasir, batasDiskon, dra
             <QrisTampil q={qris} nominal={lihatQris} ukuran={300} />
             {qris.nama && <p className="font-semibold">{qris.nama}</p>}
             <p className="text-3xl font-bold tabular-nums">{formatRupiah(lihatQris)}</p>
-            <p className="text-xs text-stone-500">{qris.dinamis ? "Nominal sudah tertera otomatis — pelanggan tinggal scan & konfirmasi." : "Minta pelanggan mengetik nominal di atas."} Cek notifikasi dana masuk sebelum menekan Bayar.</p>
+            <p className="text-xs text-stone-500">{qris.mode === "dinamis" ? "Menunggu konfigurasi penyedia. Pembayaran QRIS belum dapat diproses." : "Minta pelanggan mengetik nominal di atas. Cek dana masuk sebelum menekan Bayar."}</p>
           </div>
           <div className="mt-4 flex justify-end">
             <button onClick={() => setLihatQris(null)} className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white">Tutup</button>

@@ -47,6 +47,12 @@ export async function bayar(c: Checkout): Promise<{ error?: string; receipt?: Re
   const o = await outlet();
   if (!o) return { error: "Pilih outlet terlebih dahulu." };
   const supabase = await supabaseServer();
+  const memakaiQris = c.metode === "qris" || c.pembayaran?.some((p) => p.metode === "qris" && p.nominal > 0);
+  if (memakaiQris) {
+    const { data: q, error: qe } = await supabase.from("outlet").select("qris_mode").eq("id", o).single();
+    if (qe || !q) return { error: "Pengaturan QRIS tidak dapat diperiksa. Coba lagi." };
+    if (q.qris_mode === "dinamis") return { error: "QRIS dinamis menunggu konfigurasi penyedia. Pilih metode lain." };
+  }
   // shift aktif perangkat (dimulai staf dengan PIN) ikut dikirim; server memvalidasi
   const { data, error } = await supabase.rpc("buat_transaksi", { p: { ...c, outlet_id: o, sesi_id: c.sesi_id ?? (await idSesiPerangkat()) } });
   if (error) return { error: error.message };

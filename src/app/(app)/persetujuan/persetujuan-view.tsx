@@ -44,6 +44,7 @@ const jadwalTeks = (j: JadwalRingkas) => (j ? `${tgl(j.tanggal)} · ${j.shift?.n
 
 export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { outlets: { id: string; nama: string }[]; nama: Record<string, string>; stafOutlet: Record<string, { id: string; nama: string }[]>; izin: IzinBaris[]; tukar: TukarBaris[] }) {
   const router = useRouter();
+  const [tab, setTab] = useState("izin");
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result | null>(null);
   const outletNama = (id: string) => (outlets.length > 1 ? outlets.find((o) => o.id === id)?.nama : null);
@@ -70,7 +71,10 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
       </div>
       {msg && <p className={`rounded-xl px-4 py-3 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}>{msg.error ?? msg.ok}</p>}
 
-      <section className="space-y-2">
+      <nav aria-label="Jenis persetujuan" className="flex flex-wrap gap-2 rounded-2xl bg-matur-50 p-2">
+        {[["izin", `Izin / Sakit / Libur (${izinMenunggu.length})`], ["tukar", `Tukar Shift (${tukarMenunggu.length})`], ["riwayat", "Riwayat"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id} className={`rounded-xl px-4 py-2 text-sm font-semibold ${tab === id ? "bg-white text-kopi-900 shadow-sm" : "text-stone-600"}`}>{label}</button>)}
+      </nav>
+      <section hidden={tab !== "izin"} className="space-y-2">
         <h2 className="font-bold">Izin & libur menunggu ({izinMenunggu.length})</h2>
         {!izinMenunggu.length && <p className="text-sm text-stone-500">Tidak ada pengajuan yang menunggu.</p>}
         {izinMenunggu.map((i) => (
@@ -92,7 +96,7 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
         ))}
       </section>
 
-      <section className="space-y-2">
+      <section hidden={tab !== "tukar"} className="space-y-2">
         <h2 className="font-bold">Tukar shift menunggu ({tukarMenunggu.length})</h2>
         {!tukarMenunggu.length && <p className="text-sm text-stone-500">Tidak ada permintaan tukar yang sudah diterima rekan.</p>}
         {tukarMenunggu.map((t) => (
@@ -120,9 +124,9 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
           ))}
       </section>
 
-      <CatatIzin outlets={outlets} stafOutlet={stafOutlet} pending={pending} jalankan={jalankan} />
+      <div hidden={tab !== "izin"}><CatatIzin outlets={outlets} stafOutlet={stafOutlet} pending={pending} jalankan={jalankan} /></div>
 
-      <section className="space-y-1">
+      <section hidden={tab !== "riwayat"} className="space-y-1">
         <h2 className="font-bold">Riwayat 30 hari</h2>
         {[...riwayat.map((i) => ({ at: i.created_at, el: <>{n(i.pengguna_id)} · {JENIS[i.jenis]} {tgl(i.tanggal)}</>, status: i.status, tolak: i.alasan_tolak, id: i.id })),
           ...tukar.filter((t) => !["menunggu_rekan", "menunggu_atasan"].includes(t.status)).map((t) => ({ at: t.created_at, el: <>Tukar: {n(t.pengaju_id)} ⇄ {n(t.rekan_id)}</>, status: t.status, tolak: t.alasan_tolak, id: t.id }))]

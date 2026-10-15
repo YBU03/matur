@@ -207,7 +207,7 @@ export function MasterTable({
                             ) : (
                               <>
                                 <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="text-matur-700 hover:underline">
-                                  Ubah
+                                  {entityKey === "outlet" ? "Edit Profil Outlet" : "Ubah"}
                                 </button>
                                 <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
                                   Hapus
@@ -274,7 +274,7 @@ export function MasterTable({
                     ) : (
                       <>
                         <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="mr-3 text-matur-700 hover:underline">
-                          Ubah
+                          {entityKey === "outlet" ? "Edit Profil Outlet" : "Ubah"}
                         </button>
                         <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
                           Hapus
@@ -341,6 +341,7 @@ export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; valu
     <label className="block text-sm font-medium">
       {f.label}
       {f.required && <span className="text-red-500"> *</span>}
+      {f.suggestions && <datalist id={`suggest-${f.key}`}>{f.suggestions.map((v) => <option key={v} value={v} />)}</datalist>}
       {f.type === "select" || f.type === "enum" ? (
         <select value={String(value)} onChange={(e) => onChange(e.target.value)} className={cls}>
           <option value="">— pilih —</option>
@@ -360,6 +361,7 @@ export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; valu
         <input
           value={String(value)}
           onChange={(e) => onChange(e.target.value)}
+          list={f.suggestions ? `suggest-${f.key}` : undefined}
           type={f.type === "date" ? "date" : "text"}
           inputMode={f.type === "text" || f.type === "date" ? undefined : "decimal"}
           className={cls}

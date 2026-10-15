@@ -210,17 +210,10 @@ export async function catatIzinStaf(outletId: string, penggunaId: string, jenis:
 
 // ---------- Koreksi absensi ----------
 export async function ubahAbsensi(id: string, d: { catatan: string; pulang?: string | null }): Promise<Result> {
-  const v: { catatan: string | null; pulang_at?: string } = { catatan: d.catatan.trim().slice(0, 300) || null };
-  if (d.pulang) {
-    const t = new Date(d.pulang);
-    if (isNaN(t.getTime())) return { error: "Jam pulang tidak valid." };
-    v.pulang_at = t.toISOString();
-  }
-  const supabase = await supabaseServer();
-  const { error, count } = await supabase.from("absensi").update(v, { count: "exact" }).eq("id", id);
-  if (error || !count) return { error: error ? pesan(error.message) : "Tidak bisa diubah." };
-  segarkan();
-  return { ok: "Absensi diperbarui." };
+  const db = await supabaseServer();
+  const { data: a } = await db.from("absensi").select("masuk_at, pulang_at").eq("id", id).single();
+  if (!a) return { error: "Absensi tidak ditemukan." };
+  return editAbsensi(id, { masuk: a.masuk_at, pulang: d.pulang || a.pulang_at, catatan: d.catatan, alasan: `Koreksi: ${d.catatan.trim()}` });
 }
 
 // ---------- Staf (terminal) ----------
@@ -333,4 +326,15 @@ export async function batalTukar(id: string): Promise<Result> {
   if (error) return { error: pesan(error.message) };
   segarkan();
   return { ok: "Permintaan tukar dibatalkan." };
+}
+
+export async function editAbsensi(id: string, d: { masuk: string; pulang: string | null; catatan: string; alasan: string; hapus?: boolean }): Promise<Result> {
+  const s = await getSession();
+  if (!s?.active || !["owner", "hrd", "spv"].includes(s.active.role)) return { error: "Tidak diizinkan." };
+  const db = await supabaseServer();
+  const { error } = await db.rpc("edit_absensi", { p_id: id, p_masuk: d.masuk, p_pulang: d.pulang, p_catatan: d.catatan, p_alasan: d.alasan, p_hapus: !!d.hapus });
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  revalidatePath("/penggajian");
+  return { ok: d.hapus ? "Absensi dihapus; rekap diperbarui. Hitung ulang draft gaji bila sudah dibuat." : "Absensi diperbarui. Hitung ulang draft gaji bila sudah dibuat." };
 }
