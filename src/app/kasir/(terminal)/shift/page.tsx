@@ -77,7 +77,11 @@ export default async function KasPage() {
   ]);
   return (
     <div className="space-y-4">
-      {kasTim && <TutupKasTim kas={kasTim as KasTim} />}
+      {kasTim && (
+        <div id="tutup" className="scroll-mt-20">
+          <TutupKasTim kas={kasTim as KasTim} />
+        </div>
+      )}
       <KasView
         kategori={(kat ?? []) as { id: string; nama: string; grup: string }[]}
         catatan={(catatan ?? []) as unknown as Catatan[]}
@@ -88,7 +92,7 @@ export default async function KasPage() {
         outletNama={s.active.outletNama}
         spv={s.active.role === "spv"}
       />
-      <div className="mx-auto max-w-3xl">
+      <div id="endorse" className="mx-auto max-w-3xl scroll-mt-20">
         <ProdukMarketing
           outletId={outlet}
           menu={menu ?? []}

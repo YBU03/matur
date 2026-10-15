@@ -14,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
+  if (s.active.role === "tablet") redirect("/pos");
   if (POS_ONLY.includes(s.active.role)) redirect("/karyawan");
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();
@@ -43,6 +44,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
           <Link href="/kasir/pos" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
             🧾 Buka POS Kasir (tablet outlet)
+          </Link>
+        )}
+        {["owner", "hrd", "admin_gudang", "spv"].includes(s.active.role) && (
+          <Link href="/pos" className="flex items-center justify-center gap-2 rounded-xl border border-red-300 px-3 py-2 font-semibold text-red-700 hover:bg-red-50">
+            📲 Pasangkan Tablet POS
           </Link>
         )}
         <InstallButton />

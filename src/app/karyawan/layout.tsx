@@ -16,6 +16,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
   if (!s) redirect("/login");
+  if (s.active?.role === "tablet") redirect("/pos");
   if (!s.assignments.some((a) => POS_ROLES.includes(a.role))) redirect(s.status === "aktif" ? "/dashboard" : "/menunggu");
 
   const supabase = await supabaseServer();

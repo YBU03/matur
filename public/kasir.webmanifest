@@ -1,8 +1,8 @@
 {
   "name": "Matoer POS",
   "short_name": "Matoer POS",
-  "start_url": "/kasir",
-  "scope": "/kasir",
+  "start_url": "/pos",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",

@@ -7,6 +7,8 @@ import type { ComponentProps } from "react";
 import type { TimStatus } from "@/lib/pos-tim";
 import { kunciPos, perbaruiPos } from "@/lib/pos-tim-actions";
 import { hapusSnapshot, simpanSnapshot } from "@/lib/pos-offline";
+/** kunci otomatis setelah 5 menit tanpa sentuhan */
+const IDLE_MS = 5 * 60000;
 export type PosSnapshot = {
   screen: Omit<ComponentProps<typeof PosScreen>, "izin">;
   status: TimStatus;
@@ -54,8 +56,8 @@ export function PosRuntime({
         } catch {}
         return;
       }
-      if (Date.now() - last.current > 10 * 60000) {
-        setLocked("POS terkunci karena tidak digunakan selama 10 menit.");
+      if (Date.now() - last.current > IDLE_MS) {
+        setLocked("POS terkunci karena tidak digunakan selama 5 menit.");
         try {
           await kunciPos();
         } catch {}
@@ -90,12 +92,12 @@ export function PosRuntime({
         setLocked(
           "Jam perangkat berubah. Hubungkan internet dan verifikasi ulang.",
         );
-      if (Date.now() - last.current > 10 * 60000 && !idleLocked.current) {
+      if (Date.now() - last.current > IDLE_MS && !idleLocked.current) {
         idleLocked.current = true;
         void hapusSnapshot().catch(() => {});
         if (navigator.onLine) void kunciPos().catch(() => {});
         setLocked(
-          "POS terkunci setelah tidak digunakan 10 menit. Hubungkan internet untuk membuka kembali dengan PIN.",
+          "POS terkunci setelah tidak digunakan 5 menit. Hubungkan internet untuk membuka kembali dengan PIN.",
         );
       }
     }, 1000);
@@ -137,7 +139,7 @@ export function PosRuntime({
         </p>
         <button
           onClick={() => {
-            if (navigator.onLine) location.href = "/kasir/pos";
+            if (navigator.onLine) location.href = "/pos";
           }}
           className="rounded-xl bg-kopi-900 px-4 py-3 text-sm text-white"
         >
@@ -183,6 +185,8 @@ export function PosRuntime({
       )}
       <PosScreen
         {...initial.screen}
+        kasir={s.operator?.nama ?? initial.screen.kasir}
+        bisaBayar={s.operator ? s.operator.kasir : true}
         izin={{
           id: s.izin!.id,
           sampai_at: s.izin!.sampai_at,

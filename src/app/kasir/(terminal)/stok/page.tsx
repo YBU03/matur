@@ -17,7 +17,7 @@ export default async function StokKasir() {
       judul="Stok Outlet"
       lokasi={[]}
       pilihan={s.active.outletId}
-      basePath="/karyawan/stok"
+      basePath={s.active.role === "tablet" ? "/kasir/stok" : "/karyawan/stok"}
       rows={olah(d.data)}
       shift={d.data.shift}
       tutupTerakhir={d.data.tutup_terakhir}

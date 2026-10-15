@@ -11,7 +11,9 @@ export type Role =
   | "kasir"
   | "barista"
   | "mitra"
-  | "pic";
+  | "pic"
+  /** akun tersembunyi milik tablet POS outlet (dibuat saat pemasangan tablet) */
+  | "tablet";
 
 export type Mascot = "admin" | "akunting" | "gudang" | "kasir" | "mitra";
 
@@ -265,6 +267,14 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [dash, { href: "/proyek", label: "Progres Pekerjaan", stage: 4 }],
   },
+  tablet: {
+    label: "Tablet POS Outlet",
+    mascot: "kasir",
+    accent: "bg-red-600",
+    login: "password",
+    allOutlets: false,
+    menu: [],
+  },
 };
 
 const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
@@ -285,7 +295,9 @@ export function findMenu(role: Role, href: string): MenuItem | undefined {
 
 
 // Aplikasi POS terpisah di /kasir (login kode staf + PIN, dipakai di perangkat outlet)
-export const POS_ROLES: Role[] = ["kasir", "barista", "spv"];
+export const POS_ROLES: Role[] = ["kasir", "barista", "spv", "tablet"];
 /** peran yang hanya memakai aplikasi POS, tidak masuk dashboard utama */
 export const POS_ONLY: Role[] = ["kasir", "barista"];
-export const BISA_JUAL: Role[] = ["kasir", "spv"];
+export const BISA_JUAL: Role[] = ["kasir", "spv", "tablet"];
+/** akun perangkat: hanya membuka POS di /pos, tidak punya dashboard/absen */
+export const TABLET: Role = "tablet";

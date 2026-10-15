@@ -15,6 +15,7 @@ export type Trx = {
   status: "lunas" | "void";
   void_alasan: string | null;
   created_at: string;
+  operator_nama?: string | null;
   pelanggan: string | null;
   item_transaksi: { nama: string; qty: number }[];
   pembayaran: { metode: string; nominal: number }[];
@@ -35,8 +36,8 @@ export type DraftRiwayat = {
 };
 const jam = (t: string) => new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export function RiwayatView({ trx, drafts, outletNama }: { trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string }) {
-  const [tab, setTab] = useState<"trx" | "draft">("trx");
+export function RiwayatView({ trx, drafts, outletNama, awal = "trx" }: { trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string; awal?: "trx" | "draft" }) {
+  const [tab, setTab] = useState<"trx" | "draft">(awal);
   const router = useRouter();
   const [q, setQ] = useState("");
   const [batal, setBatal] = useState<Trx | null>(null);
@@ -99,7 +100,7 @@ export function RiwayatView({ trx, drafts, outletNama }: { trx: Trx[]; drafts: D
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">
-                  #{t.nomor} · {new Date(t.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · <span className="text-sm font-normal text-stone-500">{t.kanal}</span>
+                  #{t.nomor} · {new Date(t.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · <span className="text-sm font-normal text-stone-500">{t.kanal}{t.operator_nama ? ` · 👤 ${t.operator_nama}` : ""}</span>
                   {t.status === "void" && <span className="ml-2 rounded-full bg-red-100 px-2 text-xs font-bold text-red-700">VOID</span>}
                 </p>
                 <p className="truncate text-sm text-stone-600">{t.item_transaksi.map((i) => `${i.qty}× ${i.nama}`).join(", ")}</p>

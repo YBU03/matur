@@ -126,6 +126,7 @@ export function PosScreen({
   sesiId,
   qris,
   izin,
+  bisaBayar = true,
 }: {
   kategori: { id: string; nama: string }[];
   menus: PosMenu[];
@@ -142,6 +143,8 @@ export function PosScreen({
     client_at: number;
     offlineBoleh: boolean;
   };
+  /** operator saat ini punya akses kasir; barista hanya input draft & antrean */
+  bisaBayar?: boolean;
 }) {
   const [kat, setKat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
@@ -490,7 +493,7 @@ export function PosScreen({
       <section className="min-w-0 space-y-3">
         <div className="flex items-center gap-2 rounded-xl bg-matur-50 px-3 py-1.5 text-sm">
           <span className="mr-auto">
-            👥 Tim shift: <b>{kasir}</b>
+            👤 Operator: <b>{kasir}</b>
           </span>
           <Link
             href="/kasir/shift"
@@ -866,13 +869,19 @@ export function PosScreen({
         >
           💾 {draftId ? "Perbarui draft" : "Simpan sebagai draft (bayar nanti)"}
         </button>
-        <button
-          disabled={pending || cart.length === 0}
-          onClick={() => checkout()}
-          className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
-        >
-          {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
-        </button>
+        {bisaBayar ? (
+          <button
+            disabled={pending || cart.length === 0}
+            onClick={() => checkout()}
+            className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
+          >
+            {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
+          </button>
+        ) : (
+          <p className="rounded-xl bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">
+            Operator tanpa akses kasir: simpan sebagai draft, lalu anggota dengan akses kasir membuka PIN untuk menerima pembayaran.
+          </p>
+        )}
       </aside>
 
       {picking && (

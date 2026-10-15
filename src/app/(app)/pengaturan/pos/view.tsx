@@ -38,6 +38,7 @@ export type PanelData = {
     id: string;
     outlet_id: string;
     nama: string;
+    mode?: string;
     status: string;
     created_at: string;
   }[];
@@ -151,16 +152,18 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
       {tab === "tablet" && d.pusat && (
         <section className="space-y-3">
           <p className="text-sm text-stone-500">
-            Di tablet outlet, login karyawan lalu pilih Buka POS → Ajukan
-            Tablet. Cocokkan permintaan berikut dengan perangkat fisik sebelum
-            menyetujui. Mencabut perangkat memblokir transaksi baru dan
-            sinkronisasi dari perangkat itu sampai disetujui kembali.
+            Cara baru: buka <b>/pos</b> di tablet outlet, masuk dengan akun
+            admin/SPV, pilih outlet & fungsi (Kasir / Antrean saja). Tablet
+            langsung aktif dengan akun tablet tersembunyi. Mencabut perangkat
+            memblokir transaksi baru, sinkronisasi, dan akun tablet tersebut
+            sampai disetujui kembali.
           </p>
           {d.devices.map((v) => (
             <article key={v.id} className="rounded-2xl border bg-white p-4">
               <div className="flex flex-wrap justify-between">
                 <b>
                   {v.nama} · {nama(v.outlet_id)}
+                  {v.mode === "antrean" ? " · Antrean saja" : " · Kasir"}
                 </b>
                 <span className="text-xs font-bold">{v.status}</span>
               </div>

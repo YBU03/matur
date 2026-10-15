@@ -10,7 +10,7 @@ export default async function PenggunaPage() {
   if (!s?.active || !findMenu(s.active.role, "/pengguna")) notFound();
   const supabase = await supabaseServer();
   const [{ data: users }, { data: tugas }, { data: outlets }] = await Promise.all([
-    supabase.from("pengguna").select("id, nama, email, no_hp, status, permintaan, created_at").neq("status", "dihapus").order("nama"),
+    supabase.from("pengguna").select("id, nama, email, no_hp, status, permintaan, created_at").neq("status", "dihapus").eq("akun_tablet", false).order("nama"),
     supabase.from("penugasan").select("id, pengguna_id, peran, outlet_id"),
     supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama"),
   ]);

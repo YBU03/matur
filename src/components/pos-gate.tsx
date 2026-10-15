@@ -9,11 +9,14 @@ export function PosGate({
   outlet,
   namaSaya,
   saya,
+  tablet = false,
 }: {
   status: TimStatus;
   outlet: string;
   namaSaya: string;
   saya: string;
+  /** tablet outlet terpasang: tanpa tautan ke ruang karyawan */
+  tablet?: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -43,7 +46,11 @@ export function PosGate({
     <div className="mx-auto max-w-xl space-y-4 rounded-3xl border bg-white p-6 shadow-sm">
       <div className="text-center">
         <p className="text-4xl">🔒</p>
-        <h1 className="mt-2 text-2xl font-bold">POS masih terkunci</h1>
+        <h1 className="mt-2 text-2xl font-bold">
+          {tablet && s.sesi && s.sesi.perangkat_sama && !s.sesi.legacy
+            ? "Buka kunci dengan PIN"
+            : "POS masih terkunci"}
+        </h1>
         <p className="mt-1 text-sm text-stone-500">
           {outlet} · {namaSaya}
         </p>
@@ -123,8 +130,10 @@ export function PosGate({
         >
           <p className="rounded-xl bg-matur-50 p-3 text-sm">
             Tablet disetujui: <b>{s.device.nama}</b>. Gunakan kode staf dan PIN
-            dari HRD/Admin Gudang. Petugas pembuka wajib sudah Clock In dan
-            memiliki akses kasir.
+            dari HRD/Admin Gudang.{" "}
+            {s.sesi
+              ? "Anggota tim yang masih bertugas (termasuk barista) bisa membuka kunci; pembayaran hanya oleh anggota berakses kasir."
+              : "Clock In dahulu di HP masing-masing. Pembuka shift wajib memiliki akses kasir dan menghitung modal laci."}
           </p>
           {s.sesi && (
             <p className="rounded-xl bg-stone-50 p-3 text-sm">
@@ -250,12 +259,14 @@ export function PosGate({
           {msg.error ?? msg.ok}
         </p>
       )}
-      <Link
-        href="/karyawan"
-        className="block text-center text-sm font-semibold underline"
-      >
-        Kembali ke Dashboard & Absen
-      </Link>
+      {!tablet && (
+        <Link
+          href="/karyawan"
+          className="block text-center text-sm font-semibold underline"
+        >
+          Kembali ke Dashboard & Absen
+        </Link>
+      )}
     </div>
   );
 }

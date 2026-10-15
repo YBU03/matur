@@ -35,3 +35,12 @@ Perubahan keadaan server ketika tablet benar-benar offline baru diketahui saat t
 Jalankan `npx vitest run --maxWorkers=1`, `npm run lint`, dan `npm run build`. Pengujian SQL memakai PostgreSQL/PGlite dengan schema produksi tanpa data pengguna; kriptografi/Vault diuji terpisah pada Supabase dengan transaksi rollback. Uji alur kamera, GPS, izin browser, printer, dan putus-sambung internet pada HP/tablet fisik sebelum operasional penuh.
 
 Pemeriksaan Supabase pada perubahan ini memastikan RPC baru tidak dapat dijalankan anonim, tabel bukti/izin/PIN berada di schema privat dengan akses ditolak, dan indeks relasi baru tersedia. Advisor masih mencatat temuan warisan di luar alur baru, termasuk search_path dua fungsi lama, ekstensi pg_net di public, dan izin eksekusi anonim beberapa RPC lama. Ini memerlukan audit terpisah sebelum menyebut seluruh aplikasi bebas temuan keamanan: [panduan advisor RPC](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable). Tabel privat baru memang memakai RLS tanpa policy agar tidak memiliki akses baris langsung; hanya fungsi terotorisasi yang membacanya.
+
+## Tablet outlet di `/pos` (akun tablet tersembunyi)
+
+- Satu alamat untuk semua cabang: buka `/pos` di tablet. Owner/HRD/Admin Gudang atau SPV outlet masuk sekali, memilih outlet, nama tablet, dan fungsi (**Kasir** atau **Antrean saja**). Sistem membuat akun `tablet` (peran `tablet`, `pengguna.akun_tablet = true`) berpassword acak yang tidak disimpan di mana pun, mendaftarkan perangkat berstatus aktif, lalu tablet masuk dengan akun tersebut. Kredensial admin tidak tersimpan di tablet.
+- Akun tablet memenuhi pemeriksaan `peran_di_outlet` untuk kasir/barista di outletnya saja (bukan SPV), tidak muncul di daftar pengguna, dan ikut nonaktif saat tablet dicabut di **POS Tim, PIN & Tablet**.
+- Shift: Clock In di HP → di tablet, anggota berakses kasir membuka shift (kode staf + PIN, modal laci, centang anggota yang sudah absen).
+- Layar terkunci otomatis setelah 5 menit tanpa sentuhan. Anggota tim mana pun yang masih bertugas (termasuk barista) bisa membuka kunci dengan PIN; ia menjadi **operator** yang tercatat di `transaksi.operator_id/operator_nama`, struk, dan riwayat.
+- Operator tanpa akses kasir hanya bisa menyimpan draft dan mengelola antrean; pembayaran ditolak server (`buat_transaksi`) dan tombol Bayar disembunyikan.
+- Beranda tablet: Kasir · Antrean · Draft · Riwayat & Void · Kas & Pengeluaran · Produk Endorse · Stok · Printer · Kunci layar · Tutup Shift.
