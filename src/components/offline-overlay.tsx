@@ -19,7 +19,7 @@ export function OfflineOverlay() {
   }, []);
   if (!offline) return null;
   // di layar kasir tetap bisa berjualan offline: cukup pita peringatan, tidak menutup layar
-  if (path.startsWith("/kasir/pos"))
+  if ((path.startsWith("/kasir/pos") || path === "/pos-offline"))
     return <div className="fixed inset-x-0 bottom-0 z-[100] bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-white">📴 Offline — transaksi disimpan di perangkat & terkirim otomatis saat online</div>;
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-[#fffaf2]/95 p-6 text-center backdrop-blur-sm" role="alert">

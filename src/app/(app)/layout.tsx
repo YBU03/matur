@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
-  if (POS_ONLY.includes(s.active.role)) redirect("/kasir");
+  if (POS_ONLY.includes(s.active.role)) redirect("/karyawan");
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();
     if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
