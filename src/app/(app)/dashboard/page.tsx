@@ -11,6 +11,7 @@ import { Filters } from "./filters";
 import { LaporanRingkas } from "./laporan-ringkas";
 import { MitraRingkas } from "./mitra-ringkas";
 import { rentang } from "./sales";
+import { HrdOverview } from "./hrd-overview";
 import { RingkasSdm } from "./ringkas-sdm";
 import { RingkasStok } from "./ringkas-stok";
 
@@ -79,7 +80,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {["owner", "hrd", "spv"].includes(active.role) && (
         <Suspense fallback={<Skeleton h="h-32" />}>
-          <RingkasSdm s={s} />
+          {active.role === "hrd" ? <HrdOverview s={s} outletId={sp.hrd_outlet} periode={sp.hrd_periode} /> : <RingkasSdm s={s} />}
         </Suspense>
       )}
 

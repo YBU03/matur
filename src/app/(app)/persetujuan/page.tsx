@@ -7,10 +7,12 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { PersetujuanView, type IzinBaris, type TukarBaris } from "./persetujuan-view";
 
 // Antrean persetujuan izin/sakit/libur dan tukar shift untuk HRD (semua outlet) & SPV (outletnya).
-export default async function PersetujuanPage() {
+export default async function PersetujuanPage({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {
   const s = await getSession();
   if (!s?.active || !PENGELOLA_SDM.includes(s.active.role)) notFound();
-  const outlets = await outletSdm(s);
+  const sp = await searchParams;
+  const semuaOutlet = await outletSdm(s);
+  const outlets = semuaOutlet.some((o) => o.id === sp.outlet) ? semuaOutlet.filter((o) => o.id === sp.outlet) : semuaOutlet;
   const ids = outlets.map((o) => o.id);
   const supabase = await supabaseServer();
   const sejak = addDays(hariIni(), -30);
