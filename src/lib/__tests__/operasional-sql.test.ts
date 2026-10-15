@@ -40,8 +40,33 @@ beforeAll(async () => {
  insert into bahan(id,nama,satuan_beli,satuan_pakai) values('${b}','Beans','kg','kg');
  insert into kategori_biaya(nama,urutan,grup) values('Biaya Gaji',1,'beban');`);
   await db.exec(sql);
-  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261015044846_operasional_rpc_permissions.sql",import.meta.url),"utf8"));
-  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261015044809_operasional_indexes.sql",import.meta.url),"utf8"));
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261015045410_kasbon_ringkasan_akses.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261015044846_operasional_rpc_permissions.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261015044809_operasional_indexes.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 30000);
 afterAll(() => db.close());
 describe("operasional migration on PostgreSQL", () => {
@@ -435,5 +460,32 @@ describe("operasional migration on PostgreSQL", () => {
         )[0].qty,
       ),
     ).toBe(8);
+  });
+  it("shows loan names to Finance and includes SPV in HRD selection without exposing user accounts", async () => {
+    const spv = (
+      await q<{ id: string }>(
+        "insert into pengguna(id,nama) values(gen_random_uuid(),'SPV Uji') returning id",
+      )
+    )[0].id;
+    await q(
+      "insert into penugasan(pengguna_id,peran,outlet_id) values($1,'spv',$2)",
+      [spv, o],
+    );
+    await db.exec("set app.role='finance'");
+    const data = (
+      await q<{
+        r: {
+          staf: { id: string; nama: string }[];
+          rows: { nama: string; jumlah: number }[];
+        };
+      }>("select ringkasan_kasbon($1) r", [o])
+    )[0].r;
+    expect(data.staf.some((x) => x.id === spv)).toBe(true);
+    expect(data.rows[0].nama).toBe("Penerima Uji");
+    await db.exec("set app.role='barista'");
+    await expect(q("select ringkasan_kasbon($1)", [o])).rejects.toThrow(
+      "Hanya HRD",
+    );
+    await db.exec("set app.role='owner'");
   });
 });
