@@ -13,7 +13,26 @@ export async function LaporanRingkas({ outlets, outletId, dari, sampai }: { outl
   const supabase = await supabaseServer();
   let q = supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("mode", "asli").is("deleted_at", null).gte("periode", dari.slice(0, 7) + "-01").lte("periode", sampai).order("periode");
   if (outletId) q = q.eq("outlet_id", outletId);
-  const { data } = await q;
+  const [{ data }, { data: pj }, { data: semua }] = await Promise.all([
+    q,
+    supabase.from("perjanjian").select("outlet_id, investasi_awal").eq("mode", "asli").is("deleted_at", null),
+    supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("mode", "asli").is("deleted_at", null).order("periode"),
+  ]);
+  // Progres BEP: akumulasi laba bersih SEMUA laporan terbit (bukan hanya rentang filter) vs investasi awal perjanjian
+  const investasi = new Map<string, number>();
+  for (const j of pj ?? []) investasi.set(j.outlet_id, (investasi.get(j.outlet_id) ?? 0) + Number(j.investasi_awal || 0));
+  const semuaL = (semua ?? []) as unknown as Laporan[];
+  const bep = outlets
+    .filter((o) => (!outletId || o.id === outletId) && (investasi.get(o.id) ?? 0) > 0)
+    .map((o) => {
+      const ls = semuaL.filter((l) => l.outlet_id === o.id);
+      let akum = 0;
+      const tren = ls.map((l) => ((akum += hitung(l).labaBersih), { label: label(l.periode), akumulasi: Math.round(akum), target: investasi.get(o.id)! }));
+      const inv = investasi.get(o.id)!;
+      const rata = ls.length ? akum / ls.length : 0;
+      const sisa = Math.max(inv - akum, 0);
+      return { o, inv, akum, persen: Math.min((akum / inv) * 100, 100), sisa, bulanLagi: rata > 0 && sisa > 0 ? Math.ceil(sisa / rata) : null, tren, bulan: ls.length };
+    });
   const list = ((data ?? []) as unknown as Laporan[]).map((l) => ({ l, h: hitung(l) }));
 
   if (!list.length)
@@ -80,6 +99,44 @@ export async function LaporanRingkas({ outlets, outletId, dari, sampai }: { outl
           series={multi ? adaOutlet.map((o) => ({ key: o.id, name: o.nama, color: warna[o.id] })) : [{ key: "penjualan", name: "Penjualan", color: SERIES[0] }, { key: "laba", name: "Laba bersih", color: SERIES[3] }]}
         />
       </ChartCard>
+
+      {bep.length > 0 && (
+        <ChartCard
+          title="Progres BEP"
+          sub="Akumulasi laba bersih dibanding investasi awal (semua laporan terbit)"
+          rows={bep.map((b) => ({ Outlet: b.o.nama, Investasi: b.inv, Akumulasi: Math.round(b.akum), Persen: `${b.persen.toFixed(1).replace(".", ",")}%`, Perkiraan: b.sisa === 0 ? "Sudah BEP" : b.bulanLagi ? `± ${b.bulanLagi} bulan lagi` : "-" }))}
+          cols={[{ key: "Outlet", label: "Outlet" }, { key: "Investasi", label: "Investasi", money: true }, { key: "Akumulasi", label: "Akumulasi laba", money: true }, { key: "Persen", label: "Progres" }, { key: "Perkiraan", label: "Perkiraan BEP" }]}
+        >
+          <div className="space-y-4">
+            {bep.map((b, i) => (
+              <div key={b.o.id}>
+                <div className="mb-1 flex flex-wrap items-baseline gap-x-3 text-sm">
+                  <b className="mr-auto">{b.o.nama}</b>
+                  <span className="tabular-nums">
+                    <b>{b.persen.toFixed(1).replace(".", ",")}%</b> · {rupiah(b.akum)} dari {rupiah(b.inv)}
+                  </span>
+                  <span className="text-xs text-stone-500">{b.sisa === 0 ? "🎉 Sudah BEP" : b.bulanLagi ? `sisa ${rupiah(b.sisa)} · ± ${b.bulanLagi} bulan lagi` : `sisa ${rupiah(b.sisa)}`}</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`BEP ${b.o.nama} ${b.persen.toFixed(1)}%`}>
+                  <div className="h-full rounded-full" style={{ width: `${b.persen}%`, background: SERIES[(i + 2) % SERIES.length] }} />
+                </div>
+                {b.tren.length > 1 && (
+                  <TrendChart
+                    data={b.tren}
+                    series={[
+                      { key: "akumulasi", name: "Akumulasi laba bersih", color: SERIES[(i + 2) % SERIES.length] },
+                      { key: "target", name: "Target (investasi awal)", color: "#a8a29e" },
+                    ]}
+                  />
+                )}
+              </div>
+            ))}
+            <Link href="/portal/bep" className="inline-block text-xs text-matur-700 underline">
+              Detail BEP & penerimaan mitra →
+            </Link>
+          </div>
+        </ChartCard>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Komposisi pendapatan" sub="Per kanal, total rentang" rows={kanal.map((k) => ({ Kanal: k.name, Nilai: k.value }))} cols={[{ key: "Kanal", label: "Kanal" }, { key: "Nilai", label: "Nilai", money: true }]}>

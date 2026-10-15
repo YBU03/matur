@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CURRENT_STAGE, POS_ONLY, ROLES } from "@/lib/roles";
+import { CURRENT_STAGE, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
@@ -39,6 +39,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </Link>
       <SideNav items={r.menu} />
       <div className="space-y-2 p-4 text-sm">
+        {/* Aplikasi kasir (POS) terpisah di /kasir — untuk akun yang bertugas sebagai kasir/barista/SPV */}
+        {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
+          <Link href="/kasir" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
+            🧾 Buka POS Kasir
+          </Link>
+        )}
         <InstallButton />
         {s.assignments.length > 1 && (
           <Link href="/pilih-peran" className="inline-block rounded-lg border border-matur-300 px-3 py-1.5 hover:bg-matur-50">

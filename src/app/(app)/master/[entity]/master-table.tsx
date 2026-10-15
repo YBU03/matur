@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ConfirmEditDialog, Modal, type Change } from "@/components/confirm-edit";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import type { Entity, Field } from "@/lib/master";
@@ -86,7 +86,37 @@ export function MasterTable({
   const cols = entity.fields.filter((f) => f.list !== false);
   const [q, setQ] = useState("");
   const kata = q.trim().toLowerCase();
-  const tampil = kata ? rows.filter((r) => entity.fields.some((f) => show(f, r[f.key], refs).toLowerCase().includes(kata))) : rows;
+  const [urut, setUrut] = useState<{ k: string; naik: boolean } | null>(null);
+  const [sel, setSel] = useState<{ id: string; key: string } | null>(null);
+  const [undo, setUndo] = useState<{ teks: string; id: string; key: string; lama: string | boolean } | null>(null);
+  const tampil = useMemo(() => {
+    const xs = kata ? rows.filter((r) => entity.fields.some((f) => show(f, r[f.key], refs).toLowerCase().includes(kata))) : rows;
+    if (!urut) return xs;
+    const f = entity.fields.find((x) => x.key === urut.k)!;
+    const nilai = (r: Row) => (["money", "number", "percent"].includes(f.type) ? Number(r[f.key] ?? 0) : show(f, r[f.key], refs).toLowerCase());
+    return [...xs].sort((a, b) => (nilai(a) < nilai(b) ? -1 : nilai(a) > nilai(b) ? 1 : 0) * (urut.naik ? 1 : -1));
+  }, [rows, kata, urut, entity.fields, refs]);
+  const bisaSel = (f: Field) => canEdit && !trash && f.type !== "image";
+  /** simpan satu kolom langsung dari sel tabel (tercatat di log; bisa diurungkan) */
+  const simpanSel = (r: Row, f: Field, v: string | boolean) => {
+    const lama = toForm(entity, r)[f.key];
+    setSel(null);
+    if (lama === v) return;
+    start(async () => {
+      const res = await saveMaster(entityKey, String(r.id), { [f.key]: v }, [f.key]);
+      if (res.error) setMsg({ ok: false, text: `${f.label}: ${res.error}` });
+      else {
+        setMsg(null);
+        setUndo({ teks: `${f.label}: ${show(f, r[f.key], refs)} → ${show(f, f.type === "bool" ? v : v || null, refs)}`, id: String(r.id), key: f.key, lama });
+        router.refresh();
+      }
+    });
+  };
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(null), 8000);
+    return () => clearTimeout(t);
+  }, [undo]);
   const nameField = entity.fields.find((f) => f.key === entity.nameKey)!;
 
   const run = (fn: () => Promise<{ error?: string }>, ok: string) =>
@@ -101,8 +131,21 @@ export function MasterTable({
       }
     });
 
+  const simpanBaru = (lagi: boolean) => {
+    if (!editing) return;
+    const form = editing.form;
+    start(async () => {
+      const r = await saveMaster(entityKey, null, form);
+      if (r.error) return setMsg({ ok: false, text: r.error });
+      setMsg({ ok: true, text: lagi ? "Tersimpan. Silakan isi data berikutnya." : "Tersimpan dan tercatat di log." });
+      // tambah lagi: kolom pilihan (mis. outlet, kategori, tanggal) dipertahankan agar input beruntun cepat
+      setEditing(lagi ? { row: null, form: Object.fromEntries(entity.fields.map((f) => [f.key, ["select", "enum", "date", "bool"].includes(f.type) ? form[f.key] : ""])) } : null);
+      router.refresh();
+    });
+  };
   const askSave = () => {
     if (!editing) return;
+    if (!editing.row) return simpanBaru(false);
     const before = toForm(entity, editing.row);
     const changes = entity.fields
       .filter((f) => before[f.key] !== editing.form[f.key])
@@ -158,6 +201,7 @@ export function MasterTable({
             ))}
         </div>
       )}
+      {canEdit && !trash && !entity.card && rows.length > 0 && <p className="text-xs text-stone-500">💡 Klik sel tabel untuk mengubah langsung (Enter simpan, Tab pindah kolom, Esc batal). Klik judul kolom untuk mengurutkan.</p>}
       {(rows.length > 5 || entity.card || periode) && (
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={entity.card ? `🔍 Cari nama ${entity.title.toLowerCase()}…` : `🔍 Cari di ${entity.title}…`} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500" />
       )}
@@ -230,8 +274,14 @@ export function MasterTable({
           <thead className="bg-matur-50 text-left text-kopi-700">
             <tr>
               {cols.map((f) => (
-                <th key={f.key} className="whitespace-nowrap px-3 py-2 font-semibold">
+                <th
+                  key={f.key}
+                  onClick={() => setUrut(urut?.k === f.key ? { k: f.key, naik: !urut.naik } : { k: f.key, naik: true })}
+                  className={`sticky top-0 cursor-pointer select-none whitespace-nowrap bg-matur-50 px-3 py-2 font-semibold hover:text-kopi-900 ${f.type === "money" ? "text-right" : ""}`}
+                  title="Klik untuk mengurutkan"
+                >
                   {f.label}
+                  <span className="ml-1 text-[10px] text-stone-400">{urut?.k === f.key ? (urut.naik ? "▲" : "▼") : "↕"}</span>
                 </th>
               ))}
               {canEdit && <th className="px-3 py-2" />}
@@ -246,10 +296,28 @@ export function MasterTable({
               </tr>
             )}
             {tampil.map((r) => (
-              <tr key={String(r.id)} className="border-t border-stone-100">
+              <tr key={String(r.id)} className="border-t border-stone-100 odd:bg-white even:bg-stone-50/40 hover:bg-matur-50/60">
                 {cols.map((f) => (
-                  <td key={f.key} className={`whitespace-nowrap px-3 py-2 ${f.type === "money" ? "text-right tabular-nums" : ""}`}>
-                    {f.type === "image" ? (
+                  <td
+                    key={f.key}
+                    onClick={() => bisaSel(f) && !(sel?.id === String(r.id) && sel.key === f.key) && setSel({ id: String(r.id), key: f.key })}
+                    title={bisaSel(f) ? "Klik untuk ubah langsung" : undefined}
+                    className={`whitespace-nowrap px-3 py-2 ${f.type === "money" ? "text-right tabular-nums" : ""} ${bisaSel(f) ? "cursor-text hover:outline hover:outline-1 hover:-outline-offset-1 hover:outline-matur-300" : ""}`}
+                  >
+                    {sel?.id === String(r.id) && sel.key === f.key ? (
+                      <SelEdit
+                        f={f}
+                        refs={refs}
+                        awal={toForm(entity, r)[f.key]}
+                        onSimpan={(v) => simpanSel(r, f, v)}
+                        onBatal={() => setSel(null)}
+                        onTab={(mundur) => {
+                          const bisa = cols.filter(bisaSel);
+                          const i = bisa.findIndex((x) => x.key === f.key) + (mundur ? -1 : 1);
+                          if (bisa[i]) setTimeout(() => setSel({ id: String(r.id), key: bisa[i].key }), 0);
+                        }}
+                      />
+                    ) : f.type === "image" ? (
                       r[f.key] ? (
                         // eslint-disable-next-line @next/next/no-img-element -- foto dari aset/Storage
                         <img src={String(r[f.key])} alt="" className="size-10 rounded-lg object-cover" />
@@ -291,20 +359,34 @@ export function MasterTable({
       )}
 
       {editing && !confirm && (
-        <Modal title={`${editing.row ? "Ubah" : "Tambah"} ${entity.title}`}>
-          <div className="grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2">
-            {entity.fields.map((f) => (
-              <Input key={f.key} f={f} refs={refs} value={editing.form[f.key]} onChange={(v) => setEditing({ ...editing, form: { ...editing.form, [f.key]: v } })} />
-            ))}
-          </div>
-          <div className="mt-5 flex justify-end gap-2">
-            <button onClick={() => setEditing(null)} className="rounded-lg border px-4 py-2 text-sm">
-              Batal
-            </button>
-            <button onClick={askSave} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">
-              Simpan
-            </button>
-          </div>
+        <Modal title={`${editing.row ? "Ubah" : "Tambah"} ${entity.title}`} onClose={() => setEditing(null)}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              askSave();
+            }}
+          >
+            <div className="grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2">
+              {entity.fields.map((f, i) => (
+                <Input key={f.key} f={f} refs={refs} autoFocus={i === 0 || undefined} value={editing.form[f.key]} onChange={(v) => setEditing({ ...editing, form: { ...editing.form, [f.key]: v } })} />
+              ))}
+            </div>
+            {msg && !msg.ok && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{msg.text}</p>}
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+              <span className="mr-auto text-xs text-stone-400">Enter = simpan · Esc = batal</span>
+              <button type="button" onClick={() => setEditing(null)} className="rounded-lg border px-4 py-2 text-sm">
+                Batal
+              </button>
+              {!editing.row && (
+                <button type="button" disabled={pending} onClick={() => simpanBaru(true)} className="rounded-lg border border-matur-400 px-4 py-2 text-sm font-semibold text-matur-700 disabled:opacity-50">
+                  Simpan & tambah lagi
+                </button>
+              )}
+              <button type="submit" disabled={pending} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {pending ? "Menyimpan…" : "Simpan"}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
       {editing && confirm && (
@@ -315,6 +397,25 @@ export function MasterTable({
             run(() => saveMaster(entityKey, editing.row ? String(editing.row.id) : null, editing.form), "Tersimpan dan tercatat di log.")
           }
         />
+      )}
+      {undo && (
+        <div className="fixed inset-x-0 bottom-20 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-xl bg-kopi-900 px-4 py-2.5 text-sm text-white shadow-lg md:bottom-6">
+          <span className="truncate">✓ {undo.teks}</span>
+          <button
+            onClick={() => {
+              const u = undo;
+              setUndo(null);
+              start(async () => {
+                const res = await saveMaster(entityKey, u.id, { [u.key]: u.lama }, [u.key]);
+                setMsg(res.error ? { ok: false, text: res.error } : { ok: true, text: "Perubahan diurungkan." });
+                router.refresh();
+              });
+            }}
+            className="shrink-0 font-semibold text-matur-200 underline"
+          >
+            Urungkan
+          </button>
+        </div>
       )}
       {deleting && (
         <DeleteTwoStepDialog
@@ -327,7 +428,73 @@ export function MasterTable({
   );
 }
 
-export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; value: string | boolean; onChange: (v: string | boolean) => void }) {
+const rp = new Intl.NumberFormat("id-ID");
+/** tampilan uang saat diketik: 1500000 → 1.500.000 */
+const formatUang = (v: string) => {
+  const neg = v.trim().startsWith("-");
+  const d = v.replace(/[^\d]/g, "");
+  return d ? `${neg ? "-" : ""}${rp.format(Number(d))}` : neg ? "-" : "";
+};
+
+/** Editor kecil di dalam sel tabel. */
+function SelEdit({ f, refs, awal, onSimpan, onBatal, onTab }: { f: Field; refs: Refs; awal: string | boolean; onSimpan: (v: string | boolean) => void; onBatal: () => void; onTab: (mundur: boolean) => void }) {
+  const [v, setV] = useState<string | boolean>(f.type === "money" ? formatUang(String(awal)) : awal);
+  const ref = useRef<HTMLInputElement & HTMLSelectElement>(null);
+  const selesai = useRef(false);
+  useEffect(() => {
+    ref.current?.focus();
+    if (ref.current && "select" in ref.current && f.type !== "select" && f.type !== "enum") ref.current.select?.();
+  }, [f.type]);
+  const kirim = (x: string | boolean = v) => {
+    if (selesai.current) return;
+    selesai.current = true;
+    onSimpan(f.type === "money" ? String(x).replace(/[^\d-]/g, "") : x);
+  };
+  const kunci = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") (e.preventDefault(), kirim());
+    else if (e.key === "Escape") ((selesai.current = true), onBatal());
+    else if (e.key === "Tab") (e.preventDefault(), kirim(), onTab(e.shiftKey));
+  };
+  const cls = "w-full min-w-28 rounded-md border border-matur-500 bg-white px-2 py-1 text-sm outline-none ring-2 ring-matur-200";
+  if (f.type === "bool")
+    return (
+      <select ref={ref} value={String(v)} onChange={(e) => kirim(e.target.value === "true")} onBlur={() => kirim()} onKeyDown={kunci} className={cls}>
+        <option value="true">Ya</option>
+        <option value="false">Tidak</option>
+      </select>
+    );
+  if (f.type === "select" || f.type === "enum")
+    return (
+      <select ref={ref} value={String(v)} onChange={(e) => kirim(e.target.value)} onBlur={() => kirim()} onKeyDown={kunci} className={cls}>
+        <option value="">— pilih —</option>
+        {f.type === "select"
+          ? refs[f.key]?.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))
+          : f.options!.map((o) => (
+              <option key={o} value={o}>
+                {f.optionLabels?.[o] ?? o}
+              </option>
+            ))}
+      </select>
+    );
+  return (
+    <input
+      ref={ref}
+      value={String(v)}
+      type={f.type === "date" ? "date" : "text"}
+      inputMode={f.type === "text" || f.type === "date" ? undefined : "decimal"}
+      onChange={(e) => setV(f.type === "money" ? formatUang(e.target.value) : e.target.value)}
+      onBlur={() => kirim()}
+      onKeyDown={kunci}
+      className={`${cls} ${f.type === "money" ? "text-right tabular-nums" : ""}`}
+    />
+  );
+}
+
+export function Input({ f, refs, value, onChange, autoFocus }: { f: Field; refs: Refs; value: string | boolean; onChange: (v: string | boolean) => void; autoFocus?: boolean }) {
   const cls = "mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-matur-500";
   if (f.type === "image") return <ImageInput label={f.label} value={String(value)} onChange={onChange} />;
   if (f.type === "bool")
@@ -357,13 +524,17 @@ export function Input({ f, refs, value, onChange }: { f: Field; refs: Refs; valu
               ))}
         </select>
       ) : (
-        <input
-          value={String(value)}
-          onChange={(e) => onChange(e.target.value)}
-          type={f.type === "date" ? "date" : "text"}
-          inputMode={f.type === "text" || f.type === "date" ? undefined : "decimal"}
-          className={cls}
-        />
+        <div className="relative">
+          {f.type === "money" && <span className="pointer-events-none absolute left-3 top-1/2 mt-0.5 -translate-y-1/2 text-stone-400">Rp</span>}
+          <input
+            value={f.type === "money" ? formatUang(String(value)) : String(value)}
+            onChange={(e) => onChange(f.type === "money" ? formatUang(e.target.value).replace(/[^\d-]/g, "") : e.target.value)}
+            type={f.type === "date" ? "date" : "text"}
+            inputMode={f.type === "text" || f.type === "date" ? undefined : "decimal"}
+            autoFocus={autoFocus}
+            className={`${cls} ${f.type === "money" ? "pl-9 text-right tabular-nums" : ""}`}
+          />
+        </div>
       )}
     </label>
   );

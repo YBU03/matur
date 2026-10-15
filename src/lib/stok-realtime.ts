@@ -44,3 +44,18 @@ export function qty(jumlah: number, b: { satuan: string; satuan_beli: string | n
   if (b.konversi > 1 && b.satuan_beli) return `${nf.format(jumlah / b.konversi)} ${b.satuan_beli}`;
   return `${nf.format(jumlah)} ${b.satuan}`;
 }
+
+type TitipanRt = { id: string; nama: string; produsen: string; harga_titip: number; harga_jual: number; masuk_total: number; masuk_hari_ini: number; setor_terakhir: string | null; keluar_total: number; sisa: number; harian: { tanggal: string; pakai: number }[] };
+
+/** Stok produk jadi titipan (cheesecake, dessert) per outlet: setoran − terjual − marketing, + forecast (cakupan 3 hari). */
+export async function ambilTitipan(supabase: SupabaseClient, outletId: string, mode: "asli" | "simulasi" = "asli"): Promise<BarisRt[]> {
+  const { data, error } = await supabase.rpc("stok_titipan", { p_outlet: outletId, p_mode: mode });
+  if (error || !data) return [];
+  const num = (x: unknown) => Number(x) || 0;
+  const bahan: BahanRt[] = (data as TitipanRt[]).map((t) => ({
+    id: t.id, nama: t.nama, kategori: t.produsen, satuan: "pcs", satuan_beli: "pcs", konversi: 1, stok_min: 1, harga: num(t.harga_titip),
+    stok: num(t.sisa), diubah: t.setor_terakhir, stok_tutup: null, masuk_hari_ini: num(t.masuk_hari_ini),
+    harian: (t.harian ?? []).map((h) => ({ tanggal: h.tanggal, pakai: num(h.pakai) })),
+  }));
+  return olah({ hari: "", tutup_terakhir: null, bahan, shift: [] }, 3);
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 // AKS-05: perubahan tidak langsung tersimpan; tampilkan ringkasan sebelum → sesudah.
 
 export type Change = { field: string; before: string; after: string };
@@ -59,7 +61,14 @@ export function ConfirmEditDialog({
   );
 }
 
-export function Modal({ title, children }: { title: string; children: React.ReactNode }) {
+export function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose?: () => void }) {
+  // Esc menutup modal (bila pemanggil memberi onClose)
+  useEffect(() => {
+    if (!onClose) return;
+    const f = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", f);
+    return () => window.removeEventListener("keydown", f);
+  }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div role="dialog" aria-modal className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">

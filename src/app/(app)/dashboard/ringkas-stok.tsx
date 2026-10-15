@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Session } from "@/lib/session";
-import { ambilStok, olah, qty } from "@/lib/stok-realtime";
+import { ambilStok, ambilTitipan, olah, qty } from "@/lib/stok-realtime";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const GUDANG = ["owner", "admin_pusat", "finance", "admin_gudang"];
@@ -12,9 +12,16 @@ export async function RingkasStok({ s }: { s: Session }) {
   const { data: semua } = await supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
   const outlets = a.role === "spv" ? (semua ?? []).filter((o) => o.id === a.outletId) : (semua ?? []);
   const lokasi = [...outlets, ...(GUDANG.includes(a.role) ? [{ id: "gudang", nama: "Gudang Pusat" }] : [])];
-  const hasil = await Promise.all(lokasi.map((l) => ambilStok(supabase, l.id === "gudang" ? null : l.id)));
+  const [hasil, titip] = await Promise.all([
+    Promise.all(lokasi.map((l) => ambilStok(supabase, l.id === "gudang" ? null : l.id))),
+    Promise.all(lokasi.map((l) => (l.id === "gudang" ? Promise.resolve([]) : ambilTitipan(supabase, l.id)))),
+  ]);
+  // bahan baku + produk jadi titipan (cheesecake/dessert, tanda 🍰)
   const daftar = lokasi
-    .map((l, i) => ({ l, rows: hasil[i].data ? olah(hasil[i].data!).filter((r) => ["habis", "kritis", "menipis"].includes(r.f.status)) : [] }))
+    .map((l, i) => ({
+      l,
+      rows: [...(hasil[i].data ? olah(hasil[i].data!) : []), ...titip[i].map((t) => ({ ...t, nama: `🍰 ${t.nama}` }))].filter((r) => ["habis", "kritis", "menipis"].includes(r.f.status)),
+    }))
     .filter((x) => x.rows.length);
   const total = daftar.reduce((t, x) => t + x.rows.length, 0);
   return (

@@ -54,6 +54,8 @@ export function StokRealtimeView({
   tampilRp,
   pantau,
   ringkasLokasi,
+  titipan = [],
+  linkSetor,
 }: {
   judul: string;
   lokasi: { id: string; nama: string }[];
@@ -65,6 +67,9 @@ export function StokRealtimeView({
   tampilRp: boolean;
   pantau: Pantau[];
   ringkasLokasi?: Record<string, { habis: number; kritis: number; menipis: number }>;
+  /** produk jadi titipan (cheesecake, dessert) — stok dalam pcs */
+  titipan?: BarisRt[];
+  linkSetor?: string;
 }) {
   const [cari, setCari] = useState("");
   const [filter, setFilter] = useState<StatusStok | "perlu" | "semua">("semua");
@@ -229,6 +234,8 @@ export function StokRealtimeView({
         </p>
       </section>
 
+      {titipan.length > 0 && <TitipanSection rows={titipan} tampilRp={tampilRp} linkSetor={linkSetor} />}
+
       {shift.length > 0 && (
         <section className="rounded-2xl border border-matur-200 bg-white p-4">
           <h2 className="mb-2 font-bold">Pemakaian bahan per shift</h2>
@@ -256,5 +263,67 @@ export function StokRealtimeView({
         </section>
       )}
     </div>
+  );
+}
+
+function TitipanSection({ rows, tampilRp, linkSetor }: { rows: BarisRt[]; tampilRp: boolean; linkSetor?: string }) {
+  const n = hitungStatus(rows);
+  const perlu = n.habis + n.kritis + n.menipis;
+  const minus = rows.filter((r) => r.stok < 0);
+  return (
+    <section className={`rounded-2xl border-2 bg-white p-4 ${perlu ? "border-pink-300" : "border-matur-200"}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h2 className="mr-auto font-bold">🍰 Produk jadi titipan (cheesecake & dessert)</h2>
+        <span className="text-xs text-stone-500">
+          {perlu ? <b className="text-red-600">{perlu} perlu setor ulang</b> : "semua aman"} · stok = setoran − terjual − marketing
+        </span>
+        {linkSetor && (
+          <Link href={linkSetor} className="rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-semibold text-white">
+            + Catat setoran
+          </Link>
+        )}
+      </div>
+      {minus.length > 0 && (
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          ⚠ {minus.map((r) => r.nama).join(", ")}: terjual lebih banyak dari setoran yang tercatat — kemungkinan setoran dari produsen belum dicatat.
+        </p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-pink-50 text-left text-xs text-stone-600">
+            <tr>
+              <th className="px-2 py-2">Produk</th>
+              <th className="px-2 py-2">Produsen</th>
+              <th className="px-2 py-2 text-right">Sisa</th>
+              <th className="px-2 py-2 text-right">Setor hari ini</th>
+              <th className="px-2 py-2 text-right">Terjual hari ini</th>
+              <th className="px-2 py-2 text-right">Rata-rata/hari</th>
+              <th className="px-2 py-2">14 hari</th>
+              <th className="px-2 py-2">Perkiraan habis</th>
+              <th className="px-2 py-2">Status</th>
+              <th className="px-2 py-2 text-right">Saran setor (±3 hari)</th>
+              {tampilRp && <th className="px-2 py-2 text-right">Nilai sisa</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-stone-100">
+                <td className="px-2 py-1.5 font-medium">{r.nama}</td>
+                <td className="px-2 py-1.5 text-xs text-stone-500">{r.kategori}</td>
+                <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${r.stok <= 0 ? "text-red-600" : ""}`}>{nf.format(r.stok)} pcs</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{r.masuk_hari_ini || "-"}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{r.pakaiHariIni || "-"}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{r.f.rata ? nf.format(r.f.rata) : "-"}</td>
+                <td className="px-2 py-1.5"><Sparkline data={r.harian} /></td>
+                <td className="whitespace-nowrap px-2 py-1.5 text-xs">{r.f.status === "habis" ? "sudah habis" : r.f.tglHabis ? `${tglPendek(r.f.tglHabis)} · ±${nf.format(r.f.hariTersisa ?? 0)} hr` : "-"}</td>
+                <td className="px-2 py-1.5"><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${GAYA[r.f.status].chip}`}>{GAYA[r.f.status].label}</span></td>
+                <td className="px-2 py-1.5 text-right text-xs font-semibold text-pink-700">{r.f.saran > 0 && PERLU.includes(r.f.status) ? `${Math.ceil(r.f.saran)} pcs` : ""}</td>
+                {tampilRp && <td className="px-2 py-1.5 text-right tabular-nums text-xs">{formatRupiah(Math.max(r.stok, 0) * r.harga)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

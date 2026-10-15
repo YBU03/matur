@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { StokRealtimeView } from "@/components/stok-realtime-view";
 import { getSession } from "@/lib/session";
-import { ambilStok, hitungStatus, olah } from "@/lib/stok-realtime";
+import { ambilStok, ambilTitipan, hitungStatus, olah } from "@/lib/stok-realtime";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const BOLEH = ["owner", "admin_pusat", "finance", "admin_gudang", "spv", "manajer_area"];
@@ -23,6 +23,7 @@ export default async function StokRealtime({ searchParams }: { searchParams: Pro
   const ringkas = Object.fromEntries(lokasi.map((l, i) => [l.id, hasil[i].data ? hitungStatus(olah(hasil[i].data!)) : { habis: 0, kritis: 0, menipis: 0 }]));
   const idx = lokasi.findIndex((l) => l.id === pilihan);
   const d = hasil[idx];
+  const titipan = pilihan === "gudang" ? [] : await ambilTitipan(supabase, pilihan, mode);
   if (!d.data) return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{d.error}</p>;
   return (
     <StokRealtimeView
@@ -34,8 +35,10 @@ export default async function StokRealtime({ searchParams }: { searchParams: Pro
       shift={d.data.shift}
       tutupTerakhir={d.data.tutup_terakhir}
       tampilRp
-      pantau={[{ table: "stok" }]}
+      pantau={[{ table: "stok" }, { table: "titipan_masuk" }]}
       ringkasLokasi={ringkas}
+      titipan={titipan}
+      linkSetor={`/titipan?outlet=${pilihan}`}
     />
   );
 }
