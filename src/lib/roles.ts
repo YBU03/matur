@@ -267,6 +267,16 @@ export const ROLES: Record<Role, RoleDef> = {
   },
 };
 
+const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
+ owner: [{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5},{href:"/kasbon",label:"Kasbon Karyawan",stage:5},{href:"/stok",label:"Opname Outlet",stage:5}],
+ admin_pusat:[{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5}],
+ admin_gudang:[{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5}],
+ finance:[{href:"/operasional/kiriman",label:"Invoice Pengiriman",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5},{href:"/stok",label:"Opname Outlet",stage:5},{href:"/kasbon",label:"Kasbon (lihat)",stage:5}],
+ hrd:[{href:"/stok",label:"Opname Outlet",stage:5},{href:"/titipan",label:"Titipan Dessert",stage:5},{href:"/kasbon",label:"Kasbon Karyawan",stage:5}],
+ spv:[{href:"/operasional/kiriman",label:"Pemeriksaan Kiriman",stage:5},{href:"/setoran",label:"Setoran Omzet",stage:5}],
+};
+for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].menu.push(...items);
+
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }
