@@ -30,3 +30,22 @@ export async function gantiPassword(_: Result, form: FormData): Promise<Result> 
   if (error) return { error: "Gagal mengganti password: " + error.message };
   return { ok: "Password berhasil diganti." };
 }
+
+// Ganti PIN sendiri (akun kode staf kasir/barista): PIN lama diperiksa dulu
+export async function gantiPin(_: Result, form: FormData): Promise<Result> {
+  const lama = String(form.get("lama") ?? "");
+  const baru = String(form.get("baru") ?? "");
+  if (!/^\d{4,6}$/.test(baru)) return { error: "PIN baru harus 4–6 angka." };
+  if (baru !== String(form.get("baru2") ?? "")) return { error: "Konfirmasi PIN baru tidak sama." };
+  if (baru === lama) return { error: "PIN baru harus berbeda dari yang lama." };
+  const supabase = await supabaseServer();
+  const { data } = await supabase.auth.getClaims();
+  const email = data?.claims?.email as string | undefined;
+  if (!email?.endsWith("@pin.matur.id")) return { error: "Akun ini memakai password, bukan PIN." };
+  const pin = (x: string) => `pin:${x}:${process.env.PIN_PEPPER}`;
+  const cek = await supabase.auth.signInWithPassword({ email, password: pin(lama) });
+  if (cek.error) return { error: "PIN lama salah." };
+  const { error } = await supabase.auth.updateUser({ password: pin(baru) });
+  if (error) return { error: "Gagal mengganti PIN: " + error.message };
+  return { ok: "PIN berhasil diganti. Pakai PIN baru saat masuk berikutnya." };
+}

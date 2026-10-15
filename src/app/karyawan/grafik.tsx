@@ -32,9 +32,9 @@ export function KehadiranGrafik(p: {
       .reduce((n, b) => n + b.menit, 0),
   }));
   return (
-    <section className="rounded-2xl border bg-white p-4">
+    <section className="rounded-[var(--radius-kartu)] border border-garis bg-white p-5 shadow-[var(--shadow-kartu)] sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold">Kehadiran saya</h2>
+        <h2 className="text-base font-semibold text-kopi-900">Kehadiran saya</h2>
         <nav className="flex gap-2 text-xs">
           {[7, 30].map((n) => (
             <Link
@@ -52,7 +52,7 @@ export function KehadiranGrafik(p: {
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {data.map((d) => (
-          <div key={d.nama} className="rounded-xl bg-stone-50 p-3">
+          <div key={d.nama} className="rounded-2xl bg-krem p-3">
             <p className="text-xs text-stone-500">{d.nama}</p>
             <b style={{ color: d.warna }} className="text-2xl">
               {d.jumlah}

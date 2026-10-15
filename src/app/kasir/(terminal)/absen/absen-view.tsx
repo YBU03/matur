@@ -167,7 +167,7 @@ export function AbsenView({
   };
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-matur-200 bg-white p-5">
+      <section className="rounded-[var(--radius-kartu)] border border-garis bg-white p-5 shadow-[var(--shadow-kartu)] sm:p-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Absensi hari ini</h2>
@@ -181,7 +181,7 @@ export function AbsenView({
         </div>
         <div className="my-4 space-y-2">
           {jadwalHariIni.map((j) => (
-            <p key={j.id} className="rounded-xl bg-stone-50 p-3 text-sm">
+            <p key={j.id} className="rounded-2xl bg-krem p-3 text-sm">
               <b>{j.shift.nama}</b> · {j.shift.jam_mulai}–{j.shift.jam_selesai}
               {j.sudah && " · sudah absen"}
             </p>
@@ -201,7 +201,7 @@ export function AbsenView({
         <button
           disabled={busy || panel}
           onClick={mulai}
-          className={`w-full rounded-2xl py-4 text-lg font-bold text-white disabled:opacity-50 ${terbuka ? "bg-kopi-900" : "bg-green-700"}`}
+          className={`w-full rounded-full py-4 text-lg font-bold text-white shadow-[var(--shadow-melayang)] disabled:opacity-50 ${terbuka ? "bg-kopi-900" : "bg-matur-600"}`}
         >
           {terbuka ? "Clock Out · Absen Pulang" : "Clock In · Absen Masuk"}
         </button>
@@ -310,11 +310,11 @@ export function AbsenView({
           )}
         </section>
       )}
-      <section className="rounded-2xl border bg-white p-4">
+      <section className="rounded-[var(--radius-kartu)] border border-garis bg-white p-5 shadow-[var(--shadow-kartu)] sm:p-6">
         <h2 className="mb-3 font-bold">Riwayat kehadiran saya</h2>
         <div className="max-h-96 space-y-3 overflow-auto">
           {riwayat.map((a) => (
-            <article key={a.id} className="rounded-xl border p-3 text-sm">
+            <article key={a.id} className="rounded-2xl border border-garis p-3 text-sm">
               <div className="flex justify-between gap-2">
                 <b>{a.tanggal}</b>
                 <span
