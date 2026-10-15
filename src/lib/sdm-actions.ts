@@ -163,6 +163,24 @@ export async function hapusJadwal(id: string): Promise<Result> {
   return { ok: "Dihapus dari jadwal." };
 }
 
+/** Ubah satu jadwal: pindah shift (mis. Pagi → Malam) dan/atau ganti orang (pengganti). Status terbit/draft tetap. */
+export async function ubahJadwal(id: string, shiftId: string, penggunaId: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("ubah_jadwal", { p_id: id, p_shift: shiftId, p_pengguna: penggunaId });
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  return { ok: "Jadwal diperbarui." };
+}
+
+/** HRD/SPV membatalkan izin/libur (menunggu atau sudah disetujui). Jadwal yang sudah dilepas tidak kembali otomatis. */
+export async function batalIzinAtasan(id: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("batal_izin_atasan", { p_id: id });
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  return { ok: "Izin/libur dibatalkan. Tambahkan lagi jadwalnya bila orang itu jadi masuk." };
+}
+
 // ---------- Persetujuan ----------
 export async function putusIzin(id: string, setuju: boolean, alasan: string): Promise<Result> {
   const supabase = await supabaseServer();

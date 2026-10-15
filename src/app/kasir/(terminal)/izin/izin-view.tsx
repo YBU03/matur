@@ -11,7 +11,7 @@ const STATUS: Record<string, string> = { menunggu: "Menunggu", disetujui: "Diset
 const WARNA: Record<string, string> = { menunggu: "text-amber-700", disetujui: "text-green-700", ditolak: "text-red-600", dibatalkan: "text-stone-400" };
 const tgl = (t: string) => new Date(t + "T00:00:00").toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
-export function IzinView({ today, aturan, riwayat }: { today: string; aturan: AturanSdm; riwayat: Izin[] }) {
+export function IzinView({ today, aturan, riwayat, jatah }: { today: string; aturan: AturanSdm; riwayat: Izin[]; jatah: number }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result | null>(null);
@@ -52,7 +52,7 @@ export function IzinView({ today, aturan, riwayat }: { today: string; aturan: At
         <p className="text-xs text-stone-500">
           {jenis === "izin" && `Izin wajib diajukan minimal H-${aturan.izin_min_hari} (paling cepat ${tgl(minIzin)}). Untuk keperluan mendadak hari ini, hubungi SPV/HRD.`}
           {jenis === "sakit" && "Sakit bisa diajukan untuk hari ini. Sertakan keterangan singkat."}
-          {jenis === "libur" && "Pilih hari libur mingguan Anda untuk jadwal berikutnya. Yang disetujui akan dipakai saat jadwal disusun."}
+          {jenis === "libur" && `Pilih hari libur mingguan Anda untuk jadwal berikutnya (jatah ${jatah} hari per minggu, Senin–Minggu). Yang disetujui akan dipakai saat jadwal disusun.`}
         </p>
         {!aturan.libur_mingguan_dibuka && <p className="text-xs text-stone-400">Pengajuan libur mingguan sedang ditutup HRD.</p>}
         <label className="block">

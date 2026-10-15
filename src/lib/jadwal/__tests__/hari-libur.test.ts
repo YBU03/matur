@@ -21,4 +21,11 @@ describe("hariLibur", () => {
   it("rekap per staf", () => {
     expect(rekapLibur(["a", "b"], jadwal).get("b")).toEqual(["2026-11-03"]);
   });
+  it("libur yang disetujui tampil walau tanggal belum disusun; yang menunggu tidak", () => {
+    const m = hariLibur(["a", "b"], [], [
+      { pengguna_id: "a", tanggal: "2026-11-10", jenis: "libur", status: "disetujui" },
+      { pengguna_id: "b", tanggal: "2026-11-10", jenis: "libur", status: "menunggu" },
+    ]);
+    expect(m.get("2026-11-10")).toEqual(["a"]);
+  });
 });

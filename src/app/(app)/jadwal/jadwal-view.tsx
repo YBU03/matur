@@ -7,16 +7,21 @@ import { useState, useTransition } from "react";
 import { defaultScope, resolveGenerateRange, type GenerateScope } from "@/lib/jadwal/range";
 import { eachDate, hariIni, monthLabel, monthRange, monthWeeks, shiftMonth, weekdayIndex, WEEKDAY_LABELS } from "@/lib/jadwal/waktu";
 import type { AturanSdm, Izin, Jadwal, Shift, Staf } from "@/lib/sdm";
+import { Modal } from "@/components/confirm-edit";
 import {
   aturJatahLibur,
   aturSdm,
+  batalIzinAtasan,
+  catatIzinStaf,
   generateJadwal,
   hapusDraft,
   hapusJadwal,
   isiShiftStandar,
   simpanShift,
+  putusIzin,
   tambahJadwal,
   terbitkanJadwal,
+  ubahJadwal,
   type Result,
 } from "@/lib/sdm-actions";
 
@@ -119,6 +124,8 @@ function Kalender(p: Props & Aksi) {
   const [scope, setScope] = useState<GenerateScope>(defaultScope(p.bulan, today));
   const [minggu, setMinggu] = useState(1);
   const [tambah, setTambah] = useState<string | null>(null);
+  const [edit, setEdit] = useState<{ j: Jadwal; shiftId: string; penggunaId: string } | null>(null);
+  const [izinAksi, setIzinAksi] = useState<{ i: Izin; alasan: string } | null>(null);
   const aktif = p.shifts.filter((s) => s.aktif);
   const { start, end } = monthRange(p.bulan);
   const dates = eachDate(start, end);
@@ -131,6 +138,9 @@ function Kalender(p: Props & Aksi) {
   const izinHari = new Map<string, Izin[]>();
   for (const i of p.izin) izinHari.set(i.tanggal, [...(izinHari.get(i.tanggal) ?? []), i]);
   const draft = p.jadwal.filter((j) => j.status === "draft").length;
+  // jadwal bulan ini sudah diterbitkan (tanpa draft): tambahan orang langsung ikut terbit
+  const sudahTerbit = draft === 0 && p.jadwal.some((j) => j.status === "terbit");
+  const namaShift = new Map(p.shifts.map((x) => [x.id, x.nama]));
   // hari libur gaya Makaryo: staf tanpa shift pada hari yang sudah dijadwalkan (bukan izin/sakit)
   const libur = hariLibur(p.staf.map((x) => x.id), p.jadwal, p.izin);
   const rekap = rekapLibur(p.staf.map((x) => x.id), p.jadwal, p.izin);
@@ -191,7 +201,7 @@ function Kalender(p: Props & Aksi) {
         <span><span className="inline-block h-3 w-3 rounded border border-green-600 bg-green-50 align-middle" /> terbit</span>
         <span><span className="inline-block h-3 w-3 rounded border border-dashed border-matur-500 bg-matur-50 align-middle" /> draft</span>
         <span><span className="inline-block h-3 w-3 rounded bg-red-100 align-middle" /> kurang orang</span>
-        <span>Ketuk nama untuk menghapus, + untuk menambah.</span>
+        <span>Ketuk nama untuk ubah shift / ganti orang / libur / hapus · ketuk izin untuk setujui atau batalkan · + untuk menambah{sudahTerbit ? " (langsung terbit)" : " (sebagai draft)"}.</span>
       </p>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
         {Array.from({ length: weekdayIndex(dates[0]) }).map((_, i) => (
@@ -225,8 +235,8 @@ function Kalender(p: Props & Aksi) {
                         <button
                           key={j.id}
                           disabled={p.pending}
-                          title={`${nama.get(j.pengguna_id) ?? "?"} · ${j.status} — ketuk untuk hapus`}
-                          onClick={() => confirm(`Hapus ${nama.get(j.pengguna_id) ?? "staf"} dari ${s.nama} ${d}?`) && p.jalankan(() => hapusJadwal(j.id))}
+                          title={`${nama.get(j.pengguna_id) ?? "?"} · ${j.status} — ketuk untuk ubah`}
+                          onClick={() => setEdit({ j, shiftId: j.shift_id, penggunaId: j.pengguna_id })}
                           className={`rounded-md border px-1.5 py-0.5 ${j.status === "terbit" ? "border-green-600 bg-green-50 text-green-900" : "border-dashed border-matur-500 bg-matur-50"}`}
                         >
                           {namaDepan(nama.get(j.pengguna_id) ?? "?")}
@@ -240,7 +250,7 @@ function Kalender(p: Props & Aksi) {
                           onChange={(e) => {
                             const v = e.target.value;
                             setTambah(null);
-                            if (v) p.jalankan(() => tambahJadwal(p.outlet.id, s.id, v, d, false));
+                            if (v) p.jalankan(() => tambahJadwal(p.outlet.id, s.id, v, d, sudahTerbit));
                           }}
                           className="max-w-full rounded border px-1 py-0.5"
                         >
@@ -271,10 +281,10 @@ function Kalender(p: Props & Aksi) {
               {!!izinD.length && (
                 <p className="mt-1 text-[11px] text-stone-500">
                   {izinD.map((i) => (
-                    <span key={i.id} className={`mr-1 inline-block rounded px-1 ${i.status === "disetujui" ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800"}`}>
+                    <button key={i.id} onClick={() => setIzinAksi({ i, alasan: "" })} className={`mr-1 mb-0.5 inline-block rounded px-1 ${i.status === "disetujui" ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800 ring-1 ring-amber-300"}`}>
                       {JENIS_IZIN[i.jenis]}: {namaDepan(nama.get(i.pengguna_id) ?? "?")}
                       {i.status === "menunggu" && " ?"}
-                    </span>
+                    </button>
                   ))}
                 </p>
               )}
@@ -319,6 +329,147 @@ function Kalender(p: Props & Aksi) {
             </table>
           </div>
         </section>
+      )}
+
+      {edit && (
+        <Modal title={`Ubah jadwal · ${nama.get(edit.j.pengguna_id) ?? "?"} · ${WEEKDAY_LABELS[weekdayIndex(edit.j.tanggal)]} ${Number(edit.j.tanggal.slice(8))}`}>
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-stone-500">
+              Sekarang: <b>{namaShift.get(edit.j.shift_id)}</b> · {edit.j.status === "terbit" ? "sudah terbit (staf melihat perubahan)" : "draft"}
+            </p>
+            <label className="block font-semibold">
+              Pindah ke shift
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {aktif.map((x) => (
+                  <button key={x.id} onClick={() => setEdit({ ...edit, shiftId: x.id })} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${edit.shiftId === x.id ? "border-kopi-900 bg-kopi-900 text-white" : "border-stone-300"}`}>
+                    {x.nama} {x.jam_mulai}–{x.jam_selesai}
+                  </button>
+                ))}
+              </div>
+            </label>
+            <label className="block font-semibold">
+              Orang yang bertugas (ganti / pengganti)
+              <select value={edit.penggunaId} onChange={(e) => setEdit({ ...edit, penggunaId: e.target.value })} className="mt-1 block w-full rounded-lg border px-3 py-2 font-normal">
+                {p.staf.map((st) => {
+                  const izinSt = (izinHari.get(edit.j.tanggal) ?? []).find((i) => i.pengguna_id === st.id && i.status === "disetujui");
+                  const lain = p.jadwal.filter((x) => x.tanggal === edit.j.tanggal && x.pengguna_id === st.id && x.id !== edit.j.id).map((x) => namaShift.get(x.shift_id));
+                  return (
+                    <option key={st.id} value={st.id} disabled={!!izinSt}>
+                      {st.nama}
+                      {izinSt ? ` — ${JENIS_IZIN[izinSt.jenis].toLowerCase()}` : lain.length ? ` — sudah di shift ${lain.join(", ")}` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button onClick={() => setEdit(null)} className="rounded-lg border px-4 py-2">
+                Batal
+              </button>
+              <button
+                disabled={p.pending || (edit.shiftId === edit.j.shift_id && edit.penggunaId === edit.j.pengguna_id)}
+                onClick={() => {
+                  const e = edit;
+                  setEdit(null);
+                  p.jalankan(() => ubahJadwal(e.j.id, e.shiftId, e.penggunaId));
+                }}
+                className="rounded-lg bg-kopi-900 px-4 py-2 font-semibold text-white disabled:opacity-40"
+              >
+                Simpan perubahan
+              </button>
+            </div>
+            <div className="border-t pt-3">
+              <p className="mb-1.5 text-xs font-semibold text-stone-500">Atau</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(["libur", "izin", "sakit"] as const).map((jn) => (
+                  <button
+                    key={jn}
+                    disabled={p.pending}
+                    onClick={() => {
+                      const e = edit;
+                      if (!confirm(`Tandai ${nama.get(e.j.pengguna_id)} ${JENIS_IZIN[jn].toLowerCase()} pada ${e.j.tanggal}? Semua shift orang itu di tanggal tsb dilepas.`)) return;
+                      setEdit(null);
+                      p.jalankan(() => catatIzinStaf(p.outlet.id, e.j.pengguna_id, jn, e.j.tanggal, jn === "libur" ? "" : `Dicatat HRD/SPV`));
+                    }}
+                    className="rounded-lg border border-sky-300 px-3 py-1.5 text-xs font-semibold text-sky-700"
+                  >
+                    🌴 Tandai {JENIS_IZIN[jn].toLowerCase()}
+                  </button>
+                ))}
+                <button
+                  disabled={p.pending}
+                  onClick={() => {
+                    const e = edit;
+                    if (!confirm(`Hapus ${nama.get(e.j.pengguna_id)} dari ${namaShift.get(e.j.shift_id)} ${e.j.tanggal}?`)) return;
+                    setEdit(null);
+                    p.jalankan(() => hapusJadwal(e.j.id));
+                  }}
+                  className="ml-auto rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700"
+                >
+                  🗑 Hapus dari jadwal
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {izinAksi && (
+        <Modal title={`${JENIS_IZIN[izinAksi.i.jenis]} · ${nama.get(izinAksi.i.pengguna_id) ?? "?"} · ${izinAksi.i.tanggal}`}>
+          <div className="space-y-3 text-sm">
+            <p>
+              Status: <b>{izinAksi.i.status === "menunggu" ? "menunggu persetujuan" : "disetujui"}</b>
+              {izinAksi.i.alasan && <span className="block text-xs text-stone-500">Alasan: {izinAksi.i.alasan}</span>}
+            </p>
+            {izinAksi.i.status === "menunggu" && (
+              <input value={izinAksi.alasan} onChange={(e) => setIzinAksi({ ...izinAksi, alasan: e.target.value })} placeholder="Alasan bila ditolak" className="w-full rounded-lg border px-3 py-2" />
+            )}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button onClick={() => setIzinAksi(null)} className="rounded-lg border px-4 py-2">
+                Tutup
+              </button>
+              {izinAksi.i.status === "menunggu" ? (
+                <>
+                  <button
+                    disabled={p.pending || !izinAksi.alasan.trim()}
+                    onClick={() => {
+                      const x = izinAksi;
+                      setIzinAksi(null);
+                      p.jalankan(() => putusIzin(x.i.id, false, x.alasan));
+                    }}
+                    className="rounded-lg border border-red-300 px-4 py-2 text-red-700 disabled:opacity-40"
+                  >
+                    Tolak
+                  </button>
+                  <button
+                    disabled={p.pending}
+                    onClick={() => {
+                      const x = izinAksi;
+                      setIzinAksi(null);
+                      p.jalankan(() => putusIzin(x.i.id, true, ""));
+                    }}
+                    className="rounded-lg bg-green-700 px-4 py-2 font-semibold text-white"
+                  >
+                    Setujui
+                  </button>
+                </>
+              ) : (
+                <button
+                  disabled={p.pending}
+                  onClick={() => {
+                    const x = izinAksi;
+                    if (!confirm("Batalkan izin/libur ini? Jadwalnya perlu ditambahkan lagi bila orang itu jadi masuk.")) return;
+                    setIzinAksi(null);
+                    p.jalankan(() => batalIzinAtasan(x.i.id));
+                  }}
+                  className="rounded-lg border border-red-300 px-4 py-2 text-red-700"
+                >
+                  Batalkan {JENIS_IZIN[izinAksi.i.jenis].toLowerCase()}
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

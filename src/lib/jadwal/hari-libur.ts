@@ -17,6 +17,12 @@ export function hariLibur(stafIds: string[], jadwal: J[], izin: I[] = []) {
     const libur = stafIds.filter((id) => !ada.has(id) && !izinKey.has(`${id}|${tgl}`));
     if (libur.length) out.set(tgl, libur);
   }
+  // libur yang diajukan & disetujui tetap tampil walau tanggalnya belum disusun jadwalnya
+  for (const i of izin) {
+    if (i.jenis !== "libur" || (i.status && i.status !== "disetujui") || !stafIds.includes(i.pengguna_id)) continue;
+    const xs = out.get(i.tanggal) ?? [];
+    if (!xs.includes(i.pengguna_id)) out.set(i.tanggal, [...xs, i.pengguna_id]);
+  }
   return out;
 }
 
