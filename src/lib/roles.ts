@@ -167,7 +167,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: false,
     menu: [
       dash,
-      { href: "/kasir", label: "Buka Aplikasi POS", stage: 3 },
+      { href: "/pos", label: "Buka Aplikasi POS", stage: 3 },
       { href: "/gudang/kiriman", label: "Kiriman Masuk", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
       { href: "/stok", label: "Stok & Opname", stage: 4 },

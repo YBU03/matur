@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
-  if (POS_ONLY.includes(s.active.role)) redirect("/kasir");
+  if (POS_ONLY.includes(s.active.role)) redirect("/staf");
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();
     if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 
   // 4 pintasan di tombol melayang bawah: Beranda + menu terpenting peran ini yang sudah tersedia
-  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/laporan", "/hpp-menu", "/gudang/stok", "/pengguna", "/kasir", "/absensi", "/jadwal", "/persetujuan", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
+  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/laporan", "/hpp-menu", "/gudang/stok", "/pengguna", "/pos", "/absensi", "/jadwal", "/persetujuan", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
   const tersedia = r.menu.filter((m) => m.stage <= CURRENT_STAGE && m.href !== "/dashboard");
   const quick = [
     { href: "/dashboard", label: "Beranda" },

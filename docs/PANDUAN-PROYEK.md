@@ -40,9 +40,10 @@ Buka proyek → **Lihat rincian →** (atau tombol *Rincian Keperluan* untuk adm
 - Setelah login, setiap orang langsung masuk ke dashboard sesuai perannya. Akun bisa **dinonaktifkan** kapan saja (akses langsung terkunci). Hanya Owner yang bisa memberi peran Owner.
 
 ## 7. Aplikasi POS kasir & barista (terpisah)
-- Alamat khusus: **https://matoer.vercel.app/kasir** — dipakai di tablet/HP outlet. Bisa dipasang sebagai aplikasi (*Add to Home Screen*) dan langsung terbuka ke POS.
+- Alamat khusus: **https://matoer.vercel.app/pos** — dipakai di tablet kasir outlet dengan akun kasir. Bisa dipasang sebagai aplikasi (*Add to Home Screen*) dan langsung terbuka ke POS. Alamat lama /kasir otomatis diarahkan ke /pos.
 - Login dengan **kode staf + PIN** (akun dibuat Owner di *Pengguna & Akses*), atau email untuk kasir yang mendaftar sendiri.
-- Kasir: layar **Kasir** (POS) dan **Antrean**; Barista: **Antrean**. Keduanya juga punya **Absen**, **Jadwal**, dan **Izin** (lihat bagian SDM outlet).
+- POS: layar **Kasir**, **Antrean**, **Kas & Pengeluaran**, dan **Absen** (rekan yang absen di tablet memakai kode staf + PIN).
+- **Aplikasi Staf** pribadi di **https://matoer.vercel.app/staf** (HP masing-masing kasir & barista, bisa dipasang): Beranda, Jadwal, Absen, Pengajuan, Profil — lihat bagian SDM outlet.
 - Halaman login utama (**/login**) hanya untuk email: owner, admin, pusat, gudang, mitra. Kasir/barista yang login di sana otomatis diarahkan ke /kasir. SPV membuka POS lewat menu **Buka Aplikasi POS**.
 
 ## 8. Menu POS, tombol Pasang Aplikasi, menu ☰
@@ -88,9 +89,10 @@ Mengikuti Excel Ruma (sheet *Transaksi* → *Laporan Keuangan*):
 - **Jadwal Shift → tab Shift**: atur shift per outlet (nama, jam, minimal orang). Tombol *Isi 3 shift standar* membagi jam operasional outlet. Shift dinonaktifkan, tidak dihapus.
 - **Tab Kalender**: pilih cakupan → **Susun draft otomatis** (jatah libur mingguan, izin yang disetujui, minimal orang, beban merata, anti-bentrok, rotasi shift) → periksa/ubah (ketuk nama untuk hapus, + untuk tambah) → **Terbitkan**. Hanya jadwal terbit yang terlihat staf. Slot kurang orang ditandai merah.
 - **Tab Staf**: jatah libur per minggu per orang (bawaan 1). **Tab Aturan** (HRD/Owner): toleransi telat (**5 menit**), izin minimal H-3, buka/tutup pengajuan libur mingguan.
-- **Absen** (aplikasi POS → *Absen*): selfie + lokasi GPS, jam server. Bisa dari **HP sendiri** atau **perangkat outlet**; di perangkat outlet rekan lain absen dengan **kode staf + PIN** tanpa mengganti kasir yang sedang login. Lokasi ditolak tetap tersimpan, ditandai tanpa lokasi. Status: tepat waktu / telat / tanpa jadwal / tidak absen.
-- **Izin** (aplikasi POS → *Izin*): izin min. H-3, sakit untuk hari ini, libur mingguan saat dibuka HRD. HRD/SPV menyetujui/menolak (dengan alasan), atau mencatat izin/sakit untuk staf yang mengabari lewat WA. Izin disetujui otomatis melepas jadwal orang itu di tanggal tersebut.
-- **Tukar shift** (aplikasi POS → *Jadwal*): ajukan ke rekan (paling lambat H-1) → rekan menerima → HRD/SPV menyetujui → jadwal tertukar otomatis.
-- **Pengingat**: banner di aplikasi POS mulai 60 menit sebelum shift bila belum absen masuk (merah ≤15 menit / sudah lewat), dan saat ada permintaan tukar menunggu.
+- **Aplikasi Staf (/staf)** — tampilan mengikuti aplikasi host Makaryo dengan warna Matoer: sapaan + kartu *Shift kamu hari ini* dengan tombol absen, 4 kartu angka (jam kerja, tepat, telat, penjualan/pesanan hari ini), 4 kartu modul (Absen, Jadwal, Pengajuan, POS/Antrean), menu pil melayang di bawah (HP) atau sidebar (laptop), lonceng **notifikasi** (izin diputus, tukar shift, jadwal terbit), dan **Profil** (ubah nama/HP, ganti PIN).
+- **Absen**: selfie + lokasi GPS, jam server. Dari **HP sendiri** lewat /staf, atau di **tablet outlet** lewat /pos → *Absen* (rekan lain memakai **kode staf + PIN** tanpa mengganti kasir yang sedang login). Lokasi ditolak tetap tersimpan, ditandai tanpa lokasi. Status: tepat waktu / telat / tanpa jadwal / tidak absen.
+- **Pengajuan** (Aplikasi Staf → *Pengajuan*): izin min. H-3, sakit untuk hari ini, libur mingguan saat dibuka HRD. HRD/SPV menyetujui/menolak (dengan alasan), atau mencatat izin/sakit untuk staf yang mengabari lewat WA. Izin disetujui otomatis melepas jadwal orang itu di tanggal tersebut.
+- **Tukar shift** (Aplikasi Staf → *Pengajuan → Tukar shift*, atau ketuk tanggal di kalender *Jadwal*): ajukan ke rekan (paling lambat H-1) → rekan menerima → HRD/SPV menyetujui → jadwal tertukar otomatis.
+- **Pengingat**: banner di aplikasi POS (tablet) mulai 60 menit sebelum shift bila belum absen masuk (merah ≤15 menit / sudah lewat), dan saat ada permintaan tukar menunggu.
 - **Rekap Absensi**: status hari ini, ringkasan per staf (jadwal, hadir, tepat, telat + menit, tidak absen, izin, jam kerja), detail dengan foto selfie & tautan peta, koreksi (catatan / isi jam pulang), **Unduh Excel**. Data ini menjadi dasar penggajian (Tahap 8).
 - Shift kerja (kehadiran) **terpisah** dari shift kas (buka/tutup laci di *Kas & Pengeluaran*).

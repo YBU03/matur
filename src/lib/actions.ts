@@ -12,7 +12,7 @@ async function setelahLogin(): Promise<never> {
   await setActive(null);
   const s = await getSession();
   if (!s || s.status !== "aktif" || s.assignments.length === 0) redirect("/menunggu");
-  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/kasir");
+  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/staf");
   redirect(s.active ? "/dashboard" : "/pilih-peran");
 }
 
@@ -83,12 +83,20 @@ export async function kasirLoginAction(_: LoginState, form: FormData): Promise<L
       : await supabase.auth.signInWithPassword({ email: `${login}@pin.matur.id`, password: `pin:${secret}:${process.env.PIN_PEPPER}` });
   if (error) return { error: mode === "email" ? "Email atau password salah." : "Kode staf atau PIN salah." };
   await setActive(null);
-  redirect("/kasir");
+  // tablet outlet (/pos) langsung ke POS; HP pribadi (/staf) ke aplikasi staf
+  redirect(form.get("tujuan") === "staf" ? "/staf" : "/pos");
 }
 
 export async function kasirLogoutAction() {
   const supabase = await supabaseServer();
   await supabase.auth.signOut();
   await setActive(null);
-  redirect("/kasir");
+  redirect("/pos");
+}
+
+export async function stafLogoutAction() {
+  const supabase = await supabaseServer();
+  await supabase.auth.signOut();
+  await setActive(null);
+  redirect("/staf/login");
 }

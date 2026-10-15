@@ -131,6 +131,6 @@ export async function pengingatShift(uid: string, outletId: string): Promise<{ t
       ? { teks: `⏰ Shift ${sh.nama} mulai ${sh.jam_mulai.slice(0, 5)} (${menit} menit lagi) — jangan lupa absen masuk`, href: "/kasir/absen", mendesak: menit <= 15 }
       : { teks: `⚠️ Shift ${sh.nama} sudah mulai ${sh.jam_mulai.slice(0, 5)} — Anda belum absen masuk`, href: "/kasir/absen", mendesak: true };
   }
-  if (tukar) return { teks: `🔁 ${tukar} permintaan tukar shift menunggu jawaban Anda`, href: "/kasir/jadwal", mendesak: false };
+  if (tukar) return { teks: `🔁 ${tukar} permintaan tukar shift menunggu jawaban Anda`, href: "/staf/pengajuan", mendesak: false };
   return null;
 }

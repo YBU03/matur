@@ -12,7 +12,7 @@ import { supabaseServer } from "./supabase/server";
 export type Result = { error?: string; ok?: string };
 
 const segarkan = () => {
-  for (const p of ["/jadwal", "/absensi", "/persetujuan", "/dashboard", "/kasir/absen", "/kasir/jadwal", "/kasir/izin"]) revalidatePath(p);
+  for (const p of ["/jadwal", "/absensi", "/persetujuan", "/dashboard", "/kasir/absen", "/staf"]) revalidatePath(p, p === "/staf" ? "layout" : "page");
 };
 const pesan = (m: string) =>
   m.includes("row-level") || m.includes("permission") ? "Anda tidak punya akses untuk outlet ini." : m.replace(/^.*?ERROR:\s*/, "");
@@ -123,16 +123,10 @@ export async function generateJadwal(outletId: string, dari: string, sampai: str
 
 export async function terbitkanJadwal(outletId: string, dari: string, sampai: string): Promise<Result> {
   const supabase = await supabaseServer();
-  const { error, count } = await supabase
-    .from("jadwal_shift")
-    .update({ status: "terbit" }, { count: "exact" })
-    .eq("outlet_id", outletId)
-    .eq("status", "draft")
-    .gte("tanggal", dari)
-    .lte("tanggal", sampai);
+  const { data, error } = await supabase.rpc("terbitkan_jadwal", { p_outlet: outletId, p_dari: dari, p_sampai: sampai });
   if (error) return { error: pesan(error.message) };
   segarkan();
-  return { ok: count ? `${count} jadwal diterbitkan dan kini terlihat oleh staf.` : "Tidak ada draft untuk diterbitkan." };
+  return { ok: data ? `${data} jadwal diterbitkan. Staf mendapat notifikasi.` : "Tidak ada draft untuk diterbitkan." };
 }
 
 export async function hapusDraft(outletId: string, dari: string, sampai: string): Promise<Result> {

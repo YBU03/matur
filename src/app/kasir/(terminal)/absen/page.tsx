@@ -7,7 +7,7 @@ import { AbsenView } from "./absen-view";
 // Absen selfie + GPS: dari HP sendiri, atau di perangkat outlet (staf lain pakai kode staf + PIN).
 export default async function AbsenPage() {
   const s = await getSession();
-  if (!s?.active?.outletId) redirect("/kasir");
+  if (!s?.active?.outletId) redirect("/pos");
   const outlet = s.active.outletId;
   const today = hariIni();
   const [shifts, jadwal, riwayat] = await Promise.all([

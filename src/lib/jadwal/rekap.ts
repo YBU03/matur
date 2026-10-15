@@ -121,3 +121,11 @@ export function formatDurasi(menit: number) {
   if (j === 0) return `${m} mnt`;
   return m ? `${j} j ${m} mnt` : `${j} jam`;
 }
+
+/** Versi ringkas untuk angka besar di kartu statistik, mis. "75j 20m". */
+export function formatDurasiPendek(menit: number) {
+  if (menit <= 0) return "0j";
+  const j = Math.floor(menit / 60);
+  const m = menit % 60;
+  return j === 0 ? `${m}m` : m ? `${j}j ${m}m` : `${j}j`;
+}

@@ -13,7 +13,7 @@ import { pengingatShift } from "@/lib/sdm";
 // Tampilan aplikasi POS: tanpa menu admin, khusus perangkat di outlet.
 export default async function TerminalLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
-  if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) redirect("/kasir");
+  if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) redirect("/pos");
   const m = await statusMaintenance();
   if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
   const items = [
@@ -21,8 +21,6 @@ export default async function TerminalLayout({ children }: { children: React.Rea
     { href: "/kasir/antrean", label: "Antrean" },
     { href: "/kasir/shift", label: "Kas & Pengeluaran" },
     { href: "/kasir/absen", label: "Absen" },
-    { href: "/kasir/jadwal", label: "Jadwal" },
-    { href: "/kasir/izin", label: "Izin" },
   ];
   const ingat = await pengingatShift(s.userId, s.active.outletId);
   return (

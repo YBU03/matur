@@ -11,6 +11,10 @@
   --color-matur-700: #c75400;
   --color-kopi-700: #5a3417;
   --color-kopi-900: #3a1f0b;
+  /* aplikasi staf (gaya kartu Makaryo, warna Matoer) */
+  --color-krem: #fffaf2;
+  --color-garis: #f1e4cf;
+  --color-redup: #8a7767;
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -45,3 +49,11 @@ body {
   [data-overlay] * { animation: none !important; }
 }
 @keyframes goyang { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+
+/* aplikasi staf: kartu besar membulat & bayangan lembut ala Makaryo */
+:root {
+  --radius-kartu: 24px;
+  --shadow-kartu: 0 8px 24px rgba(58, 31, 11, 0.06);
+  --shadow-melayang: 0 12px 32px rgba(58, 31, 11, 0.3);
+}
+.tabular { font-variant-numeric: tabular-nums; }

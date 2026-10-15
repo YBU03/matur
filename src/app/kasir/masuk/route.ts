@@ -8,7 +8,9 @@ export async function GET(req: NextRequest) {
   const outletId = req.nextUrl.searchParams.get("outlet");
   const s = await getSession();
   const ok = !!s && !!role && POS_ROLES.includes(role) && s.assignments.some((a) => a.role === role && a.outletId === outletId);
-  if (!ok) return NextResponse.redirect(new URL("/kasir", req.url));
+  const staf = req.nextUrl.searchParams.get("ke") === "staf";
+  if (!ok) return NextResponse.redirect(new URL(staf ? "/staf/pilih" : "/pos", req.url));
   await setActive({ role: role!, outletId });
+  if (staf) return NextResponse.redirect(new URL("/staf", req.url));
   return NextResponse.redirect(new URL(BISA_JUAL.includes(role!) ? "/kasir/pos" : "/kasir/antrean", req.url));
 }
