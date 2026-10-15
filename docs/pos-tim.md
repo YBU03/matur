@@ -33,3 +33,5 @@ Perubahan keadaan server ketika tablet benar-benar offline baru diketahui saat t
 ## Validasi perubahan
 
 Jalankan `npx vitest run --maxWorkers=1`, `npm run lint`, dan `npm run build`. Pengujian SQL memakai PostgreSQL/PGlite dengan schema produksi tanpa data pengguna; kriptografi/Vault diuji terpisah pada Supabase dengan transaksi rollback. Uji alur kamera, GPS, izin browser, printer, dan putus-sambung internet pada HP/tablet fisik sebelum operasional penuh.
+
+Pemeriksaan Supabase pada perubahan ini memastikan RPC baru tidak dapat dijalankan anonim, tabel bukti/izin/PIN berada di schema privat dengan akses ditolak, dan indeks relasi baru tersedia. Advisor masih mencatat temuan warisan di luar alur baru, termasuk search_path dua fungsi lama, ekstensi pg_net di public, dan izin eksekusi anonim beberapa RPC lama. Ini memerlukan audit terpisah sebelum menyebut seluruh aplikasi bebas temuan keamanan: [panduan advisor RPC](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable). Tabel privat baru memang memakai RLS tanpa policy agar tidak memiliki akses baris langsung; hanya fungsi terotorisasi yang membacanya.

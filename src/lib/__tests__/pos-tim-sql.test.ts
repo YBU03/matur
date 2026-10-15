@@ -55,12 +55,13 @@ create function vault.update_secret(uuid,text) returns void language sql as $$up
   await db.exec(
     readFileSync(
       new URL(
-        "../../../supabase/migrations/20261015071709_karyawan_pos_tim.sql",
+        "../../../supabase/migrations/20261015083400_karyawan_pos_tim.sql",
         import.meta.url,
       ),
       "utf8",
     ),
   );
+  await db.exec(readFileSync(new URL('../../../supabase/migrations/20261015083632_pos_tim_akses_indeks.sql',import.meta.url),'utf8'));
   await q("insert into outlet(id,nama) values($1,'Outlet Uji')", [o]);
   for (const [uid, nama, role] of [
     [owner, "Admin Uji", "owner"],
