@@ -251,7 +251,7 @@ export function MasterTable({
                             ) : (
                               <>
                                 <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="text-matur-700 hover:underline">
-                                  Ubah
+                                  {entityKey === "outlet" ? "Edit Profil Outlet" : "Ubah"}
                                 </button>
                                 <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
                                   Hapus
@@ -342,7 +342,7 @@ export function MasterTable({
                     ) : (
                       <>
                         <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="mr-3 text-matur-700 hover:underline">
-                          Ubah
+                          {entityKey === "outlet" ? "Edit Profil Outlet" : "Ubah"}
                         </button>
                         <button onClick={() => setDeleting(r)} className="text-red-600 hover:underline">
                           Hapus
@@ -451,9 +451,17 @@ function SelEdit({ f, refs, awal, onSimpan, onBatal, onTab }: { f: Field; refs: 
     onSimpan(f.type === "money" ? String(x).replace(/[^\d-]/g, "") : x);
   };
   const kunci = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") (e.preventDefault(), kirim());
-    else if (e.key === "Escape") ((selesai.current = true), onBatal());
-    else if (e.key === "Tab") (e.preventDefault(), kirim(), onTab(e.shiftKey));
+    if (e.key === "Enter") {
+      e.preventDefault();
+      kirim();
+    } else if (e.key === "Escape") {
+      selesai.current = true;
+      onBatal();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      kirim();
+      onTab(e.shiftKey);
+    }
   };
   const cls = "w-full min-w-28 rounded-md border border-matur-500 bg-white px-2 py-1 text-sm outline-none ring-2 ring-matur-200";
   if (f.type === "bool")
@@ -508,6 +516,7 @@ export function Input({ f, refs, value, onChange, autoFocus }: { f: Field; refs:
     <label className="block text-sm font-medium">
       {f.label}
       {f.required && <span className="text-red-500"> *</span>}
+      {f.suggestions && <datalist id={`suggest-${f.key}`}>{f.suggestions.map((v) => <option key={v} value={v} />)}</datalist>}
       {f.type === "select" || f.type === "enum" ? (
         <select value={String(value)} onChange={(e) => onChange(e.target.value)} className={cls}>
           <option value="">— pilih —</option>
@@ -529,6 +538,7 @@ export function Input({ f, refs, value, onChange, autoFocus }: { f: Field; refs:
           <input
             value={f.type === "money" ? formatUang(String(value)) : String(value)}
             onChange={(e) => onChange(f.type === "money" ? formatUang(e.target.value).replace(/[^\d-]/g, "") : e.target.value)}
+            list={f.suggestions ? `suggest-${f.key}` : undefined}
             type={f.type === "date" ? "date" : "text"}
             inputMode={f.type === "text" || f.type === "date" ? undefined : "decimal"}
             autoFocus={autoFocus}

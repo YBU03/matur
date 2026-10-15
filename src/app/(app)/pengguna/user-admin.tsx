@@ -82,13 +82,14 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
           </select>
         </label>
         <label className="text-sm font-medium">
-          {isPin(role) ? "Kode staf" : "Email"}
-          <input name="login" required type={isPin(role) ? "text" : "email"} placeholder={isPin(role) ? "kasir2" : "nama@email.com"} className={cls} />
+          Email login HP
+          <input name="login" required type="email" placeholder="nama@email.com" className={cls} />
         </label>
         <label className="text-sm font-medium">
-          {isPin(role) ? "PIN (4–6 digit)" : "Password (min. 8)"}
-          <input name="secret" required type="password" inputMode={isPin(role) ? "numeric" : undefined} className={cls} />
+          Password akun (min. 8 karakter)
+          <input name="secret" required type="password" minLength={8} className={cls} />
         </label>
+        {isPin(role)&&<><label className="text-sm font-medium">Kode staf POS<input name="kode_staf" required minLength={3} maxLength={60} className={cls}/></label><label className="text-sm font-medium">PIN POS terpisah<input name="pin_pos" required type="password" inputMode="numeric" pattern="[0-9]{4,6}" className={cls}/></label></>}
         <label className="text-sm font-medium">
           Outlet
           <select name="outlet" disabled={ROLES[role].allOutlets} className={cls}>

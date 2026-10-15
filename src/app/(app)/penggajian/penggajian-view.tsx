@@ -4,8 +4,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { formatRupiah } from "@/lib/format";
-import { jumlahkan, totalSlip, type Baris, type Komponen } from "@/lib/gaji";
-import { bukaPenggajian, finalkanPenggajian, hitungPenggajian, simpanGajiStaf, ubahSlip } from "@/lib/gaji-actions";
+import {
+  ATURAN_GAJI,
+  jumlahkan,
+  totalSlip,
+  type AturanGaji,
+  type HitunganJam,
+  type Baris,
+  type Komponen,
+} from "@/lib/gaji";
+import {
+  bukaPenggajian,
+  finalkanPenggajian,
+  hitungPenggajian,
+  simpanGajiStaf,
+  ubahSlip,
+} from "@/lib/gaji-actions";
+import { setujuiJamGaji } from "@/lib/operasional-actions";
 import type { Kop } from "@/lib/pdf-kop";
 import { namaBulan } from "./slip-pdf";
 
@@ -24,8 +39,14 @@ export type Slip = {
   potongan: Baris[];
   total: number;
   rekening: string | null;
+  hitungan_jam?: HitunganJam;
+  jam_disetujui?: boolean;
 };
-type KomponenStaf = Komponen & { bank: string | null; no_rekening: string | null; atas_nama: string | null };
+type KomponenStaf = Komponen & {
+  bank: string | null;
+  no_rekening: string | null;
+  atas_nama: string | null;
+};
 
 export function PenggajianView({
   outlets,
@@ -54,7 +75,8 @@ export function PenggajianView({
   const [buka, setBuka] = useState<string | null>(null);
   const final = penggajian?.status === "final";
   const total = slips.reduce((s, x) => s + Number(x.total), 0);
-  const href = (p: Record<string, string>) => `/penggajian?${new URLSearchParams({ outlet: outlet.id, bulan, ...(tab === "komponen" ? { tab } : {}), ...p })}`;
+  const href = (p: Record<string, string>) =>
+    `/penggajian?${new URLSearchParams({ outlet: outlet.id, bulan, ...(tab === "komponen" ? { tab } : {}), ...p })}`;
   const jalankan = (fn: () => Promise<{ error?: string; ok?: string }>) =>
     start(async () => {
       const r = await fn();
@@ -63,7 +85,11 @@ export function PenggajianView({
     });
   const pdf = async (xs: Slip[], nama: string) => {
     const { unduhSlip } = await import("./slip-pdf");
-    await unduhSlip(perusahaan, xs.map((x) => ({ ...x, outlet: outlet.nama, bulan })), nama);
+    await unduhSlip(
+      perusahaan,
+      xs.map((x) => ({ ...x, outlet: outlet.nama, bulan })),
+      nama,
+    );
   };
   const belumAtur = staf.filter((x) => !x.komponen.gaji_pokok);
 
@@ -71,12 +97,29 @@ export function PenggajianView({
     <div className="mx-auto max-w-5xl space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Penggajian</h1>
-        <p className="text-sm text-stone-500">Gaji staf outlet dihitung dari absensi sebulan. Setelah final, total gaji otomatis tercatat sebagai Biaya Gaji di laporan keuangan.</p>
+        <Link
+          href={`/kasbon?outlet=${outlet.id}`}
+          className="text-sm font-semibold underline"
+        >
+          Kasbon & cicilan karyawan
+        </Link>
+        <p className="text-sm text-stone-500">
+          Gaji staf outlet dihitung dari absensi sebulan. Setelah final, total
+          gaji otomatis tercatat sebagai Biaya Gaji di laporan keuangan.
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {outlets.length > 1 && (
-          <select value={outlet.id} onChange={(e) => router.push(`/penggajian?${new URLSearchParams({ outlet: e.target.value, bulan })}`)} className="rounded-lg border border-matur-200 bg-white px-3 py-2 text-sm">
+          <select
+            value={outlet.id}
+            onChange={(e) =>
+              router.push(
+                `/penggajian?${new URLSearchParams({ outlet: e.target.value, bulan })}`,
+              )
+            }
+            className="rounded-lg border border-matur-200 bg-white px-3 py-2 text-sm"
+          >
             {outlets.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.nama}
@@ -84,7 +127,14 @@ export function PenggajianView({
             ))}
           </select>
         )}
-        <input type="month" value={bulan} onChange={(e) => e.target.value && router.push(href({ bulan: e.target.value }))} className="rounded-lg border border-matur-200 bg-white px-3 py-2 text-sm" />
+        <input
+          type="month"
+          value={bulan}
+          onChange={(e) =>
+            e.target.value && router.push(href({ bulan: e.target.value }))
+          }
+          className="rounded-lg border border-matur-200 bg-white px-3 py-2 text-sm"
+        />
         <nav className="ml-auto flex gap-1 rounded-xl bg-matur-50 p-1 text-sm font-semibold">
           {(
             [
@@ -92,55 +142,111 @@ export function PenggajianView({
               ["komponen", "⚙️ Komponen gaji staf"],
             ] as const
           ).map(([k, l]) => (
-            <Link key={k} href={`/penggajian?${new URLSearchParams({ outlet: outlet.id, bulan, ...(k === "komponen" ? { tab: k } : {}) })}`} className={`rounded-lg px-3 py-1.5 ${tab === k ? "bg-white shadow-sm" : "text-stone-500"}`}>
+            <Link
+              key={k}
+              href={`/penggajian?${new URLSearchParams({ outlet: outlet.id, bulan, ...(k === "komponen" ? { tab: k } : {}) })}`}
+              className={`rounded-lg px-3 py-1.5 ${tab === k ? "bg-white shadow-sm" : "text-stone-500"}`}
+            >
               {l}
             </Link>
           ))}
         </nav>
       </div>
 
-      {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
+      {msg && (
+        <p
+          className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+        >
+          {msg.error ?? msg.ok}
+        </p>
+      )}
 
       {tab === "komponen" ? (
         <section className="space-y-2">
-          <p className="text-sm text-stone-500">Isi sekali per staf; dipakai setiap kali gaji dihitung. Uang makan dihitung per hari hadir, potongan telat per kejadian, potongan tidak masuk per hari tanpa izin.</p>
-          {staf.length === 0 && <p className="rounded-2xl border border-matur-200 bg-white p-6 text-center text-sm text-stone-400">Belum ada staf di outlet ini.</p>}
+          <p className="text-sm text-stone-500">
+            Isi sekali per staf; dipakai setiap kali gaji dihitung. Uang makan
+            dihitung per hari hadir, potongan telat per kejadian, potongan tidak
+            masuk per hari tanpa izin.
+          </p>
+          {staf.length === 0 && (
+            <p className="rounded-2xl border border-matur-200 bg-white p-6 text-center text-sm text-stone-400">
+              Belum ada staf di outlet ini.
+            </p>
+          )}
           {staf.map((x) => (
-            <FormKomponen key={x.id} staf={x} bisaUbah={bisaUbah} pending={pending} onSimpan={(k) => jalankan(() => simpanGajiStaf(x.id, k))} />
+            <FormKomponen
+              key={x.id}
+              staf={x}
+              bisaUbah={bisaUbah}
+              pending={pending}
+              onSimpan={(k) => jalankan(() => simpanGajiStaf(x.id, k))}
+            />
           ))}
         </section>
       ) : (
         <>
-          <section className={`flex flex-wrap items-center gap-3 rounded-2xl border-2 p-4 ${final ? "border-green-300 bg-green-50" : "border-matur-200 bg-white"}`}>
+          <section
+            className={`flex flex-wrap items-center gap-3 rounded-2xl border-2 p-4 ${final ? "border-green-300 bg-green-50" : "border-matur-200 bg-white"}`}
+          >
             <div className="mr-auto">
               <p className="font-bold">
                 {namaBulan(bulan)} · {outlet.nama}
               </p>
               <p className="text-sm">
-                {!penggajian ? "Belum dihitung" : final ? "✅ Final — tercatat di laporan keuangan" : "📝 Draft — masih bisa diubah"} · {slips.length} slip · total <b>{formatRupiah(total)}</b>
+                {!penggajian
+                  ? "Belum dihitung"
+                  : final
+                    ? "✅ Final — tercatat di laporan keuangan"
+                    : "📝 Draft — masih bisa diubah"}{" "}
+                · {slips.length} slip · total <b>{formatRupiah(total)}</b>
               </p>
             </div>
             {slips.length > 0 && (
-              <button onClick={() => pdf(slips, `Slip gaji ${outlet.nama} ${bulan}`)} className="rounded-xl border border-matur-300 bg-white px-3 py-2 text-sm font-semibold text-matur-700">
+              <button
+                onClick={() => pdf(slips, `Slip gaji ${outlet.nama} ${bulan}`)}
+                className="rounded-xl border border-matur-300 bg-white px-3 py-2 text-sm font-semibold text-matur-700"
+              >
                 ⬇ Semua slip (PDF)
               </button>
             )}
             {bisaUbah && !final && (
-              <button disabled={pending} onClick={() => jalankan(() => hitungPenggajian(outlet.id, bulan))} className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                {pending ? "…" : penggajian ? "🔄 Hitung ulang dari absensi" : "🧮 Hitung dari absensi"}
+              <button
+                disabled={pending}
+                onClick={() =>
+                  jalankan(() => hitungPenggajian(outlet.id, bulan))
+                }
+                className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {pending
+                  ? "…"
+                  : penggajian
+                    ? "🔄 Hitung ulang dari absensi"
+                    : "🧮 Hitung dari absensi"}
               </button>
             )}
             {bisaUbah && penggajian && !final && slips.length > 0 && (
               <button
                 disabled={pending}
-                onClick={() => confirm(`Finalkan gaji ${namaBulan(bulan)} sebesar ${formatRupiah(total)}? Slip terkunci, staf bisa melihat slipnya, dan total masuk ke Biaya Gaji laporan.`) && jalankan(() => finalkanPenggajian(penggajian.id))}
+                onClick={() =>
+                  confirm(
+                    `Finalkan gaji ${namaBulan(bulan)} sebesar ${formatRupiah(total)}? Slip terkunci, staf bisa melihat slipnya, dan total masuk ke Biaya Gaji laporan.`,
+                  ) && jalankan(() => finalkanPenggajian(penggajian.id))
+                }
                 className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 ✅ Finalkan
               </button>
             )}
             {bisaUbah && final && (
-              <button disabled={pending} onClick={() => confirm("Buka kembali penggajian ini? Biaya gaji di laporan ditarik sampai difinalkan lagi.") && jalankan(() => bukaPenggajian(penggajian!.id))} className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm">
+              <button
+                disabled={pending}
+                onClick={() =>
+                  confirm(
+                    "Buka kembali penggajian ini? Biaya gaji di laporan ditarik sampai difinalkan lagi.",
+                  ) && jalankan(() => bukaPenggajian(penggajian!.id))
+                }
+                className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm"
+              >
                 Buka lagi
               </button>
             )}
@@ -148,18 +254,37 @@ export function PenggajianView({
 
           {bisaUbah && belumAtur.length > 0 && (
             <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
-              ⚠️ {belumAtur.length} staf belum diisi gaji pokoknya ({belumAtur.map((x) => x.nama).join(", ")}).{" "}
-              <Link href={href({ tab: "komponen" })} className="font-semibold underline">
+              ⚠️ {belumAtur.length} staf belum diisi gaji pokoknya (
+              {belumAtur.map((x) => x.nama).join(", ")}).{" "}
+              <Link
+                href={href({ tab: "komponen" })}
+                className="font-semibold underline"
+              >
                 Atur komponen gaji
               </Link>
             </p>
           )}
 
-          {!penggajian && <p className="rounded-2xl border border-dashed border-matur-300 bg-white p-8 text-center text-sm text-stone-500">Tekan “Hitung dari absensi” untuk membuat slip semua staf bulan ini. Bisa dihitung ulang kapan saja sebelum final.</p>}
+          {!penggajian && (
+            <p className="rounded-2xl border border-dashed border-matur-300 bg-white p-8 text-center text-sm text-stone-500">
+              Tekan “Hitung dari absensi” untuk membuat slip semua staf bulan
+              ini. Bisa dihitung ulang kapan saja sebelum final.
+            </p>
+          )}
 
           <div className="grid gap-3 lg:grid-cols-2">
             {slips.map((x) => (
-              <KartuSlip key={x.id} slip={x} terbuka={buka === x.id} onBuka={() => setBuka(buka === x.id ? null : x.id)} bisaUbah={bisaUbah && !final} pending={pending} onPdf={() => pdf([x], `Slip gaji ${x.nama} ${bulan}`)} onSimpan={(p, q) => jalankan(() => ubahSlip(x.id, p, q))} />
+              <KartuSlip
+                key={`${x.id}:${JSON.stringify(x.pendapatan)}:${JSON.stringify(x.potongan)}:${x.jam_disetujui}`}
+                slip={x}
+                terbuka={buka === x.id}
+                onBuka={() => setBuka(buka === x.id ? null : x.id)}
+                bisaUbah={bisaUbah && !final}
+                pending={pending}
+                onSetujui={() => jalankan(() => setujuiJamGaji(x.id))}
+                onPdf={() => pdf([x], `Slip gaji ${x.nama} ${bulan}`)}
+                onSimpan={(p, q) => jalankan(() => ubahSlip(x.id, p, q))}
+              />
             ))}
           </div>
         </>
@@ -171,24 +296,68 @@ export function PenggajianView({
 const nf = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 const angka = (v: string) => Number(v.replace(/[^\d]/g, "")) || 0;
 
-function FormKomponen({ staf, bisaUbah, pending, onSimpan }: { staf: { nama: string; peran: string; komponen: KomponenStaf }; bisaUbah: boolean; pending: boolean; onSimpan: (k: KomponenStaf) => void }) {
+function FormKomponen({
+  staf,
+  bisaUbah,
+  pending,
+  onSimpan,
+}: {
+  staf: { nama: string; peran: string; komponen: KomponenStaf };
+  bisaUbah: boolean;
+  pending: boolean;
+  onSimpan: (k: KomponenStaf) => void;
+}) {
   const [k, setK] = useState(staf.komponen);
-  const uang = (key: keyof Komponen, label: string) => (
+  const uang = (key: Exclude<keyof Komponen, "aturan">, label: string) => (
     <label className="text-xs text-stone-600">
       {label}
-      <input disabled={!bisaUbah} inputMode="numeric" value={k[key] ? nf(Number(k[key])) : ""} onChange={(e) => setK({ ...k, [key]: angka(e.target.value) })} placeholder="0" className="mt-0.5 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-right text-sm text-stone-900" />
+      <input
+        disabled={!bisaUbah}
+        inputMode="numeric"
+        value={k[key] ? nf(Number(k[key])) : ""}
+        onChange={(e) => setK({ ...k, [key]: angka(e.target.value) })}
+        placeholder="0"
+        className="mt-0.5 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-right text-sm text-stone-900"
+      />
+    </label>
+  );
+  const a = { ...ATURAN_GAJI, ...k.aturan };
+  const aturan = (
+    key: Exclude<keyof AturanGaji, "lembur_mode">,
+    label: string,
+  ) => (
+    <label className="text-xs text-stone-600">
+      {label}
+      <input
+        className="mt-1 w-full rounded-lg border p-2 text-sm"
+        type="number"
+        step="any"
+        disabled={!bisaUbah}
+        value={a[key]}
+        onChange={(e) =>
+          setK({ ...k, aturan: { ...a, [key]: Number(e.target.value) } })
+        }
+      />
     </label>
   );
   const teks = (key: "bank" | "no_rekening" | "atas_nama", label: string) => (
     <label className="text-xs text-stone-600">
       {label}
-      <input disabled={!bisaUbah} value={k[key] ?? ""} onChange={(e) => setK({ ...k, [key]: e.target.value })} className="mt-0.5 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm text-stone-900" />
+      <input
+        disabled={!bisaUbah}
+        value={k[key] ?? ""}
+        onChange={(e) => setK({ ...k, [key]: e.target.value })}
+        className="mt-0.5 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm text-stone-900"
+      />
     </label>
   );
   return (
     <div className="rounded-2xl border border-matur-200 bg-white p-3">
       <p className="mb-2 font-semibold">
-        {staf.nama} <span className="text-xs font-normal text-stone-500">· {staf.peran}</span>
+        {staf.nama}{" "}
+        <span className="text-xs font-normal text-stone-500">
+          · {staf.peran}
+        </span>
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {uang("gaji_pokok", "Gaji pokok / bulan")}
@@ -200,9 +369,52 @@ function FormKomponen({ staf, bisaUbah, pending, onSimpan }: { staf: { nama: str
         {teks("no_rekening", "No. rekening")}
         {teks("atas_nama", "Atas nama")}
       </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-matur-50 p-3 sm:grid-cols-4">
+        <p className="col-span-2 text-xs font-semibold sm:col-span-4">
+          Gaji tetap bulanan · referensi harian{" "}
+          {formatRupiah(k.gaji_pokok / a.hari_pembagi)} · per jam{" "}
+          {formatRupiah(k.gaji_pokok / a.hari_pembagi / a.jam_normal)}
+        </p>
+        {aturan("hari_pembagi", "Hari pembagi / bulan")}
+        {aturan("jam_normal", "Jam normal / hari")}
+        {aturan("istirahat_menit", "Istirahat dipotong / hari (menit)")}
+        {aturan(
+          "lembur_min_menit",
+          "Lembur minimum setelah akhir shift (menit)",
+        )}
+        {aturan("lembur_tarif", "Tarif lembur / jam (0 = referensi per jam)")}
+        {aturan("lembur_pengali", "Pengali tarif lembur")}
+        {aturan("pembulatan_menit", "Pembulatan ke bawah (menit)")}
+        <label className="text-xs">
+          Cara menghitung lembur
+          <select
+            disabled={!bisaUbah}
+            value={a.lembur_mode}
+            onChange={(e) =>
+              setK({
+                ...k,
+                aturan: {
+                  ...a,
+                  lembur_mode: e.target.value as AturanGaji["lembur_mode"],
+                },
+              })
+            }
+            className="mt-1 w-full rounded-lg border p-2"
+          >
+            <option value="seluruh">
+              Seluruh durasi setelah batas minimum tercapai
+            </option>
+            <option value="selisih">Hanya durasi di atas batas minimum</option>
+          </select>
+        </label>
+      </div>
       {bisaUbah && (
         <div className="mt-2 text-right">
-          <button disabled={pending} onClick={() => onSimpan(k)} className="rounded-lg bg-matur-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+          <button
+            disabled={pending}
+            onClick={() => onSimpan(k)}
+            className="rounded-lg bg-matur-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
             Simpan
           </button>
         </div>
@@ -211,13 +423,39 @@ function FormKomponen({ staf, bisaUbah, pending, onSimpan }: { staf: { nama: str
   );
 }
 
-function KartuSlip({ slip, terbuka, onBuka, bisaUbah, pending, onPdf, onSimpan }: { slip: Slip; terbuka: boolean; onBuka: () => void; bisaUbah: boolean; pending: boolean; onPdf: () => void; onSimpan: (p: Baris[], q: Baris[]) => void }) {
-  const [tp, setTp] = useState<Baris[]>(slip.pendapatan.filter((b) => b.manual));
+function KartuSlip({
+  slip,
+  terbuka,
+  onBuka,
+  bisaUbah,
+  pending,
+  onPdf,
+  onSimpan,
+  onSetujui,
+}: {
+  slip: Slip;
+  terbuka: boolean;
+  onBuka: () => void;
+  bisaUbah: boolean;
+  pending: boolean;
+  onPdf: () => void;
+  onSetujui: () => void;
+  onSimpan: (p: Baris[], q: Baris[]) => void;
+}) {
+  const [tp, setTp] = useState<Baris[]>(
+    slip.pendapatan.filter((b) => b.manual),
+  );
   const [tq, setTq] = useState<Baris[]>(slip.potongan.filter((b) => b.manual));
   const autoP = slip.pendapatan.filter((b) => !b.manual);
   const autoQ = slip.potongan.filter((b) => !b.manual);
   const total = totalSlip([...autoP, ...tp], [...autoQ, ...tq]);
-  const daftar = (judul: string, auto: Baris[], tambah: Baris[], set: (x: Baris[]) => void, contoh: string) => (
+  const daftar = (
+    judul: string,
+    auto: Baris[],
+    tambah: Baris[],
+    set: (x: Baris[]) => void,
+    contoh: string,
+  ) => (
     <div>
       <p className="mt-2 text-xs font-semibold text-stone-500">{judul}</p>
       {auto.map((b, i) => (
@@ -229,9 +467,36 @@ function KartuSlip({ slip, terbuka, onBuka, bisaUbah, pending, onPdf, onSimpan }
       {tambah.map((b, i) =>
         bisaUbah ? (
           <div key={i} className="mt-1 flex gap-1">
-            <input value={b.nama} onChange={(e) => set(tambah.map((x, j) => (j === i ? { ...x, nama: e.target.value } : x)))} placeholder={contoh} className="min-w-0 flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm" />
-            <input inputMode="numeric" value={b.jumlah ? nf(b.jumlah) : ""} onChange={(e) => set(tambah.map((x, j) => (j === i ? { ...x, jumlah: angka(e.target.value) } : x)))} placeholder="0" className="w-28 rounded-lg border border-stone-300 px-2 py-1 text-right text-sm" />
-            <button onClick={() => set(tambah.filter((_, j) => j !== i))} className="px-1 text-red-600" aria-label="Hapus baris">
+            <input
+              value={b.nama}
+              onChange={(e) =>
+                set(
+                  tambah.map((x, j) =>
+                    j === i ? { ...x, nama: e.target.value } : x,
+                  ),
+                )
+              }
+              placeholder={contoh}
+              className="min-w-0 flex-1 rounded-lg border border-stone-300 px-2 py-1 text-sm"
+            />
+            <input
+              inputMode="numeric"
+              value={b.jumlah ? nf(b.jumlah) : ""}
+              onChange={(e) =>
+                set(
+                  tambah.map((x, j) =>
+                    j === i ? { ...x, jumlah: angka(e.target.value) } : x,
+                  ),
+                )
+              }
+              placeholder="0"
+              className="w-28 rounded-lg border border-stone-300 px-2 py-1 text-right text-sm"
+            />
+            <button
+              onClick={() => set(tambah.filter((_, j) => j !== i))}
+              className="px-1 text-red-600"
+              aria-label="Hapus baris"
+            >
               ✕
             </button>
           </div>
@@ -243,7 +508,12 @@ function KartuSlip({ slip, terbuka, onBuka, bisaUbah, pending, onPdf, onSimpan }
         ),
       )}
       {bisaUbah && (
-        <button onClick={() => set([...tambah, { nama: "", jumlah: 0, manual: true }])} className="mt-1 text-xs font-semibold text-matur-700">
+        <button
+          onClick={() =>
+            set([...tambah, { nama: "", jumlah: 0, manual: true }])
+          }
+          className="mt-1 text-xs font-semibold text-matur-700"
+        >
           + tambah baris
         </button>
       )}
@@ -251,33 +521,96 @@ function KartuSlip({ slip, terbuka, onBuka, bisaUbah, pending, onPdf, onSimpan }
   );
   return (
     <div className="rounded-2xl border border-matur-200 bg-white p-3">
-      <button onClick={onBuka} className="flex w-full items-start gap-2 text-left">
+      <button
+        onClick={onBuka}
+        className="flex w-full items-start gap-2 text-left"
+      >
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">{slip.nama}</p>
           <p className="text-xs text-stone-500">
-            {slip.jabatan ?? "-"} · {slip.hadir} hadir · {slip.telat}× telat · {slip.izin} izin · {slip.tidak_absen} tidak absen
+            {slip.jabatan ?? "-"} · {slip.hadir} hadir · {slip.telat}× telat ·{" "}
+            {slip.izin} izin · {slip.tidak_absen} tidak absen
           </p>
         </div>
-        <b className="tabular-nums">{formatRupiah(terbuka ? total : slip.total)}</b>
+        <b className="tabular-nums">
+          {formatRupiah(terbuka ? total : slip.total)}
+        </b>
       </button>
       {terbuka && (
         <div className="mt-2 border-t pt-1">
+          {slip.hitungan_jam?.aturan && (
+            <div className="my-2 rounded-xl bg-matur-50 p-3 text-xs">
+              <p>
+                Kerja bersih {slip.hitungan_jam.menit_kerja} menit · normal{" "}
+                {slip.hitungan_jam.menit_normal} menit · lembur{" "}
+                {slip.hitungan_jam.menit_lembur} menit
+              </p>
+              <p>
+                Referensi/hari{" "}
+                {formatRupiah(slip.hitungan_jam.referensi_harian)} ·
+                referensi/jam {formatRupiah(slip.hitungan_jam.referensi_perjam)}{" "}
+                · lembur/jam {formatRupiah(slip.hitungan_jam.tarif_lembur)}
+              </p>
+              {slip.hitungan_jam.belum_lengkap > 0 && (
+                <p className="font-bold text-red-600">
+                  {slip.hitungan_jam.belum_lengkap} absensi belum lengkap;
+                  perbaiki dan hitung ulang sebelum final.
+                </p>
+              )}
+              {slip.hitungan_jam.tanpa_jadwal > 0 && (
+                <p>
+                  {slip.hitungan_jam.tanpa_jadwal} kehadiran tanpa jadwal:
+                  lembur perlu ditinjau dan jadwal dikoreksi.
+                </p>
+              )}
+              {slip.hitungan_jam.menit_lembur > 0 && (
+                <p className="mt-2">
+                  {slip.jam_disetujui
+                    ? "Hitungan lembur sudah disetujui HRD."
+                    : "Menunggu persetujuan HRD sebelum final."}{" "}
+                  {bisaUbah && !slip.jam_disetujui && (
+                    <button
+                      disabled={pending || slip.hitungan_jam.belum_lengkap > 0}
+                      onClick={onSetujui}
+                      className="rounded-lg bg-kopi-900 px-3 py-2 text-white"
+                    >
+                      Setujui hitungan lembur
+                    </button>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
           {daftar("Pendapatan", autoP, tp, setTp, "mis. Bonus / Lembur")}
-          {daftar("Potongan", autoQ, tq, setTq, "mis. Kasbon")}
+          {daftar(
+            "Potongan",
+            autoQ,
+            tq,
+            setTq,
+            "mis. Potongan lain (kasbon lewat menu Kasbon)",
+          )}
           <p className="mt-2 flex justify-between border-t pt-2 font-bold">
             <span>Gaji diterima</span>
             <span className="tabular-nums">{formatRupiah(total)}</span>
           </p>
           <p className="text-[11px] text-stone-400">
-            Pendapatan {formatRupiah(jumlahkan([...autoP, ...tp]))} − potongan {formatRupiah(jumlahkan([...autoQ, ...tq]))}
+            Pendapatan {formatRupiah(jumlahkan([...autoP, ...tp]))} − potongan{" "}
+            {formatRupiah(jumlahkan([...autoQ, ...tq]))}
             {slip.rekening && ` · ${slip.rekening}`}
           </p>
           <div className="mt-2 flex justify-end gap-2">
-            <button onClick={onPdf} className="rounded-lg border px-3 py-1.5 text-sm">
+            <button
+              onClick={onPdf}
+              className="rounded-lg border px-3 py-1.5 text-sm"
+            >
               ⬇ Slip PDF
             </button>
             {bisaUbah && (
-              <button disabled={pending} onClick={() => onSimpan(tp, tq)} className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+              <button
+                disabled={pending}
+                onClick={() => onSimpan(tp, tq)}
+                className="rounded-lg bg-matur-500 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
                 Simpan slip
               </button>
             )}

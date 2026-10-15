@@ -1,0 +1,61 @@
+import "server-only";
+import { cookies } from "next/headers";
+import { supabaseServer } from "./supabase/server";
+export const POS_DEVICE = "matur_pos_device";
+export const POS_UNLOCK = "matur_pos_unlock";
+export type TimStatus = {
+  katalog?: {
+    menu: Record<string, { langsung: number; ojol: number }>;
+    varian: Record<string, number>;
+  };
+  server_at: string;
+  device: { id: string; nama: string; status: string } | null;
+  sesi: {
+    id: string;
+    nama: string;
+    pembuka_id: string;
+    modal: number;
+    buka_at: string;
+    batas_at: string;
+    shift_id: string;
+    tanggal: string;
+    legacy: boolean;
+    perangkat_sama: boolean;
+    aktif_tim: boolean;
+    anggota: {
+      id: string;
+      nama: string;
+      gabung_at: string;
+      keluar_at: string | null;
+    }[];
+  } | null;
+  izin: { id: string; mulai_at: string; sampai_at: string } | null;
+  boleh: boolean;
+  roster: {
+    id: string;
+    nama: string;
+    shift_id: string;
+    tanggal: string;
+    shift: string;
+    kasir: boolean;
+  }[];
+};
+export async function buktiTablet() {
+  const c = await cookies();
+  return {
+    device: c.get(POS_DEVICE)?.value ?? "",
+    token: c.get(POS_UNLOCK)?.value ?? "",
+  };
+}
+export async function statusPos(outlet: string, perbarui = false) {
+  const db = await supabaseServer();
+  const p = await buktiTablet();
+  const { data, error } = await db.rpc("status_pos_tim", {
+    p_outlet: outlet,
+    p_device: p.device,
+    p_token: p.token,
+    p_perbarui: perbarui,
+  });
+  if (error) throw new Error(error.message);
+  return data as TimStatus;
+}

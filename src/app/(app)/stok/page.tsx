@@ -6,7 +6,7 @@ import { OpnameView } from "./opname-view";
 // Stok & opname outlet: hitung fisik akhir bulan → nilai persediaan akhir laporan
 export default async function StokOutlet({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {
   const s = await getSession();
-  if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "spv"].includes(s.active.role)) notFound();
+  if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "hrd", "finance", "spv"].includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
   const { data: outlets } = await supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
   const daftar = outlets ?? [];

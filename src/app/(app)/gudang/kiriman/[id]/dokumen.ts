@@ -29,7 +29,8 @@ export async function cetakDokumen(jenis: "surat-jalan" | "invoice", k: Kiriman,
     columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 3 }, 3: { cellWidth: 16 }, 4: { cellWidth: 3 } },
   });
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
-  const qtyPakai = (i: ItemKiriman) => (k.status === "diterima" && i.qty_diterima !== null ? i.qty_diterima : i.qty);
+  const diperiksa = k.status === "diterima" || (k as Kiriman & {pemeriksaan_status?:string}).pemeriksaan_status === "selisih";
+  const qtyPakai = (i: ItemKiriman) => (diperiksa && i.qty_diterima !== null ? i.qty_diterima : i.qty);
   const total = items.reduce((s, i) => s + Math.round(qtyPakai(i) * i.harga), 0);
   autoTable(doc, {
     startY: y,
@@ -52,7 +53,7 @@ export async function cetakDokumen(jenis: "surat-jalan" | "invoice", k: Kiriman,
     y += 8;
   }
   if (invoice) {
-    doc.text("Nilai invoice dicatat sebagai pembelian bahan baku outlet pada periode diterima.", 14, y);
+    doc.text("Nilai mengikuti barang baik diterima; selisih dan kiriman susulan tercatat terpisah.", 14, y);
     y += 8;
   }
   if (y > 240) {

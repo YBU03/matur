@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { TitipanView, type RekapTitipan } from "./titipan-view";
 
-const BOLEH = ["owner", "admin_pusat", "finance", "admin_gudang", "spv", "manajer_area"];
+const BOLEH = ["owner", "admin_pusat", "finance", "hrd", "admin_gudang", "spv", "manajer_area"];
 
 // Produk titipan (cheesecake & dessert dari produsen): setoran masuk, terjual (otomatis dari POS), sisa, tagihan.
 export default async function Titipan({ searchParams }: { searchParams: Promise<{ outlet?: string; bulan?: string }> }) {
@@ -21,7 +21,7 @@ export default async function Titipan({ searchParams }: { searchParams: Promise<
   const [{ data: rekap }, { data: menu }, { data: riwayat }] = await Promise.all([
     supabase.rpc("rekap_titipan", { p_outlet: outlet.id, p_periode: `${bulan}-01` }),
     supabase.from("menu").select("id, nama, produsen, harga_titip").eq("mode", "asli").eq("titipan", true).is("deleted_at", null).order("nama"),
-    supabase.from("titipan_masuk").select("id, menu_id, tanggal, qty, catatan, nama_pembuat, created_at").eq("outlet_id", outlet.id).gte("tanggal", `${bulan}-01`).lte("tanggal", akhir).order("created_at", { ascending: false }),
+    supabase.from("titipan_masuk").select("id, menu_id, tanggal, qty, jenis, catatan, nama_pembuat, created_at").eq("outlet_id", outlet.id).gte("tanggal", `${bulan}-01`).lte("tanggal", akhir).order("created_at", { ascending: false }),
   ]);
   return (
     <div className="mx-auto max-w-4xl space-y-4">

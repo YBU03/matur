@@ -1,7 +1,11 @@
+import {headers} from "next/headers";
+import {PosAntrean} from "@/components/pos-antrean";
+import {PosLogout} from "@/components/pos-logout";
+import {statusPos} from "@/lib/pos-tim";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { kasirLogoutAction } from "@/lib/actions";
+
 import { POS_ROLES, ROLES, BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { InstallButton } from "@/components/install-button";
@@ -17,17 +21,11 @@ export default async function TerminalLayout({ children }: { children: React.Rea
   if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) redirect("/kasir");
   const m = await statusMaintenance();
   if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
-  const items = [
-    ...(BISA_JUAL.includes(s.active.role) ? [{ href: "/kasir/pos", label: "Kasir" }] : []),
-    { href: "/kasir/antrean", label: "Antrean" },
-    { href: "/kasir/riwayat", label: "Riwayat" },
-    { href: "/kasir/shift", label: "Kas & Pengeluaran" },
-    { href: "/kasir/stok", label: "Stok" },
-    { href: "/kasir/absen", label: "Absen" },
-    { href: "/kasir/jadwal", label: "Jadwal" },
-    { href: "/kasir/izin", label: "Izin" },
-    { href: "/kasir/slip", label: "Slip Gaji" },
-  ];
+  const path=(await headers()).get("x-matur-pathname")??"/kasir/pos";
+  for(const p of ["absen","jadwal","izin","slip","kiriman","setoran","stok"]){if(path.startsWith(`/kasir/${p}`))redirect(p==="absen"?"/karyawan":`/karyawan/${p}`);}
+  const status=await statusPos(s.active.outletId);
+  if(path!=="/kasir/pos"&&(!status.device||status.device.status!=="aktif"))redirect("/kasir/pos");
+  const items=[{href:"/kasir/pos",label:"POS Tim"},{href:"/kasir/antrean",label:"Antrean"},{href:"/kasir/riwayat",label:"Riwayat"},{href:"/kasir/shift",label:"Kas & Pengeluaran"}];
   const ingat = await pengingatShift(s.userId, s.active.outletId);
   return (
     <div className="min-h-screen">
@@ -40,16 +38,14 @@ export default async function TerminalLayout({ children }: { children: React.Rea
         <TerminalNav items={items} />
         {BISA_JUAL.includes(s.active.role) && <PrinterTombol />}
         <InstallButton className="!w-auto" />
-        <form action={kasirLogoutAction}>
-          <button className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">Keluar</button>
-        </form>
+        <PosLogout />
       </header>
       {ingat && (
         <Link href={ingat.href} className={`block px-4 py-2 text-sm font-semibold ${ingat.mendesak ? "bg-red-600 text-white" : "bg-matur-100 text-kopi-900"}`}>
           {ingat.teks} ›
         </Link>
       )}
-      <main className="p-3 sm:p-4">{children}</main>
+      <main className="p-3 sm:p-4"><PosAntrean/>{children}</main>
     </div>
   );
 }

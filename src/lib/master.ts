@@ -16,6 +16,7 @@ export type Field = {
   /** untuk select: tabel rujukan dan kolom labelnya */
   ref?: { table: string; label: string };
   options?: string[];
+  suggestions?: string[];
   /** label tampilan untuk opsi enum (nilai tersimpan tetap `options`) */
   optionLabels?: Record<string, string>;
   /** tampil di tabel daftar (default true) */
@@ -44,6 +45,7 @@ export const ENTITIES: Record<string, Entity> = {
     editors: ["owner", "admin_pusat"],
     fields: [
       { key: "nama", label: "Nama Outlet", type: "text", required: true },
+      { key: "kepemilikan", label: "Kepemilikan (Pusat, Mitra, atau lainnya)", type: "text", required: true, suggestions: ["Pusat", "Mitra"] },
       { key: "kota", label: "Kota", type: "text" },
       { key: "alamat", label: "Alamat", type: "text", list: false },
       { key: "tgl_mulai", label: "Mulai Operasional", type: "date" },

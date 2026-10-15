@@ -57,7 +57,10 @@ export function ImporRuma({ outlets, outletId, label = "⬆ Impor Excel" }: { ou
   let keluar = 0, nKeluar = 0;
   for (const x of (h?.hari ?? []).filter((x) => bulanFile && x.tanggal.startsWith(bulanFile))) {
     for (const [k, v] of Object.entries(x.jual)) jual[k] = (jual[k] ?? 0) + Number(v);
-    for (const b of x.biaya) (keluar += b.jumlah), nKeluar++;
+    for (const b of x.biaya) {
+      keluar += b.jumlah;
+      nKeluar++;
+    }
   }
   const hl = h?.lap ? hitung({ ...h.lap, laba_bersih: null, tagihan_titipan: h.lap.tagihan_titipan } as unknown as Laporan) : null;
 

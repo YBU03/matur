@@ -35,7 +35,13 @@ export async function catatPengeluaran(d: Pengeluaran, outletId?: string): Promi
   const b = bersih(d);
   if (!b.v) return { error: b.error };
   const supabase = await supabaseServer();
-  const { error } = await supabase.from("biaya_outlet").insert({ ...b.v, outlet_id: outlet, dibuat_oleh: s.userId });
+  let sesiId: string | null = null;
+  if(b.v.sumber === "laci") {
+    const {data,error} = await supabase.from("sesi_kas").select("id").eq("outlet_id",outlet).eq("mode","asli").eq("pos_tim",true).is("ditutup_at",null).maybeSingle();
+    if(error || !data) return {error:"Buka sesi kas tim dahulu untuk mencatat pengeluaran dari laci."};
+    sesiId=data.id;
+  }
+  const { error } = await supabase.from("biaya_outlet").insert({ ...b.v, sesi_kas_id:sesiId, outlet_id: outlet, dibuat_oleh: s.userId });
   if (error) return { error: error.message.includes("row-level") ? "Anda tidak bisa mencatat pengeluaran untuk outlet ini." : error.message };
   segarkan();
   return { ok: "Pengeluaran tercatat." };

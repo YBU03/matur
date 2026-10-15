@@ -1,5 +1,6 @@
 "use server";
 
+import {cookies} from "next/headers";
 import { redirect } from "next/navigation";
 import { POS_ONLY } from "./roles";
 import { getSession, setActive } from "./session";
@@ -12,7 +13,7 @@ async function setelahLogin(): Promise<never> {
   await setActive(null);
   const s = await getSession();
   if (!s || s.status !== "aktif" || s.assignments.length === 0) redirect("/menunggu");
-  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/kasir");
+  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/karyawan");
   redirect(s.active ? "/dashboard" : "/pilih-peran");
 }
 
@@ -65,6 +66,7 @@ export async function daftarAction(_: DaftarState, form: FormData): Promise<Daft
 
 export async function logoutAction() {
   const supabase = await supabaseServer();
+  const c=await cookies();c.delete("matur_pos_unlock");c.delete("pos_sesi");
   await supabase.auth.signOut();
   await setActive(null);
   redirect("/login");
@@ -88,6 +90,7 @@ export async function kasirLoginAction(_: LoginState, form: FormData): Promise<L
 
 export async function kasirLogoutAction() {
   const supabase = await supabaseServer();
+  const c=await cookies();c.delete("matur_pos_unlock");c.delete("pos_sesi");
   await supabase.auth.signOut();
   await setActive(null);
   redirect("/kasir");

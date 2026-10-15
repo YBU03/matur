@@ -70,7 +70,11 @@ export function isiSheetLaporan(ws: Worksheet, l: Laporan, pt: Perusahaan) {
   judul("LABA RUGI");
   r++;
   set(r++, "A", "Pendapatan", { bold: true });
-  for (const p of l.pendapatan) (set(r, "B", p.nama), set(r, "F", Number(p.jumlah), { rp: true }), r++);
+  for (const p of l.pendapatan) {
+    set(r, "B", p.nama);
+    set(r, "F", Number(p.jumlah), { rp: true });
+    r++;
+  }
   set(r, "B", "Discount");
   set(r, "F", -l.diskon, { rp: true });
   set(r++, "G", "(+)");
@@ -89,7 +93,11 @@ export function isiSheetLaporan(ws: Worksheet, l: Laporan, pt: Perusahaan) {
   set(r++, "A", "Beban Operasional : ", { bold: true });
   set(r, "B", `Sedekah ${String(l.persen_sedekah).replace(".", ",")}%`);
   set(r++, "F", l.sedekah, { rp: true });
-  for (const b of l.beban) (set(r, "B", b.nama), set(r, "F", Number(b.jumlah), { rp: true }), r++);
+  for (const b of l.beban) {
+    set(r, "B", b.nama);
+    set(r, "F", Number(b.jumlah), { rp: true });
+    r++;
+  }
   set(r, "A", "Total beban operasional", { bold: true });
   set(r, "H", h.totalBeban, { rp: true, bold: true });
   set(r++, "I", "(-)");

@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s) redirect("/login");
   if (s.assignments.length === 0) redirect("/menunggu");
   if (!s.active) redirect("/pilih-peran");
-  if (POS_ONLY.includes(s.active.role)) redirect("/kasir");
+  if (POS_ONLY.includes(s.active.role)) redirect("/karyawan");
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();
     if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
@@ -41,8 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="space-y-2 p-4 text-sm">
         {/* Aplikasi kasir (POS) terpisah di /kasir — untuk akun yang bertugas sebagai kasir/barista/SPV */}
         {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
-          <Link href="/kasir" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
-            🧾 Buka POS Kasir
+          <Link href="/kasir/pos" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
+            🧾 Buka POS Kasir (tablet outlet)
           </Link>
         )}
         <InstallButton />

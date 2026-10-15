@@ -19,12 +19,12 @@ export function TitipanView({
   bulan: string;
   rekap: RekapTitipan[];
   menu: { id: string; nama: string; produsen: string | null; harga_titip: number }[];
-  riwayat: { id: string; menu_id: string; tanggal: string; qty: number; catatan: string | null; nama_pembuat: string | null; created_at: string }[];
+  riwayat: { id: string; menu_id: string; tanggal: string; qty: number; jenis?: string; catatan: string | null; nama_pembuat: string | null; created_at: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ error?: string; ok?: string } | null>(null);
-  const [f, setF] = useState({ menu: menu[0]?.id ?? "", qty: "", tanggal: new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10), catatan: "", retur: false });
+  const [f, setF] = useState({ menu: menu[0]?.id ?? "", qty: "", tanggal: new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10), catatan: "", jenis: "masuk" });
   const produsen = [...new Set(rekap.map((r) => r.produsen))];
   const nama = new Map(menu.map((m) => [m.id, m.nama]));
   const total = rekap.reduce((t, r) => t + r.tagihan, 0);
@@ -96,26 +96,24 @@ export function TitipanView({
           <input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value })} inputMode="numeric" placeholder="jumlah pcs" className="rounded-lg border border-stone-300 px-2 py-2 text-sm" />
           <input type="date" value={f.tanggal} onChange={(e) => setF({ ...f, tanggal: e.target.value })} className="rounded-lg border border-stone-300 px-2 py-2 text-sm" />
           <input value={f.catatan} onChange={(e) => setF({ ...f, catatan: e.target.value })} placeholder="catatan (opsional)" className="rounded-lg border border-stone-300 px-2 py-2 text-sm sm:col-span-3" />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={f.retur} onChange={(e) => setF({ ...f, retur: e.target.checked })} /> retur / tarik kembali
-          </label>
+          <label className="text-sm">Jenis pencatatan<select value={f.jenis} onChange={e=>setF({...f,jenis:e.target.value})} className="w-full rounded-lg border p-2"><option value="masuk">Barang masuk</option><option value="retur">Retur ke produsen</option><option value="rusak">Rusak / tidak layak jual</option><option value="koreksi">Koreksi (+/−)</option></select></label>
         </div>
         {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
         <button
           disabled={pending || !f.menu || !Number(f.qty)}
           onClick={() =>
             start(async () => {
-              const r = await catatTitipan(outletId, f.menu, (f.retur ? -1 : 1) * Math.abs(Number(f.qty)), f.tanggal, f.catatan);
+              const r = await catatTitipan(outletId, f.menu, (f.jenis === "retur" || f.jenis === "rusak" ? -Math.abs(Number(f.qty)) : Number(f.qty)), f.tanggal, f.catatan, f.jenis as "masuk" | "retur" | "rusak" | "koreksi");
               setMsg(r);
               if (!r.error) {
-                setF({ ...f, qty: "", catatan: "", retur: false });
+                setF({ ...f, qty: "", catatan: "", jenis: "masuk" });
                 router.refresh();
               }
             })
           }
           className="w-full rounded-xl bg-matur-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {f.retur ? "Catat retur" : "Catat setoran masuk"}
+          Catat pergerakan titipan
         </button>
         <p className="text-xs text-stone-500">Setoran titipan jangan dicatat sebagai pengeluaran “Bahan Baku” agar tidak terhitung dua kali — tagihannya otomatis masuk HPP dari jumlah terjual.</p>
       </section>
@@ -130,7 +128,7 @@ export function TitipanView({
                   {new Date(r.tanggal + "T00:00:00").toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} · <b>{nama.get(r.menu_id) ?? "?"}</b>
                   <span className="text-xs text-stone-500">
                     {" "}
-                    · {r.nama_pembuat ?? "-"}
+                    · {r.jenis ?? "masuk"} · {r.nama_pembuat ?? "-"}
                     {r.catatan && ` · ${r.catatan}`}
                   </span>
                 </span>
