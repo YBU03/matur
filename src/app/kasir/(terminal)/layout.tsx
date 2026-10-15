@@ -23,6 +23,8 @@ export default async function TerminalLayout({ children }: { children: React.Rea
     { href: "/kasir/riwayat", label: "Riwayat" },
     { href: "/kasir/shift", label: "Kas & Pengeluaran" },
     { href: "/kasir/stok", label: "Stok" },
+    { href: "/kasir/kiriman", label: "Terima Barang" },
+    { href: "/kasir/setoran", label: "Setoran Omzet" },
     { href: "/kasir/absen", label: "Absen" },
     { href: "/kasir/jadwal", label: "Jadwal" },
     { href: "/kasir/izin", label: "Izin" },
