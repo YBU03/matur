@@ -14,3 +14,13 @@ export async function hubungkanHpp(id: string, menuId: string | null): Promise<{
   revalidatePath("/hpp-menu");
   return {};
 }
+
+export async function tambahHpp(d: { menu_id: string; nama: string; kategori_id: string; harga: number; harga_ojol: number; seri: string; bahan: { id: string; qty: number }[] }): Promise<{ error?: string; ok?: string }> {
+  const s = await getSession();
+  if (!s?.active || !["owner", "admin_pusat", "admin_gudang"].includes(s.active.role)) return { error: "Tidak diizinkan." };
+  const db = await supabaseServer();
+  const { error } = await db.rpc("tambah_hpp", { p: d });
+  if (error) return { error: error.message };
+  for (const p of ["/hpp-menu", "/master/menu", "/master/resep", "/kasir/pos"]) revalidatePath(p);
+  return { ok: "HPP, menu POS dan resep bahan sudah terhubung." };
+}

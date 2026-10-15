@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { hitungRekap } from "@/lib/jadwal/rekap";
 import { addDays, hariIni } from "@/lib/jadwal/waktu";
-import { muatAbsensi, muatJadwal, muatShift, outletSdm } from "@/lib/sdm";
+import { muatAbsensi, muatIzin, muatJadwal, muatShift, muatStaf, outletSdm } from "@/lib/sdm";
 import type { Session } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -17,15 +17,26 @@ export async function RingkasSdm({ s }: { s: Session }) {
     supabase.from("tukar_shift").select("id", { count: "exact", head: true }).in("outlet_id", ids).eq("status", "menunggu_atasan"),
     supabase.from("jadwal_shift").select("id", { count: "exact", head: true }).in("outlet_id", ids).eq("status", "draft").gte("tanggal", today).lte("tanggal", addDays(today, 45)),
     ...outlets.map(async (o) => {
-      const [shifts, jadwal, absensi] = await Promise.all([muatShift(o.id), muatJadwal(o.id, today, today), muatAbsensi(o.id, today, today)]);
-      const { baris } = hitungRekap({ shifts, jadwal: jadwal.filter((j) => j.status === "terbit"), absensi, izin: [] });
+      const [shifts, jadwal, absensi, izinHariIni, staf] = await Promise.all([muatShift(o.id), muatJadwal(o.id, today, today), muatAbsensi(o.id, today, today), muatIzin(o.id, today, today, { status: ["disetujui"] }), muatStaf(o.id)]);
+      const { baris } = hitungRekap({ shifts, jadwal: jadwal.filter((j) => j.status === "terbit"), absensi, izin: izinHariIni });
+      const nama = Object.fromEntries(staf.map((x) => [x.id, x.nama]));
+      const hilang = [...new Set(baris.map((b) => b.pengguna_id).filter((id) => !nama[id]))];
+      if (hilang.length) {
+        const { data } = await supabase.from("pengguna").select("id, nama").in("id", hilang);
+        for (const u of data ?? []) nama[u.id] = u.nama;
+      }
       return {
         o,
+        baris, nama,
+        hadir: baris.filter((b) => b.absen).length,
+        tepat: baris.filter((b) => b.status === "tepat").length,
         jadwal: baris.filter((b) => b.shift).length,
         bertugas: baris.filter((b) => b.absen && !b.absen.pulang_at).length,
         telat: baris.filter((b) => b.status === "telat").length,
         tidak: baris.filter((b) => b.status === "tidak_absen").length,
         shift: shifts.length,
+        belum: baris.filter((b) => b.status === "belum").length,
+        izin: izinHariIni.length,
       };
     }),
   ]);
@@ -50,16 +61,28 @@ export async function RingkasSdm({ s }: { s: Session }) {
       ))}
       <div className="grid gap-2 sm:grid-cols-2">
         {perOutlet.map((x) => (
-          <Link key={x.o.id} href={`/absensi?outlet=${x.o.id}`} className="rounded-xl bg-matur-50 p-3 text-sm hover:bg-matur-100">
+          <div key={x.o.id} className="rounded-xl bg-matur-50 p-3 text-sm">
+            <Link href={`/absensi?outlet=${x.o.id}`} className="float-right text-matur-700 underline">Rekap ›</Link>
             <p className="font-semibold">{x.o.nama}</p>
             {x.shift ? (
               <p className="mt-1 text-stone-600">
-                <b className="text-green-700">{x.bertugas}</b> bertugas · {x.jadwal} terjadwal · <b className="text-amber-700">{x.telat}</b> telat · <b className="text-red-600">{x.tidak}</b> tidak absen
+                <b className="text-green-700">{x.hadir}</b> hadir · {x.bertugas} sedang bertugas · {x.jadwal} terjadwal · <b className="text-green-700">{x.tepat}</b> tepat waktu · {x.belum} belum absen · {x.izin} izin/sakit/libur · <b className="text-amber-700">{x.telat}</b> telat · <b className="text-red-600">{x.tidak}</b> tidak absen
               </p>
             ) : (
               <p className="mt-1 text-stone-500">Shift belum diatur → buka Jadwal Shift</p>
             )}
-          </Link>
+            <ul className="mt-3 divide-y divide-matur-200">
+              {x.baris.map((b, i) => <li key={i} className="py-2">
+                <p className="font-semibold">{x.nama[b.pengguna_id] ?? "Staf"}</p>
+                <p className="text-xs text-stone-600">{b.shift ? `${b.shift.nama} · ${b.shift.jam_mulai}–${b.shift.jam_selesai}` : "Tanpa shift"}</p>
+                <p className={`text-xs ${b.status === "telat" ? "text-amber-800" : b.status === "tepat" ? "text-green-800" : "text-stone-600"}`}>
+                  {({ tepat: "Tepat waktu", telat: "Telat", belum: "Belum absen", tidak_absen: "Tidak absen", izin: "Izin", sakit: "Sakit", libur: "Libur", tanpa_jadwal: "Tanpa jadwal" })[b.status]}
+                  {b.status === "telat" && ` ${b.absen?.telat_menit} menit`}
+                  {b.absen && ` · Masuk ${new Date(b.absen.masuk_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}${b.absen.pulang_at ? ` · Pulang ${new Date(b.absen.pulang_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}` : " · Sedang bertugas"}`}
+                </p>
+              </li>)}
+            </ul>
+          </div>
         ))}
       </div>
     </section>

@@ -8,6 +8,6 @@ export default async function PengaturanQris() {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang"].includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
-  const { data } = await supabase.from("outlet").select("id, nama, qris_url, qris_payload, qris_nama, qris_dinamis").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
+  const { data } = await supabase.from("outlet").select("id, nama, qris_url, qris_payload, qris_nama, qris_dinamis, qris_mode, qris_penyedia, qris_merchant_id").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
   return <QrisView outlets={(data ?? []) as OutletQris[]} />;
 }

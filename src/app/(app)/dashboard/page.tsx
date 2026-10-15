@@ -55,7 +55,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const tabHref = (t: string) => `/dashboard?${new URLSearchParams({ ...Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && !["tab", "periode", "dari", "sampai"].includes(k))) as Record<string, string>, ...(t === "bulanan" ? { tab: t } : {}) })}`;
   return (
     <div className="space-y-6">
-      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }]} cadanganDetik={120} />}
+      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }, ...(active.role === "hrd" ? [{ table: "absensi" }, { table: "jadwal_shift" }, { table: "pengajuan_izin" }] : [])]} cadanganDetik={120} />}
       <section className="flex items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-matur-400 to-matur-600 p-5 text-white">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={96} height={96} priority className="hidden rounded-2xl sm:block" />
         <div>
@@ -101,7 +101,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </nav>
       )}
       {(lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} />}
-      {tab === "bulanan" && (
+      {lihatLaporan && tab === "bulanan" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <LaporanRingkas outlets={outlets} outletId={pusat ? outletId : null} dari={r0.dari} sampai={r0.sampai} />
         </Suspense>

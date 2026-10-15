@@ -3,12 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { QrisTampil } from "@/components/qris-tampil";
-import { formatRupiah } from "@/lib/format";
 import { cekQris } from "@/lib/qris";
 import { aturQris, hapusQris, type Result } from "@/lib/qris-actions";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-export type OutletQris = { id: string; nama: string; qris_url: string | null; qris_payload: string | null; qris_nama: string | null; qris_dinamis: boolean };
+export type OutletQris = { id: string; nama: string; qris_url: string | null; qris_payload: string | null; qris_nama: string | null; qris_penyedia: string | null; qris_merchant_id: string | null; qris_mode: "statis" | "dinamis"; qris_dinamis: boolean };
 
 /** Baca isi kode QR dari gambar (di browser). */
 async function bacaQr(file: File): Promise<string | null> {
@@ -32,12 +31,14 @@ function Kartu({ o }: { o: OutletQris }) {
   const [pending, start] = useTransition();
   const [url, setUrl] = useState(o.qris_url);
   const [payload, setPayload] = useState(o.qris_payload ?? "");
+  const [penyedia, setPenyedia] = useState(o.qris_penyedia ?? "");
+  const [merchant, setMerchant] = useState(o.qris_merchant_id ?? "");
   const [nama, setNama] = useState(o.qris_nama ?? "");
-  const [dinamis, setDinamis] = useState(o.qris_dinamis);
+  const [dinamis, setDinamis] = useState(o.qris_mode === "dinamis");
   const [msg, setMsg] = useState<Result | null>(null);
   const [unggah, setUnggah] = useState(false);
   const info = payload ? cekQris(payload) : null;
-  const berubah = url !== o.qris_url || (payload || null) !== o.qris_payload || (nama || null) !== o.qris_nama || dinamis !== o.qris_dinamis;
+  const berubah = penyedia !== (o.qris_penyedia ?? "") || merchant !== (o.qris_merchant_id ?? "") || url !== o.qris_url || (payload || null) !== o.qris_payload || (nama || null) !== o.qris_nama || dinamis !== (o.qris_mode === "dinamis");
 
   const pilihFile = async (f: File | undefined) => {
     if (!f) return;
@@ -53,10 +54,10 @@ function Kartu({ o }: { o: OutletQris }) {
       setUrl(sb.storage.from("qris").getPublicUrl(path).data.publicUrl);
       if (isi && cekQris(isi).valid) {
         setPayload(isi);
-        setDinamis(true);
+
         const i = cekQris(isi);
         if (!nama && i.merchant) setNama(i.merchant);
-        setMsg({ ok: `Gambar terunggah & kode QRIS terbaca (${i.merchant ?? "merchant"}). Nominal bisa otomatis. Jangan lupa Simpan.` });
+        setMsg({ ok: `Gambar terunggah & kode QRIS terbaca (${i.merchant ?? "merchant"}). Mode mengikuti pilihan di bawah. Jangan lupa Simpan.` });
       } else setMsg({ ok: "Gambar terunggah. Kode QR tidak terbaca otomatis — QRIS tampil sebagai gambar (pelanggan ketik nominal). Jangan lupa Simpan." });
     } finally {
       setUnggah(false);
@@ -67,14 +68,14 @@ function Kartu({ o }: { o: OutletQris }) {
     <section className="rounded-2xl border border-matur-200 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="mr-auto text-lg font-bold">{o.nama}</h2>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.qris_dinamis ? "bg-green-100 text-green-700" : o.qris_url ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-500"}`}>
-          {o.qris_dinamis ? "Dinamis (nominal otomatis)" : o.qris_url || o.qris_payload ? "Statis" : "Belum diatur"}
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.qris_mode === "dinamis" ? "bg-green-100 text-green-700" : o.qris_url ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-500"}`}>
+          {o.qris_mode === "dinamis" ? "Dinamis · Menunggu konfigurasi" : o.qris_url || o.qris_payload ? "Statis" : "Belum diatur"}
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
         <div className="rounded-xl bg-stone-50 p-3 text-center">
-          {url || payload ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis }} nominal={dinamis ? 10000 : undefined} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
-          {dinamis && payload && <p className="mt-1 text-xs text-stone-500">Contoh: {formatRupiah(10000)} sudah tertanam</p>}
+          {dinamis ? <p className="py-10 text-sm text-amber-800">QRIS dinamis menunggu konfigurasi penyedia pembayaran. QR per transaksi dan konfirmasi otomatis belum aktif.</p> : url || payload ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis: false }} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
+
         </div>
         <div className="space-y-3 text-sm">
           <label className="block font-semibold">
@@ -104,17 +105,22 @@ function Kartu({ o }: { o: OutletQris }) {
                 <span className="block text-xs text-stone-500">Kasir menampilkan QRIS apa adanya — pelanggan mengetik nominal sendiri di aplikasinya.</span>
               </span>
             </label>
-            <label className={`flex items-start gap-2 rounded-xl border-2 p-3 ${info?.valid ? "cursor-pointer" : "opacity-50"} ${dinamis ? "border-green-600 bg-green-50" : "border-stone-200"}`}>
-              <input type="radio" name={`jenis-${o.id}`} checked={dinamis} disabled={!info?.valid} onChange={() => setDinamis(true)} className="mt-0.5 size-4 accent-green-600" />
+            <label className={`flex items-start gap-2 rounded-xl border-2 p-3 cursor-pointer ${dinamis ? "border-green-600 bg-green-50" : "border-stone-200"}`}>
+              <input type="radio" name={`jenis-${o.id}`} checked={dinamis} onChange={() => setDinamis(true)} className="mt-0.5 size-4 accent-green-600" />
               <span>
-                <b>QRIS dinamis (nominal otomatis)</b>
-                <span className="block text-xs text-stone-500">QR berisi total belanja — pelanggan tinggal scan & bayar, tanpa salah ketik nominal. Dana tetap masuk ke merchant QRIS yang sama.{!info?.valid && " Butuh kode QRIS yang terbaca/valid."}</span>
+                <b>QRIS dinamis (konfirmasi otomatis)</b>
+                <span className="block text-xs text-stone-500">QR dibuat per transaksi dan pembayaran dikonfirmasi otomatis oleh penyedia. Saat ini menunggu penyedia dan konfigurasi integrasi. Gambar statis tetap tersimpan saat beralih mode.</span>
               </span>
             </label>
           </fieldset>
+          {dinamis && <div className="space-y-2 rounded-xl bg-amber-50 p-3">
+            <p className="text-xs text-amber-900">Menunggu konfigurasi. Informasi ini disimpan sebagai persiapan; belum mengaktifkan transaksi otomatis.</p>
+            <label className="block">Penyedia pembayaran<input maxLength={80} value={penyedia} onChange={(e) => setPenyedia(e.target.value)} placeholder="Nama bank / penyedia" className="mt-1 w-full rounded-lg border p-2" /></label>
+            <label className="block">Merchant ID<input maxLength={120} value={merchant} onChange={(e) => setMerchant(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
+          </div>}
           {msg && <p className={`rounded-lg px-3 py-2 text-xs ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
           <div className="flex flex-wrap gap-2">
-            <button disabled={pending || !berubah} onClick={() => start(async () => { const r = await aturQris(o.id, { url, payload: payload || null, nama, dinamis: dinamis && !!info?.valid }); setMsg(r); if (!r.error) router.refresh(); })} className="rounded-xl bg-kopi-900 px-4 py-2 font-semibold text-white disabled:opacity-40">
+            <button disabled={pending || !berubah} onClick={() => start(async () => { const r = await aturQris(o.id, { url, payload: payload || null, nama, dinamis, penyedia, merchant }); setMsg(r); if (!r.error) router.refresh(); })} className="rounded-xl bg-kopi-900 px-4 py-2 font-semibold text-white disabled:opacity-40">
               Simpan
             </button>
             {(o.qris_url || o.qris_payload) && (
@@ -134,7 +140,7 @@ export function QrisView({ outlets }: { outlets: OutletQris[] }) {
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
         <h1 className="text-2xl font-bold">QRIS Outlet</h1>
-        <p className="text-sm text-stone-500">QRIS tampil di layar kasir saat pelanggan bayar QRIS. Bisa berupa gambar biasa, atau QRIS dinamis yang nominalnya otomatis sesuai total belanja.</p>
+        <p className="text-sm text-stone-500">QRIS tampil di layar kasir saat pelanggan bayar QRIS. Statis memakai gambar/kode yang diunggah dan dikonfirmasi kasir. Dinamis disiapkan untuk integrasi konfirmasi pembayaran otomatis.</p>
       </div>
       {outlets.map((o) => (
         <Kartu key={o.id} o={o} />
