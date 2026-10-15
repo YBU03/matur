@@ -89,7 +89,7 @@ export function BerandaView({ sapaan, nama, outletNama, sUtama, jumlahShiftHariI
         <KartuModul href="/karyawan/jadwal" judul="Jadwal" keterangan="Lihat shift kamu" ikon={CalendarDays} nada="kopi" />
         <KartuModul href="/karyawan/izin" judul="Izin & Tukar" keterangan="Izin, libur & tukar shift" ikon={ClipboardList} nada="hijau" badge={tukarMasuk} />
         {kasir ? (
-          <KartuModul href="/kasir/pos" judul="Buka POS" keterangan="Khusus tablet outlet" ikon={Receipt} nada="merah" />
+          <KartuModul href="/pos" judul="Buka POS" keterangan="Khusus tablet outlet" ikon={Receipt} nada="merah" />
         ) : (
           <KartuModul href="/karyawan/lainnya" judul="Lainnya" keterangan="Slip, setoran, stok" ikon={Coffee} nada="merah" />
         )}

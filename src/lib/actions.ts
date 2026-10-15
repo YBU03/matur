@@ -94,5 +94,5 @@ export async function kasirLogoutAction() {
   const c=await cookies();c.delete("matur_pos_unlock");c.delete("pos_sesi");
   await supabase.auth.signOut();
   await setActive(null);
-  redirect("/kasir");
+  redirect("/pos");
 }

@@ -42,13 +42,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="space-y-2 p-4 text-sm">
         {/* Aplikasi kasir (POS) terpisah di /kasir — untuk akun yang bertugas sebagai kasir/barista/SPV */}
         {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
-          <Link href="/kasir/pos" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
+          <Link href="/pos" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
             🧾 Buka POS Kasir (tablet outlet)
-          </Link>
-        )}
-        {["owner", "hrd", "admin_gudang", "spv"].includes(s.active.role) && (
-          <Link href="/pos" className="flex items-center justify-center gap-2 rounded-xl border border-red-300 px-3 py-2 font-semibold text-red-700 hover:bg-red-50">
-            📲 Pasangkan Tablet POS
           </Link>
         )}
         <InstallButton />

@@ -10,6 +10,7 @@ export function PosGate({
   namaSaya,
   saya,
   tablet = false,
+  kodeAwal = "",
 }: {
   status: TimStatus;
   outlet: string;
@@ -17,6 +18,8 @@ export function PosGate({
   saya: string;
   /** tablet outlet terpasang: tanpa tautan ke ruang karyawan */
   tablet?: boolean;
+  /** kode staf yang baru saja dipakai masuk (isi otomatis) */
+  kodeAwal?: string;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -148,6 +151,7 @@ export function PosGate({
             Kode staf
             <input
               name="kode"
+              defaultValue={kodeAwal}
               required
               autoCapitalize="none"
               autoComplete="off"

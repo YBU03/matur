@@ -152,11 +152,10 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
       {tab === "tablet" && d.pusat && (
         <section className="space-y-3">
           <p className="text-sm text-stone-500">
-            Cara baru: buka <b>/pos</b> di tablet outlet, masuk dengan akun
-            admin/SPV, pilih outlet & fungsi (Kasir / Antrean saja). Tablet
-            langsung aktif dengan akun tablet tersembunyi. Mencabut perangkat
-            memblokir transaksi baru, sinkronisasi, dan akun tablet tersebut
-            sampai disetujui kembali.
+            Tablet terdaftar otomatis saat staf masuk di <b>/pos</b> dengan
+            kode staf + PIN (mengikuti outlet tempat staf bertugas). Mencabut
+            perangkat memblokir transaksi baru, sinkronisasi, dan login di
+            tablet tersebut sampai diaktifkan kembali.
           </p>
           {d.devices.map((v) => (
             <article key={v.id} className="rounded-2xl border bg-white p-4">

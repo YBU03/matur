@@ -2,19 +2,19 @@
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { POS_DEVICE } from "./pos-tim";
+import { POS_DEVICE, POS_UNLOCK } from "./pos-tim";
 import { setActive } from "./session";
+import { COOKIE_SESI } from "./shift";
 import { supabaseServer } from "./supabase/server";
 
-// Pemasangan tablet POS outlet (sekali, oleh Owner/HRD/Admin Gudang atau SPV outlet).
-// Kredensial admin hanya dipakai di klien sementara di server, tidak disimpan di tablet.
-// Tablet lalu masuk dengan "akun tablet" tersembunyi berpassword acak yang tidak pernah disimpan.
+// Masuk tablet POS di /pos langsung dengan kode staf + PIN (tanpa email/password, tanpa admin).
+// Sistem memakai "akun tablet" tersembunyi per perangkat; passwordnya acak dan diganti setiap kali masuk.
 
-export type OutletPasang = { id: string; nama: string };
-export type HasilPasang = {
+export type OutletPos = { id: string; nama: string };
+export type HasilMasuk = {
   error?: string;
-  outlets?: OutletPasang[];
-  ok?: string;
+  pilih?: OutletPos[];
+  ok?: boolean;
 };
 
 const opsiCookie = {
@@ -24,8 +24,15 @@ const opsiCookie = {
   path: "/",
 };
 
-async function masukAdmin(email: string, password: string) {
-  const db = createClient(
+export async function masukPos(
+  kode: string,
+  pin: string,
+  outlet: string | null,
+): Promise<HasilMasuk> {
+  const c = await cookies();
+  const rahasia = c.get(POS_DEVICE)?.value ?? randomBytes(32).toString("hex");
+  const sandi = randomBytes(24).toString("base64url");
+  const anon = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -36,77 +43,50 @@ async function masukAdmin(email: string, password: string) {
       },
     },
   );
-  const { error } = await db.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
+  const { data, error } = await anon.rpc("masuk_pos_tablet", {
+    p_kode: kode,
+    p_pin: pin,
+    p_outlet: outlet,
+    p_rahasia: rahasia,
+    p_password: sandi,
   });
-  if (error) return { error: "Email/password admin salah." as const };
-  return { db };
-}
+  if (error) return { error: error.message };
+  const r = data as {
+    error?: string;
+    pilih?: OutletPos[];
+    email?: string;
+    outlet_id?: string;
+  };
+  if (r.error) return { error: r.error };
+  if (r.pilih) return { pilih: r.pilih };
 
-/** Langkah 1: periksa akun admin/SPV dan ambil outlet yang boleh dipasangi tablet. */
-export async function cekAdminTablet(
-  email: string,
-  password: string,
-): Promise<HasilPasang> {
-  const m = await masukAdmin(email, password);
-  if (!m.db) return { error: m.error };
-  try {
-    const { data, error } = await m.db.rpc("outlet_pasang_tablet");
-    if (error) return { error: error.message };
-    const outlets = (data ?? []) as OutletPasang[];
-    if (!outlets.length)
-      return {
-        error:
-          "Akun ini tidak berwenang memasangkan tablet. Gunakan akun Owner/HRD/Admin Gudang atau SPV outlet.",
-      };
-    return { outlets };
-  } finally {
-    await m.db.auth.signOut({ scope: "local" });
-  }
-}
-
-/** Langkah 2: buat akun tablet + perangkat aktif, lalu tablet ini masuk dengan akun tersebut. */
-export async function pasangTablet(
-  email: string,
-  password: string,
-  outlet: string,
-  nama: string,
-  mode: "kasir" | "antrean",
-): Promise<HasilPasang> {
-  const m = await masukAdmin(email, password);
-  if (!m.db) return { error: m.error };
-  const rahasia = randomBytes(32).toString("hex");
-  const sandi = randomBytes(24).toString("base64url");
-  let akun: string;
-  try {
-    const { data, error } = await m.db.rpc("pasang_tablet_pos", {
-      p_outlet: outlet,
-      p_nama: nama,
-      p_mode: mode,
-      p_rahasia: rahasia,
-      p_password: sandi,
-    });
-    if (error) return { error: error.message };
-    akun = (data as { email: string }).email;
-  } finally {
-    await m.db.auth.signOut({ scope: "local" });
-  }
   const db = await supabaseServer();
   await db.auth.signOut({ scope: "local" });
-  const { error } = await db.auth.signInWithPassword({
-    email: akun,
+  const masuk = await db.auth.signInWithPassword({
+    email: r.email!,
     password: sandi,
   });
-  if (error)
-    return {
-      error:
-        "Tablet terdaftar tetapi gagal masuk. Cabut tablet di POS Tim lalu pasangkan ulang.",
-    };
-  const c = await cookies();
+  if (masuk.error) return { error: "Gagal masuk ke tablet. Coba lagi." };
   c.set(POS_DEVICE, rahasia, { ...opsiCookie, maxAge: 60 * 60 * 24 * 400 });
-  c.delete("matur_pos_unlock");
-  c.delete("pos_sesi");
-  await setActive({ role: "tablet", outletId: outlet });
-  return { ok: "Tablet terpasang." };
+  c.delete(POS_UNLOCK);
+  c.delete(COOKIE_SESI);
+  await setActive({ role: "tablet", outletId: r.outlet_id! });
+
+  // Bila shift tim di tablet ini masih berjalan, langsung buka kunci dengan PIN yang sama.
+  const token = randomBytes(32).toString("hex");
+  const buka = await db.rpc("buka_pos_tim", {
+    p_outlet: r.outlet_id,
+    p_device: rahasia,
+    p_kode: kode,
+    p_pin: pin,
+    p_modal: 0,
+    p_anggota: [],
+    p_token: token,
+  });
+  const b = buka.data as { sesi_id?: string; error?: string } | null;
+  if (!buka.error && b?.sesi_id) {
+    c.set(POS_UNLOCK, token, { ...opsiCookie, maxAge: 60 * 60 * 20 });
+    c.set(COOKIE_SESI, b.sesi_id, { ...opsiCookie, maxAge: 60 * 60 * 20 });
+  }
+  return { ok: true };
 }

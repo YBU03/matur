@@ -48,7 +48,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <span className="block text-[11px] font-semibold text-redup">Ruang Karyawan</span>
           </span>
         </Link>
-        <NavSamping badge={badge} tambahan={bisaPos ? [{ href: "/kasir/pos", label: "Buka POS (tablet)" }] : undefined} />
+        <NavSamping badge={badge} tambahan={bisaPos ? [{ href: "/pos", label: "Buka POS (tablet)" }] : undefined} />
         <div className="mt-auto space-y-3 pt-4">
           <InstallButton />
           <div className="flex items-center gap-2 rounded-2xl bg-krem p-2">

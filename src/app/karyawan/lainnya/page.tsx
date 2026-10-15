@@ -20,7 +20,7 @@ export default async function Lainnya() {
         <KartuModul href="/karyawan/stok" judul="Stok Outlet" keterangan="Cek & opname" ikon={Warehouse} nada="merah" />
         <KartuModul href="/karyawan/notifikasi" judul="Notifikasi" keterangan="Kabar izin & jadwal" ikon={Bell} nada="kopi" />
         <KartuModul href="/karyawan/profil" judul="Profil" keterangan="Data diri & password" ikon={UserRound} nada="oranye" />
-        {pos && <KartuModul href="/kasir/pos" judul="Buka POS" keterangan="Khusus tablet outlet" ikon={MonitorSmartphone} nada="merah" />}
+        {pos && <KartuModul href="/pos" judul="Buka POS" keterangan="Khusus tablet outlet" ikon={MonitorSmartphone} nada="merah" />}
       </div>
       <form action={logoutAction} className="mt-6">
         <button className={`${tombol.bahaya} w-full lg:w-auto`}>
