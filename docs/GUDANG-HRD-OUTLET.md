@@ -21,3 +21,14 @@ Perubahan ini membutuhkan migrasi `0055_gudang_hrd_outlet.sql` sebelum aplikasi 
 ## Validasi lokal
 
 `npm test` mencakup tes PostgreSQL via PGlite yang menjalankan migrasi 0055 dengan fixture skema sebelumnya. Tes meliputi transaksi atomik HPP, resep, harga dari database, penolakan hak akses, QRIS menunggu konfigurasi, keterlambatan, audit hapus, dan gaji final. Fixture ini tidak menggantikan verifikasi database produksi dan integrasi provider pembayaran.
+
+
+## Status penerapan 15 Oktober 2026
+
+Migrasi `0055_gudang_hrd_outlet` berhasil diterapkan ke proyek matur (`qocejvxjfrmlpnejtcwh`), versi `20261015024627`. Pembatasan akses fungsi trigger QRIS juga diterapkan lewat migrasi `gudang_hrd_qris_trigger_privileges` (baris REVOKE disertakan pada akhir skrip 0055 untuk instalasi baru).
+
+Kolom kepemilikan dan konfigurasi QRIS, fungsi HPP/resep dan edit absensi, serta trigger pembayaran terverifikasi. Usman Janatin berstatus Pusat; QRIS kedua outlet tetap statis. Uji transaksi nyata ke fungsi baru (tambah menu/HPP/resep, simpan QRIS pending, edit/hapus absensi dan audit) berhasil dan di-ROLLBACK seluruhnya. Jumlah menu 36, resep 88, HPP 30, absensi 1, transaksi 3393 dan pembayaran 3393 tetap sama; menu uji tidak tersisa.
+
+Kode UI masih berada pada PR #1 dan belum dimerge/deploy. Kebijakan mutasi langsung absensi telah diganti dengan RPC audit: tombol Koreksi dari versi aplikasi lama perlu kode PR ini agar kembali menggunakan jalur baru. Integrasi penyedia QRIS otomatis tetap menunggu penyedia/kredensial/webhook.
+
+Advisor keamanan memverifikasi fungsi mutasi baru tidak dapat dijalankan secara anonim. Fungsi trigger QRIS juga tidak dapat dipanggil langsung oleh role authenticated, tetapi trigger tetap aktif. Temuan lama pada helper/ekstensi/Auth berada di luar lingkup migrasi ini.
