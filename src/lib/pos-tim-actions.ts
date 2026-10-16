@@ -151,7 +151,7 @@ export async function tutupPos(
     },
     pending.length
       ? "Sesi ditutup sementara; rekap diperbarui setelah seluruh transaksi tersinkron."
-      : "Kas tim ditutup. Tim berikutnya dapat membuka sesi baru.",
+      : "Kas tim ditutup. Periksa status rekap: tetap sementara jika perangkat asal belum selesai menyinkronkan data.",
   );
   if (!r.error) {
     const c = await cookies();
