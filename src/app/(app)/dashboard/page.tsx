@@ -47,6 +47,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
   const outletId = pusat || gudangPusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
 
+  // kas POS tersangkut (lewat batas shift) — Owner, SPV, Admin Gudang bisa menutupnya
+  let tertinggal: { outlet: string }[] = [];
+  if (["owner", "spv", "admin_gudang"].includes(active.role)) {
+    const { data } = await (await supabaseServer()).rpc("kas_tertinggal");
+    tertinggal = (data ?? []) as { outlet: string }[];
+  }
   const lihatLaporan = pusat || active.role === "mitra";
   // tab: Harian (POS, seperti dasbor Luna) & Laporan Keuangan (bulanan); peran yang hanya punya salah satu tidak melihat tab
   const duaTab = lihatPenjualan && lihatLaporan;
@@ -66,6 +72,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
+      {tertinggal.length > 0 && (
+        <Link href="/pengaturan/pos#tertinggal" className="block rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+          ⚠️ {tertinggal.length} kas POS tertinggal ({[...new Set(tertinggal.map((k) => k.outlet))].join(", ")}) — belum ditutup setelah shift berakhir dan menghalangi kas berikutnya. Tutup sekarang ›
+        </Link>
+      )}
       {pendaftar > 0 && (
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           🔔 {pendaftar} {staf ? "pendaftar kasir/barista" : "pendaftar baru"} menunggu persetujuan → buka {staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}

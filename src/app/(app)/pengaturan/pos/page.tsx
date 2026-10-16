@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { AksesOutlet } from "./akses-outlet";
 import { PanelPos, type PanelData } from "./view";
+import { KasTertinggalPanel, type KasTertinggal } from "@/components/kas-tertinggal";
 export default async function Page() {
   const s = await getSession();
   if (
@@ -33,5 +34,11 @@ export default async function Page() {
       panel.sessions.some((y) => y.id === x.sesi_id),
     );
   }
-  return <PanelPos data={panel} role={s.active.role} akses={allowed} />;
+  const { data: tertinggal } = await db.rpc("kas_tertinggal");
+  return (
+    <div className="space-y-4">
+      <KasTertinggalPanel list={(tertinggal ?? []) as KasTertinggal[]} />
+      <PanelPos data={panel} role={s.active.role} akses={allowed} />
+    </div>
+  );
 }
