@@ -34,3 +34,11 @@ Data uang diambil/disetor tetap dicatat sebagai pergerakan kas/setoran; pemeriks
 Pengujian SQL mencakup S1/S2/S3 pada satu sesi/modal, PIC barista dapat menerima pembayaran, larangan perangkat lain, penonaktifan akses, penutupan kas, pembatasan HRD per outlet, serta regresi antrean offline/perpindahan/rekonsiliasi. PGlite menggunakan crypto double; operasi hash/Auth diverifikasi terpisah pada PostgreSQL Supabase dengan transaksi rollback.
 
 Endpoint login outlet sengaja menerima pemanggil belum login (`anon`) dengan verifikasi bcrypt dan pembatasan percobaan. RPC admin tidak bisa dipanggil anon. Tabel rahasia di schema private sengaja memakai RLS tanpa policy dan pencabutan hak langsung; akses melalui fungsi dengan pemeriksaan kewenangan. Temuan advisor mengenai pola ini adalah batas akses yang disengaja, bukan tabel publik tanpa RLS.
+
+## Tambah, edit dan hapus akses outlet
+
+Tab Akun POS Outlet menampilkan kartu akses yang sudah dibuat. Gunakan **Tambah Akses POS** untuk memilih outlet yang belum memiliki akun. **Edit** mengubah username, password (kosong berarti tetap), dan status aktif. Tambah/edit menampilkan ringkasan sebelum disimpan. Satu outlet tetap satu akses.
+
+**Hapus** meminta konfirmasi nama outlet dan username. Sistem mengarsipkan kredensial, menonaktifkannya, mengacak hash password lama, melepaskan username dan menarik izin transaksi online. Outlet, akun pribadi karyawan, perangkat, antrean historis, sesi kas, modal, transaksi, dan serah terima tidak dihapus. Izin offline tetap tunduk pada waktu pencabutan; browser offline tidak bisa menerima pencabutan secara instan.
+
+Akses yang sudah dihapus dapat dibuat kembali melalui Tambah dengan password baru. Edit/hapus memakai versi data agar formulir lama tidak menimpa perubahan admin lain. HRD/gudang hanya dapat mengelola outlet dalam kewenangannya; tindakan dicatat di log aktivitas tanpa password/hash.

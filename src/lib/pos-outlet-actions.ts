@@ -12,17 +12,37 @@ export async function aturAksesOutlet(
   username: string,
   password: string,
   aktif: boolean,
+  baru: boolean,
+  versi: string | null,
 ): Promise<PosHasil> {
   const db = await supabaseServer();
-  const { error } = await db.rpc("atur_akses_pos_outlet", {
+  const { error } = await db.rpc("simpan_akses_pos_outlet", {
     p_outlet: outlet,
     p_username: username,
     p_password: password,
     p_aktif: aktif,
+    p_baru: baru,
+    p_versi: versi,
   });
   if (error) return { error: error.message };
   revalidatePath("/pengaturan/pos");
   return { ok: "Akses POS outlet disimpan. Password akun pribadi tetap sama." };
+}
+export async function hapusAksesOutlet(
+  outlet: string,
+  versi: string,
+): Promise<PosHasil> {
+  const db = await supabaseServer();
+  const { error } = await db.rpc("hapus_akses_pos_outlet", {
+    p_outlet: outlet,
+    p_versi: versi,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/pengaturan/pos");
+  revalidatePath("/pos");
+  return {
+    ok: "Akses POS outlet dihapus. Riwayat transaksi, kas, dan serah terima tetap tersimpan.",
+  };
 }
 export async function pilihPicOutlet(
   pic: string,

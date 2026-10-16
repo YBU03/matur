@@ -716,7 +716,15 @@ it("outlet credentials and daily PIC handovers preserve one drawer across S1/S2/
       "utf8",
     ),
   );
-  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261016032634_pos_outlet_tutup_jalur_lama.sql",import.meta.url),"utf8"));
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261016032634_pos_outlet_tutup_jalur_lama.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await as(owner);
   await call("atur_akses_pos_outlet", [
     o,
@@ -724,7 +732,9 @@ it("outlet credentials and daily PIC handovers preserve one drawer across S1/S2/
     "password-outlet-uji",
     true,
   ]);
-  await expect(call("buka_pos_tim",[o,device,"andi","1234",0,[andi],token])).rejects.toThrow(/akun POS outlet/);
+  await expect(
+    call("buka_pos_tim", [o, device, "andi", "1234", 0, [andi], token]),
+  ).rejects.toThrow(/akun POS outlet/);
   await as(budi);
   await expect(
     call("atur_akses_pos_outlet", [o, "hacked", "password-outlet-uji", true]),
@@ -986,4 +996,181 @@ it("scopes outlet credentials and device administration at the database boundary
       )
     )[0].ok,
   ).toBe(false);
+});
+it("adds, edits and deletes outlet access without deleting financial history or restoring stale credentials", async () => {
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261016060649_pos_outlet_kelola_akses.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const outside = id(111);
+  await as(owner);
+  const version = async (outlet: string) =>
+    (
+      await q<{ v: string }>(
+        "select diubah_at::text v from matur_internal.pos_outlet_akses where outlet_id=$1",
+        [outlet],
+      )
+    )[0].v;
+  const totals = async () =>
+    q(
+      "select (select count(*) from transaksi) tx,(select count(*) from sesi_kas) kas,(select count(*) from pos_serah_terima) serah,(select sum(modal_laci) from sesi_kas) modal",
+    );
+  await call("simpan_akses_pos_outlet", [
+    outside,
+    "outlet-baru",
+    "password-baru-123",
+    true,
+    true,
+    null,
+  ]);
+  await expect(
+    call("simpan_akses_pos_outlet", [
+      outside,
+      "outlet-baru",
+      "password-baru-123",
+      true,
+      true,
+      null,
+    ]),
+  ).rejects.toThrow(/sudah memiliki/);
+  const v1 = await version(outside);
+  const hash = (
+    await q(
+      "select password_hash from matur_internal.pos_outlet_akses where outlet_id=$1",
+      [outside],
+    )
+  )[0].password_hash;
+  await call("simpan_akses_pos_outlet", [
+    outside,
+    "outlet-edit",
+    "",
+    true,
+    false,
+    v1,
+  ]);
+  expect(
+    (
+      await q(
+        "select password_hash from matur_internal.pos_outlet_akses where outlet_id=$1",
+        [outside],
+      )
+    )[0].password_hash,
+  ).toBe(hash);
+  await expect(
+    call("simpan_akses_pos_outlet", [
+      outside,
+      "stale-edit",
+      "",
+      true,
+      false,
+      v1,
+    ]),
+  ).rejects.toThrow(/sudah berubah/);
+  await expect(call("hapus_akses_pos_outlet", [outside, v1])).rejects.toThrow(
+    /sudah berubah/,
+  );
+  await as(id(110));
+  await expect(
+    call("hapus_akses_pos_outlet", [outside, await version(outside)]),
+  ).rejects.toThrow(/berwenang/);
+  await as(budi);
+  await expect(
+    call("hapus_akses_pos_outlet", [o, await version(o)]),
+  ).rejects.toThrow(/berwenang/);
+  await as(owner);
+  const counts = await totals();
+  const original = (
+    await q<{ username: string }>(
+      "select username from matur_internal.pos_outlet_akses where outlet_id=$1",
+      [o],
+    )
+  )[0].username;
+  await call("hapus_akses_pos_outlet", [o, await version(o)]);
+  expect(await totals()).toEqual(counts);
+  expect(
+    (
+      await q(
+        "select count(*) n from matur_internal.pos_izin i join pos_perangkat p on p.id=i.perangkat_id where p.outlet_id=$1 and i.ditarik_at is null",
+        [o],
+      )
+    )[0].n,
+  ).toBe(0);
+  const login = await call("masuk_pos_outlet", [
+    original,
+    "password-outlet-uji",
+    "x".repeat(64),
+    "z".repeat(40),
+  ]);
+  expect(login.error).toBeTruthy();
+  const panel = await call<{ id: string; username: string | null }[]>(
+    "panel_akses_pos_outlet",
+    [],
+  );
+  expect(panel.find((x) => x.id === o)?.username).toBeNull();
+  await expect(
+    call("atur_akses_pos_outlet", [o, original, "", true]),
+  ).rejects.toThrow(/Password/);
+  await expect(
+    call("simpan_akses_pos_outlet", [o, original, "", true, true, null]),
+  ).rejects.toThrow(/Password/);
+  await expect(
+    call("simpan_akses_pos_outlet", [
+      o,
+      original,
+      "password-outlet-uji",
+      true,
+      false,
+      await version(o),
+    ]),
+  ).rejects.toThrow(/dihapus/);
+  await call("simpan_akses_pos_outlet", [
+    outside,
+    original,
+    "",
+    true,
+    false,
+    await version(outside),
+  ]);
+  await call("simpan_akses_pos_outlet", [
+    o,
+    "outlet-kembali",
+    "password-baru-kembali",
+    true,
+    true,
+    null,
+  ]);
+  expect(
+    (
+      await q(
+        "select deleted_at,aktif from matur_internal.pos_outlet_akses where outlet_id=$1",
+        [o],
+      )
+    )[0],
+  ).toEqual({ deleted_at: null, aktif: true });
+  await expect(
+    call("simpan_akses_pos_outlet", [
+      o,
+      original,
+      "",
+      true,
+      false,
+      await version(o),
+    ]),
+  ).rejects.toThrow(/dipakai outlet lain/);
+  expect(await totals()).toEqual(counts);
+  for (const sig of [
+    "hapus_akses_pos_outlet(uuid,timestamptz)",
+    "simpan_akses_pos_outlet(uuid,text,text,boolean,boolean,timestamptz)",
+  ]) {
+    expect(
+      (
+        await q("select has_function_privilege('anon',$1,'execute') ok", [sig])
+      )[0].ok,
+    ).toBe(false);
+  }
 });
