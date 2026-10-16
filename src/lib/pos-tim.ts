@@ -21,6 +21,7 @@ export type TimStatus = {
     tanggal: string;
     legacy: boolean;
     perangkat_sama: boolean;
+    menunggu_reset?: boolean;
     aktif_tim: boolean;
     anggota: {
       id: string;
@@ -67,13 +68,20 @@ export async function statusPos(outlet: string, perbarui = false) {
 
 /** ringkasan untuk header tablet POS */
 export function infoTablet(st: TimStatus, outlet: string) {
-  const tim = (st.sesi?.anggota ?? []).filter((a) => !a.keluar_at).map((a) => a.nama);
+  const tim = (st.sesi?.anggota ?? [])
+    .filter((a) => !a.keluar_at)
+    .map((a) => a.nama);
   return {
     outlet,
     tablet: st.device?.nama ?? "Tablet",
-    shift: st.sesi ? `${st.sesi.nama.replace(/ · Tim$/, "")} · ${st.sesi.tanggal}` : null,
+    shift: st.sesi
+      ? `${st.sesi.nama.replace(/ · Tim$/, "")} · ${st.sesi.tanggal}`
+      : null,
     tim,
-    operator: st.boleh && st.operator ? { nama: st.operator.nama, kasir: st.operator.kasir } : null,
+    operator:
+      st.boleh && st.operator
+        ? { nama: st.operator.nama, kasir: st.operator.kasir }
+        : null,
     omzet: st.sesi ? (st.omzet ?? { total: 0, jumlah: 0 }) : null,
   };
 }

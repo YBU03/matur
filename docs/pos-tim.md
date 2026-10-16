@@ -60,3 +60,9 @@ Permintaan yang belum selesai dapat dibatalkan dengan alasan. Sesi tetap terbuka
 **Simulasi POS** tersedia langsung dari panel admin tanpa memindahkan sesi produksi. Menu/harga dibaca untuk latihan; keranjang, diskon, kembalian, dan struk bertanda SIMULASI hanya berada dalam memori halaman. Tidak memanggil RPC penjualan, tidak menulis antrean asli, dan tidak mengubah stok/omzet/kas/setoran/laporan. Latihan hilang saat halaman dimuat ulang.
 
 Jika sumber belum dapat dihubungi saat perpindahan diselesaikan, penutupan kas di tujuan tetap boleh dilakukan agar shift berikutnya berjalan, tetapi **rekap tetap sementara**. Transaksi historis sumber yang sesuai izin masih diterima setelah penutupan dan memperbarui kas seharusnya/selisih. Rekap baru final setelah seluruh antrean yang terdaftar selesai dan semua perangkat asal melaporkan antrean bersih. Kendala HPP, batas sinkronisasi, atau data browser yang dihapus tetap memerlukan pemeriksaan admin; tidak ada penyesuaian omzet diam-diam.
+
+## Reset akses yang tersangkut
+
+Admin dapat memilih outlet (atau semua outlet), mengisi alasan, lalu **Reset akses perangkat**. Operasi ini mengaktifkan kembali perangkat, membersihkan pembatas percobaan PIN, membatalkan perpindahan yang belum selesai, dan melepas ikatan perangkat pada sesi tim terbuka. Reset ditolak bila izin offline lama belum habis, agar tidak ada izin penjualan bertumpuk.
+
+Setelah reset, buka `/pos` dan masukkan kode staf/PIN yang sama. Perangkat pertama yang berhasil diverifikasi sebagai anggota tim hadir pada jadwal yang sama mengambil kembali sesi tersebut; tidak perlu memasukkan modal lagi. Modal, transaksi, pembuka dan riwayat tetap sama. Jika sumber berbeda, riwayat perpindahan tetap dibuat untuk menerima antrean historis dan menjaga rekap sementara. Sesi kas skema lama tidak dihapus atau ditutup dengan angka kas rekaan. Absensi serta batas jam shift tetap berlaku.

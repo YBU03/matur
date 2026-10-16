@@ -105,7 +105,9 @@ export function PosGate({
             Periksa persetujuan
           </button>
         </div>
-      ) : s.sesi && (!s.sesi.perangkat_sama || s.sesi.legacy) ? (
+      ) : s.sesi &&
+        !s.sesi.menunggu_reset &&
+        (!s.sesi.perangkat_sama || s.sesi.legacy) ? (
         <div className="rounded-xl bg-amber-50 p-4 text-sm">
           <b>Sudah ada sesi kas terbuka</b>
           <p>

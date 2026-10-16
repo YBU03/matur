@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   aturTablet,
+  resetAksesPos,
   batalPindahPos,
   mintaPindahPos,
   selesaikanPindahPos,
@@ -81,6 +82,53 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
           {msg.error ?? msg.ok}
         </p>
       )}
+      <form
+        className="space-y-3 rounded-2xl border border-amber-300 bg-white p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          if (
+            confirm(
+              "Reset ikatan perangkat? Transaksi, modal dan sesi tim tetap ada. Perangkat pertama yang login dengan PIN valid akan mengambil sesi tersebut.",
+            )
+          )
+            run(() =>
+              resetAksesPos(
+                String(f.get("outlet")) || null,
+                String(f.get("alasan")),
+              ),
+            );
+        }}
+      >
+        <h2 className="font-bold">Reset akses POS yang tersangkut</h2>
+        <p className="text-xs text-stone-500">
+          Gunakan setelah izin offline lama habis. Membatalkan permintaan pindah
+          yang belum selesai, mengaktifkan perangkat, dan melepas ikatan sesi
+          tim. Jadwal, absensi, kode/PIN, modal dan transaksi tetap berlaku.
+        </p>
+        <select name="outlet" aria-label="Outlet reset" className={input}>
+          <option value="">Semua outlet</option>
+          {d.outlets.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.nama}
+            </option>
+          ))}
+        </select>
+        <input
+          name="alasan"
+          minLength={5}
+          required
+          placeholder="Alasan reset akses"
+          aria-label="Alasan reset akses"
+          className={input}
+        />
+        <button
+          disabled={busy}
+          className="rounded-xl border px-4 py-2 text-sm font-bold"
+        >
+          Reset akses perangkat
+        </button>
+      </form>
       <h2 className="text-lg font-bold">Perangkat & petugas POS</h2>
       <div className="grid gap-3 lg:grid-cols-2">
         {d.devices.map((v) => (
@@ -193,13 +241,15 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
               </b>
               <p className="text-sm">
                 Pembuka: {s.pembuka_nama ?? "Belum tercatat"} · perangkat:{" "}
-                {asal?.nama ?? "Sesi lama"} · mulai {wib(s.buka_at)}
+                {asal?.nama ?? (s.legacy ? "Sesi lama" : "Menunggu login setelah reset")} · mulai {wib(s.buka_at)}
               </p>
               {s.legacy ? (
                 <p className="text-sm text-amber-800">
                   Sesi skema lama perlu pemeriksaan Owner/SPV. Untuk mencoba POS
                   tanpa menyentuh sesi ini, gunakan Simulasi POS di atas.
                 </p>
+              ) : !s.perangkat_id ? (
+                <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">Reset berhasil. Buka <Link href="/pos" className="font-bold underline">POS di perangkat ini</Link> lalu masukkan kode staf dan PIN yang sama. Sesi dan modal diteruskan otomatis.</p>
               ) : pending ? (
                 <>
                   <p className="rounded-xl bg-amber-50 p-3 text-sm">

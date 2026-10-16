@@ -312,3 +312,11 @@ export async function batalPindahPos(id: string, alasan: string) {
     "Permintaan pindah dibatalkan. Petugas dapat membuka kembali perangkat asal memakai kode/PIN; sesi kas tetap sama.",
   );
 }
+
+export async function resetAksesPos(outlet: string | null, alasan: string) {
+  return rpc(
+    "reset_akses_pos",
+    { p_outlet: outlet, p_alasan: alasan },
+    "Akses perangkat direset. Login ulang di /pos dengan kode staf/PIN yang sama; perangkat pertama yang valid melanjutkan sesi tim tanpa mengulang modal.",
+  );
+}
