@@ -29,6 +29,7 @@ const call = async <T = Record<string, unknown>>(
     )
   )[0].v;
 let sid: string, permit: string;
+let lateHistory: ReturnType<typeof payload>;
 beforeAll(async () => {
   // Crypto/Vault doubles test access and workflow only; real crypto is verified separately on Supabase.
   await db.exec(`create role anon;create role authenticated;create schema auth;create schema extensions;create schema storage;create schema vault;
@@ -78,6 +79,7 @@ create function vault.update_secret(uuid,text) returns void language sql as $$up
     "0057_pos_tablet.sql",
     "0058_masuk_pos_kode_pin.sql",
     "20261016021040_pos_pindah_perangkat.sql",
+    "20261016021744_pos_pindah_rekonsiliasi.sql",
   ])
     await db.exec(
       readFileSync(
@@ -524,9 +526,7 @@ it("requires explicit acknowledgement when the old device is unreachable, then s
   ]);
   await call("selesaikan_pindah_pos", [req.id, target, true]);
   await as(budi);
-  expect(
-    (await call("buat_transaksi", [{ ...old, sinkron_offline: true }])).total,
-  ).toBe(10000);
+  lateHistory = old;
   await expect(
     call("buat_transaksi", [{ ...payload(), device_token: source }]),
   ).rejects.toThrow("tablet");
@@ -596,6 +596,22 @@ it("closes provisionally with pending IDs, then reconciles the original cash tra
     call("buat_transaksi", [{ ...payload(), sinkron_offline: true }]),
   ).rejects.toThrow("antrean");
   expect((await call("buat_transaksi", [p])).total).toBe(10000);
+  expect((await call("ringkasan_kas_tim", [sid])).rekap_status).toBe(
+    "sementara",
+  );
+  expect(
+    (await call("buat_transaksi", [{ ...lateHistory, sinkron_offline: true }]))
+      .total,
+  ).toBe(10000);
+  expect((await call("ringkasan_kas_tim", [sid])).rekap_status).toBe(
+    "sementara",
+  );
+  await call("lapor_perangkat_pos", [
+    "e".repeat(64),
+    [],
+    true,
+    "Browser asal kembali terhubung",
+  ]);
   const s = (
     await q(
       "select pending_offline,rekap_status,selisih,fisik_akhir from sesi_kas where id=$1",

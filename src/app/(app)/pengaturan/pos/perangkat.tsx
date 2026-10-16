@@ -335,7 +335,9 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
           </p>
           <p className="text-stone-500">
             {r.alasan}
-            {r.risiko_diakui && " · Antrean lama perlu pemeriksaan lanjutan"}
+            {r.risiko_diakui &&
+              !r.bersih_at &&
+              " · Antrean lama perlu pemeriksaan lanjutan"}
           </p>
         </article>
       ))}

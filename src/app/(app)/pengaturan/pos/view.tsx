@@ -65,6 +65,7 @@ export type PanelData = {
     ditutup_at: string | null;
     status: string;
     pending: number;
+    pindah_menunggu?: number;
     aktual: number | null;
     selisih: number | null;
     anggota: { nama: string; gabung_at: string; keluar_at: string | null }[];
@@ -289,6 +290,12 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
                   )
                   .join(" · ") || "Belum tercatat pada sesi lama"}
               </p>
+              {!!s.pindah_menunggu && (
+                <p className="rounded-xl bg-amber-50 p-3 text-sm">
+                  Rekap sementara: {s.pindah_menunggu} perangkat asal belum
+                  melaporkan antrean bersih.
+                </p>
+              )}
               {s.ditutup_at && (
                 <p className="text-sm">
                   Uang fisik {s.aktual === null ? "—" : rp(s.aktual)} · selisih{" "}

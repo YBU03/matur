@@ -5,6 +5,7 @@ import { formatRupiah as rp } from "@/lib/format";
 import { bacaAntrean } from "@/lib/pos-offline";
 import { tutupPos, type PosHasil } from "@/lib/pos-tim-actions";
 export type KasTim = {
+  pindah_menunggu?: number;
   id: string;
   nama: string;
   modal: number;
@@ -26,6 +27,13 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
   return (
     <section className="mx-auto max-w-3xl rounded-2xl border bg-white p-5">
       <h2 className="font-bold">Kas tim · {kas.nama}</h2>
+      {!!kas.pindah_menunggu && (
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          {kas.pindah_menunggu} perangkat asal belum melaporkan antrean bersih.
+          Rekap tetap sementara sampai sinkronisasi selesai, termasuk setelah
+          sesi ditutup.
+        </p>
+      )}
       <p className="mt-1 text-sm text-stone-500">
         Uang fisik mencakup modal yang masih ada. Setoran ke pusat dicatat
         terpisah melalui dashboard karyawan.
