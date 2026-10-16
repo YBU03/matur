@@ -2,7 +2,6 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  aturTablet,
   aturPinPos,
   lihatPinPos,
   aksesPosStaf,
@@ -12,6 +11,7 @@ import {
   emailLoginStaf,
   type PosHasil,
 } from "@/lib/pos-tim-actions";
+import { PerangkatPanel, type Pindah } from "./perangkat";
 import { formatRupiah as rp } from "@/lib/format";
 type Staf = {
   id: string;
@@ -33,6 +33,8 @@ type Outlet = {
 };
 export type PanelData = {
   pusat: boolean;
+  perangkat_admin?: boolean;
+  pindah?: Pindah[];
   staf: Staf[];
   devices: {
     id: string;
@@ -41,12 +43,22 @@ export type PanelData = {
     mode?: string;
     status: string;
     created_at: string;
+    info_perangkat?: string | null;
+    login_nama?: string | null;
+    login_at?: string | null;
+    operator_nama?: string | null;
+    terlihat_at?: string | null;
+    antrean_at?: string | null;
+    antrean_jumlah?: number | null;
+    pembuka_nama?: string | null;
   }[];
   outlets: Outlet[];
   sessions: {
     id: string;
     outlet_id: string;
     nama: string;
+    perangkat_id?: string;
+    pembuka_nama?: string;
     buka_at: string;
     batas_at: string | null;
     legacy: boolean;
@@ -65,7 +77,9 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<PosHasil>({});
-  const [tab, setTab] = useState(d.pusat ? "staf" : "sesi");
+  const [tab, setTab] = useState(
+    d.perangkat_admin ? "tablet" : d.pusat ? "staf" : "sesi",
+  );
   const [cari, setCari] = useState("");
   const run = (f: () => Promise<PosHasil>) =>
     start(async () => {
@@ -95,10 +109,10 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
           ...(d.pusat
             ? [
                 ["staf", "Kode Staf & PIN"],
-                ["tablet", "Tablet Outlet"],
                 ["aturan", "Aturan Shift & Lokasi"],
               ]
             : []),
+          ...(d.perangkat_admin ? [["tablet", "Perangkat & Pindah POS"]] : []),
           ["sesi", "Sesi Kas Tim"],
         ].map(([k, l]) => (
           <button
@@ -149,63 +163,7 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
             ))}
         </section>
       )}
-      {tab === "tablet" && d.pusat && (
-        <section className="space-y-3">
-          <p className="text-sm text-stone-500">
-            Tablet terdaftar otomatis saat staf masuk di <b>/pos</b> dengan
-            kode staf + PIN (mengikuti outlet tempat staf bertugas). Mencabut
-            perangkat memblokir transaksi baru, sinkronisasi, dan login di
-            tablet tersebut sampai diaktifkan kembali.
-          </p>
-          {d.devices.map((v) => (
-            <article key={v.id} className="rounded-2xl border bg-white p-4">
-              <div className="flex flex-wrap justify-between">
-                <b>
-                  {v.nama} · {nama(v.outlet_id)}
-                  {v.mode === "antrean" ? " · Antrean saja" : " · Kasir"}
-                </b>
-                <span className="text-xs font-bold">{v.status}</span>
-              </div>
-              <p className="my-2 text-xs text-stone-500">
-                Diminta {wib(v.created_at)} WIB · ID {v.id.slice(0, 8)}
-              </p>
-              <form
-                className="flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const fd = new FormData(e.currentTarget);
-                  run(() =>
-                    aturTablet(
-                      v.id,
-                      v.status !== "aktif",
-                      String(fd.get("alasan")),
-                    ),
-                  );
-                }}
-              >
-                <input
-                  name="alasan"
-                  required
-                  minLength={3}
-                  placeholder="Alasan persetujuan / pencabutan"
-                  className={cls}
-                />
-                <button
-                  disabled={busy}
-                  className="shrink-0 rounded-lg bg-kopi-900 px-3 text-sm text-white"
-                >
-                  {v.status === "aktif" ? "Cabut akses" : "Setujui tablet"}
-                </button>
-              </form>
-            </article>
-          ))}
-          {!d.devices.length && (
-            <p className="rounded-xl border bg-white p-5 text-sm">
-              Belum ada permintaan tablet.
-            </p>
-          )}
-        </section>
-      )}
+      {tab === "tablet" && d.perangkat_admin && <PerangkatPanel data={d} />}
       {tab === "aturan" && d.pusat && (
         <div className="grid gap-3 lg:grid-cols-2">
           {d.outlets.map((o) => (

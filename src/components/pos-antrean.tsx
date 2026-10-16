@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
+import { laporPerangkatPos } from "@/lib/pos-tim-actions";
 import {
   bacaAntrean,
+  tandaiPindahBeku,
   hapusTertunda,
   kirimCheckout,
   migrasiAntreanLama,
@@ -15,6 +17,7 @@ export function PosAntrean() {
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let live = true;
+    let beku = false;
     const refresh = async () => {
       try {
         const r = await bacaAntrean();
@@ -29,7 +32,17 @@ export function PosAntrean() {
       if (live) setBusy(true);
       try {
         await migrasiAntreanLama();
-        for (const t of await bacaAntrean()) {
+        const awal = await bacaAntrean();
+        const status = await laporPerangkatPos(
+          awal.map((x) => x.checkout.client_id),
+          beku,
+        );
+        if (status.beku) {
+          await tandaiPindahBeku();
+          beku = true;
+          window.dispatchEvent(new Event("matur-pos-beku"));
+        }
+        for (const t of awal) {
           if (!t.checkout.izin_id) continue;
           try {
             const r = await kirimCheckout({
@@ -47,6 +60,11 @@ export function PosAntrean() {
             break;
           }
         }
+        const akhir = await bacaAntrean();
+        await laporPerangkatPos(
+          akhir.map((x) => x.checkout.client_id),
+          beku,
+        );
       } catch (e) {
         if (live) setError((e as Error).message);
       } finally {

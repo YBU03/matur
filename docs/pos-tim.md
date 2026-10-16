@@ -44,3 +44,17 @@ Pemeriksaan Supabase pada perubahan ini memastikan RPC baru tidak dapat dijalank
 - Layar terkunci otomatis setelah 5 menit tanpa sentuhan. Anggota tim mana pun yang masih bertugas (termasuk barista) bisa membuka kunci dengan PIN; ia menjadi **operator** yang tercatat di `transaksi.operator_id/operator_nama`, struk, dan riwayat.
 - Operator tanpa akses kasir hanya bisa menyimpan draft dan mengelola antrean; pembayaran ditolak server (`buat_transaksi`) dan tombol Bayar disembunyikan.
 - Beranda tablet: Kasir · Antrean · Draft · Riwayat & Void · Kas & Pengeluaran · Produk Endorse · Stok · Printer · Kunci layar · Tutup Shift.
+
+## Pindah perangkat pada shift yang sama
+
+Admin Pusat, HRD, Owner, dan Admin Gudang dapat membuka **Perangkat & Sesi POS / POS Tim, PIN & Tablet → Perangkat & Pindah POS**. Panel menampilkan nama perangkat dan browser/OS, nama staf yang terakhir masuk POS, operator PIN terakhir, pembuka shift, waktu terakhir terhubung, dan jumlah antrean terakhir. Ini membedakan akun tablet internal dengan petugas manusia. Informasi login/browser baru terisi setelah perangkat kembali terhubung atau staf login ulang; waktu terakhir terhubung bukan jaminan perangkat masih online.
+
+Di browser tujuan, admin memilih sesi aktif, mengisi nama perangkat dan alasan, lalu menekan **Pindahkan POS ke perangkat ini**. Perangkat asal dibekukan untuk transaksi online dan diminta mengirim antrean. Setelah asal mengunci serta melaporkan antrean kosong, perpindahan dapat diselesaikan langsung. Jika asal tidak dapat dihubungi, admin harus menunggu batas izin offline asal habis dan mengakui perlunya pemeriksaan antrean yang belum diketahui. Tombol penyelesaian memeriksa ulang waktu dan identitas browser di server; tidak cukup mengubah jam perangkat.
+
+Setelah selesai, buka `/pos` pada browser tujuan dan masukkan **kode staf serta PIN yang sama**. Sesi kas, tanggal/jam shift, modal awal, pembuka, tim, dan transaksi tidak diganti atau ditutup. Staf yang membuka kembali tetap harus anggota tim yang sedang hadir. Batas jam shift tetap berlaku; pindah perangkat tidak memperpanjang shift.
+
+Akses transaksi baru dari asal dicabut, tetapi identitas tablet asal dipertahankan untuk mengunggah transaksi historis yang masih sesuai izin aslinya. Bukti antrean tidak dihapus dan harga/HPP tetap diperiksa. Sinkronisasi yang gagal tampil sebagai kendala untuk pemeriksaan admin. Perangkat yang benar-benar offline tidak bisa menerima perintah seketika; proses perpindahan menunggu batas izinnya supaya tidak ada penjualan sah yang bertumpuk.
+
+Permintaan yang belum selesai dapat dibatalkan dengan alasan. Sesi tetap terbuka di asal dan petugas membuka kembali memakai PIN; riwayat permintaan/batal tetap dicatat. Mengaktifkan perangkat tidak otomatis memindahkan sesi. Perangkat skema kas lama perlu pemeriksaan Owner/SPV; fitur ini tidak mengarang jadwal/tim atau menghapus riwayatnya.
+
+**Simulasi POS** tersedia langsung dari panel admin tanpa memindahkan sesi produksi. Menu/harga dibaca untuk latihan; keranjang, diskon, kembalian, dan struk bertanda SIMULASI hanya berada dalam memori halaman. Tidak memanggil RPC penjualan, tidak menulis antrean asli, dan tidak mengubah stok/omzet/kas/setoran/laporan. Latihan hilang saat halaman dimuat ulang.

@@ -123,3 +123,16 @@ export async function kirimCheckout(
   const data = await res.json();
   return data;
 }
+
+export async function tandaiPindahBeku() {
+  await transaction(META, "readwrite", (s) => s.put(true, "pindah-beku"));
+  await hapusSnapshot();
+}
+export async function bacaPindahBeku(): Promise<boolean> {
+  return Boolean(
+    await transaction(META, "readonly", (s) => s.get("pindah-beku")),
+  );
+}
+export async function bukaPindahBeku() {
+  await transaction(META, "readwrite", (s) => s.delete("pindah-beku"));
+}

@@ -15,6 +15,7 @@ import {
 } from "@/lib/pos-actions";
 import {
   bacaAntrean,
+  bacaPindahBeku,
   galatJaringan,
   hapusTertunda,
   kirimCheckout,
@@ -311,6 +312,16 @@ export function PosScreen({
     const sementara = `OFF-${c.client_id.slice(0, 8).toUpperCase()}`;
     start(async () => {
       setErr("");
+      try {
+        if (await bacaPindahBeku())
+          return setErr(
+            "Perangkat sedang dipindahkan admin. Jangan membuat transaksi baru; antrean lama tetap disimpan.",
+          );
+      } catch {
+        return setErr(
+          "Penyimpanan perangkat belum dapat diperiksa. Hubungi admin sebelum melanjutkan transaksi.",
+        );
+      }
       // Persist before the request: a browser crash or lost response must not lose the stable ID.
       if (durableCash) {
         try {
@@ -879,7 +890,8 @@ export function PosScreen({
           </button>
         ) : (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">
-            Operator tanpa akses kasir: simpan sebagai draft, lalu anggota dengan akses kasir membuka PIN untuk menerima pembayaran.
+            Operator tanpa akses kasir: simpan sebagai draft, lalu anggota
+            dengan akses kasir membuka PIN untuk menerima pembayaran.
           </p>
         )}
       </aside>
