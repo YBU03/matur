@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { POS_DEVICE, POS_UNLOCK } from "./pos-tim";
+import { POS_DEVICE, POS_UNLOCK, type TimStatus } from "./pos-tim";
 import { setActive } from "./session";
 import { COOKIE_SESI } from "./shift";
 import { supabaseServer } from "./supabase/server";
@@ -15,6 +15,12 @@ export type HasilMasuk = {
   error?: string;
   pilih?: OutletPos[];
   ok?: boolean;
+  /** shift belum dibuka: isi modal kas lalu buka shift tim */
+  modal?: {
+    shift: string;
+    saya: string;
+    tim: { id: string; nama: string; kasir: boolean }[];
+  };
 };
 
 const opsiCookie = {
@@ -56,6 +62,7 @@ export async function masukPos(
     pilih?: OutletPos[];
     email?: string;
     outlet_id?: string;
+    uid?: string;
   };
   if (r.error) return { error: r.error };
   if (r.pilih) return { pilih: r.pilih };
@@ -72,7 +79,40 @@ export async function masukPos(
   c.delete(COOKIE_SESI);
   await setActive({ role: "tablet", outletId: r.outlet_id! });
 
-  // Bila shift tim di tablet ini masih berjalan, langsung buka kunci dengan PIN yang sama.
+  // Belum ada shift: tampilkan pop-up modal kas (tanpa mengetik ulang kode/PIN).
+  const st = await db.rpc("status_pos_tim", {
+    p_outlet: r.outlet_id,
+    p_device: rahasia,
+    p_token: "",
+    p_perbarui: false,
+  });
+  const status = st.data as TimStatus | null;
+  if (status && !status.sesi) {
+    const saya = status.roster.find((x) => x.id === r.uid);
+    if (!saya)
+      return {
+        error:
+          "Kamu belum Clock In untuk shift hari ini. Absen dulu di HP (menu Absen), lalu masuk lagi.",
+      };
+    if (!saya.kasir)
+      return {
+        error:
+          "Shift belum dibuka. Pembuka shift harus anggota yang punya akses kasir.",
+      };
+    return {
+      modal: {
+        shift: `${saya.shift} · ${saya.tanggal}`,
+        saya: saya.id,
+        tim: status.roster
+          .filter(
+            (x) => x.shift_id === saya.shift_id && x.tanggal === saya.tanggal,
+          )
+          .map((x) => ({ id: x.id, nama: x.nama, kasir: x.kasir })),
+      },
+    };
+  }
+
+  // Shift tim di tablet ini masih berjalan: langsung buka kunci dengan PIN yang sama.
   const token = randomBytes(32).toString("hex");
   const buka = await db.rpc("buka_pos_tim", {
     p_outlet: r.outlet_id,
@@ -84,9 +124,9 @@ export async function masukPos(
     p_token: token,
   });
   const b = buka.data as { sesi_id?: string; error?: string } | null;
-  if (!buka.error && b?.sesi_id) {
-    c.set(POS_UNLOCK, token, { ...opsiCookie, maxAge: 60 * 60 * 20 });
-    c.set(COOKIE_SESI, b.sesi_id, { ...opsiCookie, maxAge: 60 * 60 * 20 });
-  }
+  if (buka.error || !b?.sesi_id)
+    return { error: buka.error?.message ?? b?.error ?? "Gagal membuka POS." };
+  c.set(POS_UNLOCK, token, { ...opsiCookie, maxAge: 60 * 60 * 20 });
+  c.set(COOKIE_SESI, b.sesi_id, { ...opsiCookie, maxAge: 60 * 60 * 20 });
   return { ok: true };
 }

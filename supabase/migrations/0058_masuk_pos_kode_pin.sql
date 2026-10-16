@@ -83,7 +83,7 @@ begin
   update auth.users set encrypted_password = crypt(p_password, gen_salt('bf')), updated_at = now() where id = akun;
   insert into log_aktivitas(pengguna_id, aksi, entitas, entitas_id, nilai_baru)
     values (uid, 'masuk_tablet_pos', 'pos_perangkat', dev.id::text, jsonb_build_object('outlet', v_outlet));
-  return jsonb_build_object('email', v_email, 'outlet_id', o, 'outlet', v_outlet, 'nama', v_nama);
+  return jsonb_build_object('email', v_email, 'outlet_id', o, 'outlet', v_outlet, 'nama', v_nama, 'uid', uid);
 end $$;
 revoke all on function masuk_pos_tablet(text,text,uuid,text,text) from public;
 grant execute on function masuk_pos_tablet(text,text,uuid,text,text) to anon, authenticated;
