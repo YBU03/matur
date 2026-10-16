@@ -30,3 +30,32 @@ export async function tutupKasTertinggal(
         : `Kas ditutup dengan selisih ${selisih > 0 ? "+" : ""}${selisih.toLocaleString("id-ID")}.`,
   };
 }
+
+// Isi hitungan uang fisik untuk kas yang ditutup otomatis oleh sistem.
+export async function hitungKasOtomatis(
+  id: string,
+  aktual: number,
+  catatan: string,
+): Promise<{ error?: string; ok?: string }> {
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("hitung_kas_otomatis", {
+    p_sesi: id,
+    p_aktual: Math.round(aktual),
+    p_catatan: catatan,
+  });
+  if (error) return { error: error.message };
+  for (const p of [
+    "/pengaturan/pos",
+    "/dashboard",
+    "/catatan-harian",
+    "/setoran",
+  ])
+    revalidatePath(p);
+  const selisih = Number((data as { selisih?: number } | null)?.selisih ?? 0);
+  return {
+    ok:
+      selisih === 0
+        ? "Hitungan tersimpan, uang sesuai."
+        : `Hitungan tersimpan, selisih ${selisih > 0 ? "+" : ""}${selisih.toLocaleString("id-ID")}.`,
+  };
+}

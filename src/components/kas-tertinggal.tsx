@@ -2,7 +2,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
-import { tutupKasTertinggal } from "@/lib/kas-tertinggal-actions";
+import {
+  hitungKasOtomatis,
+  tutupKasTertinggal,
+} from "@/lib/kas-tertinggal-actions";
 
 export type KasTertinggal = {
   id: string;
@@ -163,5 +166,137 @@ function Kartu({ k }: { k: KasTertinggal }) {
         </p>
       )}
     </article>
+  );
+}
+
+export type KasOtomatis = {
+  id: string;
+  outlet: string;
+  tanggal: string | null;
+  dibuka_at: string;
+  ditutup_at: string;
+  pic: string | null;
+  modal: number;
+  seharusnya: number;
+  fisik: number | null;
+  selisih: number | null;
+  transaksi: number;
+  dihitung_at: string | null;
+  dihitung_oleh: string | null;
+  catatan: string | null;
+};
+
+/** Riwayat kas yang ditutup otomatis oleh sistem (60 hari) + isi hitungan uang fisik yang belum dihitung. */
+export function RiwayatKasOtomatis({ list }: { list: KasOtomatis[] }) {
+  if (!list.length) return null;
+  const belum = list.filter((k) => !k.dihitung_at).length;
+  return (
+    <section id="riwayat-kas" className="scroll-mt-20 space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
+      <div>
+        <h2 className="text-lg font-bold">🕛 Riwayat kas ditutup otomatis</h2>
+        <p className="text-sm text-stone-500">
+          Kas yang tidak ditutup kasir sampai berganti hari ditutup sistem (tiap
+          jam).{" "}
+          {belum ? (
+            <b className="text-amber-700">
+              {belum} belum dihitung — isi uang fisik di laci.
+            </b>
+          ) : (
+            "Semua sudah dihitung."
+          )}
+        </p>
+      </div>
+      <ul className="divide-y">
+        {list.map((k) => (
+          <BarisOtomatis key={k.id} k={k} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function BarisOtomatis({ k }: { k: KasOtomatis }) {
+  const router = useRouter();
+  const [fisik, setFisik] = useState(String(k.seharusnya ?? 0));
+  const [catatan, setCatatan] = useState("");
+  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  const [busy, start] = useTransition();
+  const aktual = Number(fisik.replace(/\D/g, "") || 0);
+  return (
+    <li className="space-y-2 py-3 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold">
+            {k.outlet} · shift {k.tanggal}
+          </p>
+          <p className="text-xs text-stone-500">
+            dibuka {wib(k.dibuka_at)} · ditutup sistem {wib(k.ditutup_at)} ·{" "}
+            {k.transaksi} transaksi {k.pic ? `· PIC ${k.pic}` : ""}
+          </p>
+        </div>
+        {k.dihitung_at ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-bold ${k.selisih ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-700"}`}
+          >
+            {k.selisih ? `selisih ${formatRupiah(k.selisih)}` : "sesuai"} ·
+            dihitung {k.dihitung_oleh ?? ""}
+          </span>
+        ) : (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            belum dihitung
+          </span>
+        )}
+      </div>
+      <p className="text-xs">
+        Seharusnya di laci <b>{formatRupiah(k.seharusnya)}</b> (modal{" "}
+        {formatRupiah(k.modal)})
+        {k.fisik !== null && (
+          <>
+            {" "}
+            · fisik <b>{formatRupiah(k.fisik)}</b>
+          </>
+        )}
+      </p>
+      {!k.dihitung_at && (
+        <form
+          className="grid gap-2 sm:grid-cols-[160px_1fr_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start(async () => {
+              const r = await hitungKasOtomatis(k.id, aktual, catatan);
+              setMsg(r);
+              if (!r.error) router.refresh();
+            });
+          }}
+        >
+          <input
+            inputMode="numeric"
+            aria-label="Uang fisik di laci"
+            value={aktual.toLocaleString("id-ID")}
+            onChange={(e) => setFisik(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-right font-bold tabular-nums"
+          />
+          <input
+            value={catatan}
+            onChange={(e) => setCatatan(e.target.value)}
+            placeholder="Catatan (wajib bila ada selisih)"
+            className="rounded-lg border px-3 py-2"
+          />
+          <button
+            disabled={busy}
+            className="rounded-lg bg-kopi-900 px-4 py-2 font-bold text-white disabled:opacity-50"
+          >
+            {busy ? "Menyimpan…" : "Simpan hitungan"}
+          </button>
+        </form>
+      )}
+      {(msg.error || msg.ok) && (
+        <p
+          className={`rounded-lg px-3 py-2 text-xs ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+        >
+          {msg.error ?? msg.ok}
+        </p>
+      )}
+    </li>
   );
 }
