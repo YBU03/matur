@@ -241,13 +241,15 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
               </b>
               <p className="text-sm">
                 Pembuka: {s.pembuka_nama ?? "Belum tercatat"} · perangkat:{" "}
-                {asal?.nama ?? "Sesi lama"} · mulai {wib(s.buka_at)}
+                {asal?.nama ?? (s.legacy ? "Sesi lama" : "Menunggu login setelah reset")} · mulai {wib(s.buka_at)}
               </p>
               {s.legacy ? (
                 <p className="text-sm text-amber-800">
                   Sesi skema lama perlu pemeriksaan Owner/SPV. Untuk mencoba POS
                   tanpa menyentuh sesi ini, gunakan Simulasi POS di atas.
                 </p>
+              ) : !s.perangkat_id ? (
+                <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">Reset berhasil. Buka <Link href="/pos" className="font-bold underline">POS di perangkat ini</Link> lalu masukkan kode staf dan PIN yang sama. Sesi dan modal diteruskan otomatis.</p>
               ) : pending ? (
                 <>
                   <p className="rounded-xl bg-amber-50 p-3 text-sm">
