@@ -1,6 +1,6 @@
 // Service worker Matoer: membuat aplikasi bisa dipasang (PWA) dan menampilkan
 // halaman offline sederhana bila internet putus. Data selalu diambil dari server.
-const CACHE = "matoer-v5";
+const CACHE = "matoer-v6";
 const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (e) => {

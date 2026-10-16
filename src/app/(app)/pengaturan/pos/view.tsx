@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { AksesOutletPanel, type AksesOutlet } from "./akses-outlet";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +34,19 @@ type Outlet = {
   radius: number;
 };
 export type PanelData = {
+  serah?: {
+    id: string;
+    sesi_id: string;
+    outlet_id: string;
+    pic: string;
+    sebelum: string | null;
+    shift: string;
+    mulai_at: string;
+    selesai_at: string | null;
+    fisik: number;
+    seharusnya: number;
+    catatan: string;
+  }[];
   pusat: boolean;
   perangkat_admin?: boolean;
   pindah?: Pindah[];
@@ -74,13 +89,19 @@ export type PanelData = {
 const cls = "mt-1 w-full rounded-lg border bg-white p-2 text-sm";
 const wib = (s: string | null) =>
   s ? new Date(s).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "—";
-export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
+export function PanelPos({
+  data: d,
+  role,
+  akses,
+}: {
+  data: PanelData;
+  role: string;
+  akses: AksesOutlet[];
+}) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<PosHasil>({});
-  const [tab, setTab] = useState(
-    d.perangkat_admin ? "tablet" : d.pusat ? "staf" : "sesi",
-  );
+  const [tab, setTab] = useState(akses.length ? "akses" : "sesi");
   const [cari, setCari] = useState("");
   const run = (f: () => Promise<PosHasil>) =>
     start(async () => {
@@ -99,22 +120,25 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">POS Tim & Akses Karyawan</h1>
+        <h1 className="text-2xl font-bold">Akses Kasir POS per Outlet</h1>
         <p className="text-sm text-stone-500">
-          PIN terpisah dari password akun. Tablet harus disetujui; satu sesi kas
-          untuk satu tim.
+          Satu akun POS dan satu kas harian per outlet. Modal sekali, serah
+          terima PIC setiap pergantian shift.
         </p>
       </div>
+      <Link
+        href="/pengguna"
+        className="inline-block text-sm font-semibold underline"
+      >
+        Kelola Pengguna Matoer secara terpisah
+      </Link>
       <nav className="flex gap-2 overflow-auto">
         {[
-          ...(d.pusat
-            ? [
-                ["staf", "Kode Staf & PIN"],
-                ["aturan", "Aturan Shift & Lokasi"],
-              ]
-            : []),
+          ...(akses.length ? [["akses", "Akun POS Outlet"]] : []),
+          ...(d.pusat ? [["aturan", "Aturan Shift & Lokasi"]] : []),
           ...(d.perangkat_admin ? [["tablet", "Perangkat & Pindah POS"]] : []),
-          ["sesi", "Sesi Kas Tim"],
+          ["sesi", "Kas Harian"],
+          ["serah", "Riwayat Serah Terima"],
         ].map(([k, l]) => (
           <button
             key={k}
@@ -133,6 +157,32 @@ export function PanelPos({ data: d, role }: { data: PanelData; role: string }) {
           {msg.error ?? msg.ok}
         </p>
       )}
+      {tab === "serah" && (
+        <section className="space-y-3">
+          {d.serah?.length ? (
+            d.serah.map((x) => (
+              <article key={x.id} className="rounded-2xl border bg-white p-4">
+                <h3 className="font-bold">
+                  {nama(x.outlet_id)} · {x.shift}
+                </h3>
+                <p className="text-sm">
+                  {x.sebelum ? `${x.sebelum} → ` : "Pembukaan kas · "}
+                  {x.pic} · {x.selesai_at ? "Selesai" : "PIC aktif"}
+                </p>
+                <p className="text-xs text-stone-500">{wib(x.mulai_at)}</p>
+                <p className="mt-2 text-sm">
+                  Fisik diterima {rp(x.fisik)} · seharusnya {rp(x.seharusnya)} ·
+                  selisih {rp(x.fisik - x.seharusnya)}
+                </p>
+                {x.catatan && <p className="text-sm">{x.catatan}</p>}
+              </article>
+            ))
+          ) : (
+            <p>Belum ada serah terima kas harian dalam 7 hari terakhir.</p>
+          )}
+        </section>
+      )}
+      {tab === "akses" && <AksesOutletPanel outlets={akses} />}
       {tab === "staf" && d.pusat && (
         <section className="space-y-3">
           <input

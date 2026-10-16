@@ -36,10 +36,11 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
   const [hapus, setHapus] = useState<UserRow | null>(null);
   const [busy, start] = useTransition();
   const [q, setQ] = useState("");
+  const [outletFilter,setOutletFilter]=useState("");
   const [buat, setBuat] = useState(false);
   const jumlah = (st: string) => users.filter((u) => u.status === st).length;
   const [tab, setTab] = useState<string>(users.some((u) => u.status === "menunggu") ? "menunggu" : "aktif");
-  const aktif = users.filter((u) => u.status === tab);
+  const aktif = users.filter((u) => u.status === tab && (!outletFilter||u.assignments.some(a=>a.outlet_id===outletFilter)));
   const outletName = (id: string | null) => (id ? (outlets.find((o) => o.id === id)?.nama ?? "-") : "Semua Outlet");
   const run = (fn: () => Promise<Result>) =>
     start(async () => {
@@ -55,8 +56,9 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}</h1>
-      {staf && <p className="-mt-4 text-sm text-stone-500">Buat akun kasir/barista, ganti PIN, aktif/nonaktifkan, dan setujui pendaftar karyawan outlet.</p>}
+      <h1 className="text-2xl font-bold">Pengguna Matoer</h1>
+      {staf && <p className="-mt-4 text-sm text-stone-500">Kelola akun pribadi karyawan dan penugasan outlet. Login POS outlet dikelola terpisah melalui menu Akses Kasir POS Outlet.</p>}
+      <label className="block text-sm">Filter outlet<select value={outletFilter} onChange={e=>setOutletFilter(e.target.value)} className="ml-2 rounded-xl border p-2"><option value="">Semua outlet</option>{outlets.map(o=><option key={o.id} value={o.id}>{o.nama}</option>)}</select></label>
       {bisaBuat && !buat && (
         <button onClick={() => setBuat(true)} className="w-full rounded-xl bg-matur-500 px-4 py-2.5 font-semibold text-white sm:w-auto">
           + Buat akun baru

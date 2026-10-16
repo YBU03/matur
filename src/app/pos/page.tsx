@@ -8,11 +8,12 @@ import { infoTablet, statusPos } from "@/lib/pos-tim";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { BerandaTablet } from "./beranda";
+import { PosOutletPic } from "@/components/pos-outlet-pic";
 import { MasukPos } from "./masuk-pos";
 
 export const dynamic = "force-dynamic";
 
-// Satu alamat POS untuk semua cabang: staf masuk dengan kode staf + PIN, tablet mengikuti outlet tempat staf bertugas.
+// One outlet credential, separate browser identities, and a shared daily drawer.
 export default async function PosHome() {
   const s = await getSession();
   const a = s?.active;
@@ -22,7 +23,7 @@ export default async function PosHome() {
   const st = await statusPos(a.outletId);
   if (!st.device || st.device.status !== "aktif")
     return (
-      <MasukPos pesan="Tablet ini belum aktif atau aksesnya dicabut. Masuk lagi dengan kode staf + PIN; bila dicabut, hubungi HRD/Admin Gudang." />
+      <MasukPos pesan="Tablet ini belum aktif atau aksesnya dicabut. Masuk lagi dengan username/password outlet; bila dicabut, hubungi HRD/Admin Gudang." />
     );
   if (st.mode === "antrean") redirect("/kasir/antrean");
   const info = infoTablet(st, a.outletNama);
@@ -31,13 +32,7 @@ export default async function PosHome() {
     return (
       <>
         <TabletHeader info={info} beranda />
-        <MasukPos
-          kunci={
-            st.sesi
-              ? `Shift ${info.shift} sedang berjalan. Masukkan kode staf + PIN anggota tim.`
-              : "Masuk dengan kode staf + PIN untuk membuka shift."
-          }
-        />
+        <PosOutletPic status={st} outlet={a.outletNama} />
         <div className="mx-auto mt-4 flex max-w-md justify-center">
           <PosLogout label="Keluar / ganti outlet tablet" />
         </div>
@@ -78,6 +73,12 @@ export default async function PosHome() {
     <>
       <AutoKunci />
       <TabletHeader info={info} beranda />
+      <details className="mx-auto max-w-xl p-3">
+        <summary className="cursor-pointer font-semibold">
+          Ganti PIC / Serah terima shift
+        </summary>
+        <PosOutletPic status={st} outlet={a.outletNama} />
+      </details>
       <BerandaTablet
         kasir={!!st.operator?.kasir}
         d={{

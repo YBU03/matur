@@ -3,8 +3,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah as rp } from "@/lib/format";
 import { bacaAntrean } from "@/lib/pos-offline";
+import { tutupKasOutlet } from "@/lib/pos-outlet-actions";
 import { tutupPos, type PosHasil } from "@/lib/pos-tim-actions";
 export type KasTim = {
+  kas_harian?: boolean;
   pindah_menunggu?: number;
   id: string;
   nama: string;
@@ -76,14 +78,21 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
                 const ids = antrean
                   .filter((x) => x.checkout.sesi_id === kas.id)
                   .map((x) => x.checkout.client_id);
-                const r = await tutupPos(
-                  kas.id,
-                  String(f.get("kode")),
-                  String(f.get("pin")),
-                  Number(f.get("aktual")),
-                  String(f.get("catatan")),
-                  ids,
-                );
+                const r = kas.kas_harian
+                  ? await tutupKasOutlet(
+                      kas.id,
+                      Number(f.get("aktual")),
+                      String(f.get("catatan")),
+                      ids,
+                    )
+                  : await tutupPos(
+                      kas.id,
+                      String(f.get("kode")),
+                      String(f.get("pin")),
+                      Number(f.get("aktual")),
+                      String(f.get("catatan")),
+                      ids,
+                    );
                 setMsg(r);
                 if (!r.error) router.refresh();
               } catch {
@@ -106,27 +115,31 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
               className="mt-1 w-full rounded-lg border p-2"
             />
           </label>
-          <label className="text-sm">
-            Kode staf penutup
-            <input
-              name="kode"
-              required
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border p-2"
-            />
-          </label>
-          <label className="text-sm">
-            PIN anggota tim / SPV
-            <input
-              name="pin"
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]{4,6}"
-              required
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border p-2"
-            />
-          </label>
+          {!kas.kas_harian && (
+            <>
+              <label className="text-sm">
+                Kode staf penutup
+                <input
+                  name="kode"
+                  required
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-lg border p-2"
+                />
+              </label>
+              <label className="text-sm">
+                PIN anggota tim / SPV
+                <input
+                  name="pin"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]{4,6}"
+                  required
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-lg border p-2"
+                />
+              </label>
+            </>
+          )}
           <label className="text-sm">
             Catatan selisih / transaksi tertunda
             <textarea
@@ -139,11 +152,18 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
             Jika ada transaksi offline, rekap tetap sementara sampai semuanya
             tersinkron. Selisih tidak otomatis memotong gaji tim.
           </p>
+          {kas.kas_harian && (
+            <label className="flex gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" required />
+              Ini penutupan terakhir hari ini. Untuk S1 ke S2/S3, gunakan serah
+              terima dari beranda POS.
+            </label>
+          )}
           <button
             disabled={busy}
             className="rounded-xl bg-kopi-900 p-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Memeriksa…" : "Hitung dan tutup kas tim"}
+            {busy ? "Memeriksa…" : "Hitung dan tutup kas hari ini"}
           </button>
         </form>
       )}
