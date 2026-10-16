@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChartCard, TrendChart } from "@/components/charts";
 import { PilihOutlet } from "@/components/pilih-outlet";
+import { ChipHeader, HeaderHalaman, Kartu, tabel } from "@/components/ui-halaman";
+import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
 import { namaBulan } from "@/lib/laporan";
 import { getSession } from "@/lib/session";
@@ -38,23 +41,45 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
   const data = hasil.map((r) => r.data as P | null).filter((x): x is P => !!x);
   const err = hasil.find((r) => r.error)?.error?.message;
   const ini = data[0];
+  // tren 6 bulan, urut lama → baru
+  const tren = [...data].reverse().map((d) => ({
+    label: new Date(d.periode + "T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }),
+    hpp: d.hpp,
+    pembelian: d.pembelian,
+  }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Persediaan & HPP</h1>
-        <p className="text-sm text-stone-500">
-          Rumus Ruma: <b>HPP = persediaan awal + pembelian bahan baku + tagihan dessert & cheesecake − persediaan akhir</b>. Persediaan akhir bulan ini otomatis menjadi persediaan awal bulan depan.
-        </p>
-      </div>
+      <HeaderHalaman
+        judul="Persediaan & HPP"
+        ikon="📦"
+        keterangan={
+          <>
+            Rumus Ruma: <b>HPP = persediaan awal + pembelian bahan baku + tagihan dessert & cheesecake − persediaan akhir</b>. Persediaan akhir bulan ini otomatis menjadi persediaan awal bulan depan.
+          </>
+        }
+      >
+        <ChipHeader>🏪 {outlet.nama}</ChipHeader>
+        {ini && (
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-matur-700 shadow-sm">
+            HPP {namaBulan(ini.periode)}: <span className="tabular-nums">{formatRupiah(ini.hpp)}</span>
+          </span>
+        )}
+      </HeaderHalaman>
       <PilihOutlet outlets={outlets} pilih={outlet.id} href={(id) => `/persediaan?outlet=${id}`} />
-      {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+      {err && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
 
       {ini && (
-        <section className="rounded-2xl border border-matur-200 bg-white p-4">
-          <div className="mb-2 flex flex-wrap items-baseline gap-2">
-            <h2 className="mr-auto font-bold">{namaBulan(ini.periode)} (berjalan)</h2>
-            {ini.laporan_id ? <Link href={`/laporan/${ini.laporan_id}`} className="text-sm text-matur-700 underline">laporan terbit</Link> : <span className="text-xs text-stone-500">belum terbit</span>}
+        <section className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h2 className="mr-auto font-bold text-kopi-900">{namaBulan(ini.periode)} (berjalan)</h2>
+            {ini.laporan_id ? (
+              <Link href={`/laporan/${ini.laporan_id}`} className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">
+                ✓ laporan terbit
+              </Link>
+            ) : (
+              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">belum terbit</span>
+            )}
           </div>
           <dl className="space-y-1.5 text-sm">
             {(
@@ -65,59 +90,88 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
                 ["Persediaan akhir", ini.akhir, ini.sumber_akhir, "−"],
               ] as [string, number, string, string][]
             ).map(([k, v, sub, op]) => (
-              <div key={k} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stone-100 pb-1.5">
+              <div key={k} className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-stone-100 pb-1.5">
                 <dt>
-                  <span className="mr-1 inline-block w-3 text-stone-400">{op}</span>
+                  <span className="mr-1 inline-block w-3 font-bold text-matur-600">{op}</span>
                   {k} <span className="text-xs text-stone-500">· {sub}</span>
                 </dt>
                 <dd className="tabular-nums">{formatRupiah(v)}</dd>
               </div>
             ))}
-            <div className="flex justify-between pt-1 text-base font-bold">
+            <div className="mt-1 flex flex-wrap justify-between gap-2 rounded-xl bg-matur-50 px-3 py-2.5 text-base font-bold text-kopi-900">
               <dt>Harga pokok penjualan (HPP)</dt>
               <dd className="tabular-nums">{formatRupiah(ini.hpp)}</dd>
             </div>
           </dl>
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            <Link href="/stok" className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">Opname / stok awal</Link>
-            <Link href={`/titipan?outlet=${outlet.id}`} className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">Titipan dessert</Link>
-            {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href={`/laporan/proyeksi?outlet=${outlet.id}`} className="rounded-lg bg-kopi-900 px-3 py-1.5 font-semibold text-white">Tutup buku / proyeksi</Link>}
-            {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href="/rumus-hpp" className="rounded-lg border border-matur-300 px-3 py-1.5 font-semibold text-matur-700">⚙ Atur rumus HPP</Link>}
+            <Link href="/stok" className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">Opname / stok awal</Link>
+            <Link href={`/titipan?outlet=${outlet.id}`} className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">Titipan dessert</Link>
+            {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href={`/laporan/proyeksi?outlet=${outlet.id}`} className="rounded-xl bg-kopi-900 px-3 py-1.5 font-semibold text-white shadow-sm">Tutup buku / proyeksi</Link>}
+            {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href="/rumus-hpp" className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">⚙ Atur rumus HPP</Link>}
           </div>
-          {ini.sumber_akhir === "perkiraan stok sistem" && <p className="mt-2 text-xs text-amber-700">Persediaan akhir masih perkiraan sistem. Lakukan opname di akhir bulan agar angkanya pasti.</p>}
+          {ini.sumber_akhir === "perkiraan stok sistem" && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Persediaan akhir masih perkiraan sistem. Lakukan opname di akhir bulan agar angkanya pasti.</p>}
         </section>
       )}
 
-      <section className="overflow-x-auto rounded-2xl border border-matur-200 bg-white p-4">
-        <h2 className="mb-2 font-bold">Riwayat 6 bulan</h2>
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-stone-500">
-            <tr>
-              <th className="py-1">Bulan</th>
-              <th className="text-right">Awal</th>
-              <th className="text-right">Pembelian</th>
-              <th className="text-right">Titipan</th>
-              <th className="text-right">Akhir</th>
-              <th className="text-right">HPP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((d) => (
-              <tr key={d.periode} className="border-t">
-                <td className="py-1.5">
-                  {namaBulan(d.periode)} {d.laporan_id && <span className="text-xs text-green-700">✓</span>}
-                </td>
-                <td className="text-right tabular-nums">{formatRupiah(d.awal ?? 0)}</td>
-                <td className="text-right tabular-nums">{formatRupiah(d.pembelian)}</td>
-                <td className="text-right tabular-nums">{formatRupiah(d.tagihan_titipan)}</td>
-                <td className="text-right tabular-nums">{formatRupiah(d.akhir)}</td>
-                <td className="text-right font-semibold tabular-nums">{formatRupiah(d.hpp)}</td>
+      {tren.length > 1 && (
+        <ChartCard
+          title="Tren HPP 6 bulan"
+          sub={outlet.nama}
+          rows={tren}
+          cols={[
+            { key: "label", label: "Bulan" },
+            { key: "hpp", label: "HPP", money: true },
+            { key: "pembelian", label: "Pembelian", money: true },
+          ]}
+          className="shadow-sm"
+        >
+          <TrendChart
+            data={tren}
+            series={[
+              { key: "hpp", name: "HPP", color: SERIES[1] },
+              { key: "pembelian", name: "Pembelian", color: SERIES[0] },
+            ]}
+          />
+        </ChartCard>
+      )}
+
+      <Kartu judul="Riwayat 6 bulan" keterangan="✓ = sesuai laporan keuangan yang sudah terbit.">
+        <div className={tabel.bungkus}>
+          <table className={`${tabel.tabel} min-w-[600px]`}>
+            <thead className={tabel.kepala}>
+              <tr>
+                <th className={tabel.th}>Bulan</th>
+                <th className={`${tabel.th} text-right`}>Awal</th>
+                <th className={`${tabel.th} text-right`}>Pembelian</th>
+                <th className={`${tabel.th} text-right`}>Titipan</th>
+                <th className={`${tabel.th} text-right`}>Akhir</th>
+                <th className={`${tabel.th} text-right`}>HPP</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-1 text-xs text-stone-500">✓ = sesuai laporan keuangan yang sudah terbit.</p>
-      </section>
+            </thead>
+            <tbody>
+              {data.map((d) => (
+                <tr key={d.periode} className={tabel.baris}>
+                  <td className={`${tabel.td} whitespace-nowrap font-medium text-kopi-900`}>
+                    {namaBulan(d.periode)} {d.laporan_id && <span className="text-xs text-emerald-700">✓</span>}
+                  </td>
+                  <td className={`${tabel.td} text-right tabular-nums`}>{formatRupiah(d.awal ?? 0)}</td>
+                  <td className={`${tabel.td} text-right tabular-nums`}>{formatRupiah(d.pembelian)}</td>
+                  <td className={`${tabel.td} text-right tabular-nums`}>{formatRupiah(d.tagihan_titipan)}</td>
+                  <td className={`${tabel.td} text-right tabular-nums`}>{formatRupiah(d.akhir)}</td>
+                  <td className={`${tabel.td} text-right font-bold tabular-nums text-kopi-900`}>{formatRupiah(d.hpp)}</td>
+                </tr>
+              ))}
+              {!data.length && (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-stone-500">
+                    Belum ada data persediaan.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Kartu>
     </div>
   );
 }

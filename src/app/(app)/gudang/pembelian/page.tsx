@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Badge, BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, Kosong, isian } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { buatPembelian } from "@/lib/gudang-actions";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PembelianView } from "./pembelian-view";
 
-const STATUS: Record<string, [string, string]> = { draft: ["📝 Draft", "bg-amber-100 text-amber-800"], diterima: ["✅ Diterima", "bg-green-100 text-green-800"], batal: ["Batal", "bg-stone-100 text-stone-500"] };
+// label & warna badge status, seragam dengan halaman kiriman
+const STATUS_PEMBELIAN: Record<string, [string, "netral" | "hijau" | "merah"]> = { draft: ["Draft", "netral"], diterima: ["Diterima", "hijau"], batal: ["Batal", "merah"] };
 
 // Pembelian bahan ke supplier → setelah diterima, stok gudang pusat bertambah & harga beli bahan diperbarui.
 export default async function Pembelian({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
@@ -29,18 +31,34 @@ export default async function Pembelian({ searchParams }: { searchParams: Promis
 
   const { data: rows } = await supabase.from("pembelian").select("id, nomor, tanggal, status, total, no_faktur, supplier:supplier(nama)").eq("mode", "asli").is("deleted_at", null).order("created_at", { ascending: false }).limit(100);
   const bulanIni = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 7);
-  const totalBulan = (rows ?? []).filter((r) => r.status === "diterima" && r.tanggal.startsWith(bulanIni)).reduce((t, r) => t + Number(r.total), 0);
+  const list = rows ?? [];
+  const totalBulan = list.filter((r) => r.status === "diterima" && r.tanggal.startsWith(bulanIni)).reduce((t, r) => t + Number(r.total), 0);
+  const poBulan = list.filter((r) => r.status !== "batal" && r.tanggal.startsWith(bulanIni)).length;
+  const menunggu = list.filter((r) => r.status === "draft");
+  const nilaiMenunggu = menunggu.reduce((t, r) => t + Number(r.total), 0);
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Pembelian Supplier</h1>
-        <p className="text-sm text-stone-500">Catat belanja bahan ke supplier. Saat ditandai diterima, stok gudang bertambah dan harga beli bahan memakai harga terakhir. Pembelian diterima bulan ini: <b>{formatRupiah(totalBulan)}</b></p>
-      </div>
+      <HeaderHalaman
+        judul="Pembelian Supplier"
+        ikon="🛒"
+        keterangan="Catat belanja bahan ke supplier. Saat ditandai diterima, stok gudang bertambah dan harga beli bahan memakai harga terakhir."
+      >
+        <ChipHeader>Diterima bulan ini: {formatRupiah(totalBulan)}</ChipHeader>
+        <ChipHeader>{list.length} pembelian terakhir</ChipHeader>
+      </HeaderHalaman>
+
+      <BarisAngka>
+        <KartuAngka label="Pembelian diterima bulan ini" nilai={formatRupiah(totalBulan)} ikon="💰" nada="hijau" />
+        <KartuAngka label="Jumlah PO bulan ini" nilai={poBulan} ikon="🧾" sub="tanpa yang batal" />
+        <KartuAngka label="Menunggu diterima" nilai={menunggu.length} ikon="⏳" nada="kuning" sub="status draft" />
+        <KartuAngka label="Nilai menunggu" nilai={formatRupiah(nilaiMenunggu)} ikon="📦" nada="biru" />
+      </BarisAngka>
+
       {bisa && (
-        <form action={buatPembelian} className="flex flex-wrap items-end gap-2 rounded-2xl border border-matur-200 bg-white p-3">
-          <label className="min-w-48 flex-1 text-xs text-stone-600">
+        <form action={buatPembelian} className="grid gap-2 rounded-2xl border border-matur-100 bg-white p-3 shadow-sm sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+          <label className="text-xs font-medium text-stone-600">
             Supplier
-            <select name="supplier" className="mt-0.5 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm">
+            <select name="supplier" className={`${isian} mt-0.5 block w-full`}>
               <option value="">— tanpa supplier / beli di pasar —</option>
               {(supplier ?? []).map((x) => (
                 <option key={x.id} value={x.id}>
@@ -49,37 +67,48 @@ export default async function Pembelian({ searchParams }: { searchParams: Promis
               ))}
             </select>
           </label>
-          <label className="text-xs text-stone-600">
+          <label className="text-xs font-medium text-stone-600">
             Tanggal
-            <input type="date" name="tanggal" defaultValue={new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)} className="mt-0.5 block rounded-xl border border-stone-300 px-3 py-2 text-sm" />
+            <input type="date" name="tanggal" defaultValue={new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)} className={`${isian} mt-0.5 block w-full`} />
           </label>
-          <label className="text-xs text-stone-600">
+          <label className="text-xs font-medium text-stone-600">
             No. faktur/nota
-            <input name="faktur" className="mt-0.5 block w-36 rounded-xl border border-stone-300 px-3 py-2 text-sm" />
+            <input name="faktur" className={`${isian} mt-0.5 block w-full sm:w-40`} />
           </label>
-          <button className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white">+ Buat pembelian</button>
+          <button className="rounded-xl bg-matur-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-matur-600">+ Buat pembelian</button>
         </form>
       )}
-      <ul className="space-y-2">
-        {(rows ?? []).length === 0 && <li className="rounded-2xl border border-matur-200 bg-white p-6 text-center text-sm text-stone-400">Belum ada pembelian.</li>}
-        {(rows ?? []).map((r) => (
-          <li key={r.id}>
-            <Link href={`/gudang/pembelian?id=${r.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-matur-200 bg-white p-3 hover:bg-matur-50">
-              <div className="mr-auto">
-                <p className="font-semibold">
-                  {r.nomor} · {(r.supplier as unknown as { nama: string } | null)?.nama ?? "Tanpa supplier"}
-                </p>
-                <p className="text-xs text-stone-500">
-                  {formatTanggal(r.tanggal)}
-                  {r.no_faktur && ` · faktur ${r.no_faktur}`}
-                </p>
-              </div>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[r.status][1]}`}>{STATUS[r.status][0]}</span>
-              <b className="w-32 text-right tabular-nums">{formatRupiah(r.total)}</b>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {list.length === 0 ? (
+        <Kosong ikon="🛒" judul="Belum ada pembelian.">
+          {bisa ? "Buat pembelian baru lewat formulir di atas." : "Pembelian dari gudang akan tampil di sini."}
+        </Kosong>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((r) => {
+            const [label, nada] = STATUS_PEMBELIAN[r.status] ?? ([r.status, "netral"] as const);
+            return (
+              <li key={r.id}>
+                <Link href={`/gudang/pembelian?id=${r.id}`} className="flex items-center gap-3 rounded-2xl border border-matur-100 bg-white p-3 shadow-sm transition hover:border-matur-300 hover:bg-matur-50/50 sm:p-4">
+                  <span className="hidden size-10 shrink-0 place-items-center rounded-xl bg-matur-50 text-lg sm:grid">🧾</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-kopi-900">
+                      {r.nomor} · {(r.supplier as unknown as { nama: string } | null)?.nama ?? "Tanpa supplier"}
+                    </p>
+                    <p className="truncate text-xs text-stone-500">
+                      {formatTanggal(r.tanggal)}
+                      {r.no_faktur && ` · faktur ${r.no_faktur}`}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <Badge nada={nada}>{label}</Badge>
+                    <p className="mt-1 text-sm font-bold tabular-nums text-kopi-900">{formatRupiah(r.total)}</p>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

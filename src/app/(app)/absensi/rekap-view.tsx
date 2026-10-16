@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { formatDurasi, LABEL_STATUS, type BarisRekap, type RingkasStaf, type StatusHari } from "@/lib/jadwal/rekap";
+import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, Kartu, Kosong, isian, tabel, tombolHeaderUtama } from "@/components/ui-halaman";
 import type { Absen } from "@/lib/sdm";
 import { editAbsensi, ubahAbsensi, type Result } from "@/lib/sdm-actions";
 
@@ -57,28 +58,61 @@ export function RekapView(p: Props) {
   const telat = p.hariIni.filter((b) => b.status === "telat").length;
   const tidak = p.hariIni.filter((b) => b.status === "tidak_absen").length;
 
+  // KPI periode terpilih dari ringkasan per staf
+  const total = p.rekap.ringkas.reduce(
+    (t, r) => ({ jadwal: t.jadwal + r.jadwal, hadir: t.hadir + r.hadir, telat: t.telat + r.telat, menitTelat: t.menitTelat + r.menitTelat, tidak: t.tidak + r.tidakAbsen, izin: t.izin + r.izin }),
+    { jadwal: 0, hadir: 0, telat: 0, menitTelat: 0, tidak: 0, izin: 0 },
+  );
+  const persenHadir = total.jadwal ? Math.min(100, Math.round((total.hadir / total.jadwal) * 100)) : null;
+  const tglFilter = (t: string) => new Date(t + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  const ringkas = [...p.rekap.ringkas].sort((a, b) => n(a.pengguna_id).localeCompare(n(b.pengguna_id)));
+  const detail = p.rekap.baris.filter((b) => b.status !== "belum");
+  const th = `${tabel.th} text-right`;
+  const td = `${tabel.td} text-right tabular-nums`;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Rekap Absensi</h1>
-        <p className="text-sm text-stone-500">Absen selfie kasir & barista (dari HP sendiri atau perangkat outlet), dibandingkan dengan jadwal terbit.</p>
-      </div>
+      <HeaderHalaman
+        judul="Rekap Absensi"
+        ikon="🕘"
+        keterangan="Absen selfie kasir & barista (dari HP sendiri atau perangkat outlet), dibandingkan dengan jadwal terbit."
+        aksi={
+          <button disabled={busy} onClick={ekspor} className={`${tombolHeaderUtama} disabled:opacity-60`}>
+            {busy ? "Menyiapkan…" : "⬇ Unduh Excel"}
+          </button>
+        }
+      >
+        <ChipHeader>🏪 {p.outlet.nama}</ChipHeader>
+        <ChipHeader>
+          📅 {tglFilter(p.dari)} – {tglFilter(p.sampai)}
+        </ChipHeader>
+        {p.staf && <ChipHeader>👤 {n(p.staf)}</ChipHeader>}
+      </HeaderHalaman>
 
-      <section className="rounded-2xl border border-matur-200 bg-white p-4">
-        <h2 className="mb-2 font-bold">Hari ini · {p.outlet.nama}</h2>
+      <BarisAngka>
+        <KartuAngka label="Persen hadir" nilai={persenHadir === null ? "–" : `${persenHadir}%`} ikon="✅" nada={persenHadir === null ? "netral" : persenHadir >= 90 ? "hijau" : persenHadir >= 75 ? "kuning" : "merah"} sub={`${total.hadir} dari ${total.jadwal} jadwal`} />
+        <KartuAngka label="Jumlah telat" nilai={total.telat} ikon="⏰" nada="kuning" sub={total.menitTelat ? `total ${total.menitTelat} mnt` : "periode ini"} />
+        <KartuAngka label="Tidak absen" nilai={total.tidak} ikon="🚫" nada="merah" sub="periode ini" />
+        <KartuAngka label="Izin/sakit/libur" nilai={total.izin} ikon="📝" nada="ungu" sub="disetujui" />
+      </BarisAngka>
+
+      <Kartu judul={`Hari ini · ${p.outlet.nama}`} keterangan="Diperbarui otomatis saat ada absen baru.">
         <div className="mb-3 grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
-          <Kotak label="Sedang bertugas" nilai={hadirSekarang} warna="text-green-700" />
+          <Kotak label="Sedang bertugas" nilai={hadirSekarang} warna="text-emerald-700" latar="bg-emerald-50" />
           <Kotak label="Jadwal hari ini" nilai={p.hariIni.filter((b) => b.shift).length} />
-          <Kotak label="Telat" nilai={telat} warna="text-amber-700" />
-          <Kotak label="Tidak absen" nilai={tidak} warna="text-red-600" />
+          <Kotak label="Telat" nilai={telat} warna="text-amber-700" latar={telat ? "bg-amber-50" : undefined} />
+          <Kotak label="Tidak absen" nilai={tidak} warna="text-red-600" latar={tidak ? "bg-red-50" : undefined} />
         </div>
         {p.hariIni.length ? (
-          <ul className="divide-y text-sm">
+          <ul className="divide-y divide-stone-100 text-sm">
             {p.hariIni.map((b, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-2 py-2">
-                <span className="min-w-32 font-semibold">{n(b.pengguna_id)}</span>
+              <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+                <span className="flex min-w-0 items-center gap-2 font-semibold text-kopi-900 sm:min-w-40">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-matur-100 text-xs font-bold text-matur-800">{n(b.pengguna_id).slice(0, 1).toUpperCase()}</span>
+                  {n(b.pengguna_id)}
+                </span>
                 <span className="text-stone-500">{b.shift ? `${b.shift.nama} ${b.shift.jam_mulai}–${b.shift.jam_selesai}` : "Tanpa jadwal"}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${WARNA_STATUS[b.status]}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${WARNA_STATUS[b.status]}`}>
                   {LABEL_STATUS[b.status]}
                   {b.status === "telat" && ` ${b.absen?.telat_menit} mnt`}
                 </span>
@@ -91,81 +125,92 @@ export function RekapView(p: Props) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-stone-500">Belum ada jadwal terbit maupun absen hari ini.</p>
+          <p className="rounded-xl bg-stone-50 px-3 py-4 text-center text-sm text-stone-500">Belum ada jadwal terbit maupun absen hari ini.</p>
         )}
-      </section>
+      </Kartu>
 
-      <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-matur-200 bg-white p-3 text-sm">
+      <div className="grid gap-2 rounded-2xl border border-matur-100 bg-white p-3 text-sm shadow-sm sm:flex sm:flex-wrap sm:items-end">
         {p.outlets.length > 1 && (
-          <select value={f.outlet} onChange={(e) => terapkan({ ...f, outlet: e.target.value, staf: "" })} className="rounded-lg border px-2 py-2">
-            {p.outlets.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.nama}
+          <label className="text-xs font-medium text-stone-500">
+            Outlet
+            <select value={f.outlet} onChange={(e) => terapkan({ ...f, outlet: e.target.value, staf: "" })} className={`${isian} mt-0.5 block w-full`}>
+              {p.outlets.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nama}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <label className="text-xs font-medium text-stone-500">
+            Dari
+            <input type="date" value={f.dari} onChange={(e) => setF({ ...f, dari: e.target.value })} className={`${isian} mt-0.5 block w-full`} />
+          </label>
+          <label className="text-xs font-medium text-stone-500">
+            Sampai
+            <input type="date" value={f.sampai} onChange={(e) => setF({ ...f, sampai: e.target.value })} className={`${isian} mt-0.5 block w-full`} />
+          </label>
+        </div>
+        <label className="text-xs font-medium text-stone-500">
+          Staf
+          <select value={f.staf} onChange={(e) => setF({ ...f, staf: e.target.value })} className={`${isian} mt-0.5 block w-full`}>
+            <option value="">Semua staf</option>
+            {p.daftarStaf.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nama}
               </option>
             ))}
           </select>
-        )}
-        <label>
-          <span className="block text-xs text-stone-500">Dari</span>
-          <input type="date" value={f.dari} onChange={(e) => setF({ ...f, dari: e.target.value })} className="rounded-lg border px-2 py-1.5" />
         </label>
-        <label>
-          <span className="block text-xs text-stone-500">Sampai</span>
-          <input type="date" value={f.sampai} onChange={(e) => setF({ ...f, sampai: e.target.value })} className="rounded-lg border px-2 py-1.5" />
-        </label>
-        <select value={f.staf} onChange={(e) => setF({ ...f, staf: e.target.value })} className="rounded-lg border px-2 py-2">
-          <option value="">Semua staf</option>
-          {p.daftarStaf.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.nama}
-            </option>
-          ))}
-        </select>
-        <button onClick={() => terapkan()} className="rounded-lg bg-matur-500 px-4 py-2 font-bold text-white">
+        <button onClick={() => terapkan()} className="rounded-xl bg-matur-500 px-4 py-2 font-bold text-white shadow-sm hover:bg-matur-600">
           Tampilkan
-        </button>
-        <button disabled={busy} onClick={ekspor} className="rounded-lg border border-green-700 px-4 py-2 font-semibold text-green-800 disabled:opacity-50">
-          {busy ? "Menyiapkan…" : "Unduh Excel"}
         </button>
       </div>
 
       <section>
-        <h2 className="mb-2 font-bold">Ringkasan per staf</h2>
-        <div className="overflow-x-auto rounded-2xl border border-matur-200 bg-white">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-matur-50 text-left text-xs text-stone-600">
+        <h2 className="mb-2 font-bold text-kopi-900">Ringkasan per staf</h2>
+        <div className={tabel.bungkus}>
+          <table className={`${tabel.tabel} min-w-[680px]`}>
+            <thead className={tabel.kepala}>
               <tr>
-                <th className="p-2">Nama</th>
-                <th className="p-2 text-right">Jadwal</th>
-                <th className="p-2 text-right">Hadir</th>
-                <th className="p-2 text-right">Tepat</th>
-                <th className="p-2 text-right">Telat</th>
-                <th className="p-2 text-right">Tidak absen</th>
-                <th className="p-2 text-right">Izin/sakit/libur</th>
-                <th className="p-2 text-right">Jam kerja</th>
+                <th className={`${tabel.th} sticky left-0 z-10 bg-matur-50`}>Nama</th>
+                <th className={th}>Jadwal</th>
+                <th className={th}>Hadir</th>
+                <th className={th}>Tepat</th>
+                <th className={th}>Telat</th>
+                <th className={th}>Tidak absen</th>
+                <th className={th}>Izin/sakit/libur</th>
+                <th className={th}>Jam kerja</th>
               </tr>
             </thead>
             <tbody>
-              {p.rekap.ringkas
-                .sort((a, b) => n(a.pengguna_id).localeCompare(n(b.pengguna_id)))
-                .map((r) => (
-                  <tr key={r.pengguna_id} className="border-t">
-                    <td className="p-2 font-semibold">{n(r.pengguna_id)}</td>
-                    <td className="p-2 text-right">{r.jadwal}</td>
-                    <td className="p-2 text-right">{r.hadir}</td>
-                    <td className="p-2 text-right text-green-700">{r.tepat}</td>
-                    <td className="p-2 text-right text-amber-700">
-                      {r.telat}
-                      {r.menitTelat ? <span className="text-xs"> ({r.menitTelat} mnt)</span> : null}
-                    </td>
-                    <td className="p-2 text-right text-red-600">{r.tidakAbsen}</td>
-                    <td className="p-2 text-right">{r.izin}</td>
-                    <td className="p-2 text-right">{formatDurasi(r.menitKerja)}</td>
-                  </tr>
-                ))}
-              {!p.rekap.ringkas.length && (
+              {ringkas.map((r) => (
+                <tr key={r.pengguna_id} className={`${tabel.baris} group`}>
+                  <td className={`${tabel.td} sticky left-0 z-10 max-w-40 truncate bg-white font-semibold text-kopi-900 shadow-[1px_0_0_#f5f5f4] group-hover:bg-matur-50 sm:max-w-none`}>{n(r.pengguna_id)}</td>
+                  <td className={td}>{r.jadwal}</td>
+                  <td className={td}>{r.hadir}</td>
+                  <td className={`${td} text-emerald-700`}>{r.tepat}</td>
+                  <td className={td}>
+                    {r.telat > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        {r.telat}
+                        {r.menitTelat ? <span className="font-normal">({r.menitTelat} mnt)</span> : null}
+                      </span>
+                    ) : (
+                      <span className="text-stone-400">0</span>
+                    )}
+                  </td>
+                  <td className={td}>
+                    {r.tidakAbsen > 0 ? <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">{r.tidakAbsen}</span> : <span className="text-stone-400">0</span>}
+                  </td>
+                  <td className={td}>{r.izin}</td>
+                  <td className={`${td} whitespace-nowrap`}>{formatDurasi(r.menitKerja)}</td>
+                </tr>
+              ))}
+              {!ringkas.length && (
                 <tr>
-                  <td colSpan={8} className="p-4 text-center text-stone-500">
+                  <td colSpan={8} className="p-6 text-center text-stone-500">
                     Belum ada data di periode ini.
                   </td>
                 </tr>
@@ -176,23 +221,27 @@ export function RekapView(p: Props) {
       </section>
 
       <section>
-        <h2 className="mb-2 font-bold">Detail</h2>
-        <div className="space-y-2">
-          {p.rekap.baris
-            .filter((b) => b.status !== "belum")
-            .map((b, i) => (
+        <h2 className="mb-2 font-bold text-kopi-900">
+          Detail <span className="text-sm font-normal text-stone-500">({detail.length})</span>
+        </h2>
+        {detail.length ? (
+          <div className="space-y-2">
+            {detail.map((b, i) => (
               <Detail key={i} b={b} nama={n(b.pengguna_id)} a={b.absen ? p.absensi[b.absen.id] : undefined} foto={p.foto} />
             ))}
-        </div>
+          </div>
+        ) : (
+          <Kosong ikon="🕘" judul="Belum ada absensi di periode ini." />
+        )}
       </section>
     </div>
   );
 }
 
-function Kotak({ label, nilai, warna = "" }: { label: string; nilai: number; warna?: string }) {
+function Kotak({ label, nilai, warna = "text-kopi-900", latar = "bg-matur-50" }: { label: string; nilai: number; warna?: string; latar?: string }) {
   return (
-    <div className="rounded-xl bg-matur-50 p-2">
-      <p className={`text-2xl font-bold ${warna}`}>{nilai}</p>
+    <div className={`rounded-xl p-2.5 ${latar}`}>
+      <p className={`text-2xl font-extrabold tabular-nums ${warna}`}>{nilai}</p>
       <p className="text-xs text-stone-500">{label}</p>
     </div>
   );
@@ -222,13 +271,13 @@ function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; 
       }
     });
   return (
-    <div className="flex flex-wrap items-start gap-3 rounded-xl border border-matur-100 bg-white p-3 text-sm">
+    <div className="flex flex-wrap items-start gap-3 rounded-2xl border border-matur-100 bg-white p-3 text-sm shadow-sm">
       <div className="flex gap-1">
         {[a?.masuk_foto, a?.pulang_foto].map((f, i) =>
           f && foto[f] ? (
             <a key={i} href={foto[f]} target="_blank" rel="noreferrer" title={i ? "Selfie pulang" : "Selfie masuk"}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={foto[f]} alt="" className="h-14 w-14 rounded-lg object-cover" />
+              <img src={foto[f]} alt="" className="h-14 w-14 rounded-xl object-cover ring-1 ring-matur-100" />
             </a>
           ) : null,
         )}
@@ -272,7 +321,7 @@ function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; 
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <label className="text-xs">
               Catatan
-              <input value={catatan} onChange={(e) => setCatatan(e.target.value)} className="mt-1 block w-56 rounded-lg border px-2 py-1 text-sm" />
+              <input value={catatan} onChange={(e) => setCatatan(e.target.value)} className="mt-1 block w-full rounded-lg border border-matur-200 px-2 py-1 text-sm sm:w-56" />
             </label>
             {!a.pulang_at && (
               <label className="text-xs">

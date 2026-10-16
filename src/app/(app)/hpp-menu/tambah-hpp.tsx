@@ -13,8 +13,8 @@ export function TambahHpp({ menus, bahan, kategori }: { menus: { id: string; nam
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
   const total = rows.reduce((s, r) => s + Number(r.qty || 0) * Number(bahan.find((b) => b.id === r.id)?.harga_pokok ?? 0), 0);
   const harga = v.menu_id ? menus.find((m) => m.id === v.menu_id)?.harga_langsung ?? 0 : Number(v.harga);
-  const cls = "w-full rounded-lg border p-2 text-sm";
-  return <section className="rounded-2xl border bg-white p-4">
+  const cls = "mt-0.5 w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100";
+  return <section className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm">
     <button onClick={() => setOpen(!open)} className="rounded-xl bg-kopi-900 px-4 py-2 font-semibold text-white">{open ? "Tutup form" : "+ Tambah HPP"}</button>
     {open && <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); start(async () => {
       const r = await tambahHpp({ ...v, harga: Number(v.harga), harga_ojol: Number(v.harga_ojol), bahan: rows.map((r) => ({ id: r.id, qty: Number(r.qty) })) });
