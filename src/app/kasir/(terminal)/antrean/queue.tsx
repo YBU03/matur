@@ -20,7 +20,7 @@ export type Order = {
 const NEXT = {
   baru: ["diproses", "▶ Mulai buat"],
   diproses: ["siap", "✓ Siap diambil"],
-  siap: ["diambil", "🙌 Sudah diambil"],
+  siap: ["diambil", "🙌 Sudah diambil / diantar"],
 } as const;
 
 const KOLOM = [
@@ -249,8 +249,13 @@ export function Queue({ orders }: { orders: Order[] }) {
                       className={`pos-muncul rounded-2xl border-2 bg-white p-4 shadow-sm ${k.garis} ${k.status === "baru" ? "pos-baru" : ""}`}
                     >
                       <div className="flex items-start gap-2">
-                        <p className="text-4xl font-black leading-none tracking-tight text-kopi-900">
-                          #{o.nomor}
+                        <p className="leading-none text-kopi-900">
+                          <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                            No. antrean
+                          </span>
+                          <span className="text-4xl font-black tracking-tight">
+                            {o.nomor}
+                          </span>
                         </p>
                         <div className="ml-auto flex flex-col items-end gap-1">
                           <span
@@ -267,7 +272,6 @@ export function Queue({ orders }: { orders: Order[] }) {
                       </div>
                       <p className="mt-1 text-sm font-semibold text-stone-600">
                         {o.tipe === "dine_in" ? "🍽 Dine-in" : "🥡 Take away"}
-                        {o.meja ? ` · Meja ${o.meja}` : ""}
                         {o.pelanggan ? ` · ${o.pelanggan}` : ""}
                       </p>
                       <ul className="my-3 space-y-1.5 border-y border-dashed border-stone-200 py-3">

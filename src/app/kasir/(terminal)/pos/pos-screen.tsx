@@ -424,7 +424,7 @@ export function PosScreen({
       const label =
         pelanggan ||
         (meja ? `Meja ${meja}` : "") ||
-        prompt("Nama/penanda draft (mis. nama pelanggan atau meja):") ||
+        prompt("Nama/penanda draft (mis. nama pelanggan):") ||
         "";
       try {
         const r = await simpanDraft({
@@ -634,20 +634,13 @@ export function PosScreen({
             Take away
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={pelanggan}
-            onChange={(e) => setPelanggan(e.target.value)}
-            placeholder="Nama pelanggan"
-            className="rounded-lg border px-3 py-2 text-sm"
-          />
-          <input
-            value={meja}
-            onChange={(e) => setMeja(e.target.value)}
-            placeholder="No. meja"
-            className="rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        {/* tanpa nomor meja: pesanan dipanggil lewat nomor antrean otomatis (alarm), diambil atau diantar */}
+        <input
+          value={pelanggan}
+          onChange={(e) => setPelanggan(e.target.value)}
+          placeholder="Nama pelanggan (opsional)"
+          className="w-full rounded-lg border px-3 py-2 text-sm"
+        />
 
         <ul className="max-h-64 divide-y overflow-y-auto">
           {cart.length === 0 && (
@@ -1228,8 +1221,10 @@ function ReceiptDialog({
         { teks: "RUMA", tengah: true, tebal: true, besar: true },
         { teks: outletNama, tengah: true, tebal: true },
         { teks: waktu, tengah: true },
+        { teks: "NO. ANTREAN", tengah: true },
+        { teks: nomor, tengah: true, tebal: true, besar: true },
         {
-          teks: `No. ${nomor} - ${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`,
+          teks: `${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`,
           tengah: true,
         },
         "-".repeat(lebar),
@@ -1306,8 +1301,12 @@ function ReceiptDialog({
         />
         <p className="text-center font-bold">{outletNama}</p>
         <p className="text-center">{waktu}</p>
-        <p className="mb-2 text-center">
-          No. {nomor} · {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}
+        <p className="mt-1 text-center text-[10px] tracking-widest">
+          NO. ANTREAN
+        </p>
+        <p className="text-center text-3xl font-black leading-none">{nomor}</p>
+        <p className="mb-2 mt-1 text-center">
+          {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}
         </p>
         {lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-2">
@@ -1426,7 +1425,9 @@ export function BayarTunai({
   const kembali = Math.max(0, (diterima === "" ? total : uang) - total);
   const tekan = (k: string) =>
     setDiterima(
-      k === "⌫" ? diterima.slice(0, -1) : (diterima + k).replace(/^0+/, "").slice(0, 10),
+      k === "⌫"
+        ? diterima.slice(0, -1)
+        : (diterima + k).replace(/^0+/, "").slice(0, 10),
     );
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
@@ -1445,25 +1446,43 @@ export function BayarTunai({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">💵 Bayar Tunai</h2>
-          <button onClick={onBatal} aria-label="Tutup" className="rounded-lg px-2 text-xl text-stone-500">
+          <button
+            onClick={onBatal}
+            aria-label="Tutup"
+            className="rounded-lg px-2 text-xl text-stone-500"
+          >
             ✕
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2 text-center">
           <div className="rounded-2xl bg-stone-50 p-3">
             <p className="text-xs text-stone-500">Total</p>
-            <p className="text-xl font-bold tabular-nums">{formatRupiah(total)}</p>
+            <p className="text-xl font-bold tabular-nums">
+              {formatRupiah(total)}
+            </p>
           </div>
-          <div className={`rounded-2xl p-3 ${kurang ? "bg-red-50" : "bg-green-50"}`}>
-            <p className="text-xs text-stone-500">{kurang ? "Kurang" : "Kembalian"}</p>
-            <p className={`text-xl font-bold tabular-nums ${kurang ? "text-red-700" : "text-green-700"}`}>
+          <div
+            className={`rounded-2xl p-3 ${kurang ? "bg-red-50" : "bg-green-50"}`}
+          >
+            <p className="text-xs text-stone-500">
+              {kurang ? "Kurang" : "Kembalian"}
+            </p>
+            <p
+              className={`text-xl font-bold tabular-nums ${kurang ? "text-red-700" : "text-green-700"}`}
+            >
               {formatRupiah(kurang ? total - uang : kembali)}
             </p>
           </div>
         </div>
         <div className="rounded-2xl border-2 border-matur-300 px-4 py-2 text-right">
           <p className="text-left text-xs text-stone-500">Uang diterima</p>
-          <p className="text-3xl font-bold tabular-nums">{diterima === "" ? <span className="text-stone-300">{formatRupiah(total)}</span> : formatRupiah(uang)}</p>
+          <p className="text-3xl font-bold tabular-nums">
+            {diterima === "" ? (
+              <span className="text-stone-300">{formatRupiah(total)}</span>
+            ) : (
+              formatRupiah(uang)
+            )}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {saranUang(total).map((n) => (
@@ -1478,18 +1497,27 @@ export function BayarTunai({
           ))}
         </div>
         <div className="grid grid-cols-3 gap-2">
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "⌫"].map((k) => (
-            <button key={k} type="button" onClick={() => tekan(k)} className="rounded-xl bg-stone-100 py-3 text-xl font-bold active:bg-stone-200">
-              {k}
-            </button>
-          ))}
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "⌫"].map(
+            (k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => tekan(k)}
+                className="rounded-xl bg-stone-100 py-3 text-xl font-bold active:bg-stone-200"
+              >
+                {k}
+              </button>
+            ),
+          )}
         </div>
         <button
           disabled={pending || kurang}
           onClick={onSelesai}
           className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
         >
-          {kurang ? "Uang kurang" : `Selesaikan · kembali ${formatRupiah(kembali)}`}
+          {kurang
+            ? "Uang kurang"
+            : `Selesaikan · kembali ${formatRupiah(kembali)}`}
         </button>
       </div>
     </div>
