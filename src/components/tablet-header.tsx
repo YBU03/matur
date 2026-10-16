@@ -1,4 +1,5 @@
 "use client";
+import {PosLogout} from "./pos-logout";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -105,6 +106,7 @@ export function TabletHeader({
         </Link>
       )}
       {children}
+      <PosLogout />
     </header>
   );
 }

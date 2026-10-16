@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { logoutAction } from "@/lib/actions";
+import { LogoutButton } from "@/components/logout-button";
 import { getSession } from "@/lib/session";
 import { LiveRefresh } from "@/components/live-refresh";
 import { AutoCek } from "./auto-cek";
@@ -71,9 +71,7 @@ export default async function Menunggu() {
           <LiveRefresh pantau={[{ table: "pengguna", filter: `id=eq.${s.userId}` }, { table: "penugasan", filter: `pengguna_id=eq.${s.userId}` }]} cadanganDetik={60} />
         </>
       )}
-      <form action={logoutAction} className="mt-6">
-        <button className="rounded-xl border border-matur-300 px-4 py-2 text-sm">Keluar</button>
-      </form>
+      <LogoutButton className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-matur-300 px-4 py-2 text-sm mt-6" />
     </main>
   );
 }

@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
 import { InstallButton } from "@/components/install-button";
 import { Avatar, Kartu, KepalaKartu, tombol } from "@/components/staf/ui";
-import { logoutAction } from "@/lib/actions";
+import { LogoutButton } from "@/components/logout-button";
 import { ROLES } from "@/lib/roles";
 import { redirect } from "next/navigation";
 import { POS_ROLES } from "@/lib/roles";
@@ -58,11 +57,7 @@ export default async function ProfilStaf() {
       <div className="lg:max-w-xs">
         <InstallButton />
       </div>
-      <form action={logoutAction}>
-        <button className={`${tombol.bahaya} w-full lg:w-auto`}>
-          <LogOut className="size-4" aria-hidden /> Keluar
-        </button>
-      </form>
+      <LogoutButton className={`${tombol.bahaya} w-full lg:w-auto`} />
     </div>
   );
 }

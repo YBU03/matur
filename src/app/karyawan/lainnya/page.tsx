@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { LogOut, PackageCheck, Receipt, UserRound, Wallet, Warehouse, Bell, MonitorSmartphone } from "lucide-react";
+import { PackageCheck, Receipt, UserRound, Wallet, Warehouse, Bell, MonitorSmartphone } from "lucide-react";
 import { KartuModul, JudulHalaman, tombol } from "@/components/staf/ui";
-import { logoutAction } from "@/lib/actions";
+import { LogoutButton } from "@/components/logout-button";
 import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 
@@ -22,11 +22,7 @@ export default async function Lainnya() {
         <KartuModul href="/karyawan/profil" judul="Profil" keterangan="Data diri & password" ikon={UserRound} nada="oranye" />
         {pos && <KartuModul href="/pos" judul="Buka POS" keterangan="Khusus tablet outlet" ikon={MonitorSmartphone} nada="merah" />}
       </div>
-      <form action={logoutAction} className="mt-6">
-        <button className={`${tombol.bahaya} w-full lg:w-auto`}>
-          <LogOut className="size-4" aria-hidden /> Keluar
-        </button>
-      </form>
+      <LogoutButton className={`${tombol.bahaya} mt-6 w-full lg:w-auto`} />
     </>
   );
 }

@@ -57,3 +57,26 @@ body {
   --shadow-melayang: 0 12px 32px rgba(58, 31, 11, 0.3);
 }
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* Logout: one shared confirmation and farewell, with a still reduced-motion version. */
+@keyframes logout-enter {
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes logout-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+@keyframes logout-goodbye {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  35% { transform: translateY(-9px) rotate(-3deg); }
+  70% { transform: translateY(-4px) rotate(3deg); }
+}
+@keyframes logout-spin { to { transform: rotate(360deg); } }
+.logout-card { animation: logout-enter 240ms ease-out both; }
+.logout-mascot { animation: logout-float 3s ease-in-out infinite; transform-origin: 50% 80%; }
+.logout-goodbye { animation: logout-goodbye 900ms ease-in-out both; }
+.logout-spinner { animation: logout-spin 900ms linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  [data-logout] *, [data-logout]::backdrop { animation: none !important; transition: none !important; }
+}
