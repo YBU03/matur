@@ -203,8 +203,8 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
                 )}
               </div>
               {isOwner && u.id !== meId && !u.assignments.some((a) => a.peran === "owner") && (
-                <button onClick={() => setHapus(u)} className="mt-2 w-full rounded-lg py-1.5 text-xs text-red-600 hover:bg-red-50">
-                  🗑 Hapus akun
+                <button disabled={busy} onClick={() => { setMsg(null); setHapus(u); }} className="mt-3 w-full rounded-lg border border-red-200 bg-red-50 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                  Hapus akun
                 </button>
               )}
             </li>
@@ -222,7 +222,21 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
         />
       )}
       {hapus && (
-        <DeleteTwoStepDialog name={hapus.nama} onCancel={() => setHapus(null)} onConfirm={() => run(() => hapusPengguna(hapus.id))} />
+        <Modal title="Hapus pengguna" onClose={busy ? undefined : () => setHapus(null)}>
+          <p className="text-sm">Yakin ingin menghapus pengguna <strong>{hapus.nama}</strong>?</p>
+          <p className="mt-2 text-sm text-stone-500">Akses login pengguna akan dicabut. Riwayat absensi, transaksi, dan penggajian tetap disimpan.</p>
+          {msg?.error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{msg.error}</p>}
+          <div className="mt-5 flex justify-end gap-2">
+            <button disabled={busy} onClick={() => setHapus(null)} className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50">Batal</button>
+            <button disabled={busy} onClick={() => start(async () => {
+              try {
+                const r = await hapusPengguna(hapus.id);
+                setMsg(r);
+                if (!r.error) setHapus(null);
+              } catch { setMsg({ error: "Penghapusan belum dapat dikonfirmasi. Periksa koneksi lalu coba lagi." }); }
+            })} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Menghapus…" : "Ya, Hapus"}</button>
+          </div>
+        </Modal>
       )}
       {resetting && (
         <SecretDialog
