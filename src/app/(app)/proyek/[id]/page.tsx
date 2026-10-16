@@ -1,3 +1,4 @@
+import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Progress, sisaHari } from "@/components/proyek-card";
@@ -45,7 +46,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
   const bisaUsul = admin || s.active.role === "mitra";
   const progres = progresTotal(pekerjaan);
   const realisasi = rab.reduce((t, r) => t + (r.harga_realisasi ?? 0), 0);
-  const estimasiRab = rab.reduce((t, r) => t + r.harga_estimasi, 0);
+  const estimasiRab = totalEstimasiRab(rab);
   const danaMasuk = setoran.reduce((t, x) => t + x.jumlah, 0);
   const disetujui = foto.filter((f) => f.status === "disetujui");
   const menunggu = foto.filter((f) => f.status === "menunggu");
@@ -67,7 +68,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
     progres,
     softOpening: p.tgl_soft_opening,
     grandOpening: p.target_buka,
-    estimasi: p.estimasi_budget,
+    estimasi: estimasiRab,
     realisasi,
     tahapan: pekerjaan.map((k) => ({ nama: k.nama, progres: k.progres, pic: k.pic?.nama ?? "-" })),
     biaya: grup.map((g) => ({ kelompok: g.kelompok, estimasi: g.estimasi, realisasi: g.realisasi })),
@@ -374,8 +375,8 @@ export default async function DetailProyek({ params, searchParams }: { params: P
       {tab === "biaya" && (
         <>
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="Estimasi Biaya" value={formatRupiah(p.estimasi_budget)} sub={estimasiRab ? `RAB ${formatRupiah(estimasiRab)}` : undefined} />
-            <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={p.estimasi_budget ? `${Math.round((realisasi / p.estimasi_budget) * 100)}% dari estimasi` : undefined} />
+            <Kpi label="Grand Total RAB" value={formatRupiah(estimasiRab)} sub="Jumlah seluruh rincian RAB aktif" />
+            <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={estimasiRab ? `${Math.round((realisasi / estimasiRab) * 100)}% dari total RAB` : undefined} />
             <Kpi label="Dana Masuk Mitra" value={formatRupiah(danaMasuk)} sub={`${setoran.length} setoran`} />
             <Kpi label="Sisa Dana" value={formatRupiah(danaMasuk - realisasi)} sub="dana masuk − realisasi" warn={realisasi > danaMasuk} />
           </section>

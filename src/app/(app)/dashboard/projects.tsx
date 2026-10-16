@@ -1,3 +1,4 @@
+import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
 import { BarList, ChartCard, GroupedBars } from "@/components/charts";
 import { SERIES } from "@/lib/chart-utils";
@@ -14,8 +15,8 @@ export async function ProjectsOverview() {
     <ChartCard
       title="Progres pembangunan"
       sub={`${list.length} proyek berjalan`}
-      rows={list.map((p) => ({ Proyek: p.nama, Progres: `${p.progres}%`, Budget: p.estimasi_budget, Realisasi: p.realisasi }))}
-      cols={[{ key: "Proyek", label: "Proyek" }, { key: "Progres", label: "Progres" }, { key: "Budget", label: "Budget", money: true }, { key: "Realisasi", label: "Realisasi", money: true }]}
+      rows={list.map((p) => ({ Proyek: p.nama, Progres: `${p.progres}%`, RAB: p.estimasiRab, Realisasi: p.realisasi }))}
+      cols={[{ key: "Proyek", label: "Proyek" }, { key: "Progres", label: "Progres" }, { key: "RAB", label: "Grand Total RAB", money: true }, { key: "Realisasi", label: "Realisasi", money: true }]}
     >
       <BarList data={list.map((p) => ({ name: p.nama, value: p.progres }))} money={false} unit="%" max={100} />
       <div className="mt-2 flex flex-wrap gap-2 text-sm">
@@ -39,6 +40,7 @@ export async function ProjectDetailCharts() {
         const { proyek: p, pekerjaan, rab } = d;
         const progres = progresTotal(pekerjaan);
         const groups = groupRab(rab);
+        const estimasi = totalEstimasiRab(rab);
         const realisasi = groups.reduce((s, g) => s + g.realisasi, 0);
         const hari = sisaHari(p.target_buka);
         return (
@@ -56,9 +58,9 @@ export async function ProjectDetailCharts() {
               </div>
             </Link>
             <div className="grid grid-cols-3 gap-3 text-sm">
-              <Mini label="Budget" value={formatRupiah(p.estimasi_budget)} />
+              <Mini label="Grand Total RAB" value={formatRupiah(estimasi)} />
               <Mini label="Realisasi" value={formatRupiah(realisasi)} />
-              <Mini label="Sisa" value={formatRupiah(p.estimasi_budget - realisasi)} warn={realisasi > p.estimasi_budget} />
+              <Mini label="Sisa RAB" value={formatRupiah(estimasi - realisasi)} warn={realisasi > estimasi} />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <ChartCard title="Progres per pekerjaan" sub="Persentase selesai" rows={pekerjaan.map((k) => ({ Pekerjaan: k.nama, PIC: k.pic?.nama ?? "-", Progres: `${k.progres}%` }))} cols={[{ key: "Pekerjaan", label: "Pekerjaan" }, { key: "PIC", label: "PIC" }, { key: "Progres", label: "Progres" }]}>
