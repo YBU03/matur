@@ -6,7 +6,11 @@ import { PosScreen } from "@/app/kasir/(terminal)/pos/pos-screen";
 import type { ComponentProps } from "react";
 import type { TimStatus } from "@/lib/pos-tim";
 import { kunciPos, perbaruiPos } from "@/lib/pos-tim-actions";
-import { hapusSnapshot, simpanSnapshot } from "@/lib/pos-offline";
+import {
+  bukaPindahBeku,
+  hapusSnapshot,
+  simpanSnapshot,
+} from "@/lib/pos-offline";
 /** kunci otomatis setelah 5 menit tanpa sentuhan */
 const IDLE_MS = 5 * 60000;
 export type PosSnapshot = {
@@ -37,8 +41,17 @@ export function PosRuntime({
   const last = useRef(Date.now());
   const idleLocked = useRef(false);
   useEffect(() => {
+    const pindah = () => {
+      idleLocked.current = true;
+      setLocked(
+        "Admin sedang memindahkan sesi POS. Transaksi baru dihentikan; antrean lama tetap dikirim.",
+      );
+      void hapusSnapshot().catch(() => {});
+    };
+    window.addEventListener("matur-pos-beku", pindah);
     const save = async (status: TimStatus) => {
       try {
+        await bukaPindahBeku();
         await simpanSnapshot({ ...initial, status, client_at: Date.now() });
         setStorageError("");
       } catch {
@@ -109,6 +122,7 @@ export function PosRuntime({
     if (!offlineBoot) void save(initial.status);
     void verify();
     return () => {
+      window.removeEventListener("matur-pos-beku", pindah);
       clearInterval(tick);
       clearInterval(timer);
       window.removeEventListener("online", verify);

@@ -16,6 +16,31 @@ const segarkan = () => {
   ])
     revalidatePath(path);
 };
+const perangkatInfo = (ua: string) => {
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\//.test(ua)
+      ? "Opera"
+      : /Firefox\//.test(ua)
+        ? "Firefox"
+        : /Chrome\//.test(ua)
+          ? "Chrome"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : "Browser";
+  const os = /Android/.test(ua)
+    ? "Android"
+    : /iPhone|iPad/.test(ua)
+      ? "iPhone/iPad"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Macintosh/.test(ua)
+          ? "macOS"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : "Perangkat";
+  return `${browser} · ${os}`;
+};
 const options = {
   httpOnly: true,
   sameSite: "lax" as const,
@@ -211,5 +236,79 @@ export async function emailLoginStaf(
     "email_login_staf",
     { p_uid: uid, p_email: email, p_password: password },
     "Email login dihubungkan ke identitas lama. Riwayat tetap tersimpan.",
+  );
+}
+
+export async function mintaPindahPos(
+  sesi: string,
+  nama: string,
+  alasan: string,
+): Promise<PosHasil> {
+  const s = await getSession();
+  if (
+    !s?.active ||
+    !["owner", "hrd", "admin_pusat", "admin_gudang"].includes(s.active.role)
+  )
+    return { error: "Hanya admin perangkat." };
+  const c = await cookies();
+  let secret = c.get(POS_DEVICE)?.value;
+  if (!secret) {
+    secret = randomBytes(32).toString("hex");
+    c.set(POS_DEVICE, secret, { ...options, maxAge: 60 * 60 * 24 * 400 });
+  }
+  const { headers } = await import("next/headers");
+  const info = perangkatInfo((await headers()).get("user-agent") ?? "");
+  return rpc(
+    "minta_pindah_pos",
+    {
+      p_sesi: sesi,
+      p_rahasia: secret,
+      p_nama: nama,
+      p_info: info,
+      p_alasan: alasan,
+    },
+    "Permintaan pindah tercatat. Perangkat lama dikunci saat online; selesaikan setelah antrean bersih atau izin offline berakhir.",
+  );
+}
+export async function selesaikanPindahPos(
+  id: string,
+  akui: boolean,
+): Promise<PosHasil> {
+  const proof = await buktiTablet();
+  return rpc(
+    "selesaikan_pindah_pos",
+    { p_id: id, p_rahasia: proof.device, p_akui: akui },
+    "POS dipindahkan. Shift, modal dan transaksi tetap sama. Buka /pos dengan kode staf dan PIN yang sama.",
+  );
+}
+export async function laporPerangkatPos(
+  ids: string[],
+  beku: boolean,
+): Promise<{ beku?: boolean }> {
+  const s = await getSession();
+  if (
+    !s?.active?.outletId ||
+    !["tablet", "kasir", "barista", "spv"].includes(s.active.role)
+  )
+    return {};
+  const proof = await buktiTablet();
+  if (!proof.device) return {};
+  const { headers } = await import("next/headers");
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("lapor_perangkat_pos", {
+    p_rahasia: proof.device,
+    p_ids: ids,
+    p_beku: beku,
+    p_info: perangkatInfo((await headers()).get("user-agent") ?? ""),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function batalPindahPos(id: string, alasan: string) {
+  return rpc(
+    "batal_pindah_pos",
+    { p_id: id, p_alasan: alasan },
+    "Permintaan pindah dibatalkan. Petugas dapat membuka kembali perangkat asal memakai kode/PIN; sesi kas tetap sama.",
   );
 }

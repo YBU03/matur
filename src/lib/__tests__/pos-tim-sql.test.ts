@@ -11,7 +11,7 @@ const owner = id(1),
   shift = id(5),
   menu = id(6),
   bahan = id(7);
-const device = "d".repeat(64),
+let device = "d".repeat(64),
   token = "t".repeat(64);
 const q = async <T = Record<string, unknown>>(s: string, p: unknown[] = []) =>
   (await db.query<T>(s, p)).rows;
@@ -61,12 +61,37 @@ create function vault.update_secret(uuid,text) returns void language sql as $$up
       "utf8",
     ),
   );
-  await db.exec(readFileSync(new URL('../../../supabase/migrations/20261015083632_pos_tim_akses_indeks.sql',import.meta.url),'utf8'));
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261015083632_pos_tim_akses_indeks.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec("alter type peran add value 'tablet'");
+  await db.exec(
+    "alter table auth.users add column instance_id uuid,add column aud text,add column role text,add column raw_app_meta_data jsonb,add column raw_user_meta_data jsonb,add column created_at timestamptz,add column confirmation_token text,add column recovery_token text;alter table auth.identities add column id uuid,add column provider_id text,add column last_sign_in_at timestamptz,add column created_at timestamptz;",
+  );
+  for (const name of [
+    "0057_pos_tablet.sql",
+    "0058_masuk_pos_kode_pin.sql",
+    "20261016021040_pos_pindah_perangkat.sql",
+  ])
+    await db.exec(
+      readFileSync(
+        new URL("../../../supabase/migrations/" + name, import.meta.url),
+        "utf8",
+      ),
+    );
   await q("insert into outlet(id,nama) values($1,'Outlet Uji')", [o]);
   for (const [uid, nama, role] of [
     [owner, "Admin Uji", "owner"],
     [andi, "Andi Uji", "kasir"],
     [budi, "Budi Uji", "barista"],
+    [id(8), "Admin Pusat Uji", "admin_pusat"],
+    [id(9), "HRD Uji", "hrd"],
   ]) {
     await q("insert into pengguna(id,nama,email) values($1,$2,$3)", [
       uid,
@@ -79,7 +104,7 @@ create function vault.update_secret(uuid,text) returns void language sql as $$up
     );
     await q(
       "insert into penugasan(pengguna_id,peran,outlet_id) values($1,$2,$3)",
-      [uid, role, role === "owner" ? null : o],
+      [uid, role, ["owner", "hrd", "admin_pusat"].includes(role) ? null : o],
     );
   }
   await as(owner);
@@ -363,6 +388,198 @@ it("deducts physical remittances once even when finance rejects and proof is cor
   ).toBe(1);
   await as(andi);
 });
+it("lets Admin Pusat inspect the human login and device without revealing PINs", async () => {
+  await as(andi);
+  const r = await call("masuk_pos_tablet", [
+    "andi",
+    "1234",
+    o,
+    device,
+    "p".repeat(32),
+  ]);
+  expect(r.error).toBeUndefined();
+  await as(id(8));
+  const panel = await call<{
+    perangkat_admin: boolean;
+    staf: unknown[];
+    devices: { login_nama: string; id: string }[];
+  }>("panel_pos_admin", []);
+  expect(panel.perangkat_admin).toBe(true);
+  expect(panel.staf).toEqual([]);
+  expect(panel.devices.some((d) => d.login_nama === "Andi Uji")).toBe(true);
+  await expect(call("lihat_pos_pin", [andi])).rejects.toThrow("admin");
+  await as(andi);
+});
+it("moves one open cash session safely and preserves historical offline sales", async () => {
+  const originalDevice = device,
+    old = payload();
+  const target = "e".repeat(64);
+  await as(budi);
+  await expect(
+    call("minta_pindah_pos", [
+      sid,
+      target,
+      "Tablet kedua",
+      "Browser uji",
+      "Ganti perangkat untuk uji",
+    ]),
+  ).rejects.toThrow("admin");
+  await as(id(8));
+  const request = await call("minta_pindah_pos", [
+    sid,
+    target,
+    "Tablet kedua",
+    "Browser uji",
+    "Ganti perangkat untuk uji",
+  ]);
+  await expect(
+    call("selesaikan_pindah_pos", [request.id, target, true]),
+  ).rejects.toThrow("Tunggu");
+  await as(andi);
+  await expect(
+    call("buka_pos_tim", [o, originalDevice, "andi", "1234", 0, [], token]),
+  ).rejects.toThrow("dipindahkan");
+  await expect(call("buat_transaksi", [payload()])).rejects.toThrow(
+    /dikunci|terkunci/,
+  );
+  const sourceAccount = (
+    await q<{ akun_id: string }>(
+      "select akun_id from pos_perangkat where id=(select perangkat_id from sesi_kas where id=$1)",
+      [sid],
+    )
+  )[0].akun_id;
+  await as(sourceAccount);
+  // The old client first freezes its UI, uploads its queue, then reports empty.
+  await call("lapor_perangkat_pos", [
+    originalDevice,
+    [old.client_id],
+    false,
+    "Browser asal",
+  ]);
+  expect(
+    (await call("buat_transaksi", [{ ...old, sinkron_offline: true }])).total,
+  ).toBe(10000);
+  await call("lapor_perangkat_pos", [originalDevice, [], true, "Browser asal"]);
+  await as(id(9));
+  await expect(
+    call("selesaikan_pindah_pos", [request.id, "x".repeat(64), false]),
+  ).rejects.toThrow("tujuan");
+  await call("selesaikan_pindah_pos", [request.id, target, false]);
+  const sesi = (
+    await q("select modal_laci,ditutup_at,kasir_id from sesi_kas where id=$1", [
+      sid,
+    ])
+  )[0];
+  expect(Number(sesi.modal_laci)).toBe(100000);
+  expect(sesi.ditutup_at).toBeNull();
+  expect(sesi.kasir_id).toBe(andi);
+  await as(andi);
+  await expect(call("buat_transaksi", [payload()])).rejects.toThrow("tablet");
+  await as(sourceAccount);
+  // Lost acknowledgement can replay the historic ID from the old device without duplicating stock.
+  expect(
+    (await call("buat_transaksi", [{ ...old, sinkron_offline: true }])).ulang,
+  ).toBe(true);
+  await q(
+    "insert into penugasan(pengguna_id,peran,outlet_id) values($1,'kasir',$2)",
+    [budi, o],
+  );
+  await as(budi);
+  device = target;
+  token = "z".repeat(64);
+  const opened = await call("buka_pos_tim", [
+    o,
+    device,
+    "budi",
+    "4321",
+    0,
+    [],
+    token,
+  ]);
+  permit = opened.izin_id as string;
+  expect(opened.sesi_id).toBe(sid);
+});
+it("requires explicit acknowledgement when the old device is unreachable, then syncs its history", async () => {
+  const old = payload(),
+    source = device,
+    target = "f".repeat(64);
+  await as(id(8));
+  const req = await call("minta_pindah_pos", [
+    sid,
+    target,
+    "Tablet ketiga",
+    "Browser baru",
+    "Perangkat lama tidak terhubung",
+  ]);
+  await q(
+    "update matur_internal.pos_pindah set aman_at=now()-interval '1 second' where id=$1",
+    [req.id],
+  );
+  await expect(
+    call("selesaikan_pindah_pos", [req.id, target, false]),
+  ).rejects.toThrow("Konfirmasi");
+  // The fixture advances the lease boundary; real clients always wait for the server deadline.
+  await q("update matur_internal.pos_pindah set aman_at=now() where id=$1", [
+    req.id,
+  ]);
+  await call("selesaikan_pindah_pos", [req.id, target, true]);
+  await as(budi);
+  expect(
+    (await call("buat_transaksi", [{ ...old, sinkron_offline: true }])).total,
+  ).toBe(10000);
+  await expect(
+    call("buat_transaksi", [{ ...payload(), device_token: source }]),
+  ).rejects.toThrow("tablet");
+  device = target;
+  token = "q".repeat(64);
+  const opened = await call("buka_pos_tim", [
+    o,
+    device,
+    "budi",
+    "4321",
+    0,
+    [],
+    token,
+  ]);
+  permit = opened.izin_id as string;
+  expect(opened.sesi_id).toBe(sid);
+});
+it("can cancel an unfinished handover without closing the cash shift or changing staff credentials", async () => {
+  await as(id(9));
+  const req = await call("minta_pindah_pos", [
+    sid,
+    "g".repeat(64),
+    "Tablet batal",
+    "Browser uji",
+    "Uji pembatalan pindah perangkat",
+  ]);
+  await call("batal_pindah_pos", [
+    req.id,
+    "Perangkat asal ternyata dapat dipakai",
+  ]);
+  await expect(
+    call("selesaikan_pindah_pos", [req.id, "g".repeat(64), true]),
+  ).rejects.toThrow("dibatalkan");
+  await as(budi);
+  const opened = await call("buka_pos_tim", [
+    o,
+    device,
+    "budi",
+    "4321",
+    0,
+    [],
+    token,
+  ]);
+  permit = opened.izin_id as string;
+  expect(opened.sesi_id).toBe(sid);
+  await as(id(8));
+  const panel = await call<{ pindah: { batal_at: string | null }[] }>(
+    "panel_pos_admin",
+    [],
+  );
+  expect(panel.pindah.some((r) => !!r.batal_at)).toBe(true);
+  await as(budi);
+});
 it("closes provisionally with pending IDs, then reconciles the original cash transaction", async () => {
   const p = { ...payload(), sinkron_offline: true };
   const r = await call("tutup_pos_tim", [
@@ -370,7 +587,7 @@ it("closes provisionally with pending IDs, then reconciles the original cash tra
     device,
     "andi",
     "1234",
-    130000,
+    150000,
     "Termasuk satu penjualan tertunda",
     [p.client_id],
   ]);
@@ -387,7 +604,7 @@ it("closes provisionally with pending IDs, then reconciles the original cash tra
   )[0];
   expect(s.rekap_status).toBe("final");
   expect(Number(s.selisih)).toBe(0);
-  expect(Number(s.fisik_akhir)).toBe(130000);
+  expect(Number(s.fisik_akhir)).toBe(150000);
 });
 it("prevents direct authenticated cash/session writes and private PIN reads", async () => {
   for (const table of [
