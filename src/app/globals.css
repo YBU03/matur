@@ -80,3 +80,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [data-logout] *, [data-logout]::backdrop { animation: none !important; transition: none !important; }
 }
+
+/* POS tablet: maskot melayang di layar masuk & kartu pesanan baru berdenyut di antrean */
+.pos-maskot { animation: melayang 4s ease-in-out infinite; }
+.pos-bayang { animation: bayang 4s ease-in-out infinite; }
+@keyframes pos-denyut { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, .45); } 50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
+.pos-baru { animation: pos-denyut 1.8s ease-out infinite; }
+@keyframes pos-muncul { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+.pos-muncul { animation: pos-muncul 260ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .pos-maskot, .pos-bayang, .pos-baru, .pos-muncul { animation: none !important; }
+}
