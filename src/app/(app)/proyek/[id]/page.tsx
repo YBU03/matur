@@ -1,3 +1,4 @@
+import { SelesaiProyek } from "./selesai";
 import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -44,7 +45,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
   const { proyek: p, pekerjaan, rab, foto, desain, usulan, jadwal, setoran, checklist, dokumen, komentar, catatan } = d;
   const admin = s.active.role === "owner" || s.active.role === "admin_pusat";
   const bisaUsul = admin || s.active.role === "mitra";
-  const progres = progresTotal(pekerjaan);
+  const progres = p.status === "selesai" ? 100 : progresTotal(pekerjaan);
   const realisasi = rab.reduce((t, r) => t + (r.harga_realisasi ?? 0), 0);
   const estimasiRab = totalEstimasiRab(rab);
   const danaMasuk = setoran.reduce((t, x) => t + x.jumlah, 0);
@@ -88,6 +89,11 @@ export default async function DetailProyek({ params, searchParams }: { params: P
         <p className="text-sm text-white/90">
           {p.outlet?.nama} · {p.status === "selesai" ? "Selesai" : "Sedang berjalan"}
         </p>
+        {p.status === "selesai" && (
+          <p className="mt-2 inline-block rounded-full bg-green-600 px-3 py-1 text-sm font-semibold">
+            🎉 Pembangunan selesai{p.selesai_at ? ` · ${formatTanggal(p.selesai_at.slice(0, 10))}` : ""} — outlet sudah beroperasi
+          </p>
+        )}
         {p.status !== "selesai" && tahap && (
           <p className="mt-2 inline-block rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">Tahap saat ini: {tahap.nama}</p>
         )}
@@ -122,6 +128,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
               className="rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/30"
             />
           )}
+          {admin && <SelesaiProyek id={p.id} selesai={p.status === "selesai"} />}
           <LaporanPdf data={laporan} className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-matur-700 disabled:opacity-60" />
         </div>
       </section>

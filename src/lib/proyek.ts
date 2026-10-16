@@ -20,6 +20,8 @@ export type Proyek = {
   kontak_tempat: string | null;
   /** normal = tanpa penandaan; split = tiap barang ditandai dibeli pusat / mitra */
   mode_pembelian: "normal" | "split";
+  /** waktu proyek ditandai selesai (outlet beroperasi) */
+  selesai_at?: string | null;
   outlet: { nama: string } | null;
 };
 export type Usulan = { id: string; jenis: "Soft Opening" | "Grand Opening"; tanggal: string; catatan: string | null; diusulkan_oleh: string | null; nama_pengusul: string | null; created_at: string };
@@ -77,7 +79,7 @@ export const progresTotal = (ks: Pick<Pekerjaan, "bobot" | "progres">[]) => {
 };
 
 const PROYEK_COLS =
-  "id, nama, outlet_id, estimasi_budget, tgl_mulai, target_buka, tgl_soft_opening, status, catatan, alamat, maps_url, luas, sewa_tempat, kontak_tempat, mode_pembelian, outlet(nama)";
+  "id, nama, outlet_id, estimasi_budget, tgl_mulai, target_buka, tgl_soft_opening, status, catatan, alamat, maps_url, luas, sewa_tempat, kontak_tempat, mode_pembelian, selesai_at, outlet(nama)";
 
 export async function daftarProyek(): Promise<Ringkasan[]> {
   const supabase = await supabaseServer();
@@ -88,7 +90,8 @@ export async function daftarProyek(): Promise<Ringkasan[]> {
   ]);
   return ((ps ?? []) as unknown as Proyek[]).map((p) => ({
     ...p,
-    progres: progresTotal((ks ?? []).filter((k) => k.proyek_id === p.id)),
+    // proyek yang ditandai selesai selalu 100%
+    progres: p.status === "selesai" ? 100 : progresTotal((ks ?? []).filter((k) => k.proyek_id === p.id)),
     realisasi: (rab ?? []).filter((r) => r.proyek_id === p.id).reduce((s, r) => s + (r.harga_realisasi ?? 0), 0),
     estimasiRab: totalEstimasiRab((rab ?? []).filter((r) => r.proyek_id === p.id)),
   }));

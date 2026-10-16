@@ -257,6 +257,8 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/portal/pembangunan", label: "Progres Pembangunan", stage: 4 },
       { href: "/laporan", label: "Laporan Bulanan", stage: 4 },
       { href: "/portal/bep", label: "Progres BEP", stage: 4 },
+      { href: "/portal/pos", label: "POS Outlet (omzet harian)", stage: 4 },
+      { href: "/portal/karyawan", label: "Karyawan Outlet", stage: 4 },
     ],
   },
   pic: {
@@ -287,6 +289,7 @@ const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
 };
 for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].menu.push(...items);
 
+for (const role of ["owner", "hrd", "admin_pusat"] as Role[]) ROLES[role].menu.push({ href: "/profil-karyawan", label: "Profil Karyawan", stage: 5 });
 for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":"Akses Kasir POS Outlet",stage:5});
 
 export function findMenu(role: Role, href: string): MenuItem | undefined {

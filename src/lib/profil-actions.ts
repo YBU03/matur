@@ -49,3 +49,48 @@ export async function gantiPin(_: Result, form: FormData): Promise<Result> {
   if (error) return { error: "Gagal mengganti PIN: " + error.message };
   return { ok: "PIN berhasil diganti. Pakai PIN baru saat masuk berikutnya." };
 }
+
+export type HasilProfil = Result & { kurang?: string[] };
+
+// Profil lengkap karyawan outlet (wajib): foto diri, NIK, TTL, alamat KTP, sharelok rumah, kontak darurat.
+// Foto dikompres di browser lalu diunggah ke bucket privat "profil/<uid>/…".
+export async function simpanProfilLengkap(form: FormData): Promise<HasilProfil> {
+  const supabase = await supabaseServer();
+  const { data: c } = await supabase.auth.getClaims();
+  const uid = c?.claims?.sub;
+  if (!uid) return { error: "Sesi berakhir. Masuk lagi." };
+  let foto: string | null = null;
+  const file = form.get("foto");
+  if (file instanceof File && file.size > 0) {
+    if (file.size > 3 * 1024 * 1024) return { error: "Foto terlalu besar (maks 3 MB)." };
+    foto = `${uid}/foto-${Date.now()}.jpg`;
+    const up = await supabase.storage.from("profil").upload(foto, file, { contentType: file.type || "image/jpeg" });
+    if (up.error) return { error: "Gagal mengunggah foto: " + up.error.message };
+  }
+  const nilai = (k: string) => String(form.get(k) ?? "").trim();
+  const maps = nilai("maps_url");
+  if (maps && !/^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(maps))
+    return { error: "Link sharelok harus dari Google Maps (contoh: https://maps.app.goo.gl/…)." };
+  const nik = nilai("nik").replace(/\D/g, "");
+  if (nik && nik.length !== 16) return { error: "NIK harus 16 angka sesuai KTP." };
+  const { data, error } = await supabase.rpc("simpan_profil_karyawan", {
+    p: {
+      foto_path: foto,
+      nik,
+      jenis_kelamin: nilai("jenis_kelamin"),
+      tempat_lahir: nilai("tempat_lahir"),
+      tgl_lahir: nilai("tgl_lahir"),
+      alamat_ktp: nilai("alamat_ktp"),
+      alamat_domisili: nilai("alamat_domisili"),
+      maps_url: maps,
+      no_hp: nilai("no_hp"),
+      darurat_nama: nilai("darurat_nama"),
+      darurat_hubungan: nilai("darurat_hubungan"),
+      darurat_hp: nilai("darurat_hp"),
+    },
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/karyawan", "layout");
+  const kurang = (data ?? []) as string[];
+  return { ok: kurang.length ? "Tersimpan. Masih ada data yang wajib dilengkapi." : "Profil lengkap tersimpan. Terima kasih!", kurang };
+}

@@ -159,6 +159,7 @@ export function PosScreen({
   const [metode, setMetode] = useState<string>("tunai");
   const [lihatQris, setLihatQris] = useState<number | null>(null);
   const [diterima, setDiterima] = useState("");
+  const [bayarTunai, setBayarTunai] = useState(false);
   const [err, setErr] = useState("");
   const [receipt, setReceipt] = useState<{
     r: Receipt;
@@ -744,18 +745,6 @@ export function PosScreen({
               📱 Tampilkan QRIS bagian split
             </button>
           )}
-        {!split && metode === "tunai" && (
-          <label className="flex items-center justify-between text-sm">
-            Uang diterima
-            <input
-              value={diterima}
-              onChange={(e) => setDiterima(e.target.value)}
-              inputMode="numeric"
-              placeholder={String(total)}
-              className="w-32 rounded-lg border px-2 py-1 text-right"
-            />
-          </label>
-        )}
         {split && (
           <div className="space-y-1.5 rounded-xl bg-matur-50 p-2 text-sm">
             {bayarList.map((b, i) => (
@@ -883,7 +872,14 @@ export function PosScreen({
         {bisaBayar ? (
           <button
             disabled={pending || cart.length === 0}
-            onClick={() => checkout()}
+            onClick={() => {
+              // tunai: pop-up uang diterima + kembalian, tidak perlu scroll
+              if (!split && metode === "tunai") {
+                setErr("");
+                setDiterima("");
+                setBayarTunai(true);
+              } else checkout();
+            }}
             className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
           >
             {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
@@ -895,6 +891,20 @@ export function PosScreen({
           </p>
         )}
       </aside>
+
+      {bayarTunai && (
+        <BayarTunai
+          total={total}
+          diterima={diterima}
+          setDiterima={setDiterima}
+          pending={pending}
+          onBatal={() => setBayarTunai(false)}
+          onSelesai={() => {
+            setBayarTunai(false);
+            checkout();
+          }}
+        />
+      )}
 
       {picking && (
         <VariantPicker
@@ -1382,5 +1392,106 @@ function ReceiptDialog({
         </button>
       </div>
     </Modal>
+  );
+}
+
+/** pecahan uang yang biasa diterima: uang pas + pembulatan ke atas */
+function saranUang(total: number) {
+  const out = new Set<number>([total]);
+  for (const k of [5000, 10000, 20000, 50000, 100000]) {
+    const n = Math.ceil(total / k) * k;
+    if (n > total) out.add(n);
+  }
+  return [...out].sort((a, b) => a - b).slice(0, 5);
+}
+
+/** Pop-up pembayaran tunai: keypad besar, tombol uang cepat, kembalian langsung terlihat. */
+export function BayarTunai({
+  total,
+  diterima,
+  setDiterima,
+  pending,
+  onBatal,
+  onSelesai,
+}: {
+  total: number;
+  diterima: string;
+  setDiterima: (v: string) => void;
+  pending: boolean;
+  onBatal: () => void;
+  onSelesai: () => void;
+}) {
+  const uang = num(diterima) || 0;
+  const kurang = diterima !== "" && uang < total;
+  const kembali = Math.max(0, (diterima === "" ? total : uang) - total);
+  const tekan = (k: string) =>
+    setDiterima(
+      k === "⌫" ? diterima.slice(0, -1) : (diterima + k).replace(/^0+/, "").slice(0, 10),
+    );
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+      <div
+        role="dialog"
+        aria-label="Pembayaran tunai"
+        className="w-full max-w-md space-y-3 rounded-t-3xl bg-white p-5 shadow-xl sm:rounded-3xl"
+        onKeyDown={(e) => {
+          if (/^[0-9]$/.test(e.key)) tekan(e.key);
+          else if (e.key === "Backspace") tekan("⌫");
+          else if (e.key === "Enter" && !kurang && !pending) onSelesai();
+          else if (e.key === "Escape") onBatal();
+        }}
+        tabIndex={-1}
+        ref={(el) => el?.focus()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">💵 Bayar Tunai</h2>
+          <button onClick={onBatal} aria-label="Tutup" className="rounded-lg px-2 text-xl text-stone-500">
+            ✕
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="rounded-2xl bg-stone-50 p-3">
+            <p className="text-xs text-stone-500">Total</p>
+            <p className="text-xl font-bold tabular-nums">{formatRupiah(total)}</p>
+          </div>
+          <div className={`rounded-2xl p-3 ${kurang ? "bg-red-50" : "bg-green-50"}`}>
+            <p className="text-xs text-stone-500">{kurang ? "Kurang" : "Kembalian"}</p>
+            <p className={`text-xl font-bold tabular-nums ${kurang ? "text-red-700" : "text-green-700"}`}>
+              {formatRupiah(kurang ? total - uang : kembali)}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-2xl border-2 border-matur-300 px-4 py-2 text-right">
+          <p className="text-left text-xs text-stone-500">Uang diterima</p>
+          <p className="text-3xl font-bold tabular-nums">{diterima === "" ? <span className="text-stone-300">{formatRupiah(total)}</span> : formatRupiah(uang)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {saranUang(total).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setDiterima(String(n))}
+              className={`flex-1 rounded-xl border px-2 py-2 text-sm font-semibold ${uang === n ? "border-matur-500 bg-matur-500 text-white" : "border-matur-200 bg-matur-50"}`}
+            >
+              {n === total ? "Uang pas" : formatRupiah(n)}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "⌫"].map((k) => (
+            <button key={k} type="button" onClick={() => tekan(k)} className="rounded-xl bg-stone-100 py-3 text-xl font-bold active:bg-stone-200">
+              {k}
+            </button>
+          ))}
+        </div>
+        <button
+          disabled={pending || kurang}
+          onClick={onSelesai}
+          className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
+        >
+          {kurang ? "Uang kurang" : `Selesaikan · kembali ${formatRupiah(kembali)}`}
+        </button>
+      </div>
+    </div>
   );
 }

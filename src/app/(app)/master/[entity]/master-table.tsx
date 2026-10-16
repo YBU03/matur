@@ -242,6 +242,11 @@ export function MasterTable({
                               </div>
                             ))}
                         </dl>
+                        {entityKey === "outlet" && !trash && (
+                          <Link href={`/outlet/${r.id}`} className="mt-2 inline-flex rounded-lg bg-matur-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-matur-600">
+                            ℹ️ Info mitra & progres BEP
+                          </Link>
+                        )}
                         {canEdit && (
                           <div className="mt-2 flex gap-3 text-xs font-semibold">
                             {trash ? (
@@ -324,6 +329,10 @@ export function MasterTable({
                       ) : (
                         <span className="text-stone-300">—</span>
                       )
+                    ) : entityKey === "outlet" && f.key === entity.nameKey && !trash ? (
+                      <Link href={`/outlet/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-matur-700 hover:underline" title="Info mitra & progres BEP">
+                        {show(f, r[f.key], refs)} ›
+                      </Link>
                     ) : (
                       show(f, r[f.key], refs)
                     )}

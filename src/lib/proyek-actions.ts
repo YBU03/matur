@@ -167,3 +167,12 @@ export async function hapusDokumen(proyekId: string, id: string): Promise<Result
   revalidatePath(`/proyek/${proyekId}`);
   return { ok: "Dokumen dihapus." };
 }
+
+// Tandai proyek pembangunan selesai (outlet jadi operasional) atau buka kembali.
+export async function selesaikanProyek(proyekId: string, selesai: boolean, tanggal: string | null): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("selesaikan_proyek", { p_id: proyekId, p_selesai: selesai, p_tgl: tanggal || null });
+  if (error) return { error: error.message };
+  for (const path of [`/proyek/${proyekId}`, "/proyek", "/portal/pembangunan", "/dashboard", "/master/outlet"]) revalidatePath(path);
+  return { ok: selesai ? "Proyek ditandai selesai. Outlet kini beroperasi." : "Proyek dibuka kembali." };
+}

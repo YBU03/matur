@@ -30,11 +30,27 @@ export async function ProjectsOverview() {
 
 /** Mitra & PIC: visual lengkap per proyek. */
 export async function ProjectDetailCharts() {
-  const list = (await daftarProyek()).filter((p) => p.status === "berjalan").slice(0, 3);
-  if (!list.length) return <p className="rounded-2xl border border-dashed border-matur-300 bg-white py-10 text-center text-stone-500">Belum ada proyek pembangunan yang berjalan.</p>;
+  const semua = await daftarProyek();
+  const list = semua.filter((p) => p.status === "berjalan").slice(0, 3);
+  const selesai = semua.filter((p) => p.status === "selesai");
+  if (!list.length && !selesai.length) return <p className="rounded-2xl border border-dashed border-matur-300 bg-white py-10 text-center text-stone-500">Belum ada proyek pembangunan yang berjalan.</p>;
   const details = await Promise.all(list.map((p) => detailProyek(p.id)));
   return (
     <div className="space-y-6">
+      {selesai.map((p) => (
+        <Link key={p.id} href={`/proyek/${p.id}`} className="flex flex-wrap items-center gap-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 p-5 text-white">
+          <span className="text-4xl">🎉</span>
+          <div className="mr-auto">
+            <p className="text-sm text-white/85">{p.outlet?.nama}</p>
+            <h2 className="text-xl font-bold">Pembangunan selesai</h2>
+            <p className="text-sm text-white/90">
+              {p.nama}
+              {p.selesai_at ? ` · selesai ${formatTanggal(p.selesai_at.slice(0, 10))}` : ""} · outlet sudah beroperasi
+            </p>
+          </div>
+          <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">100% ✓</span>
+        </Link>
+      ))}
       {details.map((d) => {
         if (!d) return null;
         const { proyek: p, pekerjaan, rab } = d;
