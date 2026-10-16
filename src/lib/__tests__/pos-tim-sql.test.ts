@@ -716,6 +716,7 @@ it("outlet credentials and daily PIC handovers preserve one drawer across S1/S2/
       "utf8",
     ),
   );
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261016032634_pos_outlet_tutup_jalur_lama.sql",import.meta.url),"utf8"));
   await as(owner);
   await call("atur_akses_pos_outlet", [
     o,
@@ -723,6 +724,7 @@ it("outlet credentials and daily PIC handovers preserve one drawer across S1/S2/
     "password-outlet-uji",
     true,
   ]);
+  await expect(call("buka_pos_tim",[o,device,"andi","1234",0,[andi],token])).rejects.toThrow(/akun POS outlet/);
   await as(budi);
   await expect(
     call("atur_akses_pos_outlet", [o, "hacked", "password-outlet-uji", true]),
