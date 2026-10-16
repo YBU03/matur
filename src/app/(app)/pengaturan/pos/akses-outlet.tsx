@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
 import { aturAksesOutlet, hapusAksesOutlet } from "@/lib/pos-outlet-actions";
 import type { PosHasil } from "@/lib/pos-tim-actions";
+import { Badge, Kosong, isian } from "@/components/ui-halaman";
 export type AksesOutlet = {
   id: string;
   nama: string;
@@ -19,8 +20,11 @@ type Editor = {
   aktif: boolean;
   versi: string | null;
 };
-const input =
-  "mt-1 w-full rounded-xl border bg-white p-2.5 text-sm disabled:opacity-60";
+const input = `mt-1 w-full ${isian} disabled:opacity-60`;
+const tombolUtama =
+  "rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-kopi-700 disabled:opacity-50";
+const tombolGaris =
+  "rounded-xl border border-matur-200 bg-white px-4 py-2 text-sm font-semibold text-kopi-900 hover:bg-matur-50 disabled:opacity-50";
 export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState("");
@@ -95,13 +99,16 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
   };
   return (
     <section className="space-y-4">
-      <p className="rounded-xl bg-sky-50 p-4 text-sm">
-        Kelola akun kasir POS per outlet. Akun pribadi Pengguna Matoer tetap
-        terpisah. Satu outlet memiliki satu akses POS; password disimpan sebagai
-        hash.
+      <p className="flex items-start gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-950">
+        <span aria-hidden>ℹ️</span>
+        <span>
+          Kelola akun kasir POS per outlet. Akun pribadi Pengguna Matoer tetap
+          terpisah. Satu outlet memiliki satu akses POS; password disimpan
+          sebagai hash.
+        </span>
       </p>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="block text-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-matur-100 bg-white p-3 shadow-sm sm:p-4">
+        <label className="block min-w-0 flex-1 basis-56 text-sm font-medium text-stone-700 sm:max-w-xs">
           Outlet
           <select
             value={filter}
@@ -120,7 +127,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
           type="button"
           disabled={!tersedia.length || busy}
           onClick={openAdd}
-          className="rounded-xl bg-kopi-900 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          className="rounded-xl bg-matur-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-matur-600 disabled:opacity-50"
         >
           + Tambah Akses POS
         </button>
@@ -134,8 +141,9 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
       {(msg.ok || msg.error) && (
         <p
           role="status"
-          className={`rounded-xl p-3 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}
+          className={`rounded-xl border p-3 text-sm font-medium ${msg.error ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}
         >
+          {msg.error ? "⚠️ " : "✅ "}
           {msg.error ?? msg.ok}
         </p>
       )}
@@ -143,31 +151,38 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
         {akses.map((o) => (
           <article
             key={o.id}
-            className="space-y-3 rounded-2xl border bg-white p-4"
+            className="space-y-3 rounded-2xl border border-matur-100 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="font-bold">{o.nama}</h3>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${o.aktif ? "bg-green-50 text-green-800" : "bg-stone-100 text-stone-600"}`}
-              >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-matur-50 text-lg">
+                  🏪
+                </span>
+                <h3 className="min-w-0 break-words font-bold text-kopi-900">
+                  {o.nama}
+                </h3>
+              </div>
+              <Badge nada={o.aktif ? "hijau" : "merah"}>
                 {o.aktif ? "Aktif" : "Nonaktif"}
-              </span>
+              </Badge>
             </div>
-            <dl className="text-sm">
+            <dl className="rounded-xl bg-stone-50 p-3 text-sm">
               <dt className="text-xs text-stone-500">Username POS</dt>
-              <dd className="break-all font-semibold">{o.username}</dd>
+              <dd className="break-all font-mono font-semibold text-kopi-900">
+                {o.username}
+              </dd>
             </dl>
             <p className="text-xs text-stone-500">
               Password disembunyikan · ganti melalui Edit.
             </p>
-            <div className="flex gap-2 border-t pt-3">
+            <div className="flex gap-2 border-t border-stone-100 pt-3">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => openEdit(o)}
-                className="flex-1 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                className={`flex-1 ${tombolGaris}`}
               >
-                Edit
+                ✏️ Edit
               </button>
               <button
                 type="button"
@@ -177,7 +192,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                   setError("");
                   setHapus(o);
                 }}
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
               >
                 Hapus
               </button>
@@ -186,11 +201,14 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
         ))}
       </div>
       {!akses.length && (
-        <div className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm text-stone-500">
+        <Kosong
+          ikon="🔐"
+          judul={outlets.length ? "Belum ada akses POS" : "Tidak ada outlet"}
+        >
           {outlets.length
             ? "Belum ada akses POS untuk outlet yang dipilih. Klik Tambah Akses POS untuk membuatnya."
             : "Tidak ada outlet dalam kewenangan akun ini."}
-        </div>
+        </Kosong>
       )}
       {editor && (
         <Modal
@@ -209,7 +227,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 {editor.baru ? "Buat" : "Simpan perubahan"} akses POS untuk{" "}
                 <strong>{nama}</strong>?
               </p>
-              <dl className="space-y-2 rounded-xl bg-stone-50 p-3 text-sm">
+              <dl className="space-y-2 rounded-xl border border-matur-100 bg-matur-50/50 p-3 text-sm">
                 <div>
                   <dt className="text-stone-500">Username</dt>
                   <dd className="break-all font-semibold">
@@ -218,7 +236,11 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 </div>
                 <div>
                   <dt className="text-stone-500">Status</dt>
-                  <dd>{editor.aktif ? "Aktif" : "Nonaktif"}</dd>
+                  <dd>
+                    <Badge nada={editor.aktif ? "hijau" : "merah"}>
+                      {editor.aktif ? "Aktif" : "Nonaktif"}
+                    </Badge>
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-stone-500">Password</dt>
@@ -251,7 +273,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                     setReview(false);
                     setError("");
                   }}
-                  className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+                  className={tombolGaris}
                 >
                   Periksa lagi
                 </button>
@@ -270,7 +292,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                       ),
                     )
                   }
-                  className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  className={tombolUtama}
                 >
                   {busy
                     ? "Menyimpan…"
@@ -289,7 +311,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 setReview(true);
               }}
             >
-              <label className="block text-sm">
+              <label className="block text-sm font-medium text-stone-700">
                 Outlet
                 {editor.baru ? (
                   <select
@@ -308,10 +330,10 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                     ))}
                   </select>
                 ) : (
-                  <p className="mt-1 font-semibold">{nama}</p>
+                  <p className="mt-1 font-semibold text-kopi-900">{nama}</p>
                 )}
               </label>
-              <label className="block text-sm">
+              <label className="block text-sm font-medium text-stone-700">
                 Username POS outlet
                 <input
                   value={editor.username}
@@ -330,7 +352,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                   className={input}
                 />
               </label>
-              <label className="block text-sm">
+              <label className="block text-sm font-medium text-stone-700">
                 {editor.baru
                   ? "Password outlet"
                   : "Password baru · kosongkan jika tetap"}
@@ -350,8 +372,9 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
               <p className="text-xs text-stone-500">
                 Password minimal 10 karakter.
               </p>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 rounded-xl border border-matur-100 bg-matur-50/50 p-3 text-sm font-medium text-kopi-900">
                 <input
+                  className="accent-matur-600"
                   type="checkbox"
                   checked={editor.aktif}
                   onChange={(e) =>
@@ -361,16 +384,10 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 Aktifkan akses POS outlet
               </label>
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={close}
-                  className="rounded-xl border px-4 py-2 text-sm"
-                >
+                <button type="button" onClick={close} className={tombolGaris}>
                   Batal
                 </button>
-                <button className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white">
-                  Periksa & Lanjutkan
-                </button>
+                <button className={tombolUtama}>Periksa & Lanjutkan</button>
               </div>
             </form>
           )}
@@ -405,7 +422,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
               type="button"
               disabled={busy}
               onClick={close}
-              className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+              className={tombolGaris}
             >
               Batal
             </button>
@@ -415,7 +432,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
               onClick={() =>
                 run(() => hapusAksesOutlet(hapus.id, hapus.diubah_at!))
               }
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
             >
               {busy ? "Menghapus…" : "Ya, Hapus"}
             </button>

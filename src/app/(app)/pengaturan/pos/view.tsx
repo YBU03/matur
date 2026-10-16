@@ -1,5 +1,12 @@
 "use client";
-import Link from "next/link";
+import {
+  Badge,
+  Kartu,
+  Kosong,
+  isian,
+  tabKelas,
+  tabel,
+} from "@/components/ui-halaman";
 import { AksesOutletPanel, type AksesOutlet } from "./akses-outlet";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -86,9 +93,30 @@ export type PanelData = {
     anggota: { nama: string; gabung_at: string; keluar_at: string | null }[];
   }[];
 };
-const cls = "mt-1 w-full rounded-lg border bg-white p-2 text-sm";
+const cls = `mt-1 w-full ${isian}`;
+const tombolUtama =
+  "rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-kopi-700 disabled:opacity-50";
+const tombolGaris =
+  "rounded-xl border border-matur-200 bg-white px-4 py-2 text-sm font-semibold text-kopi-900 hover:bg-matur-50 disabled:opacity-50";
 const wib = (s: string | null) =>
   s ? new Date(s).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "—";
+const nadaStatus = (v: string) =>
+  v === "aktif"
+    ? "hijau"
+    : v === "menunggu"
+      ? "kuning"
+      : ["dicabut", "nonaktif", "ditolak", "keluar"].includes(v)
+        ? "merah"
+        : "netral";
+function BadgeSelisih({ nilai }: { nilai: number | null }) {
+  if (nilai === null) return <Badge>—</Badge>;
+  return (
+    <Badge nada={nilai < 0 ? "merah" : nilai > 0 ? "kuning" : "hijau"}>
+      {nilai > 0 ? "+" : ""}
+      {rp(nilai)}
+    </Badge>
+  );
+}
 export function PanelPos({
   data: d,
   role,
@@ -118,32 +146,23 @@ export function PanelPos({
   const nama = (id: string) =>
     d.outlets.find((o) => o.id === id)?.nama ?? "Outlet";
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Akses Kasir POS per Outlet</h1>
-        <p className="text-sm text-stone-500">
-          Satu akun POS dan satu kas harian per outlet. Modal sekali, serah
-          terima PIC setiap pergantian shift.
-        </p>
-      </div>
-      <Link
-        href="/pengguna"
-        className="inline-block text-sm font-semibold underline"
-      >
-        Kelola Pengguna Matoer secara terpisah
-      </Link>
-      <nav className="flex gap-2 overflow-auto">
+    <div className="space-y-4">
+      <nav className={tabKelas.wadah} aria-label="Bagian pengaturan POS">
         {[
-          ...(akses.length ? [["akses", "Akun POS Outlet"]] : []),
-          ...(d.pusat ? [["aturan", "Aturan Shift & Lokasi"]] : []),
-          ...(d.perangkat_admin ? [["tablet", "Perangkat & Pindah POS"]] : []),
-          ["sesi", "Kas Harian"],
-          ["serah", "Riwayat Serah Terima"],
+          ...(akses.length ? [["akses", "🔐 Akun POS Outlet"]] : []),
+          ...(d.pusat ? [["aturan", "⏱️ Aturan Shift & Lokasi"]] : []),
+          ...(d.perangkat_admin
+            ? [["tablet", "📱 Perangkat & Pindah POS"]]
+            : []),
+          ["sesi", "💵 Kas Harian"],
+          ["serah", "🤝 Riwayat Serah Terima"],
         ].map(([k, l]) => (
           <button
             key={k}
+            type="button"
             onClick={() => setTab(k)}
-            className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold ${tab === k ? "bg-kopi-900 text-white" : "bg-white"}`}
+            aria-pressed={tab === k}
+            className={tab === k ? tabKelas.aktif : tabKelas.pasif}
           >
             {l}
           </button>
@@ -152,47 +171,102 @@ export function PanelPos({
       {(msg.error || msg.ok) && (
         <p
           role="status"
-          className={`rounded-xl p-3 ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+          className={`rounded-xl border p-3 text-sm font-medium ${msg.error ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}
         >
+          {msg.error ? "⚠️ " : "✅ "}
           {msg.error ?? msg.ok}
         </p>
       )}
-      {tab === "serah" && (
-        <section className="space-y-3">
-          {d.serah?.length ? (
-            d.serah.map((x) => (
-              <article key={x.id} className="rounded-2xl border bg-white p-4">
-                <h3 className="font-bold">
-                  {nama(x.outlet_id)} · {x.shift}
-                </h3>
-                <p className="text-sm">
-                  {x.sebelum ? `${x.sebelum} → ` : "Pembukaan kas · "}
-                  {x.pic} · {x.selesai_at ? "Selesai" : "PIC aktif"}
-                </p>
-                <p className="text-xs text-stone-500">{wib(x.mulai_at)}</p>
-                <p className="mt-2 text-sm">
-                  Fisik diterima {rp(x.fisik)} · seharusnya {rp(x.seharusnya)} ·
-                  selisih {rp(x.fisik - x.seharusnya)}
-                </p>
-                {x.catatan && <p className="text-sm">{x.catatan}</p>}
-              </article>
-            ))
-          ) : (
-            <p>Belum ada serah terima kas harian dalam 7 hari terakhir.</p>
-          )}
-        </section>
-      )}
+      {tab === "serah" &&
+        (d.serah?.length ? (
+          <div className={tabel.bungkus}>
+            <table className={tabel.tabel}>
+              <thead className={tabel.kepala}>
+                <tr>
+                  <th className={tabel.th}>Outlet · Shift</th>
+                  <th className={tabel.th}>Serah terima</th>
+                  <th className={tabel.th}>Mulai</th>
+                  <th className={`${tabel.th} text-right`}>Fisik diterima</th>
+                  <th className={`${tabel.th} text-right`}>Seharusnya</th>
+                  <th className={`${tabel.th} text-right`}>Selisih</th>
+                  <th className={tabel.th}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.serah.map((x) => (
+                  <tr key={x.id} className={`${tabel.baris} align-top`}>
+                    <td className={tabel.td}>
+                      <p className="font-semibold text-kopi-900">
+                        {nama(x.outlet_id)}
+                      </p>
+                      <p className="text-xs text-stone-500">{x.shift}</p>
+                    </td>
+                    <td className={tabel.td}>
+                      <p>
+                        {x.sebelum ? (
+                          <>
+                            {x.sebelum}{" "}
+                            <span className="text-stone-400">→</span>{" "}
+                          </>
+                        ) : (
+                          <span className="text-stone-500">
+                            Pembukaan kas ·{" "}
+                          </span>
+                        )}
+                        <b className="text-kopi-900">{x.pic}</b>
+                      </p>
+                      {x.catatan && (
+                        <p className="mt-0.5 max-w-xs text-xs text-stone-500">
+                          {x.catatan}
+                        </p>
+                      )}
+                    </td>
+                    <td
+                      className={`${tabel.td} whitespace-nowrap text-xs text-stone-500`}
+                    >
+                      {wib(x.mulai_at)}
+                    </td>
+                    <td
+                      className={`${tabel.td} whitespace-nowrap text-right tabular-nums`}
+                    >
+                      {rp(x.fisik)}
+                    </td>
+                    <td
+                      className={`${tabel.td} whitespace-nowrap text-right tabular-nums text-stone-500`}
+                    >
+                      {rp(x.seharusnya)}
+                    </td>
+                    <td className={`${tabel.td} text-right`}>
+                      <BadgeSelisih nilai={x.fisik - x.seharusnya} />
+                    </td>
+                    <td className={tabel.td}>
+                      {x.selesai_at ? (
+                        <Badge>Selesai</Badge>
+                      ) : (
+                        <Badge nada="hijau">PIC aktif</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Kosong ikon="🤝" judul="Belum ada serah terima">
+            Belum ada serah terima kas harian dalam 7 hari terakhir.
+          </Kosong>
+        ))}
       {tab === "akses" && <AksesOutletPanel outlets={akses} />}
       {tab === "staf" && d.pusat && (
         <section className="space-y-3">
           <input
             aria-label="Cari staf"
-            placeholder="Cari nama / email / kode staf"
+            placeholder="🔍 Cari nama / email / kode staf"
             value={cari}
             onChange={(e) => setCari(e.target.value)}
-            className={cls}
+            className={`w-full ${isian}`}
           />
-          <p className="text-xs text-stone-500">
+          <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
             PIN lama yang hanya disimpan sebagai hash perlu ditetapkan ulang
             sebelum bisa dilihat. Tampilkan hanya saat diperlukan; semua akses
             melihat PIN tercatat.
@@ -215,239 +289,286 @@ export function PanelPos({
         </section>
       )}
       {tab === "tablet" && d.perangkat_admin && <PerangkatPanel data={d} />}
-      {tab === "aturan" && d.pusat && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {d.outlets.map((o) => (
-            <form
-              key={o.id}
-              className="grid grid-cols-2 gap-3 rounded-2xl border bg-white p-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                run(() =>
-                  aturOutletPos(
-                    o.id,
-                    Number(f.get("awal")),
-                    Number(f.get("offline")),
-                    String(f.get("lat")).trim() ? Number(f.get("lat")) : null,
-                    String(f.get("lng")).trim() ? Number(f.get("lng")) : null,
-                    Number(f.get("radius")),
-                  ),
-                );
-              }}
-            >
-              <h2 className="col-span-2 font-bold">{o.nama}</h2>
-              <label className="text-xs">
-                Boleh buka sebelum shift (menit)
-                <input
-                  className={cls}
-                  type="number"
-                  name="awal"
-                  min="0"
-                  max="120"
-                  defaultValue={o.awal}
-                  required
-                />
-              </label>
-              <label className="text-xs">
-                Batas izin offline (menit)
-                <input
-                  className={cls}
-                  type="number"
-                  name="offline"
-                  min="1"
-                  max="120"
-                  defaultValue={o.offline}
-                  required
-                />
-              </label>
-              <label className="text-xs">
-                Latitude titik outlet
-                <input
-                  className={cls}
-                  type="number"
-                  step="any"
-                  name="lat"
-                  min="-90"
-                  max="90"
-                  defaultValue={o.lat ?? ""}
-                />
-              </label>
-              <label className="text-xs">
-                Longitude titik outlet
-                <input
-                  className={cls}
-                  type="number"
-                  step="any"
-                  name="lng"
-                  min="-180"
-                  max="180"
-                  defaultValue={o.lng ?? ""}
-                />
-              </label>
-              <label className="text-xs">
-                Radius absensi (meter)
-                <input
-                  className={cls}
-                  type="number"
-                  name="radius"
-                  min="20"
-                  max="5000"
-                  defaultValue={o.radius}
-                  required
-                />
-              </label>
-              <p className="self-center text-xs text-stone-500">
-                Jika titik belum diisi, GPS tetap wajib dicatat tetapi jarak
-                belum dapat diverifikasi. Isi koordinat lokasi outlet
-                sebenarnya.
-              </p>
-              <button
-                disabled={busy}
-                className="col-span-2 rounded-xl bg-matur-500 p-2 font-bold text-white"
+      {tab === "aturan" &&
+        d.pusat &&
+        (d.outlets.length ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {d.outlets.map((o) => (
+              <form
+                key={o.id}
+                className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  run(() =>
+                    aturOutletPos(
+                      o.id,
+                      Number(f.get("awal")),
+                      Number(f.get("offline")),
+                      String(f.get("lat")).trim() ? Number(f.get("lat")) : null,
+                      String(f.get("lng")).trim() ? Number(f.get("lng")) : null,
+                      Number(f.get("radius")),
+                    ),
+                  );
+                }}
               >
-                Simpan aturan outlet
-              </button>
-            </form>
-          ))}
-        </div>
-      )}
-      {tab === "sesi" && (
-        <section className="space-y-3">
-          {d.sessions.map((s) => (
-            <article
-              key={s.id}
-              className="space-y-2 rounded-2xl border bg-white p-4"
-            >
-              <div className="flex flex-wrap justify-between gap-2">
-                <b>
-                  {nama(s.outlet_id)} · {s.nama ?? "Sesi kas"}
-                </b>
-                <span className="rounded-full bg-matur-50 px-3 py-1 text-xs font-bold">
-                  {s.ditutup_at ? s.status : "Masih buka"}
-                  {s.legacy ? " · skema lama" : ""}
-                </span>
-              </div>
-              <p className="text-xs text-stone-500">
-                Buka {wib(s.buka_at)} · batas {wib(s.batas_at)} WIB
-              </p>
-              <p className="text-sm">
-                Tim:{" "}
-                {s.anggota
-                  .map(
-                    (a) =>
-                      `${a.nama}${a.keluar_at ? ` (pulang ${wib(a.keluar_at)})` : " (bertugas)"}`,
-                  )
-                  .join(" · ") || "Belum tercatat pada sesi lama"}
-              </p>
-              {!!s.pindah_menunggu && (
-                <p className="rounded-xl bg-amber-50 p-3 text-sm">
-                  Rekap sementara: {s.pindah_menunggu} perangkat asal belum
-                  melaporkan antrean bersih.
-                </p>
-              )}
-              {s.ditutup_at && (
-                <p className="text-sm">
-                  Uang fisik {s.aktual === null ? "—" : rp(s.aktual)} · selisih{" "}
-                  {s.selisih === null ? "—" : rp(s.selisih)} · {s.pending}{" "}
-                  transaksi tertunda
-                </p>
-              )}
-              {!s.ditutup_at &&
-                !s.legacy &&
-                ["owner", "spv"].includes(role) && (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const f = new FormData(e.currentTarget);
-                      run(() =>
-                        perpanjangPos(
-                          s.id,
-                          Number(f.get("menit")),
-                          String(f.get("alasan")),
-                        ),
-                      );
-                    }}
-                    className="flex flex-wrap gap-2"
-                  >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-bold text-kopi-900">
+                    🏪 {o.nama}
+                  </h2>
+                  {o.lat !== null && o.lng !== null ? (
+                    <Badge nada="hijau">📍 Titik lokasi terisi</Badge>
+                  ) : (
+                    <Badge nada="kuning">📍 Titik belum diisi</Badge>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-stone-600">
+                    Boleh buka sebelum shift (menit)
                     <input
-                      name="menit"
+                      className={cls}
                       type="number"
-                      min="1"
-                      max="180"
-                      defaultValue="30"
+                      name="awal"
+                      min="0"
+                      max="120"
+                      defaultValue={o.awal}
                       required
-                      aria-label="Menit perpanjangan"
-                      className="w-24 rounded-lg border p-2 text-sm"
                     />
+                  </label>
+                  <label className="text-xs font-medium text-stone-600">
+                    Batas izin offline (menit)
                     <input
-                      name="alasan"
+                      className={cls}
+                      type="number"
+                      name="offline"
+                      min="1"
+                      max="120"
+                      defaultValue={o.offline}
                       required
-                      minLength={3}
-                      placeholder="Alasan perpanjangan SPV"
-                      className="min-w-40 flex-1 rounded-lg border p-2 text-sm"
                     />
-                    <button
-                      disabled={busy}
-                      className="rounded-lg bg-kopi-900 px-3 py-2 text-sm text-white"
-                    >
-                      Perpanjang sesi
-                    </button>
-                  </form>
-                )}
-              {!s.ditutup_at && s.legacy && ["owner", "spv"].includes(role) && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const f = new FormData(e.currentTarget);
-                    if (
-                      confirm(
-                        "Tutup sesi lama sesuai uang fisik yang telah diperiksa?",
-                      )
-                    )
-                      run(() =>
-                        tutupPosLama(
-                          s.id,
-                          Number(f.get("aktual")),
-                          String(f.get("alasan")),
-                        ),
-                      );
-                  }}
-                  className="flex flex-wrap gap-2"
+                  </label>
+                  <label className="text-xs font-medium text-stone-600">
+                    Latitude titik outlet
+                    <input
+                      className={cls}
+                      type="number"
+                      step="any"
+                      name="lat"
+                      min="-90"
+                      max="90"
+                      defaultValue={o.lat ?? ""}
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-stone-600">
+                    Longitude titik outlet
+                    <input
+                      className={cls}
+                      type="number"
+                      step="any"
+                      name="lng"
+                      min="-180"
+                      max="180"
+                      defaultValue={o.lng ?? ""}
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-stone-600">
+                    Radius absensi (meter)
+                    <input
+                      className={cls}
+                      type="number"
+                      name="radius"
+                      min="20"
+                      max="5000"
+                      defaultValue={o.radius}
+                      required
+                    />
+                  </label>
+                  <p className="self-center rounded-xl bg-matur-50/70 p-2.5 text-xs text-stone-600">
+                    Jika titik belum diisi, GPS tetap wajib dicatat tetapi jarak
+                    belum dapat diverifikasi. Isi koordinat lokasi outlet
+                    sebenarnya.
+                  </p>
+                </div>
+                <button
+                  disabled={busy}
+                  className="mt-4 w-full rounded-xl bg-matur-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-matur-600 disabled:opacity-50"
                 >
-                  <input
-                    name="aktual"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="Uang fisik termasuk modal"
-                    required
-                    className="rounded-lg border p-2 text-sm"
-                  />
-                  <input
-                    name="alasan"
-                    required
-                    minLength={3}
-                    placeholder="Catatan pemeriksaan/serah terima"
-                    className="min-w-40 flex-1 rounded-lg border p-2 text-sm"
-                  />
-                  <button
-                    disabled={busy}
-                    className="rounded-lg border px-3 py-2 text-sm"
-                  >
-                    Tutup sesi lama
-                  </button>
-                </form>
-              )}
-            </article>
-          ))}
-          {!d.sessions.length && (
-            <p className="rounded-xl border bg-white p-4 text-sm">
-              Belum ada sesi kas.
-            </p>
-          )}
-        </section>
-      )}
+                  Simpan aturan outlet
+                </button>
+              </form>
+            ))}
+          </div>
+        ) : (
+          <Kosong ikon="🏪" judul="Belum ada outlet" />
+        ))}
+      {tab === "sesi" &&
+        (d.sessions.length ? (
+          <section className="grid gap-4 lg:grid-cols-2">
+            {d.sessions.map((s) => (
+              <Kartu
+                key={s.id}
+                className="space-y-3"
+                judul={
+                  <>
+                    {nama(s.outlet_id)}{" "}
+                    <span className="font-medium text-stone-400">·</span>{" "}
+                    {s.nama ?? "Sesi kas"}
+                  </>
+                }
+                keterangan={`Buka ${wib(s.buka_at)} · batas ${wib(s.batas_at)} WIB`}
+                aksi={
+                  <div className="flex flex-wrap gap-1.5">
+                    {s.ditutup_at ? (
+                      <Badge nada={nadaStatus(s.status)}>{s.status}</Badge>
+                    ) : (
+                      <Badge nada="hijau">● Masih buka</Badge>
+                    )}
+                    {s.legacy && <Badge nada="ungu">Skema lama</Badge>}
+                  </div>
+                }
+              >
+                <div className="text-sm">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Tim
+                  </p>
+                  {s.anggota.length ? (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {s.anggota.map((a, i) => (
+                        <li
+                          key={`${a.nama}:${a.gabung_at}:${i}`}
+                          className="rounded-full border border-matur-100 bg-matur-50/60 px-2.5 py-1 text-xs"
+                        >
+                          <b className="text-kopi-900">{a.nama}</b>{" "}
+                          <span className="text-stone-500">
+                            {a.keluar_at
+                              ? `(pulang ${wib(a.keluar_at)})`
+                              : "(bertugas)"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-stone-500">
+                      Belum tercatat pada sesi lama
+                    </p>
+                  )}
+                </div>
+                {!!s.pindah_menunggu && (
+                  <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                    ⏳ Rekap sementara: {s.pindah_menunggu} perangkat asal belum
+                    melaporkan antrean bersih.
+                  </p>
+                )}
+                {s.ditutup_at && (
+                  <dl className="grid grid-cols-3 gap-2 rounded-xl bg-stone-50 p-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-stone-500">Uang fisik</dt>
+                      <dd className="font-semibold tabular-nums text-kopi-900">
+                        {s.aktual === null ? "—" : rp(s.aktual)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-stone-500">Selisih</dt>
+                      <dd>
+                        <BadgeSelisih nilai={s.selisih} />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-stone-500">Tertunda</dt>
+                      <dd className="font-semibold tabular-nums text-kopi-900">
+                        {s.pending} transaksi
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+                {!s.ditutup_at &&
+                  !s.legacy &&
+                  ["owner", "spv"].includes(role) && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const f = new FormData(e.currentTarget);
+                        run(() =>
+                          perpanjangPos(
+                            s.id,
+                            Number(f.get("menit")),
+                            String(f.get("alasan")),
+                          ),
+                        );
+                      }}
+                      className="flex flex-wrap gap-2 border-t border-stone-100 pt-3"
+                    >
+                      <input
+                        name="menit"
+                        type="number"
+                        min="1"
+                        max="180"
+                        defaultValue="30"
+                        required
+                        aria-label="Menit perpanjangan"
+                        className={`w-24 ${isian}`}
+                      />
+                      <input
+                        name="alasan"
+                        required
+                        minLength={3}
+                        placeholder="Alasan perpanjangan SPV"
+                        className={`min-w-0 flex-1 basis-40 ${isian}`}
+                      />
+                      <button disabled={busy} className={tombolUtama}>
+                        Perpanjang sesi
+                      </button>
+                    </form>
+                  )}
+                {!s.ditutup_at &&
+                  s.legacy &&
+                  ["owner", "spv"].includes(role) && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const f = new FormData(e.currentTarget);
+                        if (
+                          confirm(
+                            "Tutup sesi lama sesuai uang fisik yang telah diperiksa?",
+                          )
+                        )
+                          run(() =>
+                            tutupPosLama(
+                              s.id,
+                              Number(f.get("aktual")),
+                              String(f.get("alasan")),
+                            ),
+                          );
+                      }}
+                      className="flex flex-wrap gap-2 border-t border-stone-100 pt-3"
+                    >
+                      <input
+                        name="aktual"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Uang fisik termasuk modal"
+                        required
+                        className={`min-w-0 flex-1 basis-40 ${isian}`}
+                      />
+                      <input
+                        name="alasan"
+                        required
+                        minLength={3}
+                        placeholder="Catatan pemeriksaan/serah terima"
+                        className={`min-w-0 flex-1 basis-40 ${isian}`}
+                      />
+                      <button disabled={busy} className={tombolGaris}>
+                        Tutup sesi lama
+                      </button>
+                    </form>
+                  )}
+              </Kartu>
+            ))}
+          </section>
+        ) : (
+          <Kosong ikon="💵" judul="Belum ada sesi kas" />
+        ))}
     </div>
   );
 }
@@ -472,15 +593,21 @@ function PinCard({
   }, [pin]);
   const ol = [...new Set(s.tugas.map((t) => t.outlet_id))];
   return (
-    <article className="rounded-2xl border bg-white p-4">
+    <article className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="mr-auto">
-          <b>{s.nama}</b>
-          <p className="text-xs text-stone-500">
-            {s.email} · {s.status}
+        <div className="mr-auto min-w-0">
+          <p className="flex flex-wrap items-center gap-2">
+            <b className="text-kopi-900">{s.nama}</b>
+            <Badge nada={nadaStatus(s.status)}>{s.status}</Badge>
+            {s.ada_pin ? (
+              <Badge nada="biru">PIN diatur</Badge>
+            ) : (
+              <Badge nada="kuning">PIN belum diatur</Badge>
+            )}
           </p>
+          <p className="break-all text-xs text-stone-500">{s.email}</p>
         </div>
-        <span className="rounded-lg bg-stone-50 p-2 font-mono tracking-widest">
+        <span className="rounded-xl border border-matur-100 bg-matur-50/60 px-3 py-2 font-mono tracking-widest text-kopi-900">
           {pin ?? "••••••"}
         </span>
         <button
@@ -501,7 +628,7 @@ function PinCard({
               setLihat(false);
             }
           }}
-          className="rounded-lg border p-2"
+          className="rounded-xl border border-matur-200 bg-white px-3 py-2 hover:bg-matur-50 disabled:opacity-50"
         >
           {lihat ? "…" : "👁"}
         </button>
@@ -522,7 +649,7 @@ function PinCard({
         }}
         className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
       >
-        <label className="text-xs">
+        <label className="text-xs font-medium text-stone-600">
           Kode staf
           <input
             name="kode"
@@ -533,7 +660,7 @@ function PinCard({
             className={cls}
           />
         </label>
-        <label className="text-xs">
+        <label className="text-xs font-medium text-stone-600">
           PIN POS baru
           <input
             name="pin"
@@ -546,10 +673,7 @@ function PinCard({
             placeholder={s.ada_pin ? "Isi untuk mengganti" : "PIN belum diatur"}
           />
         </label>
-        <button
-          disabled={busy}
-          className="self-end rounded-lg bg-kopi-900 px-3 py-2 text-sm text-white"
-        >
+        <button disabled={busy} className={`self-end ${tombolUtama}`}>
           Simpan PIN
         </button>
       </form>
@@ -566,7 +690,7 @@ function PinCard({
               key={id}
               disabled={busy || spv}
               onClick={() => run(() => aksesPosStaf(s.id, id, !kasir))}
-              className={`rounded-lg border p-2 text-xs ${kasir || spv ? "bg-green-50 text-green-800" : ""}`}
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-70 ${kasir || spv ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-matur-200 bg-white text-kopi-900 hover:bg-matur-50"}`}
             >
               {outlets.find((o) => o.id === id)?.nama ?? "Outlet"} ·{" "}
               {spv
@@ -579,7 +703,7 @@ function PinCard({
         })}
       </div>
       {s.email.endsWith("@pin.matur.id") && (
-        <details className="mt-3 rounded-lg bg-amber-50 p-3 text-sm">
+        <details className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
           <summary className="cursor-pointer font-semibold">
             Hubungkan email login HP ke akun lama
           </summary>
@@ -606,7 +730,7 @@ function PinCard({
               type="email"
               required
               placeholder="Email pribadi karyawan"
-              className="flex-1 rounded-lg border p-2"
+              className={`min-w-0 flex-1 basis-48 ${isian}`}
             />
             <input
               name="password"
@@ -615,9 +739,9 @@ function PinCard({
               required
               autoComplete="new-password"
               placeholder="Password awal (min. 8)"
-              className="flex-1 rounded-lg border p-2"
+              className={`min-w-0 flex-1 basis-48 ${isian}`}
             />
-            <button disabled={busy} className="rounded-lg border bg-white p-2">
+            <button disabled={busy} className={tombolGaris}>
               Hubungkan
             </button>
           </form>

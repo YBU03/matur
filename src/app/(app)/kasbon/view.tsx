@@ -4,6 +4,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatRupiah as rp } from "@/lib/format";
 import { catatKasbon, type Result } from "@/lib/operasional-actions";
+import {
+  Badge,
+  BarisAngka,
+  ChipHeader,
+  HeaderHalaman,
+  KartuAngka,
+  Kosong,
+  isian,
+  tabel,
+  tombolHeader,
+} from "@/components/ui-halaman";
 export function KasbonView({
   outlet,
   outlets,
@@ -30,20 +41,32 @@ export function KasbonView({
   const [client, setClient] = useState(() => crypto.randomUUID());
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result>({});
-  const css = "mt-1 w-full rounded-lg border p-2 text-sm";
+  const css = `mt-1 w-full ${isian}`;
+  const totalCair = rows.reduce((n, x) => n + x.jumlah, 0);
+  const totalBayar = rows.reduce((n, x) => n + x.terbayar, 0);
+  const totalSisa = rows.reduce((n, x) => n + x.jumlah - x.terbayar, 0);
+  const aktif = rows.filter((x) => x.jumlah - x.terbayar > 0).length;
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <h1 className="text-2xl font-bold">Kasbon & Cicilan Gaji</h1>
-      <p className="text-sm text-stone-500">
-        Catat kasbon yang sudah dicairkan. Hitung ulang gaji untuk memasukkan
-        cicilan. Saldo berkurang saat penggajian final; draft hanya mencadangkan
-        cicilan.
-      </p>
-      <div className="flex gap-3">
+      <HeaderHalaman
+        judul="Kasbon & Cicilan Gaji"
+        ikon="🤝"
+        keterangan="Catat kasbon yang sudah dicairkan. Hitung ulang gaji untuk memasukkan cicilan. Saldo berkurang saat penggajian final; draft hanya mencadangkan cicilan."
+        aksi={
+          <Link className={tombolHeader} href={`/penggajian?outlet=${outlet.id}`}>
+            💰 Buka penggajian
+          </Link>
+        }
+      >
+        <ChipHeader>🏪 {outlet.nama}</ChipHeader>
+        <ChipHeader>{rows.length} kasbon tercatat</ChipHeader>
+      </HeaderHalaman>
+      <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-stone-600">
+        Outlet
         <select
           value={outlet.id}
           onChange={(e) => router.push(`/kasbon?outlet=${e.target.value}`)}
-          className="rounded-lg border p-2"
+          className={`${isian} w-full sm:w-auto`}
         >
           {outlets.map((o) => (
             <option key={o.id} value={o.id}>
@@ -51,39 +74,24 @@ export function KasbonView({
             </option>
           ))}
         </select>
-        <Link
-          className="p-2 font-semibold underline"
-          href={`/penggajian?outlet=${outlet.id}`}
-        >
-          Buka penggajian
-        </Link>
-      </div>
+      </label>
       {(msg.error || msg.ok) && (
         <p
           role="status"
-          className={`rounded-lg p-3 ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+          className={`rounded-xl px-3 py-2 text-sm font-medium ${msg.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
         >
           {msg.error ?? msg.ok}
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          ["Total dicairkan", rows.reduce((n, x) => n + x.jumlah, 0)],
-          [
-            "Terbayar dari gaji final",
-            rows.reduce((n, x) => n + x.terbayar, 0),
-          ],
-          ["Sisa kasbon", rows.reduce((n, x) => n + x.jumlah - x.terbayar, 0)],
-        ].map(([l, n]) => (
-          <div key={l} className="rounded-2xl border bg-white p-4">
-            <p className="text-sm text-stone-500">{l}</p>
-            <b>{rp(Number(n))}</b>
-          </div>
-        ))}
-      </div>
+      <BarisAngka>
+        <KartuAngka label="Total dicairkan" nilai={rp(totalCair)} ikon="💸" nada="biru" sub={`${rows.length} pencairan`} />
+        <KartuAngka label="Terbayar dari gaji final" nilai={rp(totalBayar)} ikon="✅" nada="hijau" />
+        <KartuAngka label="Sisa kasbon" nilai={rp(totalSisa)} ikon="⏳" nada={totalSisa > 0 ? "kuning" : "hijau"} />
+        <KartuAngka label="Kasbon aktif" nilai={aktif} ikon="👤" nada="netral" sub={`${rows.length - aktif} lunas`} />
+      </BarisAngka>
       {boleh && (
         <form
-          className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2"
+          className="grid gap-3 rounded-2xl border border-matur-100 bg-white p-4 text-sm shadow-sm sm:grid-cols-2 sm:p-5"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -111,8 +119,8 @@ export function KasbonView({
             });
           }}
         >
-          <h2 className="font-bold sm:col-span-2">Catat pencairan kasbon</h2>
-          <label>
+          <h2 className="text-base font-bold text-kopi-900 sm:col-span-2">➕ Catat pencairan kasbon</h2>
+          <label className="font-medium text-stone-700">
             Staf
             <select className={css} name="staf" required>
               {staf.map((u) => (
@@ -122,7 +130,7 @@ export function KasbonView({
               ))}
             </select>
           </label>
-          <label>
+          <label className="font-medium text-stone-700">
             Tanggal pencairan
             <input
               className={css}
@@ -134,7 +142,7 @@ export function KasbonView({
                 .slice(0, 10)}
             />
           </label>
-          <label>
+          <label className="font-medium text-stone-700">
             Nominal kasbon
             <input
               className={css}
@@ -145,7 +153,7 @@ export function KasbonView({
               step="1"
             />
           </label>
-          <label>
+          <label className="font-medium text-stone-700">
             Cicilan per bulan
             <input
               className={css}
@@ -156,66 +164,80 @@ export function KasbonView({
               step="1"
             />
           </label>
-          <label className="sm:col-span-2">
+          <label className="font-medium text-stone-700 sm:col-span-2">
             Catatan pencairan / referensi bukti
             <input className={css} name="catatan" minLength={3} required />
           </label>
           <button
             disabled={pending || !staf.length}
-            className="rounded-lg bg-matur-500 p-2 font-semibold text-white disabled:opacity-50"
+            className="rounded-xl bg-matur-500 px-4 py-2.5 font-semibold text-white shadow-sm hover:bg-matur-600 disabled:opacity-50 sm:w-fit"
           >
             Simpan pencairan
           </button>
         </form>
       )}
-      <section className="overflow-x-auto rounded-2xl border bg-white p-4">
-        <h2 className="mb-3 font-bold">Riwayat kasbon</h2>
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr>
-              {[
-                "Staf / tanggal",
-                "Dicairkan",
-                "Cicilan/bulan",
-                "Terbayar",
-                "Sisa",
-                "Dicadangkan draft",
-                "Catatan",
-              ].map((l) => (
-                <th key={l} className="p-2">
-                  {l}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((x) => (
-              <tr key={x.id} className="border-t">
-                <td className="p-2">
-                  {x.nama}
-                  <br />
-                  {x.tanggal}
-                </td>
-                {[
-                  x.jumlah,
-                  x.cicilan,
-                  x.terbayar,
-                  x.jumlah - x.terbayar,
-                  x.draft,
-                ].map((n, i) => (
-                  <td key={i} className="p-2">
-                    {rp(n)}
-                  </td>
-                ))}
-                <td>{x.catatan}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!rows.length && (
-          <p className="py-4 text-sm text-stone-500">
-            Belum ada pencairan kasbon tercatat.
-          </p>
+      <section className="space-y-2">
+        <h2 className="text-base font-bold text-kopi-900">Riwayat kasbon</h2>
+        {rows.length ? (
+          <div className={tabel.bungkus}>
+            <table className={tabel.tabel}>
+              <thead className={tabel.kepala}>
+                <tr>
+                  {[
+                    "Staf / tanggal",
+                    "Dicairkan",
+                    "Cicilan/bulan",
+                    "Terbayar",
+                    "Sisa",
+                    "Dicadangkan draft",
+                    "Status",
+                    "Catatan",
+                  ].map((l, i) => (
+                    <th key={l} className={`${tabel.th} ${i >= 1 && i <= 5 ? "text-right" : ""}`}>
+                      {l}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((x) => {
+                  const sisa = x.jumlah - x.terbayar;
+                  return (
+                    <tr key={x.id} className={tabel.baris}>
+                      <td className={tabel.td}>
+                        <p className="font-semibold text-kopi-900">{x.nama}</p>
+                        <p className="text-xs text-stone-500">{x.tanggal}</p>
+                      </td>
+                      {[x.jumlah, x.cicilan, x.terbayar, sisa, x.draft].map(
+                        (n, i) => (
+                          <td
+                            key={i}
+                            className={`${tabel.td} whitespace-nowrap text-right tabular-nums ${i === 3 && n > 0 ? "font-bold text-amber-700" : ""}`}
+                          >
+                            {rp(n)}
+                          </td>
+                        ),
+                      )}
+                      <td className={tabel.td}>
+                        {sisa <= 0 ? (
+                          <Badge nada="hijau">Lunas</Badge>
+                        ) : x.draft > 0 ? (
+                          <Badge nada="biru">Dicadangkan</Badge>
+                        ) : (
+                          <Badge nada="kuning">Aktif</Badge>
+                        )}
+                      </td>
+                      <td className={`${tabel.td} min-w-40 text-stone-600`}>
+                        {x.catatan}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Kosong ikon="🤝" judul="Belum ada pencairan kasbon tercatat." />
         )}
       </section>
     </div>

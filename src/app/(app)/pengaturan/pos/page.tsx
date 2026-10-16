@@ -3,7 +3,20 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { AksesOutlet } from "./akses-outlet";
 import { PanelPos, type PanelData } from "./view";
-import { KasTertinggalPanel, RiwayatKasOtomatis, type KasOtomatis, type KasTertinggal } from "@/components/kas-tertinggal";
+import Link from "next/link";
+import {
+  BarisAngka,
+  ChipHeader,
+  HeaderHalaman,
+  KartuAngka,
+  tombolHeader,
+} from "@/components/ui-halaman";
+import {
+  KasTertinggalPanel,
+  RiwayatKasOtomatis,
+  type KasOtomatis,
+  type KasTertinggal,
+} from "@/components/kas-tertinggal";
 export default async function Page() {
   const s = await getSession();
   if (
@@ -34,9 +47,65 @@ export default async function Page() {
       panel.sessions.some((y) => y.id === x.sesi_id),
     );
   }
-  const [{ data: tertinggal }, { data: otomatis }] = await Promise.all([db.rpc("kas_tertinggal"), db.rpc("riwayat_kas_otomatis")]);
+  const [{ data: tertinggal }, { data: otomatis }] = await Promise.all([
+    db.rpc("kas_tertinggal"),
+    db.rpc("riwayat_kas_otomatis"),
+  ]);
+  const sesiBuka = panel.sessions.filter((x) => !x.ditutup_at).length;
+  const perangkatAktif = panel.devices.filter(
+    (x) => x.status === "aktif",
+  ).length;
+  const aksesAktif = allowed.filter((x) => x.username && x.aktif).length;
+  const pindahMenunggu = (panel.pindah ?? []).filter(
+    (x) => !x.selesai_at && !x.batal_at,
+  ).length;
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
+      <HeaderHalaman
+        ikon="🧾"
+        judul="Akses Kasir POS per Outlet"
+        keterangan="Satu akun POS dan satu kas harian per outlet. Modal sekali, serah terima PIC setiap pergantian shift."
+        aksi={
+          <Link href="/pengguna" className={tombolHeader}>
+            👥 Kelola Pengguna Matoer
+          </Link>
+        }
+      >
+        <ChipHeader>{panel.outlets.length} outlet</ChipHeader>
+        {sesiBuka > 0 && <ChipHeader>🟢 {sesiBuka} kas sedang buka</ChipHeader>}
+        {pindahMenunggu > 0 && (
+          <ChipHeader>⏳ {pindahMenunggu} pindah perangkat menunggu</ChipHeader>
+        )}
+      </HeaderHalaman>
+      <BarisAngka>
+        <KartuAngka
+          ikon="🏪"
+          label="Outlet"
+          nilai={panel.outlets.length}
+          sub="dalam kewenangan akun"
+        />
+        <KartuAngka
+          ikon="🔐"
+          label="Akun POS aktif"
+          nilai={`${aksesAktif}/${allowed.length}`}
+          sub="akses kasir outlet"
+          nada="biru"
+        />
+        <KartuAngka
+          ikon="📱"
+          label="Perangkat aktif"
+          nilai={`${perangkatAktif}/${panel.devices.length}`}
+          sub="tablet & antrean"
+          nada="ungu"
+        />
+        <KartuAngka
+          ikon="💵"
+          label="Kas harian buka"
+          nilai={sesiBuka}
+          sub={`${panel.sessions.length} sesi tercatat`}
+          nada={sesiBuka ? "hijau" : "netral"}
+        />
+      </BarisAngka>
       <KasTertinggalPanel list={(tertinggal ?? []) as KasTertinggal[]} />
       <RiwayatKasOtomatis list={(otomatis ?? []) as KasOtomatis[]} />
       <PanelPos data={panel} role={s.active.role} akses={allowed} />
