@@ -22,7 +22,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
   const s = await getSession();
   if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) redirect("/kasir");
   const m = await statusMaintenance();
-  if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
+  if (m.aktif) return <MaintenanceScreen pesan={m.pesan} pos={s.active.role === "tablet"} />;
   const path=(await headers()).get("x-matur-pathname")??"/kasir/pos";
   for(const p of ["absen","jadwal","izin","slip","kiriman","setoran","stok"]){if(p==="stok"&&s.active.role==="tablet")continue;if(path.startsWith(`/kasir/${p}`))redirect(p==="absen"?"/karyawan":`/karyawan/${p}`);}
   const status=await statusPos(s.active.outletId);

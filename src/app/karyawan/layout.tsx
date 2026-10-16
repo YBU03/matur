@@ -1,12 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, LogOut } from "lucide-react";
+import { Bell } from "lucide-react";
 import { InstallButton } from "@/components/install-button";
 import { LiveRefresh } from "@/components/live-refresh";
 import { NavBawah, NavSamping } from "@/components/staf/nav";
 import { Avatar } from "@/components/staf/ui";
-import { logoutAction } from "@/lib/actions";
+import { LogoutButton } from "@/components/logout-button";
 import { BISA_JUAL, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -61,11 +61,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
             </div>
             {lonceng}
           </div>
-          <form action={logoutAction}>
-            <button className="flex w-full items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
-              <LogOut className="size-4" aria-hidden /> Keluar
-            </button>
-          </form>
+          <LogoutButton className="flex w-full items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50" />
         </div>
       </aside>
 

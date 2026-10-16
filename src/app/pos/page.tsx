@@ -19,7 +19,7 @@ export default async function PosHome() {
   const a = s?.active;
   if (!s || a?.role !== "tablet" || !a.outletId) return <MasukPos />;
   const m = await statusMaintenance();
-  if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
+  if (m.aktif) return <MaintenanceScreen pesan={m.pesan} pos />;
   const st = await statusPos(a.outletId);
   if (!st.device || st.device.status !== "aktif")
     return (
