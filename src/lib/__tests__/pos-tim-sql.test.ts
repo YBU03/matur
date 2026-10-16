@@ -80,6 +80,7 @@ create function vault.update_secret(uuid,text) returns void language sql as $$up
     "0058_masuk_pos_kode_pin.sql",
     "20261016021040_pos_pindah_perangkat.sql",
     "20261016021744_pos_pindah_rekonsiliasi.sql",
+    "20261016023648_pos_reset_akses.sql",
   ])
     await db.exec(
       readFileSync(
@@ -579,6 +580,52 @@ it("can cancel an unfinished handover without closing the cash shift or changing
   );
   expect(panel.pindah.some((r) => !!r.batal_at)).toBe(true);
   await as(budi);
+});
+it("resets stale device locks without closing the cash shift or changing its modal", async () => {
+  await as(id(8));
+  await expect(
+    call("reset_akses_pos", [o, "Reset akses uji coba"]),
+  ).rejects.toThrow("offline");
+  const saved = await q<{ id: string; sampai_at: string }>(
+    "select id,sampai_at from matur_internal.pos_izin where sesi_id=$1",
+    [sid],
+  );
+  await q(
+    "update matur_internal.pos_izin set sampai_at=now()-interval '1 second' where sesi_id=$1",
+    [sid],
+  );
+  const r = await call("reset_akses_pos", [
+    null,
+    "Reset semua akses untuk uji coba",
+  ]);
+  expect(r.sesi_tim).toBe(1);
+  expect(
+    (await q("select perangkat_id from sesi_kas where id=$1", [sid]))[0]
+      .perangkat_id,
+  ).toBeNull();
+  for (const iz of saved)
+    await q("update matur_internal.pos_izin set sampai_at=$1 where id=$2", [
+      iz.sampai_at,
+      iz.id,
+    ]);
+  await as(budi);
+  const opened = await call("buka_pos_tim", [
+    o,
+    device,
+    "budi",
+    "4321",
+    0,
+    [],
+    token,
+  ]);
+  permit = opened.izin_id as string;
+  expect(opened.sesi_id).toBe(sid);
+  expect(
+    Number(
+      (await q("select modal_laci from sesi_kas where id=$1", [sid]))[0]
+        .modal_laci,
+    ),
+  ).toBe(100000);
 });
 it("closes provisionally with pending IDs, then reconciles the original cash transaction", async () => {
   const p = { ...payload(), sinkron_offline: true };
