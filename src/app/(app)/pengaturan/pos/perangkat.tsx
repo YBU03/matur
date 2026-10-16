@@ -63,7 +63,7 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
       <div className="rounded-2xl bg-sky-50 p-4 text-sm">
         <b>Pindah perangkat tetap satu shift dan satu sesi kas.</b>
         <p className="mt-1">
-          Modal, tim, transaksi, kode staf, dan PIN tetap sama. Perangkat lama
+          Modal, tim, transaksi, akun outlet tetap sama. Perangkat lama
           dihentikan saat terhubung; jika offline, proses menunggu batas izin
           lamanya agar dua perangkat tidak berjualan bersamaan.
         </p>
@@ -241,7 +241,11 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
               </b>
               <p className="text-sm">
                 Pembuka: {s.pembuka_nama ?? "Belum tercatat"} · perangkat:{" "}
-                {asal?.nama ?? (s.legacy ? "Sesi lama" : "Menunggu login setelah reset")} · mulai {wib(s.buka_at)}
+                {asal?.nama ??
+                  (s.legacy
+                    ? "Sesi lama"
+                    : "Menunggu login setelah reset")}{" "}
+                · mulai {wib(s.buka_at)}
               </p>
               {s.legacy ? (
                 <p className="text-sm text-amber-800">
@@ -249,7 +253,14 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
                   tanpa menyentuh sesi ini, gunakan Simulasi POS di atas.
                 </p>
               ) : !s.perangkat_id ? (
-                <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">Reset berhasil. Buka <Link href="/pos" className="font-bold underline">POS di perangkat ini</Link> lalu masukkan kode staf dan PIN yang sama. Sesi dan modal diteruskan otomatis.</p>
+                <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">
+                  Reset berhasil. Buka{" "}
+                  <Link href="/pos" className="font-bold underline">
+                    POS di perangkat ini
+                  </Link>{" "}
+                  lalu masukkan kode staf dan PIN yang sama. Sesi dan modal
+                  diteruskan otomatis.
+                </p>
               ) : pending ? (
                 <>
                   <p className="rounded-xl bg-amber-50 p-3 text-sm">

@@ -8,6 +8,7 @@ export type TimStatus = {
     menu: Record<string, { langsung: number; ojol: number }>;
     varian: Record<string, number>;
   };
+  pic?: { id: string; nama: string } | null;
   server_at: string;
   device: { id: string; nama: string; status: string } | null;
   sesi: {
@@ -20,6 +21,7 @@ export type TimStatus = {
     shift_id: string;
     tanggal: string;
     legacy: boolean;
+    kas_harian?: boolean;
     perangkat_sama: boolean;
     menunggu_reset?: boolean;
     aktif_tim: boolean;

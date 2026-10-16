@@ -64,7 +64,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/produsen_titipan", label: "Produsen Titipan", stage: 4 },
       { href: "/gudang/pembelian", label: "Pembelian Supplier", stage: 5 },
       { href: "/gudang/mutasi", label: "Waste & Transfer Stok", stage: 5 },
-      { href: "/pengguna", label: "Pengguna & Akses", stage: 3 },
+      { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/laporan", label: "Laporan Keuangan", stage: 4 },
       { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
@@ -123,7 +123,7 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/master/karyawan", label: "Karyawan", stage: 2 },
-      { href: "/pengguna", label: "Akun Kasir & Barista", stage: 4 },
+      { href: "/pengguna", label: "Pengguna Matoer", stage: 4 },
       { href: "/persediaan", label: "Persediaan & HPP", stage: 4 },
       { href: "/jadwal", label: "Jadwal Shift", stage: 5 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
@@ -140,7 +140,7 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
-      { href: "/pengguna", label: "Pengguna & Persetujuan", stage: 3 },
+      { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/master/menu", label: "Menu", stage: 2 },
@@ -192,7 +192,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/menu", label: "Menu & Harga POS", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/hpp-menu", label: "HPP Menu", stage: 4 },
-      { href: "/pengguna", label: "Akun Kasir & Barista", stage: 4 },
+      { href: "/pengguna", label: "Pengguna Matoer", stage: 4 },
       { href: "/master/supplier", label: "Supplier", stage: 2 },
     ],
   },
@@ -287,7 +287,7 @@ const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
 };
 for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].menu.push(...items);
 
-for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":role==="admin_pusat"?"Perangkat & Sesi POS":"POS Tim, PIN & Tablet",stage:5});
+for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":"Akses Kasir POS Outlet",stage:5});
 
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);

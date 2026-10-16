@@ -696,3 +696,294 @@ it("prevents direct authenticated cash/session writes and private PIN reads", as
     q("delete from storage.objects where name=$1", [`${andi}/masuk.jpg`]),
   ).rejects.toThrow();
 });
+
+it("outlet credentials and daily PIC handovers preserve one drawer across S1/S2/S3", async () => {
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261016031138_pos_outlet_kas_harian.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261016032328_pos_outlet_login_indeks.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261016032634_pos_outlet_tutup_jalur_lama.sql",import.meta.url),"utf8"));
+  await as(owner);
+  await call("atur_akses_pos_outlet", [
+    o,
+    "outlet-uji",
+    "password-outlet-uji",
+    true,
+  ]);
+  await expect(call("buka_pos_tim",[o,device,"andi","1234",0,[andi],token])).rejects.toThrow(/akun POS outlet/);
+  await as(budi);
+  await expect(
+    call("atur_akses_pos_outlet", [o, "hacked", "password-outlet-uji", true]),
+  ).rejects.toThrow();
+  const bad = await call("masuk_pos_outlet", [
+    "outlet-uji",
+    "salah",
+    "x".repeat(64),
+    "z".repeat(40),
+  ]);
+  expect(bad.error).toBeTruthy();
+  const login = await call("masuk_pos_outlet", [
+    "outlet-uji",
+    "password-outlet-uji",
+    "x".repeat(64),
+    "z".repeat(40),
+  ]);
+  expect(login.email).toBeTruthy();
+  await as(owner);
+  const panel = await call<{ outlets: unknown[] }>("panel_pos_admin", []);
+  expect(panel.outlets.length).toBeGreaterThan(0);
+  const [tablet] = await q("select id from pengguna where email=$1", [
+    login.email,
+  ]);
+  await as(tablet.id as string);
+  await q("update pengguna set status='aktif' where id=any($1::uuid[])", [
+    [andi, budi],
+  ]);
+  await q(
+    "update absensi set pulang_at=null where pengguna_id=any($1::uuid[])",
+    [[andi, budi]],
+  );
+  await q(
+    "insert into penugasan(pengguna_id,peran,outlet_id) values($1,'barista',$2) on conflict do nothing",
+    [budi, o],
+  );
+  const opened = await call("pilih_pic_pos_outlet", [
+    o,
+    "x".repeat(64),
+    andi,
+    200000,
+    null,
+    "",
+    "1".repeat(64),
+  ]);
+  const daily = opened.sesi_id;
+  expect(
+    (await call("status_pos_tim", [o, "x".repeat(64), "1".repeat(64), false]))
+      .boleh,
+  ).toBe(true);
+  await expect(
+    call("pilih_pic_pos_outlet", [
+      o,
+      "x".repeat(64),
+      budi,
+      null,
+      null,
+      "",
+      "2".repeat(64),
+    ]),
+  ).rejects.toThrow(/fisik/);
+  for (const [i, pic] of [
+    [2, budi],
+    [3, andi],
+  ] as const) {
+    const sh = id(100 + i);
+    await q(
+      "insert into shift_outlet(id,outlet_id,nama,jam_mulai,jam_selesai) select $1,$2,$3,jam_mulai,jam_selesai from shift_outlet where id=$4",
+      [sh, o, "S" + i, shift],
+    );
+    await q(
+      "update jadwal_shift set shift_id=$1 where pengguna_id=$2 and outlet_id=$3",
+      [sh, pic, o],
+    );
+    const r = await call("pilih_pic_pos_outlet", [
+      o,
+      "x".repeat(64),
+      pic,
+      null,
+      200000,
+      "Diterima lengkap",
+      String(i).repeat(64),
+    ]);
+    expect(r.sesi_id).toBe(daily);
+    const st = await call<{ boleh: boolean; operator: { kasir: boolean } }>(
+      "status_pos_tim",
+      [o, "x".repeat(64), String(i).repeat(64), false],
+    );
+    expect(st.boleh).toBe(true);
+    expect(st.operator.kasir).toBe(true);
+    if (i === 2) {
+      await db.exec("begin");
+      try {
+        const sale = await call("buat_transaksi", [
+          {
+            ...payload(),
+            client_id: crypto.randomUUID(),
+            sesi_id: daily,
+            izin_id: r.izin_id,
+            device_token: "x".repeat(64),
+            pos_token: "2".repeat(64),
+            waktu_asli: new Date().toISOString(),
+          },
+        ]);
+        expect(sale.id).toBeTruthy();
+        expect(
+          (
+            await q("select operator_id from transaksi where id=$1", [sale.id])
+          )[0].operator_id,
+        ).toBe(budi);
+      } finally {
+        await db.exec("rollback");
+      }
+    }
+  }
+  expect(
+    Number(
+      (await q("select modal_laci from sesi_kas where id=$1", [daily]))[0]
+        .modal_laci,
+    ),
+  ).toBe(200000);
+  expect(
+    (await q("select * from pos_serah_terima where sesi_id=$1", [daily]))
+      .length,
+  ).toBe(3);
+  const other = await call("masuk_pos_outlet", [
+    "outlet-uji",
+    "password-outlet-uji",
+    "y".repeat(64),
+    "z".repeat(40),
+  ]);
+  const [otherUser] = await q("select id from pengguna where email=$1", [
+    other.email,
+  ]);
+  await as(otherUser.id as string);
+  await expect(
+    call("pilih_pic_pos_outlet", [
+      o,
+      "y".repeat(64),
+      andi,
+      999,
+      null,
+      "",
+      "4".repeat(64),
+    ]),
+  ).rejects.toThrow(/perangkat lain/);
+  await as(owner);
+  await call("atur_akses_pos_outlet", [o, "outlet-uji", "", false]);
+  await as(tablet.id as string);
+  expect(
+    (await call("status_pos_tim", [o, "x".repeat(64), "3".repeat(64), false]))
+      .boleh,
+  ).toBe(false);
+  await expect(
+    call("pilih_pic_pos_outlet", [
+      o,
+      "x".repeat(64),
+      andi,
+      null,
+      null,
+      "",
+      "5".repeat(64),
+    ]),
+  ).rejects.toThrow(/dinonaktifkan/);
+  await as(owner);
+  await call("atur_akses_pos_outlet", [o, "outlet-uji", "", true]);
+  await call("masuk_pos_outlet", [
+    "outlet-uji",
+    "password-outlet-uji",
+    "x".repeat(64),
+    "z".repeat(40),
+  ]);
+  await as(tablet.id as string);
+  await call("pilih_pic_pos_outlet", [
+    o,
+    "x".repeat(64),
+    andi,
+    null,
+    null,
+    "",
+    "6".repeat(64),
+  ]);
+  await call("tutup_kas_outlet", [
+    daily,
+    "x".repeat(64),
+    "",
+    "6".repeat(64),
+    200000,
+    "Tutup hari ini",
+    [],
+  ]);
+  expect(
+    (await q("select ditutup_at from sesi_kas where id=$1", [daily]))[0]
+      .ditutup_at,
+  ).toBeTruthy();
+  await expect(
+    call("pilih_pic_pos_outlet", [
+      o,
+      "x".repeat(64),
+      andi,
+      200000,
+      null,
+      "",
+      "7".repeat(64),
+    ]),
+  ).rejects.toThrow(/sudah ditutup/);
+});
+it("scopes outlet credentials and device administration at the database boundary", async () => {
+  const hrd = id(110),
+    outside = id(111);
+  await as(owner);
+  await q("insert into auth.users(id,email) values($1,'hrd-scope@test.id')", [
+    hrd,
+  ]);
+  await q(
+    "insert into pengguna(id,nama,email,status) values($1,'HRD Terbatas','hrd-scope@test.id','aktif')",
+    [hrd],
+  );
+  await q(
+    "insert into penugasan(pengguna_id,peran,outlet_id) values($1,'hrd',$2)",
+    [hrd, o],
+  );
+  await q("insert into outlet(id,nama) values($1,'Outlet Lain')", [outside]);
+  await as(hrd);
+  const rows = await call<{ id: string }[]>("panel_akses_pos_outlet", []);
+  expect(rows.map((x) => x.id)).toEqual([o]);
+  await expect(
+    call("atur_akses_pos_outlet", [
+      outside,
+      "outlet-lain",
+      "password-outlet-lain",
+      true,
+    ]),
+  ).rejects.toThrow(/berwenang/);
+  await expect(
+    call("reset_akses_pos", [null, "Reset semua perangkat"]),
+  ).rejects.toThrow(/kewenangan/);
+  const panel = await call<{ outlets: { id: string }[] }>(
+    "panel_pos_admin",
+    [],
+  );
+  expect(panel.outlets.every((x) => x.id === o)).toBe(true);
+  for (const sig of [
+    "pilih_pic_pos_outlet(uuid,text,uuid,bigint,bigint,text,text)",
+    "atur_akses_pos_outlet(uuid,text,text,boolean)",
+    "tutup_kas_outlet(uuid,text,text,text,bigint,text,uuid[])",
+    "masuk_pos_tablet(text,text,uuid,text,text)",
+  ]) {
+    expect(
+      (
+        await q("select has_function_privilege('anon',$1,'execute') ok", [sig])
+      )[0].ok,
+    ).toBe(false);
+  }
+  expect(
+    (
+      await q(
+        "select has_table_privilege('authenticated','matur_internal.pos_outlet_akses','select') ok",
+      )
+    )[0].ok,
+  ).toBe(false);
+});

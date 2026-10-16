@@ -1,68 +1,36 @@
-# Operasional karyawan dan POS tim
+# POS outlet dan kas harian
 
-Karyawan masuk dengan email/password ke Matoer, memilih outlet bertugas, lalu membuka Dashboard & Absen. Akun baru menunggu persetujuan HRD/Admin Gudang/Owner. Identitas absensi dan penggajian tetap per orang.
+Login utama `/pos` menggunakan username dan password **outlet**, dibuat lewat **Akses Kasir POS Outlet → Akun POS Outlet**. Akun ini terpisah dari Pengguna Matoer. Password disimpan sebagai hash; admin menggantinya, bukan membacanya. Mengganti password/mengaktifkan ulang akses mengharuskan login outlet kembali. HRD dan gudang hanya mengelola outlet dalam penugasannya; penugasan global tetap mencakup semua outlet.
 
-## Persiapan admin
+Setiap browser memakai identitas Auth tablet tersembunyi tersendiri. Kredensial outlet bersama tidak menggabungkan semua perangkat menjadi satu identitas. Perangkat dicabut tetap ditolak walaupun password outlet benar.
 
-1. Buka **POS Tim, PIN & Tablet**. Tetapkan kode staf dan PIN tersendiri. Tombol mata hanya tersedia untuk Owner, HRD, dan Admin Gudang; setiap pembukaan PIN tercatat, dan tampilan disembunyikan setelah 20 detik.
-2. Akun lama beralamat `@pin.matur.id` perlu dihubungkan ke email pribadi melalui panel yang sama. UID dan riwayat tetap sama. PIN lama yang hanya tersimpan sebagai hash perlu ditetapkan ulang sebelum bisa ditampilkan.
-3. Periksa outlet dan akses kasir staf, terbitkan jadwal, lalu atur koordinat/radius absensi. Tanpa koordinat outlet, GPS tetap wajib tetapi dashboard menandai jarak belum diverifikasi.
-4. Di tablet fisik outlet, masuk dengan akun karyawan, pilih Buka POS, dan ajukan tablet. Admin mencocokkan nama/ID permintaan dengan perangkat fisik sebelum menyetujui. Pendaftaran melekat pada cookie browser; menghapus data browser menghilangkan identitas perangkat dan antrean lokal.
-5. Sesi kas skema lama yang masih terbuka harus diperiksa dan ditutup oleh SPV/Owner melalui panel. Riwayat tidak dihapus otomatis.
+## Alur harian
 
-## Setiap shift
+1. Staf Clock In lewat akun pribadinya; payroll/absensi tidak menggunakan akun outlet.
+2. Login outlet, pilih PIC dari staf aktif dengan jadwal terbit yang sedang berlaku dan sudah Clock In/belum Clock Out.
+3. Pembukaan kas pertama meminta modal fisik sekali. Semua anggota hadir pada shift PIC dicatat otomatis sebagai tim.
+4. S1 → S2 → S3: menu Ganti PIC / Serah terima di beranda POS; pilih PIC penerima, isi pemeriksaan uang fisik, catatan selisih bila berbeda, konfirmasi penerimaan. Tidak ada input modal baru. Nomor sesi kas dan modal tetap; jadwal/PIC aktif berganti.
+5. Pergantian PIC dalam shift yang sama tetap mencatat serah terima. Membuka kunci kembali dengan PIC sama cukup memilih nama, tanpa menghitung modal lagi.
+6. Shift terakhir menutup kas harian melalui menu Kas. Kas tanggal yang sudah ditutup tidak dapat dibuka ulang secara biasa; hubungi admin jika ada pengecualian. Jangan menutup kas pada S1/S2 bila outlet masih beroperasi.
 
-- Setiap anggota Clock In dari HP sendiri, mengambil foto kamera, lokasi GPS, dan catatan opsional. Waktu serta menit keterlambatan dihitung server. Clock Out juga memerlukan foto dan GPS baru.
-- Di tablet, petugas berakses kasir memasukkan kode/PIN, modal fisik awal, dan mengonfirmasi anggota yang sudah hadir pada jadwal yang sama. Satu outlet hanya memiliki satu sesi tim terbuka.
-- Anggota dapat bergantian memakai layar yang sama. Transaksi menjadi tanggung jawab tim; sistem tidak mengklaim mengetahui orang yang menekan tombol. Anggota terlambat dapat bergabung melalui dashboard setelah absen.
-- Pembuka yang Clock Out lebih awal tidak menutup kas selama ada anggota tim bertugas. Membuka ulang layar yang terkunci memerlukan PIN anggota yang masih hadir dan berakses kasir. Semua anggota pulang atau jam berakhir menghentikan penjualan baru. SPV/Owner dapat mencatat perpanjangan dengan alasan.
-- Penerimaan gudang, setoran, izin, jadwal, dan slip gaji dibuka dari akun pribadi. Setoran mencatat penyerah, pengambil/PIC, waktu, rincian tanggal omzet, serta foto pengambil/bukti transfer.
-- Setoran dari laci tim langsung mengurangi uang fisik laci meskipun bukti menunggu/ditolak Akunting. Perbaikan bukti memakai referensi penyerahan sebelumnya dan nominal yang sama; tidak memotong laci dua kali.
-- Tutup kas di tablet dengan kode/PIN anggota/SPV, hitung **seluruh uang fisik tersisa termasuk modal**, dan beri alasan jika selisih/antrean belum kosong. Setoran dan hitung kas adalah dua catatan berbeda. Selisih tidak otomatis menjadi potongan gaji.
+Pemilihan nama PIC adalah pernyataan melalui akun outlet bersama, **bukan autentikasi pribadi**. PIC dan anggota tim tercatat, namun sistem tidak membuktikan siapa yang menekan dropdown. Otorisasi SPV untuk diskon/void tetap terpisah. Riwayat PIC, waktu, shift, uang fisik, saldo seharusnya dan catatan dapat dilihat admin pada Riwayat Serah Terima; transaksi tetap memiliki operator dan waktu untuk penelusuran per shift.
 
-## Offline dan pemulihan
+## Perangkat dan offline
 
-Offline tersedia setelah pembukaan sesi online pada tablet yang disetujui. Izin default 30 menit, dapat diatur 1–120 menit, tetap dibatasi akhir shift. Hanya tunai tanpa split, draft, atau persetujuan diskon khusus. Absensi dan penutupan kas membutuhkan internet.
+Satu perangkat menguasai sesi kas outlet. Perangkat lain tidak membuka kas kedua. Gunakan kontrol admin Pindah Perangkat atau Reset Akses, dengan aturan izin offline yang sudah berlaku. Sesi/modal/transaksi tidak dihapus. Sesi tim yang lama dapat dilanjutkan sebagai kas harian pada perangkat yang sah dengan hitungan serah terima, sedangkan sesi legacy bukan tim harus ditutup admin dahulu.
 
-Transaksi tunai biasa disimpan ke IndexedDB sebelum dikirim; struk offline hanya muncul setelah penyimpanan selesai. Antrean mengirim otomatis saat online dan menggunakan ID tetap agar stok/omzet tidak ganda. Jangan keluar akun atau menghapus data browser saat antrean masih ada. Salinan JSON antrean bisa diunduh untuk pemeriksaan admin.
+Pembukaan, ganti PIC dan serah terima harus online serta antrean tablet harus kosong. Transaksi tunai offline tetap memiliki batas izin; sinkronisasi memakai ID stabil agar tidak menggandakan stok/omzet. Rekap tetap sementara bila perangkat asal belum selesai sinkron. Admin tidak dapat memutus browser offline secara instan; izin lama dibatasi waktu.
 
-Antrean mempertahankan waktu kejadian dan harga yang disahkan saat izin diterbitkan. Perubahan resep/HPP, pencabutan perangkat/akses, atau keterlambatan sinkronisasi lebih dari 24 jam memerlukan pemeriksaan SPV; data lokal tetap disimpan dan pesan kesalahan ditampilkan. Tidak ada penggantian harga/HPP atau penghapusan antrean secara diam-diam. Penutupan dengan antrean terdaftar menghasilkan rekap sementara, lalu diperbarui setelah semuanya diterima.
+Data uang diambil/disetor tetap dicatat sebagai pergerakan kas/setoran; pemeriksaan uang fisik serah terima tidak menambah omzet atau modal. Selisih tidak otomatis memotong gaji.
 
-Perubahan keadaan server ketika tablet benar-benar offline baru diketahui saat terhubung kembali; batas izin membatasi jendela ini. Jam/perangkat browser tidak setara perangkat keras tepercaya. Admin perlu menyetujui dan menjaga tablet fisik serta memeriksa setiap transaksi yang gagal sinkron.
+## Pengelolaan terpisah
 
-## Validasi perubahan
+- **Pengguna Matoer**: akun pribadi, status, peran, outlet; tersembunyi dari daftar ini adalah akun teknis tablet.
+- **Akses Kasir POS Outlet**: akun outlet, perangkat, kas harian, riwayat serah terima dan aturan shift/lokasi.
+- Simulasi admin `/pengaturan/pos/simulasi` menggunakan menu/harga aktual dengan keranjang lokal; tidak mengubah penjualan, stok atau kas asli.
 
-Jalankan `npx vitest run --maxWorkers=1`, `npm run lint`, dan `npm run build`. Pengujian SQL memakai PostgreSQL/PGlite dengan schema produksi tanpa data pengguna; kriptografi/Vault diuji terpisah pada Supabase dengan transaksi rollback. Uji alur kamera, GPS, izin browser, printer, dan putus-sambung internet pada HP/tablet fisik sebelum operasional penuh.
+## Verifikasi
 
-Pemeriksaan Supabase pada perubahan ini memastikan RPC baru tidak dapat dijalankan anonim, tabel bukti/izin/PIN berada di schema privat dengan akses ditolak, dan indeks relasi baru tersedia. Advisor masih mencatat temuan warisan di luar alur baru, termasuk search_path dua fungsi lama, ekstensi pg_net di public, dan izin eksekusi anonim beberapa RPC lama. Ini memerlukan audit terpisah sebelum menyebut seluruh aplikasi bebas temuan keamanan: [panduan advisor RPC](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable). Tabel privat baru memang memakai RLS tanpa policy agar tidak memiliki akses baris langsung; hanya fungsi terotorisasi yang membacanya.
+Pengujian SQL mencakup S1/S2/S3 pada satu sesi/modal, PIC barista dapat menerima pembayaran, larangan perangkat lain, penonaktifan akses, penutupan kas, pembatasan HRD per outlet, serta regresi antrean offline/perpindahan/rekonsiliasi. PGlite menggunakan crypto double; operasi hash/Auth diverifikasi terpisah pada PostgreSQL Supabase dengan transaksi rollback.
 
-## Tablet outlet di `/pos` (kode staf + PIN, akun tablet tersembunyi)
-
-- Satu alamat untuk semua cabang: buka `/pos` di tablet dan masuk dengan **kode staf + PIN POS** (tanpa email/password, tanpa admin). Outlet mengikuti penugasan staf (bila lebih dari satu, staf memilih). RPC `masuk_pos_tablet` (boleh dipanggil anon) memeriksa PIN dengan batas 5 kali salah/15 menit per staf dan 50 kali salah/15 menit untuk kode tak dikenal, lalu membuat atau memakai ulang akun `tablet` (peran `tablet`, `pengguna.akun_tablet = true`) untuk perangkat itu. Password akun tablet acak dan diganti setiap kali masuk; tidak disimpan di mana pun. Maksimal 10 tablet aktif per outlet.
-- Bila shift tim di tablet itu masih berjalan, login yang sama langsung membuka kunci. Bila belum ada shift, anggota berakses kasir membuka shift (modal laci + centang anggota yang sudah Clock In).
-- Akun tablet memenuhi `peran_di_outlet` untuk kasir/barista di outletnya saja (bukan SPV), tidak muncul di daftar pengguna, dan ikut nonaktif saat tablet dicabut di **POS Tim, PIN & Tablet**.
-- Layar terkunci otomatis setelah 5 menit tanpa sentuhan. Anggota tim mana pun yang masih bertugas (termasuk barista) bisa membuka kunci dengan PIN; ia menjadi **operator** yang tercatat di `transaksi.operator_id/operator_nama`, struk, dan riwayat.
-- Operator tanpa akses kasir hanya bisa menyimpan draft dan mengelola antrean; pembayaran ditolak server (`buat_transaksi`) dan tombol Bayar disembunyikan.
-- Beranda tablet: Kasir · Antrean · Draft · Riwayat & Void · Kas & Pengeluaran · Produk Endorse · Stok · Printer · Kunci layar · Tutup Shift.
-
-## Pindah perangkat pada shift yang sama
-
-Admin Pusat, HRD, Owner, dan Admin Gudang dapat membuka **Perangkat & Sesi POS / POS Tim, PIN & Tablet → Perangkat & Pindah POS**. Panel menampilkan nama perangkat dan browser/OS, nama staf yang terakhir masuk POS, operator PIN terakhir, pembuka shift, waktu terakhir terhubung, dan jumlah antrean terakhir. Ini membedakan akun tablet internal dengan petugas manusia. Informasi login/browser baru terisi setelah perangkat kembali terhubung atau staf login ulang; waktu terakhir terhubung bukan jaminan perangkat masih online.
-
-Di browser tujuan, admin memilih sesi aktif, mengisi nama perangkat dan alasan, lalu menekan **Pindahkan POS ke perangkat ini**. Perangkat asal dibekukan untuk transaksi online dan diminta mengirim antrean. Setelah asal mengunci serta melaporkan antrean kosong, perpindahan dapat diselesaikan langsung. Jika asal tidak dapat dihubungi, admin harus menunggu batas izin offline asal habis dan mengakui perlunya pemeriksaan antrean yang belum diketahui. Tombol penyelesaian memeriksa ulang waktu dan identitas browser di server; tidak cukup mengubah jam perangkat.
-
-Setelah selesai, buka `/pos` pada browser tujuan dan masukkan **kode staf serta PIN yang sama**. Sesi kas, tanggal/jam shift, modal awal, pembuka, tim, dan transaksi tidak diganti atau ditutup. Staf yang membuka kembali tetap harus anggota tim yang sedang hadir. Batas jam shift tetap berlaku; pindah perangkat tidak memperpanjang shift.
-
-Akses transaksi baru dari asal dicabut, tetapi identitas tablet asal dipertahankan untuk mengunggah transaksi historis yang masih sesuai izin aslinya. Bukti antrean tidak dihapus dan harga/HPP tetap diperiksa. Sinkronisasi yang gagal tampil sebagai kendala untuk pemeriksaan admin. Perangkat yang benar-benar offline tidak bisa menerima perintah seketika; proses perpindahan menunggu batas izinnya supaya tidak ada penjualan sah yang bertumpuk.
-
-Permintaan yang belum selesai dapat dibatalkan dengan alasan. Sesi tetap terbuka di asal dan petugas membuka kembali memakai PIN; riwayat permintaan/batal tetap dicatat. Mengaktifkan perangkat tidak otomatis memindahkan sesi. Perangkat skema kas lama perlu pemeriksaan Owner/SPV; fitur ini tidak mengarang jadwal/tim atau menghapus riwayatnya.
-
-**Simulasi POS** tersedia langsung dari panel admin tanpa memindahkan sesi produksi. Menu/harga dibaca untuk latihan; keranjang, diskon, kembalian, dan struk bertanda SIMULASI hanya berada dalam memori halaman. Tidak memanggil RPC penjualan, tidak menulis antrean asli, dan tidak mengubah stok/omzet/kas/setoran/laporan. Latihan hilang saat halaman dimuat ulang.
-
-Jika sumber belum dapat dihubungi saat perpindahan diselesaikan, penutupan kas di tujuan tetap boleh dilakukan agar shift berikutnya berjalan, tetapi **rekap tetap sementara**. Transaksi historis sumber yang sesuai izin masih diterima setelah penutupan dan memperbarui kas seharusnya/selisih. Rekap baru final setelah seluruh antrean yang terdaftar selesai dan semua perangkat asal melaporkan antrean bersih. Kendala HPP, batas sinkronisasi, atau data browser yang dihapus tetap memerlukan pemeriksaan admin; tidak ada penyesuaian omzet diam-diam.
-
-## Reset akses yang tersangkut
-
-Admin dapat memilih outlet (atau semua outlet), mengisi alasan, lalu **Reset akses perangkat**. Operasi ini mengaktifkan kembali perangkat, membersihkan pembatas percobaan PIN, membatalkan perpindahan yang belum selesai, dan melepas ikatan perangkat pada sesi tim terbuka. Reset ditolak bila izin offline lama belum habis, agar tidak ada izin penjualan bertumpuk.
-
-Setelah reset, buka `/pos` dan masukkan kode staf/PIN yang sama. Perangkat pertama yang berhasil diverifikasi sebagai anggota tim hadir pada jadwal yang sama mengambil kembali sesi tersebut; tidak perlu memasukkan modal lagi. Modal, transaksi, pembuka dan riwayat tetap sama. Jika sumber berbeda, riwayat perpindahan tetap dibuat untuk menerima antrean historis dan menjaga rekap sementara. Sesi kas skema lama tidak dihapus atau ditutup dengan angka kas rekaan. Absensi serta batas jam shift tetap berlaku.
+Endpoint login outlet sengaja menerima pemanggil belum login (`anon`) dengan verifikasi bcrypt dan pembatasan percobaan. RPC admin tidak bisa dipanggil anon. Tabel rahasia di schema private sengaja memakai RLS tanpa policy dan pencabutan hak langsung; akses melalui fungsi dengan pemeriksaan kewenangan. Temuan advisor mengenai pola ini adalah batas akses yang disengaja, bukan tabel publik tanpa RLS.

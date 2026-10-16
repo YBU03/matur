@@ -110,7 +110,7 @@ export function PosRuntime({
         void hapusSnapshot().catch(() => {});
         if (navigator.onLine) void kunciPos().catch(() => {});
         setLocked(
-          "POS terkunci setelah tidak digunakan 5 menit. Hubungkan internet untuk membuka kembali dengan PIN.",
+          "POS terkunci setelah tidak digunakan 5 menit. Hubungkan internet untuk memilih PIC shift.",
         );
       }
     }, 1000);
@@ -157,7 +157,7 @@ export function PosRuntime({
           }}
           className="rounded-xl bg-kopi-900 px-4 py-3 text-sm text-white"
         >
-          Periksa koneksi & buka dengan PIN
+          Periksa koneksi & pilih PIC shift
         </button>
         <Link href="/kasir/shift" className="block text-sm underline">
           Hitung / tutup kas
@@ -180,7 +180,7 @@ export function PosRuntime({
             idleLocked.current = true;
             void hapusSnapshot().catch(() => {});
             setLocked(
-              "POS dikunci. Verifikasi PIN anggota yang masih bertugas untuk melanjutkan.",
+              "POS dikunci. Pilih PIC dari anggota yang masih bertugas untuk melanjutkan.",
             );
             try {
               await kunciPos();

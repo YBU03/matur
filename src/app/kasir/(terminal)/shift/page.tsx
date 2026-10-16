@@ -79,7 +79,9 @@ export default async function KasPage() {
     <div className="space-y-4">
       {kasTim && (
         <div id="tutup" className="scroll-mt-20">
-          <TutupKasTim kas={kasTim as KasTim} />
+          <TutupKasTim
+            kas={{ ...(kasTim as KasTim), kas_harian: pos.sesi?.kas_harian }}
+          />
         </div>
       )}
       <KasView

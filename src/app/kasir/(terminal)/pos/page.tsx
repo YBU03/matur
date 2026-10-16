@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -11,6 +11,7 @@ import { type Draft, type PosMenu } from "./pos-screen";
 export default async function PosPage() {
   const s = await getSession();
   if (!s?.active?.outletId || !BISA_JUAL.includes(s.active.role)) notFound();
+  if(s.active.role!=="tablet")redirect("/pos");
   const supabase = await supabaseServer();
   const status = await statusPos(s.active.outletId);
   if (!status.boleh)

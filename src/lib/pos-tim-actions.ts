@@ -117,7 +117,7 @@ export async function kunciPos(): Promise<PosHasil> {
   const r = await rpc(
     "kunci_pos_tim",
     { p_outlet: s.active.outletId, p_device: p.device, p_token: p.token },
-    "POS dikunci; gunakan PIN anggota yang masih bertugas untuk melanjutkan.",
+    "POS dikunci; pilih PIC yang masih bertugas untuk melanjutkan.",
   );
   if (!r.error) (await cookies()).delete(POS_UNLOCK);
   return r;
@@ -278,7 +278,7 @@ export async function selesaikanPindahPos(
   return rpc(
     "selesaikan_pindah_pos",
     { p_id: id, p_rahasia: proof.device, p_akui: akui },
-    "POS dipindahkan. Shift, modal dan transaksi tetap sama. Buka /pos dengan kode staf dan PIN yang sama.",
+    "POS dipindahkan. Shift, modal dan transaksi tetap sama. Buka /pos dengan akun outlet dan pilih PIC shift.",
   );
 }
 export async function laporPerangkatPos(
@@ -317,6 +317,6 @@ export async function resetAksesPos(outlet: string | null, alasan: string) {
   return rpc(
     "reset_akses_pos",
     { p_outlet: outlet, p_alasan: alasan },
-    "Akses perangkat direset. Login ulang di /pos dengan kode staf/PIN yang sama; perangkat pertama yang valid melanjutkan sesi tim tanpa mengulang modal.",
+    "Akses perangkat direset. Login ulang di /pos dengan akun outlet; perangkat pertama yang valid melanjutkan sesi tim tanpa mengulang modal.",
   );
 }
