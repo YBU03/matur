@@ -1,5 +1,6 @@
 "use client";
 
+import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -19,7 +20,7 @@ const STATUS: Record<string, string> = {
 };
 
 // mode normal: tanpa penandaan pembeli; mode split: tiap barang ditandai dibeli pusat / mitra (dropdown)
-export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; budget: number; outlet: string; split: boolean }; items: Item[]; admin: boolean }) {
+export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; outlet: string; split: boolean }; items: Item[]; admin: boolean }) {
   const router = useRouter();
   const [pendingMode, startMode] = useTransition();
   const split = proyek.split;
@@ -33,6 +34,7 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
       (!kata || [i.nama, i.spesifikasi, i.bagian, i.keterangan, i.kategori].some((v) => v?.toLowerCase().includes(kata))),
   );
   const groups = groupRab(items);
+  const grandTotal = totalEstimasiRab(semua);
   const total = groups.reduce((s, g) => s + g.estimasi, 0);
   const realisasi = groups.reduce((s, g) => s + g.realisasi, 0);
   const totalOleh = (o: string) => semua.filter((i) => (i.dibeli_oleh ?? "kantor") === o).reduce((s, i) => s + i.harga_estimasi, 0);
@@ -124,16 +126,13 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
           </a>
         ))}
         <div className="rounded-2xl bg-kopi-700 p-4 text-white">
-          <p className="text-xs text-white/70">Grand Total</p>
-          <p className="text-lg font-bold">{formatRupiah(total)}</p>
+          <p className="text-xs text-white/70">Grand Total RAB</p>
+          <p className="text-lg font-bold">{formatRupiah(grandTotal)}</p>
           <p className="text-xs text-white/70">
-            Budget {formatRupiah(proyek.budget)}{realisasi > 0 && ` · Realisasi ${formatRupiah(realisasi)}`}
+            {kata || oleh ? `Subtotal tampilan ${formatRupiah(total)}` : `${semua.length} item dari seluruh kategori`}{realisasi > 0 && ` · Realisasi tampilan ${formatRupiah(realisasi)}`}
           </p>
         </div>
       </section>
-      {proyek.budget > 0 && total > proyek.budget && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Total keperluan melebihi estimasi budget proyek sebesar {formatRupiah(total - proyek.budget)}.</p>
-      )}
 
       {items.length === 0 && (
         <p className="rounded-2xl border border-dashed border-matur-300 bg-white py-10 text-center text-stone-500">

@@ -204,7 +204,7 @@ export const ENTITIES: Record<string, Entity> = {
     fields: [
       { key: "nama", label: "Nama Proyek", type: "text", required: true },
       { key: "outlet_id", label: "Outlet", type: "select", ref: { table: "outlet", label: "nama" }, required: true },
-      { key: "estimasi_budget", label: "Estimasi Biaya", type: "money", required: true },
+      { key: "estimasi_budget", label: "Budget awal", type: "money", required: true },
       { key: "tgl_mulai", label: "Tanggal Mulai", type: "date" },
       { key: "tgl_soft_opening", label: "Soft Opening", type: "date" },
       { key: "target_buka", label: "Grand Opening", type: "date" },

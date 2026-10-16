@@ -1,4 +1,5 @@
 import "server-only";
+import { totalEstimasiRab } from "./rab-total";
 import { supabaseServer } from "./supabase/server";
 
 export type Proyek = {
@@ -89,7 +90,7 @@ export async function daftarProyek(): Promise<Ringkasan[]> {
     ...p,
     progres: progresTotal((ks ?? []).filter((k) => k.proyek_id === p.id)),
     realisasi: (rab ?? []).filter((r) => r.proyek_id === p.id).reduce((s, r) => s + (r.harga_realisasi ?? 0), 0),
-    estimasiRab: (rab ?? []).filter((r) => r.proyek_id === p.id).reduce((s, r) => s + r.harga_estimasi, 0),
+    estimasiRab: totalEstimasiRab((rab ?? []).filter((r) => r.proyek_id === p.id)),
   }));
 }
 

@@ -25,7 +25,7 @@ export function ProyekCard({ p }: { p: Ringkasan }) {
       </div>
       <Progress value={p.progres} className="my-3" />
       <div className="grid grid-cols-2 gap-1 text-xs text-stone-600">
-        <span>Budget {formatRupiah(p.estimasi_budget)}</span>
+        <span>Grand Total RAB {formatRupiah(p.estimasiRab)}</span>
         <span className="text-right">Realisasi {formatRupiah(p.realisasi)}</span>
         <span>{p.target_buka ? `Target buka ${formatTanggal(p.target_buka)}` : "Target buka belum diatur"}</span>
         <span className="text-right">{p.status === "selesai" ? "Selesai ✅" : hari !== null ? (hari >= 0 ? `${hari} hari lagi` : `lewat ${-hari} hari`) : ""}</span>
