@@ -52,7 +52,7 @@ export async function gantiPin(_: Result, form: FormData): Promise<Result> {
 
 export type HasilProfil = Result & { kurang?: string[] };
 
-// Profil lengkap karyawan outlet (wajib): foto diri, NIK, TTL, alamat KTP, sharelok rumah, kontak darurat.
+// Profil lengkap karyawan outlet (wajib): foto diri, TTL, alamat KTP, sharelok rumah, kontak darurat.
 // Foto dikompres di browser lalu diunggah ke bucket privat "profil/<uid>/…".
 export async function simpanProfilLengkap(form: FormData): Promise<HasilProfil> {
   const supabase = await supabaseServer();
@@ -71,12 +71,9 @@ export async function simpanProfilLengkap(form: FormData): Promise<HasilProfil> 
   const maps = nilai("maps_url");
   if (maps && !/^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(maps))
     return { error: "Link sharelok harus dari Google Maps (contoh: https://maps.app.goo.gl/…)." };
-  const nik = nilai("nik").replace(/\D/g, "");
-  if (nik && nik.length !== 16) return { error: "NIK harus 16 angka sesuai KTP." };
   const { data, error } = await supabase.rpc("simpan_profil_karyawan", {
     p: {
       foto_path: foto,
-      nik,
       jenis_kelamin: nilai("jenis_kelamin"),
       tempat_lahir: nilai("tempat_lahir"),
       tgl_lahir: nilai("tgl_lahir"),

@@ -11,7 +11,6 @@ type Baris = {
   kurang: string[];
   profil: {
     foto_path: string | null;
-    nik: string | null;
     jenis_kelamin: string | null;
     tempat_lahir: string | null;
     tgl_lahir: string | null;
@@ -24,7 +23,7 @@ type Baris = {
   } | null;
 };
 
-// HRD/Owner: profil lengkap karyawan outlet (foto, NIK, TTL, alamat KTP, sharelok rumah, kontak darurat).
+// HRD/Owner: profil lengkap karyawan outlet (foto, TTL, alamat KTP, sharelok rumah, kontak darurat).
 export default async function ProfilKaryawan({
   searchParams,
 }: {
@@ -122,8 +121,6 @@ export default async function ProfilKaryawan({
                 <span className="text-stone-400 group-open:rotate-90">›</span>
               </summary>
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-3 text-sm">
-                <dt className="text-stone-500">NIK</dt>
-                <dd>{p?.nik ?? "-"}</dd>
                 <dt className="text-stone-500">TTL</dt>
                 <dd>
                   {p?.tempat_lahir ?? "-"}

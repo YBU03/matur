@@ -8,7 +8,6 @@ import { simpanProfilLengkap, type HasilProfil } from "@/lib/profil-actions";
 
 export type ProfilLengkap = {
   foto_url: string | null;
-  nik: string | null;
   jenis_kelamin: string | null;
   tempat_lahir: string | null;
   tgl_lahir: string | null;
@@ -24,7 +23,7 @@ export type ProfilLengkap = {
 const label = "block text-sm font-semibold text-kopi-900";
 const wajib = <span className="text-red-600"> *</span>;
 
-/** Form profil lengkap karyawan (wajib): foto asli, NIK, TTL, alamat KTP, sharelok rumah, kontak darurat. */
+/** Form profil lengkap karyawan (wajib): foto asli, TTL, alamat KTP, sharelok rumah, kontak darurat. */
 export function FormProfilLengkap({ p }: { p: ProfilLengkap }) {
   const router = useRouter();
   const [preview, setPreview] = useState<string | null>(p.foto_url);
@@ -96,17 +95,6 @@ export function FormProfilLengkap({ p }: { p: ProfilLengkap }) {
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className={label}>
-          NIK (sesuai KTP){wajib}
-          <input
-            name="nik"
-            defaultValue={p.nik ?? ""}
-            inputMode="numeric"
-            maxLength={20}
-            placeholder="16 angka"
-            className={masukan}
-          />
-        </label>
         <label className={label}>
           Jenis kelamin{wajib}
           <select

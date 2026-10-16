@@ -56,7 +56,6 @@ export default async function ProfilStaf() {
           <FormProfilLengkap
             p={{
               foto_url: fotoUrl,
-              nik: pk?.nik ?? null,
               jenis_kelamin: pk?.jenis_kelamin ?? null,
               tempat_lahir: pk?.tempat_lahir ?? null,
               tgl_lahir: pk?.tgl_lahir ?? null,

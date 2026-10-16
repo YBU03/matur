@@ -21,7 +21,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   if (!s.assignments.some((a) => POS_ROLES.includes(a.role))) redirect(s.status === "aktif" ? "/dashboard" : "/menunggu");
 
   const supabase = await supabaseServer();
-  // profil wajib lengkap (foto, NIK, TTL, alamat KTP, sharelok, kontak darurat); absen tetap boleh agar shift tidak terhambat
+  // profil wajib lengkap (foto, TTL, alamat KTP, sharelok, kontak darurat); absen tetap boleh agar shift tidak terhambat
   const path = (await headers()).get("x-matur-pathname") ?? "/karyawan";
   const { data: kurang } = await supabase.rpc("profil_kurang", { p_uid: s.userId });
   if ((kurang ?? []).length && !path.startsWith("/karyawan/profil") && !path.startsWith("/karyawan/absen")) redirect("/karyawan/profil#lengkapi");
