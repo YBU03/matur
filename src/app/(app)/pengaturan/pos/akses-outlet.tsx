@@ -1,4 +1,5 @@
 "use client";
+import { InputSandi, SandiOutlet } from "./sandi-outlet";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
@@ -103,8 +104,8 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
         <span aria-hidden>ℹ️</span>
         <span>
           Kelola akun kasir POS per outlet. Akun pribadi Pengguna Matoer tetap
-          terpisah. Satu outlet memiliki satu akses POS; password disimpan
-          sebagai hash.
+          terpisah. Satu outlet memiliki satu akses POS. Sandi hanya dapat
+          dilihat oleh admin yang berwenang.
         </span>
       </p>
       <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-matur-100 bg-white p-3 shadow-sm sm:p-4">
@@ -172,9 +173,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 {o.username}
               </dd>
             </dl>
-            <p className="text-xs text-stone-500">
-              Password disembunyikan · ganti melalui Edit.
-            </p>
+            <SandiOutlet key={`${o.id}:${o.diubah_at}`} outlet={o} />
             <div className="flex gap-2 border-t border-stone-100 pt-3">
               <button
                 type="button"
@@ -356,7 +355,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
                 {editor.baru
                   ? "Password outlet"
                   : "Password baru · kosongkan jika tetap"}
-                <input
+                <InputSandi
                   value={editor.password}
                   onChange={(e) =>
                     setEditor({ ...editor, password: e.target.value })
