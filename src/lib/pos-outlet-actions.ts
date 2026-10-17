@@ -107,3 +107,30 @@ export async function tutupKasOutlet(
     ok: "Kas harian ditutup. Rekap tetap sementara bila masih ada antrean offline.",
   };
 }
+
+export async function lihatSandiOutlet(outlet: string): Promise<{
+  sandi?: string;
+  belum_tersimpan?: boolean;
+  error?: string;
+}> {
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("lihat_sandi_pos_outlet", {
+    p_outlet: outlet,
+  });
+  if (error) return { error: error.message };
+  return data ?? { error: "Sandi belum dapat ditampilkan." };
+}
+export async function simpanSandiLamaOutlet(
+  outlet: string,
+  sandi: string,
+  versi: string | null,
+): Promise<PosHasil> {
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("simpan_sandi_pos_lama", {
+    p_outlet: outlet,
+    p_sandi: sandi,
+    p_versi: versi,
+  });
+  if (error || data?.error) return { error: error?.message ?? data.error };
+  return { ok: "Sandi yang sama sudah tersimpan." };
+}
