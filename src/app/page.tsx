@@ -8,5 +8,6 @@ export default async function Home() {
   if (s.assignments.length === 0) redirect("/menunggu");
   if (s.active?.role === "tablet") redirect("/pos");
   if(s.assignments.every(a=>POS_ROLES.includes(a.role)))redirect("/karyawan");
+  if (s.active?.role === "pemantau_pos") redirect("/pantau-pos");
   redirect(s.active ? "/dashboard" : "/pilih-peran");
 }

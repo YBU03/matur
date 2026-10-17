@@ -35,6 +35,7 @@ const NADA_PERAN: Partial<Record<Role, Nada>> = {
   admin_gudang: "kuning",
   pic: "kuning",
   spv: "merah",
+  pemantau_pos: "biru",
 };
 const nadaPeran = (r: string): Nada => NADA_PERAN[r as Role] ?? "netral";
 const TITIK: Record<Nada, string> = {
@@ -157,11 +158,14 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
             {ROLES[role].allOutlets ? (
               <option>Semua Outlet</option>
             ) : (
-              outlets.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.nama}
-                </option>
-              ))
+              <>
+                {ROLES[role].outletOpsional && <option value="">Semua outlet</option>}
+                {outlets.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.nama}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </label>
@@ -329,6 +333,7 @@ function AddRoleDialog({ user, outlets, roleKeys, busy, onCancel, onSave }: { us
       </select>
       {!ROLES[role].allOutlets && (
         <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className={cls}>
+          {ROLES[role].outletOpsional && <option value="">Semua outlet</option>}
           {outlets.map((o) => (
             <option key={o.id} value={o.id}>{o.nama}</option>
           ))}
@@ -336,7 +341,7 @@ function AddRoleDialog({ user, outlets, roleKeys, busy, onCancel, onSave }: { us
       )}
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={onCancel} className="rounded-lg border px-4 py-2 text-sm">Batal</button>
-        <button disabled={busy} onClick={() => onSave(role, ROLES[role].allOutlets ? null : outlet)} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">Tambah</button>
+        <button disabled={busy} onClick={() => onSave(role, ROLES[role].allOutlets ? null : outlet || null)} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">Tambah</button>
       </div>
     </Modal>
   );
@@ -392,14 +397,14 @@ function PendingCard({ u, outlets, isOwner, roleKeys, busy, onRun }: { u: UserRo
           <span className="self-center text-xs text-stone-500">Akses semua outlet</span>
         ) : (
           <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className={isian}>
-            <option value="">— pilih outlet —</option>
+            <option value="">{ROLES[role].outletOpsional ? "Semua outlet" : "— pilih outlet —"}</option>
             {outlets.map((o) => <option key={o.id} value={o.id}>{o.nama}</option>)}
           </select>
         )}
       </div>
       <div className="mt-2 flex gap-2">
         <button
-          disabled={busy || !role || (!ROLES[role].allOutlets && !outlet)}
+          disabled={busy || !role || (!ROLES[role].allOutlets && !ROLES[role].outletOpsional && !outlet)}
           onClick={() => role && onRun(() => approveUser(u.id, role, outlet || null))}
           className="flex-1 rounded-xl bg-emerald-600 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
         >

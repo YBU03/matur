@@ -12,6 +12,8 @@ export type Role =
   | "barista"
   | "mitra"
   | "pic"
+  /** hanya memantau omzet & penjualan POS (tanpa HPP, laba, stok, gaji) */
+  | "pemantau_pos"
   /** akun tersembunyi milik tablet POS outlet (dibuat saat pemasangan tablet) */
   | "tablet";
 
@@ -28,11 +30,16 @@ type RoleDef = {
   login: "password" | "password_otp" | "pin" | "otp";
   /** peran pusat melihat semua outlet; selain itu terikat outlet */
   allOutlets: boolean;
+  /** boleh tanpa outlet (= semua outlet) atau satu outlet tertentu */
+  outletOpsional?: boolean;
   menu: MenuItem[];
 };
 
 /** tahap pengembangan yang sudah selesai */
 export const CURRENT_STAGE = 5;
+
+/** satu-satunya halaman peran Pemantau POS */
+export const PANTAU_POS = "/pantau-pos";
 
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
 
@@ -67,6 +74,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/laporan", label: "Laporan Keuangan", stage: 4 },
       { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
+      { href: PANTAU_POS, label: "Pemantauan POS", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
       { href: "/master/biaya_outlet", label: "Biaya Operasional", stage: 4 },
       { href: "/skema-bagi-hasil", label: "Skema Bagi Hasil", stage: 4 },
@@ -268,6 +276,15 @@ export const ROLES: Record<Role, RoleDef> = {
     login: "otp",
     allOutlets: false,
     menu: [dash, { href: "/proyek", label: "Progres Pekerjaan", stage: 4 }],
+  },
+  pemantau_pos: {
+    label: "Pemantau POS",
+    mascot: "kasir",
+    accent: "bg-teal-600",
+    login: "password",
+    allOutlets: false,
+    outletOpsional: true,
+    menu: [{ href: PANTAU_POS, label: "Pemantauan POS", stage: 1 }],
   },
   tablet: {
     label: "Tablet POS Outlet",

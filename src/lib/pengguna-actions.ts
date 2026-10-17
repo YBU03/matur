@@ -32,7 +32,7 @@ export async function createUser(_: Result, form: FormData): Promise<Result> {
   const secret = String(form.get("secret") ?? "");
   const outlet = String(form.get("outlet") ?? "") || null;
   if (!ROLES[role] || !nama || !login) return { error: "Lengkapi nama, peran, dan email/kode." };
-  if (!ROLES[role].allOutlets && !outlet) return { error: "Peran ini wajib memilih outlet." };
+  if (!ROLES[role].allOutlets && !ROLES[role].outletOpsional && !outlet) return { error: "Peran ini wajib memilih outlet." };
   if(secret.length<8)return {error:"Password akun minimal 8 karakter."};
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)||login.endsWith("@pin.matur.id"))return {error:"Gunakan email pribadi karyawan."};
   const kode=String(form.get("kode_staf")??"").trim().toLowerCase();const pin=String(form.get("pin_pos")??"");
@@ -64,7 +64,7 @@ export async function resetSecret(uid: string, role: Role, secret: string): Prom
 }
 
 export async function addAssignment(uid: string, role: Role, outlet: string | null): Promise<Result> {
-  if (!ROLES[role].allOutlets && !outlet) return { error: "Pilih outlet." };
+  if (!ROLES[role].allOutlets && !ROLES[role].outletOpsional && !outlet) return { error: "Pilih outlet." };
   const supabase = await supabaseServer();
   const { error } = await supabase
     .from("penugasan")

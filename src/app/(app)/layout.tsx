@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { CURRENT_STAGE, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
+import { CURRENT_STAGE, PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
@@ -16,6 +17,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!s.active) redirect("/pilih-peran");
   if (s.active.role === "tablet") redirect("/pos");
   if (POS_ONLY.includes(s.active.role)) redirect("/karyawan");
+  if (s.active.role === "pemantau_pos") {
+    const path = (await headers()).get("x-matur-pathname") ?? "";
+    if (![PANTAU_POS, "/profil"].some((p) => path === p || path.startsWith(p + "/"))) redirect(PANTAU_POS);
+  }
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();
     if (m.aktif) return <MaintenanceScreen pesan={m.pesan} />;
