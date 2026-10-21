@@ -14,7 +14,7 @@ export function LoginMascot({ pose }: { pose: MascotPose }) {
   return (
     <div className="login-mascot-area text-center" data-pose={pose}>
       <div
-        className={`login-mascot-frame mx-auto ${pose === "success" ? "login-mascot-success" : "login-mascot-float"}`}
+        className={`login-mascot-frame ${pose === "success" ? "login-mascot-success" : "login-mascot-float"}`}
         aria-hidden="true"
       >
         {(["welcome", "focus", "password", "success"] as const).map((p) => (
@@ -29,7 +29,7 @@ export function LoginMascot({ pose }: { pose: MascotPose }) {
             onError={(event) => {
               event.currentTarget.style.visibility = "hidden";
             }}
-            sizes="(max-height: 700px) 104px, 192px"
+            sizes="(max-height: 700px) 104px, 176px"
             className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${p === pose ? "opacity-100" : "opacity-0"}`}
           />
         ))}
@@ -38,9 +38,20 @@ export function LoginMascot({ pose }: { pose: MascotPose }) {
         key={pose}
         role="status"
         aria-live="polite"
-        className="login-mascot-message mx-auto mt-3 flex min-h-16 max-w-sm items-center justify-center rounded-2xl border border-matur-200 bg-white px-4 py-2 text-sm leading-relaxed text-kopi-900 shadow-sm"
+        className="login-mascot-message"
       >
-        {MASCOT_MESSAGES[pose]}
+        <span className="sr-only">{MASCOT_MESSAGES[pose]}</span>
+        <span aria-hidden="true">
+          {Array.from(MASCOT_MESSAGES[pose]).map((letter, index) => (
+            <span
+              key={index}
+              className="login-chat-letter"
+              style={{ animationDelay: `${index * 18}ms` }}
+            >
+              {letter}
+            </span>
+          ))}
+        </span>
       </p>
     </div>
   );
