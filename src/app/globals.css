@@ -91,3 +91,18 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pos-maskot, .pos-bayang, .pos-baru, .pos-muncul { animation: none !important; }
 }
+
+/* Manual account creation: loading and confirmed success. */
+@keyframes account-feedback-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes account-feedback-check {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.account-feedback { animation: account-feedback-enter 250ms ease-out both; }
+.account-feedback-check { stroke-dasharray: 1; animation: account-feedback-check 450ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .account-feedback, .account-feedback-check { animation: none; }
+}
