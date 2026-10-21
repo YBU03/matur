@@ -1,3 +1,4 @@
+import { supabaseServer } from "@/lib/supabase/server";
 import {headers} from "next/headers";
 import {PosAntrean} from "@/components/pos-antrean";
 import {PosLogout} from "@/components/pos-logout";
@@ -25,6 +26,12 @@ export default async function TerminalLayout({ children }: { children: React.Rea
   if (m.aktif) return <MaintenanceScreen pesan={m.pesan} pos={s.active.role === "tablet"} />;
   const path=(await headers()).get("x-matur-pathname")??"/kasir/pos";
   for(const p of ["absen","jadwal","izin","slip","kiriman","setoran","stok"]){if(p==="stok"&&s.active.role==="tablet")continue;if(path.startsWith(`/kasir/${p}`))redirect(p==="absen"?"/karyawan":`/karyawan/${p}`);}
+  if (s.active.role === "tablet") {
+    const db = await supabaseServer();
+    const { data, error } = await db.rpc("status_testing_pos", { p_outlet: s.active.outletId });
+    if (error) throw new Error(error.message);
+    if (data) redirect("/pos/testing");
+  }
   const status=await statusPos(s.active.outletId);
   if(s.active.role==="tablet"){
     // tablet outlet: terkunci → layar PIN di /pos (kecuali tutup shift); mode antrean hanya layar antrean
