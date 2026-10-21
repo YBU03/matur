@@ -148,6 +148,7 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [
       dash,
       { href: "/dashboard-pos", label: "Dashboard POS", stage: 4 },
+      { href: "/absensi", label: "Rekap Absensi", stage: 5 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
