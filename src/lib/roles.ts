@@ -38,7 +38,7 @@ type RoleDef = {
 /** tahap pengembangan yang sudah selesai */
 export const CURRENT_STAGE = 5;
 
-/** satu-satunya halaman peran Pemantau POS */
+/** satu-satunya halaman penjualan peran Tamu Matur */
 export const PANTAU_POS = "/pantau-pos";
 
 const dash: MenuItem = { href: "/dashboard", label: "Dashboard", stage: 1 };
@@ -52,6 +52,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/dashboard-pos", label: "Dashboard POS", stage: 4 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/mitra", label: "Mitra", stage: 2 },
@@ -74,7 +75,6 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/laporan", label: "Laporan Keuangan", stage: 4 },
       { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
-      { href: PANTAU_POS, label: "Pemantauan POS", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
       { href: "/master/biaya_outlet", label: "Biaya Operasional", stage: 4 },
       { href: "/skema-bagi-hasil", label: "Skema Bagi Hasil", stage: 4 },
@@ -147,6 +147,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/dashboard-pos", label: "Dashboard POS", stage: 4 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/pengguna", label: "Pengguna Matoer", stage: 3 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
@@ -278,13 +279,13 @@ export const ROLES: Record<Role, RoleDef> = {
     menu: [dash, { href: "/proyek", label: "Progres Pekerjaan", stage: 4 }],
   },
   pemantau_pos: {
-    label: "Pemantau POS",
+    label: "Tamu Matur",
     mascot: "kasir",
     accent: "bg-teal-600",
     login: "password",
     allOutlets: false,
     outletOpsional: true,
-    menu: [{ href: PANTAU_POS, label: "Pemantauan POS", stage: 1 }],
+    menu: [{ href: PANTAU_POS, label: "Penjualan POS", stage: 1 }],
   },
   tablet: {
     label: "Tablet POS Outlet",

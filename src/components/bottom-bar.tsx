@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 export type QuickItem = { href: string; label: string };
 
 const ICON: [RegExp, string][] = [
-  [/^\/dashboard/, "🏠"],
+  [/^\/dashboard(?:\/|$)/, "🏠"],
+  [/profil/, "👤"],
   [/proyek|pembangunan/, "🏗️"],
   [/gudang|bahan/, "📦"],
   [/pengguna/, "👥"],
@@ -37,6 +38,7 @@ export function BottomBar({ items, onMenu }: { items: QuickItem[]; onMenu: () =>
           <Link
             key={i.href}
             href={i.href}
+            aria-current={on ? "page" : undefined}
             className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-semibold ${on ? "bg-matur-500 text-white" : "text-kopi-700 active:bg-matur-50"}`}
           >
             <span className="text-lg leading-none" aria-hidden>{icon(i.href)}</span>

@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { CURRENT_STAGE, PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
+import { PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
+import { mobileQuickLinks } from "@/lib/dashboard-navigation";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
 import { SideNav } from "@/components/side-nav";
@@ -61,13 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </>
   );
 
-  // 4 pintasan di tombol melayang bawah: Beranda + menu terpenting peran ini yang sudah tersedia
-  const PRIORITAS = ["/proyek", "/portal/pembangunan", "/laporan", "/hpp-menu", "/gudang/stok", "/pengguna", "/kasir", "/absensi", "/jadwal", "/persetujuan", "/master/menu", "/master/perjanjian", "/master/karyawan", "/master/outlet"];
-  const tersedia = r.menu.filter((m) => m.stage <= CURRENT_STAGE && m.href !== "/dashboard");
-  const quick = [
-    { href: "/dashboard", label: "Beranda" },
-    ...[...tersedia].sort((a, b) => (PRIORITAS.indexOf(a.href) + 1 || 99) - (PRIORITAS.indexOf(b.href) + 1 || 99)).slice(0, 3),
-  ];
+  const quick = mobileQuickLinks(s.active.role);
 
   return (
     <AppShell sidebar={sidebar} title={`Matoer · ${r.label}`} quick={quick}>
