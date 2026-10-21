@@ -25,6 +25,10 @@ export default async function PosHome() {
     return (
       <MasukPos pesan="Tablet ini belum aktif atau aksesnya dicabut. Masuk lagi dengan username/password outlet; bila dicabut, hubungi HRD/Admin Gudang." />
     );
+  const testDb = await supabaseServer();
+  const { data: testing, error: testError } = await testDb.rpc("status_testing_pos", { p_outlet: a.outletId });
+  if (testError) throw new Error(testError.message);
+  if (testing) redirect("/pos/testing");
   if (st.mode === "antrean") redirect("/kasir/antrean");
   const info = infoTablet(st, a.outletNama);
 
