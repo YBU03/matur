@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState, useTransition, type FormEvent } from "react";
+import { UserDeletePanel } from "./user-delete-panel";
 import { CreateFeedback } from "./create-feedback";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import { Modal } from "@/components/confirm-edit";
-import { addAssignment, approveUser, createUser, hapusPengguna, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
+import { addAssignment, approveUser, createUser, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
 import { ROLES, type Role } from "@/lib/roles";
 import { Badge, BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, Kosong, isian, tabKelas, tombolHeaderUtama } from "@/components/ui-halaman";
 
@@ -64,6 +65,7 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
   const [resetting, setResetting] = useState<{ u: UserRow; role: Role } | null>(null);
   const [adding, setAdding] = useState<UserRow | null>(null);
   const [hapus, setHapus] = useState<UserRow | null>(null);
+  const [selecting, setSelecting] = useState(false);
   const [busy, start] = useTransition();
   const [q, setQ] = useState("");
   const [outletFilter,setOutletFilter]=useState("");
@@ -71,6 +73,7 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
   const jumlah = (st: string) => users.filter((u) => u.status === st).length;
   const [tab, setTab] = useState<string>(users.some((u) => u.status === "menunggu") ? "menunggu" : "aktif");
   const aktif = users.filter((u) => u.status === tab && (!outletFilter||u.assignments.some(a=>a.outlet_id===outletFilter)));
+  const visibleUsers = aktif.filter((u) => !q || `${u.nama} ${u.email ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   const hitungPeran = (rs: string[]) => users.filter((u) => u.status === "aktif" && u.assignments.some((a) => rs.includes(a.peran))).length;
   const perPeran = ROLE_KEYS.map((r) => [r, hitungPeran([r])] as const).filter(([, n]) => n > 0);
   const outletName = (id: string | null) => (id ? (outlets.find((o) => o.id === id)?.nama ?? "-") : "Semua Outlet");
@@ -223,14 +226,15 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
           ["nonaktif", "🚫 Nonaktif"],
           ["ditolak", "✕ Ditolak"],
         ].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={tab === k ? tabKelas.aktif : tabKelas.pasif}>
+          <button key={k} onClick={() => { setTab(k); setQ(""); }} className={tab === k ? tabKelas.aktif : tabKelas.pasif}>
             {l}{" "}
             <span className={`ml-0.5 rounded-full px-1.5 text-xs ${k === "menunggu" && jumlah(k) ? "bg-amber-400 text-kopi-900" : "bg-stone-200/70 text-stone-600"}`}>{jumlah(k)}</span>
           </button>
         ))}
       </nav>
 
-      {tab === "menunggu" ? (
+      {isOwner && <UserDeletePanel visible={visibleUsers} meId={meId} single={hapus} onCloseSingle={() => setHapus(null)} selecting={selecting} setSelecting={setSelecting} scope={JSON.stringify([tab, q, outletFilter])} />}
+      {!selecting && (tab === "menunggu" ? (
         jumlah("menunggu") ? (
           <Pending users={users.filter((u) => u.status === "menunggu")} outlets={outlets} isOwner={isOwner} roleKeys={roleKeys} busy={busy} onRun={run} />
         ) : (
@@ -242,9 +246,7 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
         Pengguna {tab} <Badge nada={NADA_STATUS[tab] ?? "netral"}>{aktif.length}</Badge>
       </h2>
       <ul className="grid gap-3 lg:grid-cols-2">
-        {aktif
-          .filter((u) => !q || `${u.nama} ${u.email ?? ""}`.toLowerCase().includes(q.toLowerCase()))
-          .map((u) => (
+        {visibleUsers.map((u) => (
             <li key={u.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${u.status === "aktif" ? "border-matur-100" : "border-stone-200 opacity-80"}`}>
               <div className="flex items-start gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-matur-100 to-matur-200 font-bold text-kopi-700">{u.nama.slice(0, 1).toUpperCase()}</span>
@@ -304,7 +306,7 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
       </ul>
       {aktif.length === 0 && <Kosong ikon="👤" judul="Tidak ada pengguna di kategori ini." />}
       </>
-      )}
+      ))}
 
       {removing && (
         <DeleteTwoStepDialog
@@ -312,23 +314,6 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
           onCancel={() => setRemoving(null)}
           onConfirm={() => run(() => removeAssignment(removing.a.id))}
         />
-      )}
-      {hapus && (
-        <Modal title="Hapus pengguna" onClose={busy ? undefined : () => setHapus(null)}>
-          <p className="text-sm">Yakin ingin menghapus pengguna <strong>{hapus.nama}</strong>?</p>
-          <p className="mt-2 text-sm text-stone-500">Akses login pengguna akan dicabut. Riwayat absensi, transaksi, dan penggajian tetap disimpan.</p>
-          {msg?.error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{msg.error}</p>}
-          <div className="mt-5 flex justify-end gap-2">
-            <button disabled={busy} onClick={() => setHapus(null)} className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50">Batal</button>
-            <button disabled={busy} onClick={() => start(async () => {
-              try {
-                const r = await hapusPengguna(hapus.id);
-                setMsg(r);
-                if (!r.error) setHapus(null);
-              } catch { setMsg({ error: "Penghapusan belum dapat dikonfirmasi. Periksa koneksi lalu coba lagi." }); }
-            })} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Menghapus…" : "Ya, Hapus"}</button>
-          </div>
-        </Modal>
       )}
       {resetting && (
         <SecretDialog
