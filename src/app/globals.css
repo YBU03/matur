@@ -106,3 +106,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .account-feedback, .account-feedback-check { animation: none; }
 }
+
+/* Login / employee dashboard loading, including streamed server fallbacks. */
+.masuk-loading-mascot { animation: melayang 2s ease-in-out infinite; }
+.masuk-loading-progress { animation: jalan 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .masuk-loading-mascot, .masuk-loading-progress, [data-overlay], [data-overlay] * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

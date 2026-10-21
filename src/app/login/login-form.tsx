@@ -37,7 +37,7 @@ function PasswordForm() {
     if (state.error) batalMasuk();
   }, [state]);
   return (
-    <form action={action} onSubmit={() => mulaiMasuk({ label: "Masuk ke Matoer…" })} className="space-y-4">
+    <form action={action} onSubmit={() => mulaiMasuk({ label: "Sedang menyiapkan dashboard…" })} className="space-y-4">
       <Field name="login" label="Email" type="email" placeholder="nama@email.com" />
       <Field name="secret" label="Password" type="password" />
       <Error text={state.error} />
@@ -52,7 +52,7 @@ function OtpForm() {
     if (state.error) batalMasuk();
   }, [state]);
   return (
-    <form action={action} onSubmit={() => state.sent && mulaiMasuk({ label: "Masuk ke Matoer…" })} className="space-y-4">
+    <form action={action} onSubmit={() => state.sent && mulaiMasuk({ label: "Sedang menyiapkan dashboard…" })} className="space-y-4">
       {state.sent ? (
         <>
           <input type="hidden" name="login" value={state.sent} />
