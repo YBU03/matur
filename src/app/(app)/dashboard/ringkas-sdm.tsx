@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { KehadiranHariIni } from "./kehadiran-hari-ini";
 import { hitungRekap } from "@/lib/jadwal/rekap";
 import { addDays, hariIni } from "@/lib/jadwal/waktu";
 import { muatAbsensi, muatIzin, muatJadwal, muatShift, muatStaf, outletSdm } from "@/lib/sdm";
@@ -46,45 +46,5 @@ export async function RingkasSdm({ s }: { s: Session }) {
     draft ? { href: "/jadwal", teks: `${draft} jadwal draft belum diterbitkan` } : null,
   ].filter((x): x is { href: string; teks: string } => !!x);
 
-  return (
-    <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold">Kehadiran hari ini</h2>
-        <Link href="/absensi" className="text-sm font-semibold text-matur-700">
-          Rekap absensi ›
-        </Link>
-      </div>
-      {tindakan.map((t) => (
-        <Link key={t.teks} href={t.href} className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-          🔔 {t.teks}
-        </Link>
-      ))}
-      <div className="grid gap-2 sm:grid-cols-2">
-        {perOutlet.map((x) => (
-          <div key={x.o.id} className="rounded-xl bg-matur-50 p-3 text-sm">
-            <Link href={`/absensi?outlet=${x.o.id}`} className="float-right text-matur-700 underline">Rekap ›</Link>
-            <p className="font-semibold">{x.o.nama}</p>
-            {x.shift ? (
-              <p className="mt-1 text-stone-600">
-                <b className="text-green-700">{x.hadir}</b> hadir · {x.bertugas} sedang bertugas · {x.jadwal} terjadwal · <b className="text-green-700">{x.tepat}</b> tepat waktu · {x.belum} belum absen · {x.izin} izin/sakit/libur · <b className="text-amber-700">{x.telat}</b> telat · <b className="text-red-600">{x.tidak}</b> tidak absen
-              </p>
-            ) : (
-              <p className="mt-1 text-stone-500">Shift belum diatur → buka Jadwal Shift</p>
-            )}
-            <ul className="mt-3 divide-y divide-matur-200">
-              {x.baris.map((b, i) => <li key={i} className="py-2">
-                <p className="font-semibold">{x.nama[b.pengguna_id] ?? "Staf"}</p>
-                <p className="text-xs text-stone-600">{b.shift ? `${b.shift.nama} · ${b.shift.jam_mulai}–${b.shift.jam_selesai}` : "Tanpa shift"}</p>
-                <p className={`text-xs ${b.status === "telat" ? "text-amber-800" : b.status === "tepat" ? "text-green-800" : "text-stone-600"}`}>
-                  {({ tepat: "Tepat waktu", telat: "Telat", belum: "Belum absen", tidak_absen: "Tidak absen", izin: "Izin", sakit: "Sakit", libur: "Libur", tanpa_jadwal: "Tanpa jadwal" })[b.status]}
-                  {b.status === "telat" && ` ${b.absen?.telat_menit} menit`}
-                  {b.absen && ` · Masuk ${new Date(b.absen.masuk_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}${b.absen.pulang_at ? ` · Pulang ${new Date(b.absen.pulang_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}` : " · Sedang bertugas"}`}
-                </p>
-              </li>)}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+  return <KehadiranHariIni outlets={perOutlet} tindakan={tindakan} />;
 }
