@@ -1,3 +1,5 @@
+import { RingkasPos } from "./ringkas-pos";
+import { isAdminDashboardRole } from "@/lib/dashboard-navigation";
 import { LiveRefresh } from "@/components/live-refresh";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +29,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const pusat = PUSAT.includes(active.role);
   const gudangPusat = active.role === "admin_gudang";
   const lihatPenjualan = pusat || gudangPusat || OUTLET.includes(active.role);
+  const adminHome = isAdminDashboardRole(active.role);
   const canSim = active.role === "owner" || active.role === "admin_pusat";
 
   let outlets: { id: string; nama: string; jam_operasional: string | null }[] = [];
@@ -58,14 +61,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
   const lihatLaporan = pusat || active.role === "mitra";
   // tab: Harian (POS, seperti dasbor Luna) & Laporan Keuangan (bulanan); peran yang hanya punya salah satu tidak melihat tab
-  const duaTab = lihatPenjualan && lihatLaporan;
+  const duaTab = !adminHome && lihatPenjualan && lihatLaporan;
   const tab = !lihatPenjualan ? "bulanan" : !lihatLaporan ? "harian" : sp.tab === "bulanan" ? "bulanan" : "harian";
   const r0 = rentang(sp.periode ?? (tab === "bulanan" ? "12bln" : "30"), sp.dari, sp.sampai);
   const simulasi = canSim && sp.mode === "simulasi";
   const tabHref = (t: string) => `/dashboard?${new URLSearchParams({ ...Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && !["tab", "periode", "dari", "sampai"].includes(k))) as Record<string, string>, ...(t === "bulanan" ? { tab: t } : {}) })}`;
   return (
     <div className="space-y-6">
-      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }, ...(active.role === "hrd" ? [{ table: "absensi" }, { table: "jadwal_shift" }, { table: "pengajuan_izin" }] : [])]} cadanganDetik={120} />}
+      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }, ...(adminHome ? [{ table: "transaksi" }] : []), ...(active.role === "hrd" ? [{ table: "absensi" }, { table: "jadwal_shift" }, { table: "pengajuan_izin" }] : [])]} cadanganDetik={120} />}
       <section className="flex items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-matur-400 to-matur-600 p-5 text-white">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={96} height={96} priority className="hidden rounded-2xl sm:block" />
         <div>
@@ -108,6 +111,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <MitraRingkas userId={s.userId} nama={s.nama} />
         </Suspense>
       )}
+      {adminHome && <Suspense fallback={<Skeleton h="h-32" />}><RingkasPos /></Suspense>}
       {duaTab && (
         <nav className="flex gap-1 rounded-2xl bg-matur-50 p-1 text-sm font-semibold">
           {[
@@ -120,13 +124,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       )}
-      {(lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} />}
-      {lihatLaporan && tab === "bulanan" && (
+      {!adminHome && (lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} />}
+      {!adminHome && lihatLaporan && tab === "bulanan" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <LaporanRingkas outlets={outlets} outletId={pusat ? outletId : null} dari={r0.dari} sampai={r0.sampai} />
         </Suspense>
       )}
-      {tab === "harian" && (
+      {!adminHome && tab === "harian" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <SalesDashboard
             outlets={outlets}
