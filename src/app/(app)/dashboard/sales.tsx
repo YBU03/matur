@@ -1,4 +1,5 @@
 import { BarList, ChartCard, Heatmap, StatTile, TrendChart } from "@/components/charts";
+import { LipatHp } from "@/components/lipat-hp";
 import { SERIES, angka, rupiah } from "@/lib/chart-utils";
 import { stokMenipis, type Menipis } from "@/lib/stok-menipis";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -80,6 +81,7 @@ export async function SalesDashboard({
   kSampai,
   mode,
   tanpaRupiah = false,
+  ringkasHp = false,
 }: {
   outlets: { id: string; nama: string; jam_operasional?: string | null }[];
   outletId: string | null;
@@ -88,6 +90,8 @@ export async function SalesDashboard({
   kSampai?: string;
   mode: "asli" | "simulasi";
   tanpaRupiah?: boolean;
+  /** tampilan HP ringkas: kotak buka-tutup (Dashboard POS admin) */
+  ringkasHp?: boolean;
 }) {
   const r = rentang(periode, kDari, kSampai);
   const supabase = await supabaseServer();
@@ -97,7 +101,7 @@ export async function SalesDashboard({
     supabase.rpc("ringkasan_penjualan", { p_outlet: outletId, p_dari: r.prevDari, p_sampai: r.prevSampai, p_mode: mode }),
     mode === "asli" ? stokMenipis(tampilOutlet) : Promise.resolve([]),
   ]);
-  return <SalesView d={now as Ringkasan | null} p={prev as Ringkasan | null} menipis={menipis} outlets={outlets} outletId={outletId} r={r} mode={mode} tanpaRupiah={tanpaRupiah} />;
+  return <SalesView d={now as Ringkasan | null} p={prev as Ringkasan | null} menipis={menipis} outlets={outlets} outletId={outletId} r={r} mode={mode} tanpaRupiah={tanpaRupiah} ringkasHp={ringkasHp} />;
 }
 
 export function SalesView({
@@ -109,6 +113,7 @@ export function SalesView({
   r,
   mode,
   tanpaRupiah,
+  ringkasHp = false,
 }: {
   d: Ringkasan | null;
   p: Ringkasan | null;
@@ -118,6 +123,7 @@ export function SalesView({
   r: ReturnType<typeof rentang>;
   mode: "asli" | "simulasi";
   tanpaRupiah: boolean;
+  ringkasHp?: boolean;
 }) {
   const k = d?.kpi ?? { omzet: 0, trx: 0, hpp: 0, diskon: 0 };
   const pk = p?.kpi ?? { omzet: 0, trx: 0, hpp: 0, diskon: 0 };
@@ -150,10 +156,14 @@ export function SalesView({
   const cabang = (d?.outlet ?? []).map((o) => ({ name: o.nama, value: o.omzet, id: o.outlet_id, trx: o.trx }));
   const qtyTotal = menu.reduce((s, m) => s + Number(m.qty), 0);
   const kotor = k.omzet + k.diskon;
+  const perJam = new Map<number, number>();
+  for (const c of d?.jam ?? []) perJam.set(c.jam, (perJam.get(c.jam) ?? 0) + Number(c.trx));
+  const jamTop = [...perJam.entries()].sort((a, b) => b[1] - a[1])[0];
+  const lipat = ringkasHp;
   const jam = jamBuka((outletId ? outlets.find((o) => o.id === outletId) : outlets.find((o) => o.jam_operasional))?.jam_operasional);
 
   return (
-    <section className="space-y-4">
+    <section className={`lg:space-y-4 ${lipat ? "space-y-2" : "space-y-4"}`}>
       {mode === "simulasi" && (
         <div className="rounded-xl bg-[repeating-linear-gradient(45deg,#fde68a_0_12px,#fef3c7_12px_24px)] px-4 py-2 text-center text-sm font-bold tracking-wide text-amber-900">
           MODE SIMULASI — data latihan, bukan data asli
@@ -170,6 +180,34 @@ export function SalesView({
 
       {k.trx > 0 && (
         <>
+          {lipat && (
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-kopi-900 to-kopi-700 p-5 text-white shadow-md lg:hidden">
+              <span className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-white/10" aria-hidden />
+              <p className="text-xs text-white/70">{labelTgl(r.dari)}{r.dari !== r.sampai && ` – ${labelTgl(r.sampai)}`}</p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-white/70">{tanpaRupiah ? "Jumlah struk" : "Penjualan bersih"}</p>
+              <p className="text-3xl font-black tabular-nums">{tanpaRupiah ? angka(k.trx) : rupiah(k.omzet)}</p>
+              {(tanpaRupiah ? delta(k.trx, pk.trx) : delta(k.omzet, pk.omzet)) && (
+                <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${(tanpaRupiah ? k.trx >= pk.trx : k.omzet >= pk.omzet) ? "bg-emerald-400/20 text-emerald-200" : "bg-red-400/20 text-red-200"}`}>
+                  {tanpaRupiah ? delta(k.trx, pk.trx) : delta(k.omzet, pk.omzet)}
+                </p>
+              )}
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/15 pt-3 text-center">
+                <div>
+                  <p className="text-[11px] text-white/70">Struk</p>
+                  <p className="font-bold tabular-nums">{angka(k.trx)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/70">{tanpaRupiah ? "Item" : "Per struk"}</p>
+                  <p className="font-bold tabular-nums">{tanpaRupiah ? angka(qtyTotal) : rupiah(k.omzet / k.trx).replace("Rp ", "")}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/70">Struk/hari</p>
+                  <p className="font-bold tabular-nums">{angka(Math.round(k.trx / r.hari))}</p>
+                </div>
+              </div>
+            </section>
+          )}
+          <LipatHp aktif={lipat} ikon="🧮" judul="Angka lainnya" ringkas={tanpaRupiah ? "item terjual, rata-rata harian" : "kotor, laba kotor, margin, item terjual"}>
           <section className="rounded-2xl border border-matur-200 bg-white p-4">
             <h3 className="font-semibold">Ringkasan penjualan</h3>
             <p className="mb-3 text-xs text-stone-500">{labelTgl(r.dari)} – {labelTgl(r.sampai)}</p>
@@ -188,8 +226,10 @@ export function SalesView({
               <StatTile label="Rata-rata struk per hari" value={angka(Math.round(k.trx / r.hari))} sub={`${r.hari} hari`} />
             </div>
           </section>
+          </LipatHp>
 
           {!tanpaRupiah && (
+            <LipatHp aktif={lipat} ikon="📈" judul="Tren penjualan" ringkas={ramai ? `Teramai ${labelTgl(ramai[0])}` : undefined}>
             <ChartCard
               title="Penjualan"
               sub={`Omzet ${satuan}${shown.length > 1 ? " per outlet" : ""}`}
@@ -213,42 +253,58 @@ export function SalesView({
               )}
               <TrendChart data={trend} series={shown.map((o) => ({ key: o.id, name: nama[o.id], color: color[o.id] }))} />
             </ChartCard>
+            </LipatHp>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`grid lg:grid-cols-2 lg:gap-4 ${lipat ? "gap-2" : "gap-4"}`}>
             {!tanpaRupiah && !outletId && cabang.length > 1 && (
+              <LipatHp aktif={lipat} ikon="🏪" judul="Omzet per outlet" ringkas={cabang[0] ? `Teratas: ${cabang[0].name}` : undefined}>
               <ChartCard title="Top outlet" sub="Omzet per outlet" rows={cabang.map((c) => ({ Outlet: c.name, Omzet: c.value, Transaksi: c.trx }))} cols={[{ key: "Outlet", label: "Outlet" }, { key: "Omzet", label: "Omzet", money: true }, { key: "Transaksi", label: "Transaksi" }]}>
                 <BarList data={cabang} colors={cabang.map((c) => color[c.id] ?? SERIES[0])} />
               </ChartCard>
+              </LipatHp>
             )}
             {!tanpaRupiah && (
+              <LipatHp aktif={lipat} ikon="🛵" judul="Kanal penjualan" ringkas={kanal[0] ? `Terbesar: ${kanal[0].name}` : undefined}>
               <ChartCard title="Kanal penjualan" sub="Omzet per kanal" rows={kanal.map((c) => ({ Kanal: c.name, Omzet: c.value, Transaksi: c.trx }))} cols={[{ key: "Kanal", label: "Kanal" }, { key: "Omzet", label: "Omzet", money: true }, { key: "Transaksi", label: "Transaksi" }]}>
                 <BarList data={kanal} colors={warnaUrut(kanal.length)} />
               </ChartCard>
+              </LipatHp>
             )}
             {!tanpaRupiah && (
+              <LipatHp aktif={lipat} ikon="💰" judul="Menu teratas (Rp)" ringkas={menuRp[0] ? `#1 ${menuRp[0].nama}` : undefined}>
               <ChartCard title="Top produk berdasarkan nominal" sub="10 teratas (Rp)" rows={menuRp.slice(0, 10).map((m) => ({ Menu: m.nama, Omzet: m.omzet, Terjual: m.qty }))} cols={[{ key: "Menu", label: "Menu" }, { key: "Omzet", label: "Omzet", money: true }, { key: "Terjual", label: "Terjual" }]}>
                 <BarList data={menuRp.slice(0, 10).map((m) => ({ name: m.nama, value: m.omzet }))} colors={warnaUrut(10)} />
               </ChartCard>
+              </LipatHp>
             )}
-            <ChartCard title="Top produk berdasarkan qty" sub="10 teratas (jumlah terjual)" rows={menu.slice(0, 10).map((m) => ({ Menu: m.nama, Terjual: m.qty }))} cols={[{ key: "Menu", label: "Menu" }, { key: "Terjual", label: "Terjual" }]}>
+            <LipatHp aktif={lipat} ikon="🏆" judul="Menu terlaris" ringkas={menu[0] ? `#1 ${menu[0].nama} · ${angka(Number(menu[0].qty))} terjual` : undefined}>
+              <ChartCard title="Top produk berdasarkan qty" sub="10 teratas (jumlah terjual)" rows={menu.slice(0, 10).map((m) => ({ Menu: m.nama, Terjual: m.qty }))} cols={[{ key: "Menu", label: "Menu" }, { key: "Terjual", label: "Terjual" }]}>
               <BarList data={menu.slice(0, 10).map((m) => ({ name: m.nama, value: m.qty }))} money={false} unit=" cup" colors={warnaUrut(10)} />
             </ChartCard>
+              </LipatHp>
             {kategori.length > 0 && !tanpaRupiah && (
+              <LipatHp aktif={lipat} ikon="🗂️" judul="Kategori (Rp)" ringkas={kategori[0] ? `#1 ${kategori[0].nama}` : undefined}>
               <ChartCard title="Top kategori berdasarkan nominal" sub="Omzet per kategori menu" rows={kategori.map((m) => ({ Kategori: m.nama, Omzet: m.omzet }))} cols={[{ key: "Kategori", label: "Kategori" }, { key: "Omzet", label: "Omzet", money: true }]}>
                 <BarList data={kategori.map((m) => ({ name: m.nama, value: m.omzet }))} colors={warnaUrut(kategori.length)} />
               </ChartCard>
+              </LipatHp>
             )}
             {kategori.length > 0 && (
+              <LipatHp aktif={lipat} ikon="🗂️" judul="Kategori (qty)" ringkas={kategoriQty[0] ? `#1 ${kategoriQty[0].nama}` : undefined}>
               <ChartCard title="Top kategori berdasarkan qty" sub="Jumlah terjual per kategori" rows={kategoriQty.map((m) => ({ Kategori: m.nama, Terjual: m.qty }))} cols={[{ key: "Kategori", label: "Kategori" }, { key: "Terjual", label: "Terjual" }]}>
                 <BarList data={kategoriQty.map((m) => ({ name: m.nama, value: m.qty }))} money={false} unit=" item" colors={warnaUrut(kategoriQty.length)} />
               </ChartCard>
+              </LipatHp>
             )}
-            <ChartCard title="Menu kurang laku" sub="5 terbawah berdasarkan jumlah terjual" rows={menu.slice(-5).reverse().map((m) => ({ Menu: m.nama, Terjual: m.qty }))} cols={[{ key: "Menu", label: "Menu" }, { key: "Terjual", label: "Terjual" }]}>
+            <LipatHp aktif={lipat} ikon="🐢" judul="Menu kurang laku" ringkas={"5 terbawah berdasarkan jumlah terjual"}>
+              <ChartCard title="Menu kurang laku" sub="5 terbawah berdasarkan jumlah terjual" rows={menu.slice(-5).reverse().map((m) => ({ Menu: m.nama, Terjual: m.qty }))} cols={[{ key: "Menu", label: "Menu" }, { key: "Terjual", label: "Terjual" }]}>
               <BarList data={menu.slice(-5).reverse().map((m) => ({ name: m.nama, value: m.qty }))} money={false} unit=" cup" max={menu[0]?.qty} />
             </ChartCard>
+              </LipatHp>
           </div>
 
+          <LipatHp aktif={lipat} ikon="⏰" judul="Jam ramai & sepi" ringkas={jamTop ? `Teramai pukul ${String(jamTop[0]).padStart(2, "0")}.00–${String(jamTop[0] + 1).padStart(2, "0")}.00` : undefined}>
           <ChartCard
             title="Jam ramai"
             sub={`Jumlah transaksi per hari dan jam${jam ? ` · jam buka ${String(jam[0]).padStart(2, "0")}.00–${String(jam[1]).padStart(2, "0")}.00` : ""}`}
@@ -257,10 +313,12 @@ export function SalesView({
           >
             <Heatmap cells={d?.jam ?? []} buka={jam?.[0]} tutup={jam?.[1]} />
           </ChartCard>
+          </LipatHp>
         </>
       )}
 
       {menipis.length > 0 && (
+        <LipatHp aktif={lipat} ikon="⚠️" judul="Stok menipis" ringkas={`${menipis.reduce((a, m) => a + m.items.length, 0)} bahan di bawah batas minimum`}>
         <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
           <h3 className="font-bold">⚠️ Produk dengan stok rendah</h3>
           <p className="mb-2 text-xs text-stone-600">Bahan resep di bawah batas minimum, berkurang otomatis dari penjualan kasir.</p>
@@ -278,6 +336,7 @@ export function SalesView({
             </div>
           ))}
         </section>
+        </LipatHp>
       )}
     </section>
   );

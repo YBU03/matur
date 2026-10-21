@@ -53,7 +53,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // kas POS tersangkut (lewat batas shift) — Owner, SPV, Admin Gudang bisa menutupnya
   let tertinggal: { outlet: string }[] = [];
   let belumDihitung = 0;
-  if (["owner", "spv", "admin_gudang"].includes(active.role)) {
+  if (!adminHome && ["owner", "spv", "admin_gudang"].includes(active.role)) {
     const db = await supabaseServer();
     const [{ data }, { data: oto }] = await Promise.all([db.rpc("kas_tertinggal"), db.rpc("riwayat_kas_otomatis")]);
     tertinggal = (data ?? []) as { outlet: string }[];
@@ -78,22 +78,24 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      {tertinggal.length > 0 && (
+      {!adminHome && tertinggal.length > 0 && (
         <Link href="/pengaturan/pos#tertinggal" className="block rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
           ⚠️ {tertinggal.length} kas POS tertinggal ({[...new Set(tertinggal.map((k) => k.outlet))].join(", ")}) — belum ditutup setelah shift berakhir dan menghalangi kas berikutnya. Tutup sekarang ›
         </Link>
       )}
-      {belumDihitung > 0 && (
+      {!adminHome && belumDihitung > 0 && (
         <Link href="/pengaturan/pos#riwayat-kas" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           🕛 {belumDihitung} kas POS ditutup otomatis oleh sistem dan uangnya belum dihitung. Isi hitungan uang fisik ›
         </Link>
       )}
-      {pendaftar > 0 && (
+      {!adminHome && pendaftar > 0 && (
         <Link href="/pengguna" className="block rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           🔔 {pendaftar} {staf ? "pendaftar kasir/barista" : "pendaftar baru"} menunggu persetujuan → buka {staf ? "Akun Kasir & Barista" : "Pengguna & Akses"}
         </Link>
       )}
 
+      {/* Owner & Admin Pusat: ringkasan POS paling atas, lalu stok, lalu karyawan (peringatan ada di lonceng) */}
+      {adminHome && <Suspense fallback={<Skeleton h="h-32" />}><RingkasPos /></Suspense>}
       {["owner", "admin_pusat", "finance", "admin_gudang", "spv"].includes(active.role) && (
         <Suspense fallback={<Skeleton h="h-24" />}>
           <RingkasStok s={s} />
@@ -111,7 +113,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <MitraRingkas userId={s.userId} nama={s.nama} />
         </Suspense>
       )}
-      {adminHome && <Suspense fallback={<Skeleton h="h-32" />}><RingkasPos /></Suspense>}
       {duaTab && (
         <nav className="flex gap-1 rounded-2xl bg-matur-50 p-1 text-sm font-semibold">
           {[

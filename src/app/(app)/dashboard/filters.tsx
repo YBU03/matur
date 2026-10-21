@@ -22,7 +22,7 @@ const PERIODE_BULANAN = [
 ] as const;
 
 // DSB-01: pilih cabang + rentang tanggal dalam satu baris di atas grafik
-export function Filters({ outlets, canSim, jenis = "tanggal" }: { outlets: { id: string; nama: string }[] | null; canSim: boolean; jenis?: "tanggal" | "bulan" }) {
+export function Filters({ outlets, canSim, jenis = "tanggal", ringkasHp = false }: { outlets: { id: string; nama: string }[] | null; canSim: boolean; jenis?: "tanggal" | "bulan"; /** HP: periode jadi dropdown */ ringkasHp?: boolean }) {
   const router = useRouter();
   const path = usePathname();
   const sp = useSearchParams();
@@ -50,14 +50,28 @@ export function Filters({ outlets, canSim, jenis = "tanggal" }: { outlets: { id:
   return (
     <div className={`flex flex-wrap items-center gap-2 ${pending ? "opacity-60" : ""}`}>
       {outlets && (
-        <select value={sp.get("outlet") ?? ""} onChange={(e) => set("outlet", e.target.value || null)} className="rounded-lg border border-matur-200 bg-white px-3 py-1.5 text-sm">
+        <select aria-label="Outlet" value={sp.get("outlet") ?? ""} onChange={(e) => set("outlet", e.target.value || null)} className={`${ringkasHp ? "flex-1 sm:flex-none" : ""} rounded-lg border border-matur-200 bg-white px-3 py-1.5 text-sm`}>
           <option value="">Semua Outlet</option>
           {outlets.map((o) => (
             <option key={o.id} value={o.id}>{o.nama}</option>
           ))}
         </select>
       )}
-      <div className="flex flex-wrap gap-1">
+      {ringkasHp && (
+        <select
+          aria-label="Periode"
+          value={buka ? "kustom" : periode}
+          onChange={(e) => (e.target.value === "kustom" ? setBuka(true) : (setBuka(false), set("periode", e.target.value === def ? null : e.target.value, { dari: null, sampai: null })))}
+          className="flex-1 rounded-lg border border-matur-200 bg-white px-3 py-1.5 text-sm font-semibold sm:hidden"
+        >
+          {PERIODE.map(([k, l]) => (
+            <option key={k} value={k}>
+              {k === "kustom" ? "📅 Kustom" : l}
+            </option>
+          ))}
+        </select>
+      )}
+      <div className={`flex-wrap gap-1 ${ringkasHp ? "hidden sm:flex" : "flex"}`}>
         {PERIODE.map(([k, l]) => (
           <button key={k} onClick={() => (k === "kustom" ? setBuka(true) : (setBuka(false), set("periode", k === def ? null : k, { dari: null, sampai: null })))} className={chip(k === "kustom" ? buka : !buka && periode === k)}>
             {k === "kustom" ? "📅 Kustom" : l}

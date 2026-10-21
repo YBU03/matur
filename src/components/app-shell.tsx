@@ -7,7 +7,7 @@ import { BottomBar, type QuickItem } from "./bottom-bar";
 import { LogoutButton } from "./logout-button";
 
 /** Sidebar di desktop; di HP menjadi laci yang dibuka lewat tombol hamburger. */
-export function AppShell({ sidebar, title, quick, children }: { sidebar: React.ReactNode; title: string; quick: QuickItem[]; children: React.ReactNode }) {
+export function AppShell({ sidebar, title, quick, aksi, children }: { sidebar: React.ReactNode; title: string; quick: QuickItem[]; /** tombol di header (mis. lonceng notifikasi) */ aksi?: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
@@ -28,6 +28,7 @@ export function AppShell({ sidebar, title, quick, children }: { sidebar: React.R
         </button>
         <Image src="/brand/logo-192.png" alt="" width={30} height={30} className="rounded-lg" />
         <span className="min-w-0 flex-1 truncate font-bold">{title}</span>
+        {aksi}
         <LogoutButton />
       </header>
 
@@ -44,7 +45,8 @@ export function AppShell({ sidebar, title, quick, children }: { sidebar: React.R
 
       <aside className="hidden border-r border-matur-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto">{sidebar}</aside>
       <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pt-4">
-        <div className="mb-4 hidden justify-end lg:flex">
+        <div className="mb-4 hidden items-center justify-end gap-2 lg:flex">
+          {aksi}
           <LogoutButton />
         </div>
         {children}

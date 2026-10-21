@@ -36,7 +36,7 @@ export default async function DashboardPos({
         </p>
       ) : (
         <>
-          <Filters outlets={outlets} canSim />
+          <Filters outlets={outlets} canSim ringkasHp />
           <Suspense
             fallback={
               <div
@@ -52,6 +52,7 @@ export default async function DashboardPos({
               kDari={sp.dari}
               kSampai={sp.sampai}
               mode={mode}
+              ringkasHp
             />
           </Suspense>
         </>

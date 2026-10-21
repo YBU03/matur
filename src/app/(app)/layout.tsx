@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
-import { mobileQuickLinks } from "@/lib/dashboard-navigation";
+import { isAdminDashboardRole, mobileQuickLinks } from "@/lib/dashboard-navigation";
+import { Lonceng } from "@/components/lonceng";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
 import { SideNav } from "@/components/side-nav";
@@ -65,7 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const quick = mobileQuickLinks(s.active.role);
 
   return (
-    <AppShell sidebar={sidebar} title={`Matoer · ${r.label}`} quick={quick}>
+    <AppShell sidebar={sidebar} title={`Matoer · ${r.label}`} quick={quick} aksi={isAdminDashboardRole(s.active.role) ? <Lonceng userId={s.userId} /> : undefined}>
       {children}
     </AppShell>
   );
