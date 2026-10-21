@@ -35,3 +35,9 @@ Tes `src/lib/__tests__/login-actions.test.ts` memeriksa kegagalan password, OTP 
 Hasil verifikasi implementasi: 14 tes server action lulus, TypeScript dan lint file terkait lulus. Browser lokal diperiksa pada 320×568, 390×844 dan desktop 1280×800; pose fokus/password, tombol mata, pending disabled, gagal tanpa sukses, permintaan OTP, sukses OTP/password dan navigasi pilihan peran melalui stub lokal berhasil. Semua empat gambar berhasil dimuat dan transparansi alpha tiap aset diperiksa. Preferensi reduced-motion didukung lewat aturan CSS; belum diuji dengan pengaturan perangkat fisik. Tidak menggunakan akun/kredensial produksi.
 
 Build produksi akhir lulus. Satu peringatan lint lama di `src/app/(app)/simulasi/simulasi-view.tsx:80` tidak terkait perubahan ini. Tidak ada perubahan skema/database atau dependensi.
+
+## Gelembung chat kanan atas
+
+Gelembung ditempatkan di kanan atas maskot dengan ekor mengarah ke karakter. Setiap pesan ditampilkan per karakter dengan delay CSS 18 ms; seluruh karakter tetap menempati ruang sejak awal sehingga efek mengetik tidak menggeser layout. Perubahan pose memulai ulang animasi pesan. Teks lengkap diberikan kepada pembaca layar sekali, sedangkan karakter animasi diberi `aria-hidden`. Aturan reduced-motion yang sudah ada menonaktifkan seluruh animasi sehingga teks langsung terbaca lengkap. Tidak ada perubahan autentikasi, penundaan navigasi atau dependensi baru.
+
+Browser lokal memverifikasi ukuran 320×568 tanpa scroll tambahan, 390×844 dan desktop 1280×800, pergantian pesan username/password serta urutan delay huruf. Cache service worker pengujian lama di localhost:3100 sempat menyebabkan campuran JS lama; pemeriksaan versi baru memakai origin lokal terpisah localhost:3101.
