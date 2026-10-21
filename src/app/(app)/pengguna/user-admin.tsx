@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
+import { CreateFeedback } from "./create-feedback";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
 import { Modal } from "@/components/confirm-edit";
 import { addAssignment, approveUser, createUser, hapusPengguna, rejectUser, removeAssignment, resetSecret, setUserStatus, type Result } from "@/lib/pengguna-actions";
@@ -53,7 +54,10 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
   // HRD & Admin Gudang hanya bisa memberi peran kasir/barista
   const roleKeys: Role[] = staf ? ["kasir", "barista"] : ROLE_KEYS;
   const bisaBuat = isOwner || staf;
-  const [state, action, pending] = useActionState<Result, FormData>(createUser, {});
+  const [state, setCreateState] = useState<Result>({});
+  const [pending, startCreate] = useTransition();
+  const creating = useRef(false);
+  const [feedback, setFeedback] = useState<"loading" | "success" | null>(null);
   const [role, setRole] = useState<Role>("kasir");
   const [msg, setMsg] = useState<Result | null>(null);
   const [removing, setRemoving] = useState<{ a: Assign; nama: string } | null>(null);
@@ -82,6 +86,36 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
       }
     });
 
+  const submitCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (creating.current) return;
+    const data = new FormData(event.currentTarget);
+    creating.current = true;
+    setCreateState({});
+    setFeedback("loading");
+    startCreate(async () => {
+      try {
+        const result = await createUser({}, data);
+        setCreateState(result);
+        if (result.error || !result.ok) {
+          setFeedback(null);
+        } else {
+          setBuat(false);
+          setRole("kasir");
+          setTab("aktif");
+          setQ("");
+          setOutletFilter("");
+          setFeedback("success");
+        }
+      } catch {
+        setCreateState({ error: "Pembuatan akun belum dapat dikonfirmasi. Periksa koneksi dan daftar pengguna sebelum mencoba lagi." });
+        setFeedback(null);
+      } finally {
+        creating.current = false;
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <HeaderHalaman
@@ -90,7 +124,7 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
         keterangan={staf ? "Kelola akun pribadi karyawan dan penugasan outlet. Login POS outlet dikelola terpisah melalui menu Akses Kasir POS Outlet." : "Kelola akun, peran, dan akses outlet seluruh tim Matoer."}
         aksi={
           bisaBuat && !buat ? (
-            <button onClick={() => setBuat(true)} className={tombolHeaderUtama}>
+            <button onClick={() => { setCreateState({}); setBuat(true); }} className={tombolHeaderUtama}>
               + Buat akun baru
             </button>
           ) : undefined
@@ -124,7 +158,8 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Cari nama / login…" className={`${isian} w-full sm:w-64`} />
         )}
       </section>
-      {bisaBuat && buat && <form action={action} className="grid gap-3 rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-5 lg:grid-cols-5">
+      {bisaBuat && buat && <form onSubmit={submitCreate} aria-busy={pending} className="grid gap-3 rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-5 lg:grid-cols-5">
+        <fieldset disabled={pending} className="contents">
         <p className="flex items-center font-bold text-kopi-900 sm:col-span-2 lg:col-span-5">
           <span className="mr-auto">➕ Buat akun baru</span>
           <button type="button" onClick={() => setBuat(false)} className="rounded-lg px-2 py-1 text-sm font-normal text-stone-500 hover:bg-stone-100">Tutup ✕</button>
@@ -173,10 +208,11 @@ export function UserAdmin({ users, outlets, isOwner, staf = false, meId }: { use
           <button disabled={pending} className="rounded-xl bg-matur-500 px-4 py-2 font-semibold text-white shadow-sm hover:bg-matur-600 disabled:opacity-60">
             {pending ? "Membuat…" : "+ Buat Akun"}
           </button>
-          {state.error && <span className="text-sm text-red-600">{state.error}</span>}
-          {state.ok && <span className="text-sm text-green-700">{state.ok}</span>}
+          {state.error && <span role="alert" className="text-sm text-red-600">{state.error}</span>}
         </div>
+        </fieldset>
       </form>}
+      {feedback && <CreateFeedback status={feedback} message={state.ok} onClose={() => setFeedback(null)} />}
 
       {msg && <p className={`rounded-xl px-3 py-2 text-sm font-medium ${msg.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{msg.error ?? msg.ok}</p>}
 
