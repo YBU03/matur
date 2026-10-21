@@ -88,7 +88,9 @@ export async function hapusPilihanPengguna(
       continue;
     }
     try {
-      const { data, error } = await db.rpc("hapus_pengguna", { p_uid: id });
+      const { data, error, status } = await db.rpc("hapus_pengguna", { p_uid: id });
+      // PostgREST reports transport failures as a response with status 0, not only a thrown error.
+      if (status === 0) throw new Error("Transport connection lost");
       if (error) hasil.push({ ...item, error: error.message });
       else if (data === "dihapus" || data === "diarsipkan")
         hasil.push({

@@ -13,6 +13,6 @@ Target pengguna dikunci FOR UPDATE sebelum memeriksa riwayat sehingga penambahan
 ## Verifikasi
 
 - Build produksi dan diff check lulus; warning lint lama simulasi-view.tsx tetap ada.
-- Tujuh tes server action lulus: role, konfirmasi, ID/batas batch, akun terlindungi, hasil parsial, gangguan koneksi, dan hapus tunggal.
+- Delapan tes server action lulus: role, konfirmasi, ID/batas batch, akun terlindungi, hasil parsial, gangguan koneksi (termasuk respons transport PostgREST status 0), dan hapus tunggal.
 - `supabase/tests/hapus_pengguna_riwayat.sql` lulus dengan fixture transaksi ROLLBACK: Owner-only, larangan self/Owner/tablet, hapus akun tanpa riwayat, arsip dan retensi absensi/gaji/slip, pemblokiran login, pencabutan peran, audit dan privilege.
 - Security advisors ditinjau. Tidak ada akun pengguna produksi yang dihapus dalam pengujian. UI browser produksi belum diuji.
