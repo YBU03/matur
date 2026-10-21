@@ -1,16 +1,26 @@
 "use client";
+import { ReceiptDialog } from "@/components/pos-receipt";
 import { useState } from "react";
 import { hitungSimulasi, type SimMenu, type SimItem } from "@/lib/pos-simulasi";
 import { formatRupiah as rp } from "@/lib/format";
 type Struk = ReturnType<typeof hitungSimulasi>;
 const input = "w-full rounded-xl border p-2.5 text-sm";
-export function SimulasiPos({ menu }: { menu: SimMenu[] }) {
+export function SimulasiPos({
+  menu,
+  cetak = false,
+  outletNama = "Outlet Demo",
+}: {
+  menu: SimMenu[];
+  cetak?: boolean;
+  outletNama?: string;
+}) {
   const [items, setItems] = useState<SimItem[]>([]);
   const [cari, setCari] = useState("");
   const [ojol, setOjol] = useState(false);
   const [diskon, setDiskon] = useState(0);
   const [diterima, setDiterima] = useState("");
   const [struk, setStruk] = useState<Struk | null>(null);
+  const [kanalStruk, setKanalStruk] = useState("langsung");
   const [error, setError] = useState("");
   const [riwayat, setRiwayat] = useState<Struk[]>([]);
   const subtotal = items.reduce((n, i) => {
@@ -78,6 +88,7 @@ export function SimulasiPos({ menu }: { menu: SimMenu[] }) {
                 diterima === "" ? total : Number(diterima),
               );
               setStruk(r);
+              setKanalStruk(ojol ? "gofood" : "langsung");
               setRiwayat((xs) => [r, ...xs].slice(0, 20));
               setItems([]);
               setDiskon(0);
@@ -203,7 +214,28 @@ export function SimulasiPos({ menu }: { menu: SimMenu[] }) {
           )}
         </form>
       </div>
-      {struk && (
+      {struk && cetak && (
+        <ReceiptDialog
+          r={{
+            ...struk,
+            id: `testing-${riwayat.length}`,
+            nomor: riwayat.length,
+          }}
+          lines={struk.lines.map((l, i) => ({
+            key: String(i),
+            nama: l.nama,
+            qty: l.qty,
+            total: l.total,
+          }))}
+          kanal={kanalStruk}
+          metode="tunai"
+          testing
+          outletNama={outletNama}
+          kasir="Kasir Testing"
+          onClose={() => setStruk(null)}
+        />
+      )}
+      {struk && !cetak && (
         <section
           role="status"
           className="rounded-2xl border-2 border-dashed border-amber-400 bg-white p-5"

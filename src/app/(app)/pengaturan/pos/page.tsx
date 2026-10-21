@@ -1,3 +1,4 @@
+import { PosTestingPanel, type TestingOutlet } from "@/components/pos-testing-panel";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -34,6 +35,12 @@ export default async function Page() {
   );
   if (aksesError) throw new Error(aksesError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
+  let testing: TestingOutlet[] = [];
+  if (["owner", "admin_pusat"].includes(s.active.role)) {
+    const { data, error } = await db.rpc("panel_testing_pos");
+    if (error) throw new Error(error.message);
+    testing = data ?? [];
+  }
   const panel = data as PanelData;
   if (["hrd", "admin_gudang"].includes(s.active.role)) {
     const ids = new Set(allowed.map((x) => x.id));
@@ -108,6 +115,7 @@ export default async function Page() {
       </BarisAngka>
       <KasTertinggalPanel list={(tertinggal ?? []) as KasTertinggal[]} />
       <RiwayatKasOtomatis list={(otomatis ?? []) as KasOtomatis[]} />
+      <PosTestingPanel rows={testing} />
       <PanelPos data={panel} role={s.active.role} akses={allowed} />
     </div>
   );

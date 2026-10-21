@@ -6,17 +6,21 @@ import { POS_ONLY } from "./roles";
 import { getSession, setActive } from "./session";
 import { supabaseServer } from "./supabase/server";
 
-export type LoginState = { error?: string };
+export type LoginState = { error?: string; destination?: string };
 
 /** Setelah login: langsung ke dashboard sesuai peran (pilih dulu bila punya beberapa peran). */
-async function setelahLogin(): Promise<never> {
+async function tujuanSetelahLogin(): Promise<string> {
   await setActive(null);
   const s = await getSession();
-  if (!s || s.status !== "aktif" || s.assignments.length === 0) redirect("/menunggu");
-  if (s.active?.role === "tablet") redirect("/pos");
-  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) redirect("/karyawan");
-  if (s.active?.role === "pemantau_pos") redirect("/pantau-pos");
-  redirect(s.active ? "/dashboard" : "/pilih-peran");
+  if (!s || s.status !== "aktif" || s.assignments.length === 0) return "/menunggu";
+  if (s.active?.role === "tablet") return "/pos";
+  if (s.assignments.every((a) => POS_ONLY.includes(a.role))) return "/karyawan";
+  if (s.active?.role === "pemantau_pos") return "/pantau-pos";
+  return s.active ? "/dashboard" : "/pilih-peran";
+}
+
+async function setelahLogin(): Promise<never> {
+  redirect(await tujuanSetelahLogin());
 }
 
 export async function loginAction(_: LoginState, form: FormData): Promise<LoginState> {
@@ -25,8 +29,8 @@ export async function loginAction(_: LoginState, form: FormData): Promise<LoginS
   const supabase = await supabaseServer();
   // login kode staf + PIN hanya di aplikasi POS (/kasir)
   const { error } = await supabase.auth.signInWithPassword({ email: login, password: secret });
-  if (error) return { error: "Email atau password salah." };
-  return setelahLogin();
+  if (error) return { error: error.name === "AuthRetryableFetchError" ? "Koneksi terganggu. Silakan coba masuk kembali." : "Email atau password salah." };
+  return { destination: await tujuanSetelahLogin() };
 }
 
 // Mitra & PIC: login kode OTP via email (PRD tabel peran)
@@ -41,7 +45,7 @@ export async function otpAction(_: LoginState & { sent?: string }, form: FormDat
   }
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
   if (error) return { sent: email, error: "Kode salah atau kedaluwarsa." };
-  return setelahLogin();
+  return { destination: await tujuanSetelahLogin() };
 }
 
 export type DaftarState = { error?: string };

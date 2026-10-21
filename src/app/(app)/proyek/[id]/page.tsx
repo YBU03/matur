@@ -384,7 +384,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label="Grand Total RAB" value={formatRupiah(estimasiRab)} sub="Jumlah seluruh rincian RAB aktif" />
             <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={estimasiRab ? `${Math.round((realisasi / estimasiRab) * 100)}% dari total RAB` : undefined} />
-            <Kpi label="Dana Masuk Mitra" value={formatRupiah(danaMasuk)} sub={`${setoran.length} setoran`} />
+            <Kpi label="Dana Masuk Mitra" value={formatRupiah(danaMasuk)} sub={`${setoran.length} setoran`} kelolaHref={admin ? "#setoran-dana-mitra" : undefined} />
             <Kpi label="Sisa Dana" value={formatRupiah(danaMasuk - realisasi)} sub="dana masuk − realisasi" warn={realisasi > danaMasuk} />
           </section>
 
@@ -429,11 +429,12 @@ export default async function DetailProyek({ params, searchParams }: { params: P
             </ul>
           </section>
 
-          <section className={card}>
+          <section id="setoran-dana-mitra" tabIndex={-1} className={`${card} scroll-mt-6 focus:outline-none focus:ring-2 focus:ring-matur-400`}>
             <div className="mb-3 flex items-center gap-2">
               <h2 className="mr-auto font-bold">Setoran Dana Mitra</h2>
               {admin && <RowEditor entityKey="setoran_mitra" row={null} initial={{ proyek_id: p.id, tanggal: new Date().toISOString().slice(0, 10) }} fields={["tanggal", "jumlah", "keterangan"]} label="+ Setoran" className={addBtn} />}
             </div>
+            <p className="mb-3 text-xs text-stone-500">Catat dana yang disetor mitra ke pusat untuk pembangunan. Total Dana Masuk Mitra otomatis mengikuti rincian setoran di bawah.</p>
             {setoran.length === 0 && <p className="text-sm text-stone-400">Belum ada setoran tercatat.</p>}
             <ul className="divide-y text-sm">
               {setoran.map((x) => (
@@ -496,10 +497,13 @@ export default async function DetailProyek({ params, searchParams }: { params: P
   );
 }
 
-function Kpi({ label, value, sub, warn }: { label: string; value: string; sub?: string; warn?: boolean }) {
+function Kpi({ label, value, sub, warn, kelolaHref }: { label: string; value: string; sub?: string; warn?: boolean; kelolaHref?: string }) {
   return (
     <div className="rounded-2xl border border-matur-200 bg-white p-4">
-      <p className="text-xs text-stone-500">{label}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-stone-500">{label}</p>
+        {kelolaHref && <a href={kelolaHref} className="rounded-lg border border-matur-200 px-2 py-1 text-xs font-semibold text-kopi-900 hover:bg-matur-50 focus-visible:outline-2 focus-visible:outline-matur-500">Kelola Dana</a>}
+      </div>
       <p className={`text-lg font-bold ${warn ? "text-red-600" : ""}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
