@@ -56,6 +56,13 @@ describe("hapusPilihanPengguna", () => {
     expect(r.hasil?.[0].error).toContain("belum dapat dipastikan");
     expect(r.hasil?.[1].error).toContain("Belum diproses");
   });
+  it("menghentikan batch ketika PostgREST melaporkan kegagalan transport status 0", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "TypeError: fetch failed" }, status: 0 });
+    const r = await hapusPilihanPengguna([first, second], "Yakin Hapus", "HAPUS 2 PENGGUNA");
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(r.hasil?.[0].error).toContain("belum dapat dipastikan");
+    expect(r.hasil?.[1].error).toContain("Belum diproses");
+  });
   it("menggunakan ID yang dikonfirmasi untuk penghapusan tunggal", async () => {
     mocks.rpc.mockResolvedValueOnce({ data: "dihapus", error: null });
     const r = await hapusPilihanPengguna([first], "Yakin Hapus", "Andi");
