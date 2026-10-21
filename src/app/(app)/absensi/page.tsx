@@ -1,4 +1,6 @@
-import { notFound } from "next/navigation";
+import Link from "next/link";
+import { bolehLihatJadwal } from "@/lib/jadwal-lihat";
+import { notFound, redirect } from "next/navigation";
 import { LiveRefresh } from "@/components/live-refresh";
 import { hitungRekap } from "@/lib/jadwal/rekap";
 import { hariIni } from "@/lib/jadwal/waktu";
@@ -10,8 +12,10 @@ import { RekapView } from "./rekap-view";
 // Rekap absensi: status hari ini, ringkasan per staf, dan detail (selfie, lokasi, jam kerja) + ekspor Excel.
 export default async function AbsensiPage({ searchParams }: { searchParams: Promise<{ outlet?: string; dari?: string; sampai?: string; staf?: string }> }) {
   const s = await getSession();
-  if (!s?.active || !PENGELOLA_SDM.includes(s.active.role)) notFound();
+  if (!s?.active) notFound();
   const sp = await searchParams;
+  if (s.active.role === "admin_pusat") redirect(`/absensi/jadwal${sp.outlet ? `?outlet=${encodeURIComponent(sp.outlet)}` : ""}`);
+  if (!PENGELOLA_SDM.includes(s.active.role)) notFound();
   const outlets = await outletSdm(s);
   const outlet = outlets.find((o) => o.id === sp.outlet) ?? outlets[0];
   if (!outlet) notFound();
@@ -47,6 +51,7 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
+      {bolehLihatJadwal(s.active.role) && <nav className="mx-auto mb-5 flex max-w-6xl gap-2" aria-label="Bagian rekap absensi"><span aria-current="page" className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-semibold text-white">Rekap Absensi</span><Link href={`/absensi/jadwal?outlet=${outlet.id}`} className="rounded-xl border border-matur-200 bg-white px-4 py-2 text-sm font-semibold text-kopi-700">Jadwal Shift</Link></nav>}
       <LiveRefresh pantau={[{ table: "absensi", filter: `outlet_id=eq.${outlet.id}` }]} cadanganDetik={60} />
       <RekapView
         outlets={outlets.map((o) => ({ id: o.id, nama: o.nama }))}
