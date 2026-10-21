@@ -86,20 +86,13 @@ export function MasukOverlay() {
             aktif.mascot ? `/mascot/${aktif.mascot}.png` : "/brand/logo-512.png"
           }
           alt=""
-          width={160}
-          height={160}
+          width={144}
+          height={144}
           priority
           className="relative animate-[melayang_1.4s_ease-in-out_infinite] rounded-3xl"
         />
       </div>
-      <Image
-        src="/brand/logo-192.png"
-        alt="Matoer"
-        width={44}
-        height={44}
-        className="mt-8 rounded-xl"
-      />
-      <p className="mt-3 text-center font-semibold text-kopi-900">
+      <p className="mt-6 max-w-sm text-center text-lg font-bold leading-relaxed text-kopi-900">
         {aktif.label}
       </p>
       {lambat && (
