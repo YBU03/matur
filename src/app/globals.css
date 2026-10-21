@@ -116,3 +116,26 @@ body {
     transition: none !important;
   }
 }
+
+/* Login poses are static transparent illustrations; animate the whole illustration only. */
+.login-mascot-frame { position: relative; width: 192px; height: 192px; }
+.login-mascot-float { animation: login-float 5s ease-in-out infinite; }
+.login-mascot-success { animation: login-success 650ms ease-out both; }
+.login-mascot-message { animation: login-message 220ms ease-out both; }
+.login-spinner { animation: logout-spin 900ms linear infinite; }
+.login-input { width: 100%; border: 1px solid #d6d3d1; border-radius: .75rem; background: white; padding: .625rem .75rem; outline: none; }
+.login-input.pr-12 { padding-right: 3rem; }
+.login-input:focus { border-color: var(--color-matur-500); box-shadow: 0 0 0 2px var(--color-matur-200); }
+@keyframes login-float { 0%, 100% { transform: translateY(0) rotate(-.6deg); } 50% { transform: translateY(-4px) rotate(.6deg); } }
+@keyframes login-success { 0% { transform: scale(.94); } 55% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes login-message { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { [data-login] *, [data-login] *::before, [data-login] *::after { animation: none !important; transition: none !important; } }
+@media (max-height: 700px) {
+  .login-mascot-frame { width: 104px; height: 104px; }
+  .login-mascot-message { min-height: 48px; margin-top: 8px; font-size: 12px; }
+  .login-panel { padding-top: 12px; padding-bottom: 12px; }
+  [data-login] > * + * { margin-top: 10px; }
+  [data-login] h2 { font-size: 20px; line-height: 28px; }
+  [data-login] h2 + p { display: none; }
+  [data-login] fieldset > * + * { margin-top: 12px; }
+}
