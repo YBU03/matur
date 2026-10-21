@@ -180,34 +180,7 @@ export function SalesView({
 
       {k.trx > 0 && (
         <>
-          {lipat && (
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-kopi-900 to-kopi-700 p-5 text-white shadow-md lg:hidden">
-              <span className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-white/10" aria-hidden />
-              <p className="text-xs text-white/70">{labelTgl(r.dari)}{r.dari !== r.sampai && ` – ${labelTgl(r.sampai)}`}</p>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-white/70">{tanpaRupiah ? "Jumlah struk" : "Penjualan bersih"}</p>
-              <p className="text-3xl font-black tabular-nums">{tanpaRupiah ? angka(k.trx) : rupiah(k.omzet)}</p>
-              {(tanpaRupiah ? delta(k.trx, pk.trx) : delta(k.omzet, pk.omzet)) && (
-                <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${(tanpaRupiah ? k.trx >= pk.trx : k.omzet >= pk.omzet) ? "bg-emerald-400/20 text-emerald-200" : "bg-red-400/20 text-red-200"}`}>
-                  {tanpaRupiah ? delta(k.trx, pk.trx) : delta(k.omzet, pk.omzet)}
-                </p>
-              )}
-              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/15 pt-3 text-center">
-                <div>
-                  <p className="text-[11px] text-white/70">Struk</p>
-                  <p className="font-bold tabular-nums">{angka(k.trx)}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-white/70">{tanpaRupiah ? "Item" : "Per struk"}</p>
-                  <p className="font-bold tabular-nums">{tanpaRupiah ? angka(qtyTotal) : rupiah(k.omzet / k.trx).replace("Rp ", "")}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-white/70">Struk/hari</p>
-                  <p className="font-bold tabular-nums">{angka(Math.round(k.trx / r.hari))}</p>
-                </div>
-              </div>
-            </section>
-          )}
-          <LipatHp aktif={lipat} ikon="🧮" judul="Angka lainnya" ringkas={tanpaRupiah ? "item terjual, rata-rata harian" : "kotor, laba kotor, margin, item terjual"}>
+          <LipatHp aktif={lipat} ikon="🧮" judul="Ringkasan periode" ringkas={`${tanpaRupiah ? `${angka(k.trx)} struk` : `${rupiah(k.omzet)} · ${angka(k.trx)} struk`}${delta(k.omzet, pk.omzet) ? ` · ${delta(k.omzet, pk.omzet)!.replace(" vs periode sebelumnya", "")}` : ""}`}>
           <section className="rounded-2xl border border-matur-200 bg-white p-4">
             <h3 className="font-semibold">Ringkasan penjualan</h3>
             <p className="mb-3 text-xs text-stone-500">{labelTgl(r.dari)} – {labelTgl(r.sampai)}</p>

@@ -4,6 +4,7 @@ import { loadDashboardPos } from "@/lib/dashboard-pos";
 import { LiveRefresh } from "@/components/live-refresh";
 import { Filters } from "../dashboard/filters";
 import { SalesDashboard } from "../dashboard/sales";
+import { KartuOmzetHariIni } from "../dashboard/omzet-hari-ini";
 
 export default async function DashboardPos({
   searchParams,
@@ -36,6 +37,9 @@ export default async function DashboardPos({
         </p>
       ) : (
         <>
+          <Suspense fallback={<div className="h-48 animate-pulse rounded-3xl bg-kopi-900/20" aria-busy="true" />}>
+            <KartuOmzetHariIni outletId={outletId} outletNama={outlets.find((o) => o.id === outletId)?.nama} mode={mode} />
+          </Suspense>
           <Filters outlets={outlets} canSim ringkasHp />
           <Suspense
             fallback={
