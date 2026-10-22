@@ -1,3 +1,4 @@
+import { TimelineKegiatan } from "./timeline-kegiatan";
 import { SelesaiProyek } from "./selesai";
 import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
@@ -24,7 +25,6 @@ const TABS = [
 
 const PROYEK_FIELDS = ["nama", "estimasi_budget", "tgl_mulai", "tgl_soft_opening", "target_buka", "status", "mode_pembelian", "alamat", "maps_url", "luas", "sewa_tempat", "kontak_tempat", "catatan"];
 const TAHAP_FIELDS = ["nama", "pic_id", "bobot", "progres", "tgl_mulai", "tgl_selesai", "urutan"];
-const JADWAL_FIELDS = ["judul", "tgl_rencana", "tgl_realisasi", "status", "keterangan", "urutan"];
 const card = "rounded-2xl border border-matur-200 bg-white p-4";
 const addBtn = "rounded-lg border border-matur-300 px-3 py-1.5 text-sm text-matur-700 hover:bg-matur-50";
 
@@ -330,52 +330,13 @@ export default async function DetailProyek({ params, searchParams }: { params: P
         <section className={card}>
           <div className="mb-3 flex items-center gap-2">
             <h2 className="mr-auto font-bold">Timeline Kegiatan</h2>
-            {admin && <RowEditor entityKey="jadwal_proyek" row={null} initial={{ proyek_id: p.id, status: "rencana", urutan: String(jadwal.length + 1) }} fields={JADWAL_FIELDS} label="+ Kegiatan" className={addBtn} />}
           </div>
-          <ol className="relative ml-2 border-l-2 border-matur-200">
-            <Urutkan entityKey="jadwal_proyek" grup="jadwal">
-            {jadwal.map((j) => (
-              <li key={j.id} className="mb-4 ml-5">
-                <span className={`absolute -left-[9px] mt-1 size-4 rounded-full border-2 border-white ${j.status === "selesai" ? "bg-green-500" : j.status === "mundur" ? "bg-red-500" : j.tgl_rencana ? "bg-matur-400" : "bg-stone-300"}`} />
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-stone-500">
-                      {!j.tgl_rencana ? (
-                        <span className="italic">Belum dijadwalkan</span>
-                      ) : j.status === "mundur" ? (
-                        <>
-                          <s>{formatTanggal(j.tgl_rencana)}</s>
-                          {j.tgl_realisasi && <b className="ml-1 text-red-600">→ {formatTanggal(j.tgl_realisasi)}</b>}
-                        </>
-                      ) : (
-                        <>
-                          {formatTanggal(j.tgl_rencana)}
-                          {j.status === "selesai" && j.tgl_realisasi && j.tgl_realisasi !== j.tgl_rencana && ` · terlaksana ${formatTanggal(j.tgl_realisasi)}`}
-                        </>
-                      )}
-                    </p>
-                    <p className="font-medium">
-                      {j.judul}
-                      {j.status === "selesai" && <span className="ml-1 text-xs text-green-700">✓ selesai</span>}
-                      {j.status === "mundur" && <span className="ml-1 text-xs text-red-600">mundur</span>}
-                    </p>
-                    {j.keterangan && <p className="text-xs text-stone-600">{j.keterangan}</p>}
-                  </div>
-                  {admin && (
-                    <span className="flex shrink-0">
-                      <Pegangan id={j.id} />
-                      <RowEditor entityKey="jadwal_proyek" row={j as unknown as Record<string, unknown>} fields={JADWAL_FIELDS} label="✏️" title={`Ubah · ${j.judul}`} />
-                      <RowDeleter entityKey="jadwal_proyek" id={j.id} name={`Jadwal ${j.judul}`} />
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-            </Urutkan>
+          <TimelineKegiatan key={jadwal.map((j) => `${j.id}:${j.urutan}`).join(",")} proyekId={p.id} jadwal={jadwal} admin={admin} />
+          <ol aria-label="Target pembukaan" className="relative ml-4 mt-6 border-l-2 border-matur-200">
             <Step date={p.tgl_soft_opening} title="Soft Opening" />
             <Step date={p.target_buka} title="Grand Opening 🎉" done={p.status === "selesai"} big />
           </ol>
-          {admin && <p className="text-xs text-stone-400">Status “mundur”: isi Tanggal Realisasi dengan tanggal baru. Tahan ⋮⋮ lalu geser untuk mengubah urutan, atau isi nomor Urutan — kegiatan lain otomatis bergeser.</p>}
+          {admin && <p className="mt-3 text-xs text-stone-400">Status “mundur”: isi Tanggal Realisasi dengan tanggal baru. Urutan kegiatan tidak mengubah tanggal atau isi kegiatan. Simpan atau batalkan urutan sebelum mengedit kegiatan.</p>}
         </section>
       )}
 
@@ -512,8 +473,8 @@ function Kpi({ label, value, sub, warn, kelolaHref }: { label: string; value: st
 
 function Step({ date, title, done, big }: { date: string | null; title: string; done?: boolean; big?: boolean }) {
   return (
-    <li className="mb-4 ml-5">
-      <span className={`absolute -left-[9px] mt-1 size-4 rounded-full border-2 border-white ${done ? "bg-green-500" : date ? "bg-matur-600" : "bg-stone-300"}`} />
+    <li className="relative mb-4 ml-5">
+      <span className={`absolute -left-[29px] mt-1 size-4 rounded-full border-2 border-white ${done ? "bg-green-500" : date ? "bg-matur-600" : "bg-stone-300"}`} />
       <p className="text-xs text-stone-500">{date ? formatTanggal(date) : <span className="italic">Belum ditentukan</span>}</p>
       <p className={big ? "font-bold" : "font-medium"}>{title}</p>
     </li>
