@@ -139,7 +139,7 @@ async function lainnya(id: string) {
   const supabase = await supabaseServer();
   const [us, jd, st, ck, dk, km, ct] = await Promise.all([
     supabase.from("usulan_tanggal").select("id, proyek_id, jenis, tanggal, catatan, diusulkan_oleh, nama_pengusul, created_at").eq("proyek_id", id).is("deleted_at", null).order("created_at"),
-    supabase.from("jadwal_proyek").select("id, proyek_id, judul, tgl_rencana, tgl_realisasi, status, keterangan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_rencana"),
+    supabase.from("jadwal_proyek").select("id, proyek_id, judul, tgl_rencana, tgl_realisasi, status, keterangan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("tgl_rencana").order("id"),
     supabase.from("setoran_mitra").select("id, proyek_id, tanggal, jumlah, keterangan").eq("proyek_id", id).is("deleted_at", null).order("tanggal"),
     supabase.from("checklist_proyek").select("id, proyek_id, nama, selesai, catatan, urutan").eq("proyek_id", id).is("deleted_at", null).order("urutan").order("nama"),
     supabase.from("dokumen_proyek").select("id, judul, jenis, path, tipe, ukuran, created_at").eq("proyek_id", id).order("created_at", { ascending: false }),
