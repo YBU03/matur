@@ -1,4 +1,6 @@
 import "server-only";
+import { loadBelanjaProyek } from "./belanja-proyek-server";
+import { gabungRealisasiRab } from "./belanja-proyek";
 import { totalEstimasiRab } from "./rab-total";
 import { supabaseServer } from "./supabase/server";
 
@@ -83,16 +85,17 @@ const PROYEK_COLS =
 
 export async function daftarProyek(): Promise<Ringkasan[]> {
   const supabase = await supabaseServer();
-  const [{ data: ps }, { data: ks }, { data: rab }] = await Promise.all([
+  const [{ data: ps }, { data: ks }, { data: rab }, belanja] = await Promise.all([
     supabase.from("proyek").select(PROYEK_COLS).is("deleted_at", null).order("target_buka"),
     supabase.from("pekerjaan").select("proyek_id, bobot, progres").is("deleted_at", null),
     supabase.from("item_rab").select("proyek_id, harga_estimasi, harga_realisasi").is("deleted_at", null),
+    loadBelanjaProyek(),
   ]);
   return ((ps ?? []) as unknown as Proyek[]).map((p) => ({
     ...p,
     // proyek yang ditandai selesai selalu 100%
     progres: p.status === "selesai" ? 100 : progresTotal((ks ?? []).filter((k) => k.proyek_id === p.id)),
-    realisasi: (rab ?? []).filter((r) => r.proyek_id === p.id).reduce((s, r) => s + (r.harga_realisasi ?? 0), 0),
+    realisasi: (rab ?? []).filter((r) => r.proyek_id === p.id).reduce((s, r) => s + Number(r.harga_realisasi ?? 0), 0) + belanja.filter((b) => b.proyek_id === p.id && !b.batal_at).reduce((s,b) => s+b.total,0),
     estimasiRab: totalEstimasiRab((rab ?? []).filter((r) => r.proyek_id === p.id)),
   }));
 }
@@ -132,7 +135,8 @@ export async function detailProyek(id: string) {
   }
   const items = ((rab ?? []) as ItemRab[]).map((r) => ({ ...r, qty: Number(r.qty) }));
   const ex = await lainnya(id);
-  return { proyek: p as unknown as Proyek, pekerjaan, rab: items, foto, desain, ...ex };
+  const belanja = await loadBelanjaProyek(id);
+  return { proyek: p as unknown as Proyek, pekerjaan, rabAsli: items, rab: gabungRealisasiRab(items,belanja), belanja, foto, desain, ...ex };
 }
 
 async function lainnya(id: string) {

@@ -11,8 +11,8 @@ import { importRab, type Result } from "@/lib/proyek-actions";
 import { exportExcel, exportPdf, groupRab, parseWorkbook, type RabRow } from "@/lib/rab-excel";
 import { RowDeleter, RowEditor } from "@/components/row-editor";
 
-type Item = RabRow & { id: string };
-const RAB_FIELDS = ["kategori", "bagian", "nama", "spesifikasi", "qty", "satuan", "harga_satuan", "harga_estimasi", "harga_realisasi", "status", "dibeli_oleh", "keterangan"];
+type Item = RabRow & { id: string; realisasi_lama?: number };
+const RAB_FIELDS = ["kategori", "bagian", "nama", "spesifikasi", "qty", "satuan", "harga_satuan", "harga_estimasi", "status", "dibeli_oleh", "keterangan"];
 const STATUS: Record<string, string> = {
   rencana: "bg-stone-100 text-stone-600",
   dibeli: "bg-amber-100 text-amber-800",
@@ -20,7 +20,7 @@ const STATUS: Record<string, string> = {
 };
 
 // mode normal: tanpa penandaan pembeli; mode split: tiap barang ditandai dibeli pusat / mitra (dropdown)
-export function RabView({ proyek, items: semua, admin }: { proyek: { id: string; nama: string; outlet: string; split: boolean }; items: Item[]; admin: boolean }) {
+export function RabView({ proyek, items: semua, admin, luarRab = 0 }: { proyek: { id: string; nama: string; outlet: string; split: boolean }; items: Item[]; admin: boolean; luarRab?: number }) {
   const router = useRouter();
   const [pendingMode, startMode] = useTransition();
   const split = proyek.split;
@@ -58,6 +58,7 @@ export function RabView({ proyek, items: semua, admin }: { proyek: { id: string;
 
   return (
     <div className="space-y-5">
+      <div className="rounded-xl bg-matur-50 p-3 text-sm">Realisasi mengikuti nota belanja dan catatan lama; anggaran RAB tetap. {luarRab > 0 && <>Belanja manual / RAB diarsipkan {formatRupiah(luarRab)} tercatat terpisah dari rincian RAB ini. </>}<Link href={`/proyek/${proyek.id}?tab=belanja`} className="font-semibold underline">Buka Realisasi Belanja →</Link></div>
       <div>
         <Link href={`/proyek/${proyek.id}?tab=biaya`} className="inline-flex items-center gap-1 rounded-xl border border-matur-300 bg-white px-3 py-1.5 text-sm font-semibold text-matur-700">
           ← Kembali ke {proyek.nama}
@@ -234,7 +235,7 @@ function Rows({ item: i, proyekId, admin, split, fields, showBagian }: { item: I
         <td className="px-3 text-xs text-stone-500">{i.keterangan ?? ""}</td>
         {admin && (
           <td className="whitespace-nowrap px-1 text-right">
-            <RowEditor entityKey="item_rab" row={{ ...i, proyek_id: proyekId }} fields={fields} label="✏️" title={`Ubah item · ${i.nama}`} />
+            <RowEditor entityKey="item_rab" row={{ ...i, harga_realisasi: i.realisasi_lama ?? i.harga_realisasi, proyek_id: proyekId }} fields={fields} label="✏️" title={`Ubah item · ${i.nama}`} />
             <RowDeleter entityKey="item_rab" id={i.id} name={`Rincian Keperluan ${i.nama}`} />
           </td>
         )}
