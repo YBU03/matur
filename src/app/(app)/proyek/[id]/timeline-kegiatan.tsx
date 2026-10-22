@@ -124,8 +124,8 @@ export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string
                     {j.tgl_rencana ? formatTanggal(j.tgl_rencana) : "Belum diisi"}
                   </dd>
                 </div>
-                <div className="min-w-0 rounded-xl border border-amber-300 bg-amber-200 px-2.5 py-2.5 sm:px-3">
-                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-amber-900/80">{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}</dt>
+                <div className="min-w-0 rounded-xl border border-green-200 bg-green-50 text-green-900 px-2.5 py-2.5 sm:px-3">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-green-800">{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}</dt>
                   <dd className="mt-1 font-semibold leading-5 tabular-nums">
                     {j.tgl_realisasi ? formatTanggal(j.tgl_realisasi) : "Belum diisi"}
                   </dd>
