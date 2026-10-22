@@ -142,6 +142,15 @@ export function QrisView({ outlets }: { outlets: OutletQris[] }) {
         <h1 className="text-2xl font-bold">QRIS Outlet</h1>
         <p className="text-sm text-stone-500">QRIS tampil di layar kasir saat pelanggan bayar QRIS. Statis memakai gambar/kode yang diunggah dan dikonfirmasi kasir. Dinamis disiapkan untuk integrasi konfirmasi pembayaran otomatis.</p>
       </div>
+      <section className="rounded-2xl border border-matur-200 bg-white p-4" aria-labelledby="suara-pembayaran">
+        <h2 id="suara-pembayaran" className="font-bold">Suara pembayaran diterima</h2>
+        <p className="mt-1 text-sm text-stone-600">Suara untuk konfirmasi pembayaran QRIS dinamis sudah disiapkan. Coba putar di perangkat kasir untuk mengecek volume.</p>
+        <audio controls preload="none" className="mt-3 w-full max-w-md" aria-label="Tes suara pembayaran diterima">
+          <source src="/audio/pembayaran-diterima.wav" type="audio/wav" />
+          Browser tidak mendukung pemutar audio. <a href="/audio/pembayaran-diterima.wav">Buka suara pembayaran diterima</a>.
+        </audio>
+        <p className="mt-2 text-xs text-amber-800">Tes suara saja, tidak mencatat pembayaran. Pemutaran otomatis menunggu integrasi konfirmasi pembayaran QRIS BNI.</p>
+      </section>
       {outlets.map((o) => (
         <Kartu key={o.id} o={o} />
       ))}
