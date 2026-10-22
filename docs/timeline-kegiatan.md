@@ -32,3 +32,9 @@ Tampilan kembali berupa timeline dengan lingkaran nomor dan garis penghubung, ta
 Pemeriksaan: empat tes helper urutan, ESLint dan TypeScript lulus. Browser lokal pada data tiruan memverifikasi mode baca ringkas, masuk mode pengaturan, pindah dengan tombol dan drag pointer, pembatalan dan kembali ke mode baca; tampilan mitra tanpa kontrol perubahan. Lebar 320/390/1280 diperiksa, tanpa overflow horizontal pada 320. Halaman preview tidak disertakan ke produksi.
 
 Build produksi akhir lulus tanpa halaman preview; satu peringatan lint lama simulasi-view.tsx:80 tetap ada.
+
+## Kotak tanggal sejajar
+
+Rencana dan Realisasi menggunakan dua kolom sama lebar/tinggi: kuning pudar untuk Rencana dan kuning lebih jelas untuk Realisasi. Label di atas tanggal; tanggal kosong menampilkan “Belum diisi”. Status mundur tetap memakai “Jadwal baru” dan tanggal rencana dicoret. Nomor serta garis timeline tetap satu sumbu. Hanya markup presentasi berubah, tanpa perubahan handler, data, hak akses, atau database.
+
+Validasi: empat tes helper urutan dan lint lulus. Browser lokal data tiruan pada lebar 320/390/1280: kotak sejajar, tidak ada overflow horizontal pada 320/390, pindah dengan tombol dan Batal tetap bekerja. Preview lokal dihapus sebelum build produksi akhir.
