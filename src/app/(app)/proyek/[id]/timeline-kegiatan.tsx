@@ -117,9 +117,20 @@ export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string
                   <RowDeleter entityKey="jadwal_proyek" id={j.id} name={`Jadwal ${j.judul}`} />
                 </div>}
               </div>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500"><p>{j.tgl_rencana ? <>Rencana: <span className={j.status === "mundur" ? "line-through" : ""}>{formatTanggal(j.tgl_rencana)}</span></> : "Belum dijadwalkan"}</p>
-              {j.tgl_realisasi && <p className={`mt-1 text-xs ${j.status === "mundur" ? "text-red-600" : "text-stone-500"}`}>{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}: {formatTanggal(j.tgl_realisasi)}</p>}
-              </div>
+              <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-kopi-900">
+                <div className="min-w-0 rounded-xl border border-amber-200/70 bg-amber-50 px-2.5 py-2.5 sm:px-3">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-amber-900/70">Rencana</dt>
+                  <dd className={`mt-1 font-semibold leading-5 tabular-nums ${j.status === "mundur" && j.tgl_rencana ? "line-through decoration-amber-700/50" : ""}`}>
+                    {j.tgl_rencana ? formatTanggal(j.tgl_rencana) : "Belum diisi"}
+                  </dd>
+                </div>
+                <div className="min-w-0 rounded-xl border border-amber-300 bg-amber-200 px-2.5 py-2.5 sm:px-3">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-amber-900/80">{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}</dt>
+                  <dd className="mt-1 font-semibold leading-5 tabular-nums">
+                    {j.tgl_realisasi ? formatTanggal(j.tgl_realisasi) : "Belum diisi"}
+                  </dd>
+                </div>
+              </dl>
               {j.keterangan && <p className="mt-1.5 whitespace-pre-wrap break-words text-xs text-stone-600">{j.keterangan}</p>}
               {admin && atur && <div className="mt-2 flex flex-wrap items-center gap-1">
                 <button type="button" disabled={pending || !!drag} onPointerDown={(e) => mulai(id, e)} aria-label={`Geser ${j.judul}`} title="Tahan pegangan lalu geser" className="touch-none select-none rounded-md border px-2.5 py-1.5 text-stone-600 cursor-grab disabled:opacity-40">⋮⋮</button>
