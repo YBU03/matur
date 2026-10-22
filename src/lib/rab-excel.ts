@@ -15,6 +15,8 @@ export type RabRow = {
   harga_satuan: number | null;
   harga_estimasi: number; // total baris
   harga_realisasi: number | null;
+  /** Baseline lama untuk round-trip Excel; realisasi dari nota tidak diimpor ulang. */
+  realisasi_lama?: number;
   status: "rencana" | "dibeli" | "terpasang";
   keterangan: string | null;
   /** siapa yang membeli: kantor pusat atau mitra (mis. untuk tukang mitra) */
@@ -67,6 +69,8 @@ export async function parseWorkbook(buf: ArrayBuffer): Promise<{ rows: RabRow[];
     }
 
     if (header.includes("kelompok")) {
+      const legacyCol = header.indexOf("realisasi lama (untuk impor)");
+      if (legacyCol >= 0) notes.push("Realisasi dari nota hanya informasi; impor memakai kolom Realisasi Lama agar tidak dihitung dua kali.");
       // 1. format export Matoer
       const c = Object.fromEntries(HEADERS.map((h) => [h, col(h.toLowerCase())]));
       for (const r of all.slice(headerIdx + 1)) {
@@ -84,7 +88,7 @@ export async function parseWorkbook(buf: ArrayBuffer): Promise<{ rows: RabRow[];
           satuan: text(r.v[c["Satuan"]]) || null,
           harga_satuan: hs,
           harga_estimasi: Math.round(num(r.v[c["Total Estimasi"]]) ?? (hs ?? 0) * qty),
-          harga_realisasi: num(r.v[c["Realisasi"]]),
+          harga_realisasi: num(r.v[legacyCol >= 0 ? legacyCol : c["Realisasi"]]),
           status: st === "dibeli" || st === "terpasang" ? st : "rencana",
           keterangan: text(r.v[c["Keterangan"]]) || null,
           dibeli_oleh: /mitra/i.test(text(r.v[c["Dibeli Oleh"]])) ? "mitra" : "kantor",
@@ -211,11 +215,13 @@ export async function exportExcel(judul: string, items: RabRow[], split = false)
   const ws = wb.addWorksheet("Rincian Keperluan");
   ws.addRow([judul]).font = { bold: true, size: 14 };
   ws.addRow([]);
-  const h = ws.addRow(split ? HEADERS : HEADERS.filter((x) => x !== "Dibeli Oleh"));
+  const adaNota = items.some((i) => i.realisasi_lama !== undefined);
+  const headers = split ? HEADERS : HEADERS.filter((x) => x !== "Dibeli Oleh");
+  const h = ws.addRow([...headers,...(adaNota ? ["Realisasi Lama (untuk impor)"] : [])]);
   h.font = { bold: true };
   h.eachCell((c) => (c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFDE85" } }));
   for (const i of items) {
-    const r = ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan, ...(split ? [pembeli(i)] : [])]);
+    const r = ws.addRow([i.kategori, i.bagian, i.nama, i.spesifikasi, i.qty, i.satuan, i.harga_satuan, i.harga_estimasi, i.harga_realisasi, i.status, i.keterangan, ...(split ? [pembeli(i)] : []), ...(adaNota ? [i.realisasi_lama ?? i.harga_realisasi] : [])]);
     if (split && i.dibeli_oleh === "mitra") r.getCell(12).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDBEAFE" } };
   }
   ws.addRow([]);

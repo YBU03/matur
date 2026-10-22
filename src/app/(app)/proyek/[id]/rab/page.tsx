@@ -1,3 +1,5 @@
+import { loadBelanjaProyek } from "@/lib/belanja-proyek-server";
+import { gabungRealisasiRab, belanjaDiLuarRab } from "@/lib/belanja-proyek";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -19,10 +21,13 @@ export default async function RincianKeperluan({ params }: { params: Promise<{ i
     .order("urutan")
     .order("nama");
   const items = (data ?? []).map((r) => ({ ...r, qty: Number(r.qty) })) as (RabRow & { id: string })[];
+  const belanja = await loadBelanjaProyek(id);
+  const gabung = gabungRealisasiRab(items,belanja);
   return (
     <RabView
       proyek={{ id: p.id, nama: p.nama, outlet: (p.outlet as unknown as { nama: string } | null)?.nama ?? "", split: p.mode_pembelian === "split" }}
-      items={items}
+      items={gabung}
+      luarRab={belanjaDiLuarRab(belanja,items.map(i=>i.id))}
       admin={s.active.role === "owner" || s.active.role === "admin_pusat"}
     />
   );

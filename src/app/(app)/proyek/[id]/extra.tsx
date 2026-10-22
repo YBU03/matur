@@ -246,6 +246,9 @@ export type LaporanData = {
   grandOpening: string | null;
   estimasi: number;
   realisasi: number;
+  pembayaranProyek: number;
+  sisaTagihan: number;
+  realisasiLama: number;
   tahapan: { nama: string; progres: number; pic: string }[];
   biaya: { kelompok: string; estimasi: number; realisasi: number }[];
   /** mode split: rekap barang dibeli pusat / mitra */
@@ -281,7 +284,10 @@ export function LaporanPdf({ data, className = "" }: { data: LaporanData; classN
           ["Estimasi biaya", formatRupiah(data.estimasi)],
           ["Realisasi biaya", formatRupiah(data.realisasi)],
           ["Dana masuk dari mitra", formatRupiah(dana)],
-          ["Sisa dana (masuk − realisasi)", formatRupiah(dana - data.realisasi)],
+          ["Pembayaran dari dana proyek", formatRupiah(data.pembayaranProyek)],
+          ["Saldo dana tercatat", formatRupiah(dana - data.pembayaranProyek)],
+          ["Sisa tagihan nota", formatRupiah(data.sisaTagihan)],
+          ...(data.realisasiLama ? [["Realisasi lama (pembayaran belum dirinci)", formatRupiah(data.realisasiLama)], ["Catatan saldo", "Belum termasuk pembayaran realisasi lama"]] : []),
         ],
         headStyles: head,
         styles: { fontSize: 9 },

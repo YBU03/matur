@@ -1,3 +1,5 @@
+import { BelanjaProyekView } from "./belanja-view";
+import { ringkasanBelanja, belanjaDiLuarRab } from "@/lib/belanja-proyek";
 import { TimelineKegiatan } from "./timeline-kegiatan";
 import { SelesaiProyek } from "./selesai";
 import { totalEstimasiRab } from "@/lib/rab-total";
@@ -18,6 +20,7 @@ const TABS = [
   { key: "ringkasan", label: "Ringkasan" },
   { key: "jadwal", label: "Jadwal" },
   { key: "biaya", label: "Biaya & Dana" },
+  { key: "belanja", label: "Realisasi Belanja" },
   { key: "desain", label: "Desain & Foto" },
   { key: "dokumen", label: "Dokumen" },
   { key: "diskusi", label: "Diskusi" },
@@ -42,11 +45,15 @@ export default async function DetailProyek({ params, searchParams }: { params: P
   if (!s?.active) notFound();
   const d = await detailProyek(id); // RLS: hanya proyek yang boleh dilihat
   if (!d) notFound();
-  const { proyek: p, pekerjaan, rab, foto, desain, usulan, jadwal, setoran, checklist, dokumen, komentar, catatan } = d;
+  const { proyek: p, pekerjaan, rab, rabAsli, belanja, foto, desain, usulan, jadwal, setoran, checklist, dokumen, komentar, catatan } = d;
   const admin = s.active.role === "owner" || s.active.role === "admin_pusat";
   const bisaUsul = admin || s.active.role === "mitra";
   const progres = p.status === "selesai" ? 100 : progresTotal(pekerjaan);
-  const realisasi = rab.reduce((t, r) => t + (r.harga_realisasi ?? 0), 0);
+  const realisasiLama = rabAsli.reduce((t,r) => t+Number(r.harga_realisasi??0),0);
+  const manual = belanjaDiLuarRab(belanja,rab.map(r=>r.id));
+  const danaTercatat = setoran.reduce((t,x)=>t+Number(x.jumlah),0);
+  const belanjaRingkas = ringkasanBelanja(belanja,realisasiLama,danaTercatat);
+  const realisasi = belanjaRingkas.realisasi;
   const estimasiRab = totalEstimasiRab(rab);
   const danaMasuk = setoran.reduce((t, x) => t + x.jumlah, 0);
   const disetujui = foto.filter((f) => f.status === "disetujui");
@@ -71,8 +78,11 @@ export default async function DetailProyek({ params, searchParams }: { params: P
     grandOpening: p.target_buka,
     estimasi: estimasiRab,
     realisasi,
+    pembayaranProyek: belanjaRingkas.dariProyek,
+    sisaTagihan: belanjaRingkas.tagihan,
+    realisasiLama,
     tahapan: pekerjaan.map((k) => ({ nama: k.nama, progres: k.progres, pic: k.pic?.nama ?? "-" })),
-    biaya: grup.map((g) => ({ kelompok: g.kelompok, estimasi: g.estimasi, realisasi: g.realisasi })),
+    biaya: [...grup.map((g) => ({ kelompok: g.kelompok, estimasi: g.estimasi, realisasi: g.realisasi })), ...(manual ? [{ kelompok: "Belanja manual / RAB diarsipkan", estimasi: 0, realisasi: manual }] : [])],
     pembeli: p.mode_pembelian === "split" ? totalPembeli(rab) : undefined,
     setoran,
     jadwal,
@@ -340,15 +350,22 @@ export default async function DetailProyek({ params, searchParams }: { params: P
         </section>
       )}
 
+      {tab === "belanja" && <BelanjaProyekView proyekId={p.id} rab={rabAsli} belanja={belanja} danaMasuk={danaMasuk} admin={admin} />}
+
       {tab === "biaya" && (
         <>
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label="Grand Total RAB" value={formatRupiah(estimasiRab)} sub="Jumlah seluruh rincian RAB aktif" />
             <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={estimasiRab ? `${Math.round((realisasi / estimasiRab) * 100)}% dari total RAB` : undefined} />
             <Kpi label="Dana Masuk Mitra" value={formatRupiah(danaMasuk)} sub={`${setoran.length} setoran`} kelolaHref={admin ? "#setoran-dana-mitra" : undefined} />
-            <Kpi label="Sisa Dana" value={formatRupiah(danaMasuk - realisasi)} sub="dana masuk − realisasi" warn={realisasi > danaMasuk} />
+            <Kpi label="Saldo Dana Tercatat" value={formatRupiah(belanjaRingkas.saldo)} sub="dana masuk − pembayaran dari dana proyek" warn={belanjaRingkas.saldo < 0} />
           </section>
 
+          <div className="rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">
+            <p>Sisa tagihan nota: <b>{formatRupiah(belanjaRingkas.tagihan)}</b>. Belanja manual / RAB diarsipkan: <b>{formatRupiah(manual)}</b>.</p>
+            {realisasiLama > 0 && <p className="mt-1 text-amber-900">Realisasi lama {formatRupiah(realisasiLama)} belum memiliki rincian pembayaran; saldo tercatat belum memperhitungkannya.</p>}
+            <Link href={`/proyek/${p.id}?tab=belanja`} className="mt-2 inline-block font-semibold underline">Buka Realisasi Belanja →</Link>
+          </div>
           <section className={card}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <h2 className="mr-auto font-bold">Rincian Keperluan</h2>
