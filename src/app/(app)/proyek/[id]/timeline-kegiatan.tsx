@@ -12,6 +12,7 @@ const fields = ["judul", "tgl_rencana", "tgl_realisasi", "status", "keterangan",
 
 export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string; jadwal: Jadwal[]; admin: boolean }) {
   const router = useRouter();
+  const [atur, setAtur] = useState(false);
   const [draft, setDraft] = useState<string[] | null>(null);
   const [drag, setDrag] = useState<{ id: string; tujuan: number } | null>(null);
   const [pesan, setPesan] = useState("");
@@ -77,10 +78,11 @@ export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string
   }
 
   return <>
-    {admin && <div className="mb-4 rounded-xl bg-matur-50 p-3 text-sm">
-      <div className="mb-3">{!berubah && !pending && !drag ? <RowEditor entityKey="jadwal_proyek" row={null} initial={{ proyek_id: proyekId, status: "rencana", urutan: String(jadwal.length + 1) }} fields={fields} label="+ Kegiatan" className="rounded-lg border border-matur-300 bg-white px-3 py-2 font-semibold" /> : <p className="text-xs text-stone-500">Simpan atau batalkan urutan sebelum menambah/mengedit kegiatan.</p>}</div>
-      <p>Urutan mengikuti nomor. Geser pegangan ⋮⋮ atau gunakan ↑ ↓, lalu simpan.</p>
-      <div className="mt-2 flex flex-wrap gap-2">
+    {admin && <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-stone-100 pb-3 text-xs">
+      {!berubah && !pending && !drag && !atur && <RowEditor entityKey="jadwal_proyek" row={null} initial={{ proyek_id: proyekId, status: "rencana", urutan: String(jadwal.length + 1) }} fields={fields} label="+ Kegiatan" className="rounded-lg bg-kopi-900 px-3 py-2 font-semibold text-white" />}
+      {!atur && jadwal.length > 1 && <button type="button" onClick={() => setAtur(true)} className="rounded-lg border border-matur-200 px-3 py-2 font-semibold text-kopi-700">Atur urutan</button>}
+      {atur && <>
+      <span className="mr-auto text-stone-500">Geser ⋮⋮ atau gunakan ↑ ↓</span>
         <button type="button" disabled={!berubah || pending || !!drag} onClick={() => start(async () => {
           setPesan("");
           try {
@@ -90,37 +92,40 @@ export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string
             router.refresh();
           } catch { setPesan("Urutan belum tersimpan. Coba lagi."); }
         })} className="rounded-lg bg-kopi-900 px-3 py-2 font-semibold text-white disabled:opacity-40">{pending ? "Menyimpan…" : "Simpan urutan"}</button>
-        <button type="button" disabled={!berubah || pending || !!drag} onClick={() => { setDraft(null); setPesan(""); }} className="rounded-lg border border-matur-300 px-3 py-2 disabled:opacity-40">Batal</button>
+        <button type="button" disabled={pending || !!drag} onClick={() => { setDraft(null); setPesan(""); setAtur(false); }} className="rounded-lg border border-matur-300 px-3 py-2 disabled:opacity-40">Batal</button>
         {pesan && <button type="button" disabled={pending} onClick={() => router.refresh()} className="rounded-lg border px-3 py-2">Muat ulang jadwal</button>}
-      </div>
-      <p role="status" aria-live="polite" className="mt-2 text-xs">{pesan || (drag ? `Lepaskan untuk memindahkan ke nomor ${drag.tujuan + 1}. Tekan Esc untuk membatalkan geser.` : berubah ? "Perubahan urutan belum disimpan." : "")}</p>
+      </>}
+      {(pesan || drag || berubah) && <p role="status" aria-live="polite" className="w-full text-xs text-stone-500">{pesan || (drag ? `Lepaskan untuk memindahkan ke nomor ${drag.tujuan + 1}. Tekan Esc untuk membatalkan geser.` : "Perubahan urutan belum disimpan.")}</p>}
     </div>}
-    <ol ref={list} aria-label="Urutan kegiatan pembangunan" className="space-y-3">
+    <ol ref={list} aria-label="Urutan kegiatan pembangunan" className="relative">
       {ids.map((id, index) => {
         const j = byId.get(id)!;
         // Penanda tujuan berada di antara baris, tanpa menggeser baris selama pointer bergerak.
         const lainnya = ids.filter((x) => x !== drag?.id);
         const sebelum = drag && id !== drag.id && lainnya.indexOf(id) === drag.tujuan;
-        return <li key={id} data-kegiatan={id} className="relative">
+        return <li key={id} data-kegiatan={id} className="relative pb-5 pl-10 last:pb-0">
           {sebelum && <div aria-hidden="true" className="absolute -top-2 left-0 right-0 h-1 rounded bg-matur-500" />}
-          <div className={`flex gap-3 rounded-xl border p-3 ${drag?.id === id ? "border-matur-500 bg-matur-50 ring-2 ring-matur-200" : "border-stone-200 bg-white"}`}>
-            <span aria-label={`Nomor ${index + 1}`} className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${j.status === "selesai" ? "bg-green-100 text-green-800" : j.status === "mundur" ? "bg-red-100 text-red-800" : "bg-matur-100 text-kopi-900"}`}>{index + 1}</span>
+          {index < ids.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-[13px] top-7 w-px bg-matur-200" />}
+          <div className={`min-w-0 rounded-lg ${drag?.id === id ? "bg-matur-50 ring-2 ring-matur-300" : ""}`}>
+            <span aria-label={`Nomor ${index + 1}`} className={`absolute left-0 top-0 flex size-7 items-center justify-center rounded-full text-xs font-bold ${j.status === "selesai" ? "bg-green-100 text-green-800" : j.status === "mundur" ? "bg-red-100 text-red-800" : "bg-matur-100 text-kopi-900"}`}>{index + 1}</span>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="break-words font-semibold">{j.judul}</p>
-                <span className={`rounded-full px-2 py-0.5 text-xs ${j.status === "selesai" ? "bg-green-50 text-green-700" : j.status === "mundur" ? "bg-red-50 text-red-700" : "bg-stone-100 text-stone-600"}`}>{j.status === "selesai" ? "✓ Selesai" : j.status === "mundur" ? "Mundur" : "Rencana"}</span>
-              </div>
-              <p className="mt-1 text-xs text-stone-500">{j.tgl_rencana ? <>Rencana: <span className={j.status === "mundur" ? "line-through" : ""}>{formatTanggal(j.tgl_rencana)}</span></> : "Belum dijadwalkan"}</p>
-              {j.tgl_realisasi && <p className={`mt-1 text-xs ${j.status === "mundur" ? "text-red-600" : "text-stone-500"}`}>{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}: {formatTanggal(j.tgl_realisasi)}</p>}
-              {j.keterangan && <p className="mt-2 whitespace-pre-wrap break-words text-xs text-stone-600">{j.keterangan}</p>}
-              {admin && <div className="mt-3 flex flex-wrap items-center gap-1">
-                <button type="button" disabled={pending || !!drag} onPointerDown={(e) => mulai(id, e)} aria-label={`Geser ${j.judul}`} title="Tahan pegangan lalu geser" className="touch-none select-none rounded-lg border px-3 py-2 text-stone-600 cursor-grab disabled:opacity-40">⋮⋮</button>
-                <button type="button" disabled={pending || !!drag || index === 0} onClick={() => pindah(id, index - 1)} aria-label={`Naikkan ${j.judul}`} className="rounded-lg border px-3 py-2 disabled:opacity-30">↑</button>
-                <button type="button" disabled={pending || !!drag || index === ids.length - 1} onClick={() => pindah(id, index + 1)} aria-label={`Turunkan ${j.judul}`} className="rounded-lg border px-3 py-2 disabled:opacity-30">↓</button>
-                {!berubah && !pending && !drag && <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"><p className="break-words font-semibold">{j.judul}</p>
+                <span className={`rounded-full px-2 py-0.5 text-xs ${j.status === "selesai" ? "bg-green-50 text-green-700" : j.status === "mundur" ? "bg-red-50 text-red-700" : "bg-stone-100 text-stone-600"}`}>{j.status === "selesai" ? "✓ Selesai" : j.status === "mundur" ? "Mundur" : "Rencana"}</span></div>
+                {admin && !atur && !berubah && !pending && !drag && <div className="flex shrink-0 items-center">
                   <RowEditor entityKey="jadwal_proyek" row={j as unknown as Record<string, unknown>} fields={fields} label="✏️" title={`Ubah · ${j.judul}`} />
                   <RowDeleter entityKey="jadwal_proyek" id={j.id} name={`Jadwal ${j.judul}`} />
-                </>}
+                </div>}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500"><p>{j.tgl_rencana ? <>Rencana: <span className={j.status === "mundur" ? "line-through" : ""}>{formatTanggal(j.tgl_rencana)}</span></> : "Belum dijadwalkan"}</p>
+              {j.tgl_realisasi && <p className={`mt-1 text-xs ${j.status === "mundur" ? "text-red-600" : "text-stone-500"}`}>{j.status === "mundur" ? "Jadwal baru" : "Realisasi"}: {formatTanggal(j.tgl_realisasi)}</p>}
+              </div>
+              {j.keterangan && <p className="mt-1.5 whitespace-pre-wrap break-words text-xs text-stone-600">{j.keterangan}</p>}
+              {admin && atur && <div className="mt-2 flex flex-wrap items-center gap-1">
+                <button type="button" disabled={pending || !!drag} onPointerDown={(e) => mulai(id, e)} aria-label={`Geser ${j.judul}`} title="Tahan pegangan lalu geser" className="touch-none select-none rounded-md border px-2.5 py-1.5 text-stone-600 cursor-grab disabled:opacity-40">⋮⋮</button>
+                <button type="button" disabled={pending || !!drag || index === 0} onClick={() => pindah(id, index - 1)} aria-label={`Naikkan ${j.judul}`} className="rounded-md border px-2.5 py-1.5 disabled:opacity-30">↑</button>
+                <button type="button" disabled={pending || !!drag || index === ids.length - 1} onClick={() => pindah(id, index + 1)} aria-label={`Turunkan ${j.judul}`} className="rounded-md border px-2.5 py-1.5 disabled:opacity-30">↓</button>
+
               </div>}
             </div>
           </div>
