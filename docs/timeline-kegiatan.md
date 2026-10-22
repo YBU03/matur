@@ -24,3 +24,11 @@ Sembilan tes unit/SQL PGlite lulus: pindah atas/bawah dan batas, input tidak ber
 Pemeriksaan browser lokal pada data tiruan: geser pointer, tombol turun, Batal, status pending dan kegagalan autentikasi yang mempertahankan draft; tampilan read-only tanpa tombol edit; viewport 390×844, 320×740 (tanpa overflow horizontal) dan desktop 1280×900. Tidak menguji penyimpanan dari browser pada proyek nyata; penyimpanan diverifikasi melalui SQL/RLS dengan fixture rollback. TypeScript lulus.
 
 Production build lulus setelah menggabungkan pembaruan dashboard terbaru (base 140219e). Ada satu peringatan lint lama di simulasi-view.tsx:80; tidak ada kegagalan build. Halaman preview data uji tidak disertakan ke produksi.
+
+## Penyegaran tampilan ringkas
+
+Tampilan kembali berupa timeline dengan lingkaran nomor dan garis penghubung, tanpa kartu tinggi pada tiap kegiatan. Tanggal rencana/realisasi dibuat sebaris jika ruang cukup; keterangan hanya muncul bila terisi. Edit/hapus berada di sisi kanan judul. Kontrol geser/naik/turun/Simpan/Batal ditampilkan saat admin membuka `Atur urutan`; Batal mengembalikan draft dan menutup mode tersebut. Tidak ada perubahan pada algoritme geser, aksi penyimpanan, data, izin, atau database.
+
+Pemeriksaan: empat tes helper urutan, ESLint dan TypeScript lulus. Browser lokal pada data tiruan memverifikasi mode baca ringkas, masuk mode pengaturan, pindah dengan tombol dan drag pointer, pembatalan dan kembali ke mode baca; tampilan mitra tanpa kontrol perubahan. Lebar 320/390/1280 diperiksa, tanpa overflow horizontal pada 320. Halaman preview tidak disertakan ke produksi.
+
+Build produksi akhir lulus tanpa halaman preview; satu peringatan lint lama simulasi-view.tsx:80 tetap ada.
