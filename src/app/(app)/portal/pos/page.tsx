@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { Filters } from "../../dashboard/filters";
 import { SalesDashboard } from "../../dashboard/sales";
+import { KartuOmzetHariIni } from "../../dashboard/omzet-hari-ini";
+import { LiveRefresh } from "@/components/live-refresh";
 
 // Mitra: penjualan POS outletnya sendiri (omzet harian, menu terlaris, kanal, jam ramai) — data lewat RLS.
 export default async function PosMitra({
@@ -42,10 +44,15 @@ export default async function PosMitra({
           transaksi.
         </p>
       </div>
+      <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
+      <Suspense fallback={<div className="h-48 animate-pulse rounded-3xl bg-kopi-900/20" aria-busy="true" />}>
+        <KartuOmzetHariIni outletId={outletId} outletNama={outletId ? outlets.find((o) => o.id === outletId)?.nama : outlets.map((o) => o.nama).join(", ")} />
+      </Suspense>
       <Filters
         jenis="tanggal"
         outlets={outlets.length > 1 ? outlets : null}
         canSim={false}
+        ringkasHp
       />
       <Suspense
         fallback={
@@ -59,6 +66,7 @@ export default async function PosMitra({
           kDari={sp.dari}
           kSampai={sp.sampai}
           mode="asli"
+          ringkasHp
         />
       </Suspense>
     </div>

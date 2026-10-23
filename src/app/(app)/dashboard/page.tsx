@@ -1,4 +1,5 @@
 import { RingkasPos } from "./ringkas-pos";
+import { KartuOmzetHariIni } from "./omzet-hari-ini";
 import { isAdminDashboardRole } from "@/lib/dashboard-navigation";
 import { LiveRefresh } from "@/components/live-refresh";
 import Image from "next/image";
@@ -31,6 +32,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const lihatPenjualan = pusat || gudangPusat || OUTLET.includes(active.role);
   const adminHome = isAdminDashboardRole(active.role);
   const canSim = active.role === "owner" || active.role === "admin_pusat";
+  // tampilan POS baru (kartu omzet hari ini + HP ringkas): Finance & Admin Gudang; Mitra di Beranda
+  const kartuBaru = active.role === "finance" || active.role === "admin_gudang";
 
   let outlets: { id: string; nama: string; jam_operasional: string | null }[] = [];
   if (lihatPenjualan) {
@@ -109,6 +112,25 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {active.role === "mitra" && (
+        <>
+          <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
+          <Suspense fallback={<Skeleton h="h-48" />}>
+            <KartuOmzetHariIni
+              outletNama={[...new Set(s.assignments.filter((a) => a.role === "mitra" && a.outletId).map((a) => a.outletNama))].join(", ") || undefined}
+              tautan={{ href: "/portal/pos", teks: "Buka POS Outlet" }}
+            />
+          </Suspense>
+        </>
+      )}
+      {kartuBaru && (
+        <>
+          <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
+          <Suspense fallback={<Skeleton h="h-48" />}>
+            <KartuOmzetHariIni outletId={outletId} outletNama={outlets.find((o) => o.id === outletId)?.nama} />
+          </Suspense>
+        </>
+      )}
+      {active.role === "mitra" && (
         <Suspense fallback={<Skeleton h="h-40" />}>
           <MitraRingkas userId={s.userId} nama={s.nama} />
         </Suspense>
@@ -125,7 +147,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       )}
-      {!adminHome && (lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} />}
+      {!adminHome && (lihatPenjualan || lihatLaporan) && <Filters key={tab} jenis={tab === "bulanan" ? "bulan" : "tanggal"} outlets={pusat || gudangPusat ? outlets : null} canSim={canSim && tab === "harian"} ringkasHp={kartuBaru && tab === "harian"} />}
       {!adminHome && lihatLaporan && tab === "bulanan" && (
         <Suspense fallback={<Skeleton h="h-96" />}>
           <LaporanRingkas outlets={outlets} outletId={pusat ? outletId : null} dari={r0.dari} sampai={r0.sampai} />
@@ -140,7 +162,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             kDari={sp.dari}
             kSampai={sp.sampai}
             mode={simulasi ? "simulasi" : "asli"}
-            tanpaRupiah={gudangPusat}
+            ringkasHp={kartuBaru}
           />
         </Suspense>
       )}

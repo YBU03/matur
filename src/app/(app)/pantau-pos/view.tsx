@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { BarList, ChartCard, Heatmap, TrendChart } from "@/components/charts";
 import { LiveRefresh } from "@/components/live-refresh";
-import { Badge, ChipHeader, HeaderHalaman, Kartu, KartuAngka, Kosong, isian } from "@/components/ui-halaman";
+import { KartuOmzet, type OmzetHariIni } from "@/components/kartu-omzet";
+import { Badge, Kartu, KartuAngka, Kosong, isian } from "@/components/ui-halaman";
 import { SERIES, angka, rupiah } from "@/lib/chart-utils";
 
 // Tampilan Pemantau POS: satu halaman omzet harian, tren, menu terlaris, jam ramai/sepi. Data hanya lewat RPC pantau_pos*.
@@ -63,9 +64,10 @@ function Delta({ now, prev }: { now: number; prev: number }) {
   );
 }
 
-export function PantauView({ ringkas, d, outlets, outletId, rentang, dari, sampai, hariIni }: {
+export function PantauView({ ringkas, d, kartu, outlets, outletId, rentang, dari, sampai, hariIni }: {
   ringkas: Ringkas;
   d: Detail;
+  kartu: OmzetHariIni;
   outlets: OutletP[];
   outletId: string | null;
   rentang: string;
@@ -128,14 +130,14 @@ export function PantauView({ ringkas, d, outlets, outletId, rentang, dari, sampa
   return (
     <div className="space-y-5">
       <LiveRefresh pantau={[]} cadanganDetik={60} />
-      <HeaderHalaman
-        judul="Pemantauan POS"
-        ikon="📊"
-        keterangan="Omzet & penjualan kasir dari POS Matoer — tren harian, menu terlaris, dan jam ramai/sepi. Diperbarui otomatis setiap menit."
-      >
-        <ChipHeader>🏪 {outletId ? outlets.find((o) => o.id === outletId)?.nama : outlets.length > 1 ? `Semua outlet (${outlets.length})` : (outlets[0]?.nama ?? "-")}</ChipHeader>
-        <ChipHeader>🕒 {tglPanjang(hariIni)} · {jamSekarang} WIB</ChipHeader>
-      </HeaderHalaman>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-extrabold text-kopi-900">📊 Pemantauan POS</h1>
+          <p className="text-sm text-stone-500">Omzet & penjualan kasir — tren harian, menu terlaris, jam ramai/sepi.</p>
+        </div>
+        <p className="text-xs text-stone-500">🕒 {tglPanjang(hariIni)} · {jamSekarang} WIB</p>
+      </div>
+      <KartuOmzet d={kartu} label={outletId ? (outlets.find((o) => o.id === outletId)?.nama ?? "-") : outlets.length > 1 ? `Semua outlet (${outlets.length})` : (outlets[0]?.nama ?? "-")} />
 
       {outlets.length > 1 && (
         <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Pilih outlet">
