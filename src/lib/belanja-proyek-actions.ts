@@ -54,3 +54,12 @@ export async function batalkanBelanja(proyekId: string, id: string, versi: strin
     refresh(proyekId); return {};
   } catch (e) { return { error: e instanceof Error ? e.message : "Nota belum dibatalkan." }; }
 }
+
+export async function koreksiBayarBelanja(proyekId: string, belanjaId: string, pembayaranId: string | null, versi: string, alasan: string): Promise<{ error?: string }> {
+  try {
+    const db = await admin();
+    const { error } = await db.rpc("koreksi_bayar_belanja_proyek", { p_id: pembayaranId, p_belanja: belanjaId, p_versi: versi, p_alasan: alasan });
+    if (error) return { error: error.message };
+    refresh(proyekId); return {};
+  } catch (e) { return { error: e instanceof Error ? e.message : "Koreksi belum tersimpan." }; }
+}

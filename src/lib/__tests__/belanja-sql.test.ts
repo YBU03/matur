@@ -20,6 +20,7 @@ beforeAll(async()=>{
  create schema storage;create table storage.objects(bucket_id text,name text);alter table storage.objects enable row level security;create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
  set app.role='admin_pusat';`);
  await db.exec(sql);
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261024022630_belanja_status_pembayaran.sql',import.meta.url),'utf8'));
 });
 afterAll(()=>db.close());
 describe('nota dan pembayaran atomik',()=>{
@@ -34,4 +35,40 @@ describe('nota dan pembayaran atomik',()=>{
  it('pembayaran awal sah dan revisi menjaga pembayaran serta snapshot RAB',async()=>{const b=crypto.randomUUID();const d={...data,pembayaran:{id:crypto.randomUUID(),tanggal:'2026-10-22',jumlah:'5000',sumber:'talangan_pusat',metode:'tunai'}};await save(b,d);await save(b,d);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1',[b])).rows).toHaveLength(1);await save(b,{...data,toko:'Toko revisi'},await version(b));expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1',[b])).rows).toHaveLength(1);});
  it('bukti dari nota lain dan jumlah terlalu presisi ditolak',async()=>{await expect(save(crypto.randomUUID(),{...data,nota_path:p+'/belanja/'+id+'/fake.pdf'})).rejects.toThrow(/nota/);await expect(save(crypto.randomUUID(),{...data,items:[{nama:'Barang',qty:'1.0001',harga_satuan:'1000'}]})).rejects.toThrow(/desimal/);});
  it('peran nonadmin dan tulisan langsung ke tabel ditolak',async()=>{await db.exec("set app.role='mitra'");await expect(save(crypto.randomUUID(),data)).rejects.toThrow(/Hanya/);await db.exec("set app.role='admin_pusat'");const rights=(await db.query<{anon:boolean;direct:boolean;rpc:boolean}>("select has_function_privilege('anon','simpan_belanja_proyek(uuid,uuid,timestamptz,jsonb)','EXECUTE') anon,has_table_privilege('authenticated','belanja_proyek','INSERT') direct,has_function_privilege('authenticated','simpan_belanja_proyek(uuid,uuid,timestamptz,jsonb)','EXECUTE') rpc")).rows[0];expect(rights).toEqual({anon:false,direct:false,rpc:true});});
+});
+
+describe('koreksi pembayaran dan nota DP',()=>{
+ const b='00000000-0000-4000-8000-000000000050',pid='00000000-0000-4000-8000-000000000051';
+ const correct=(pay:string|null,v:string,reason='Salah input pembayaran')=>db.query('select koreksi_bayar_belanja_proyek($1,$2,$3,$4)',[pay,b,v,reason]);
+ it('nota DP disimpan dan bayar lalu koreksi tidak menghapus riwayat',async()=>{
+  await save(b,{...data,nota_dp:true,pembayaran:{id:pid,tanggal:'2026-10-22',jumlah:'10000',sumber:'dana_proyek',metode:'transfer'}});
+  expect((await db.query<{nota_dp:boolean}>('select nota_dp from belanja_proyek where id=$1',[b])).rows[0].nota_dp).toBe(true);
+  const v=await version(b);await correct(pid,v);await correct(pid,v);
+  const rows=(await db.query<{jumlah:number;batal:boolean;alasan_batal:string;nama_pembatal:string}>('select jumlah,batal_at is not null batal,alasan_batal,nama_pembatal from belanja_proyek_bayar where id=$1',[pid])).rows;
+  expect(rows).toEqual([{jumlah:10000,batal:true,alasan_batal:'Salah input pembayaran',nama_pembatal:'Admin'}]);
+  expect((await db.query("select * from log_aktivitas where entitas_id=$1 and aksi='update'",[pid])).rows).toHaveLength(1);
+ });
+ it('retry pembayaran yang dikoreksi tidak menghidupkan pembayaran lama',async()=>{
+  await expect(db.query('select bayar_belanja_proyek($1,$2,$3,$4::jsonb)',[pid,b,await version(b),JSON.stringify({tanggal:'2026-10-22',jumlah:'10000',sumber:'dana_proyek',metode:'transfer'})])).rejects.toThrow(/dikoreksi/);
+ });
+ it('pembayaran pengganti memakai nominal aktif, bukan yang dikoreksi',async()=>{
+  await db.query('select bayar_belanja_proyek($1,$2,$3,$4::jsonb)',[crypto.randomUUID(),b,await version(b),JSON.stringify({tanggal:'2026-10-22',jumlah:'25000',sumber:'dana_proyek',metode:'tunai'})]);
+  expect((await db.query<{v:number}>('select sum(jumlah)::bigint v from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows[0].v).toBe(25000);
+ });
+ it('menolak alasan singkat, pembayaran nota lain dan versi lama',async()=>{
+  await expect(correct(null,await version(b),'x')).rejects.toThrow(/alasan/);
+  await expect(correct(payId,await version(b))).rejects.toThrow(/tidak ditemukan/);
+  await expect(correct(null,'2020-01-01')).rejects.toThrow(/berubah/);
+ });
+ it('belum dibayar mengoreksi semua pembayaran aktif secara idempoten; nota boleh direvisi setelahnya',async()=>{
+  const v=await version(b);await correct(null,v);await correct(null,v);
+  expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(0);
+  expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1',[b])).rows).toHaveLength(2);
+  await save(b,{...data,items:[{nama:'Revisi DP',qty:'1',harga_satuan:'5000'}]},await version(b));
+ });
+ it('peran lain, akun nonaktif dan akses langsung tidak dapat mengoreksi',async()=>{
+  await db.exec("set app.role='mitra'");await expect(correct(null,await version(b))).rejects.toThrow(/Hanya/);await db.exec("set app.role='admin_pusat';update pengguna set status='nonaktif'");
+  await expect(correct(null,await version(b))).rejects.toThrow(/aktif/);await db.exec("update pengguna set status='aktif'");
+  expect((await db.query<{anon:boolean;direct:boolean}>("select has_function_privilege('anon','koreksi_bayar_belanja_proyek(uuid,uuid,timestamptz,text)','EXECUTE') anon,has_table_privilege('authenticated','belanja_proyek_bayar','UPDATE') direct")).rows[0]).toEqual({anon:false,direct:false});
+ });
 });

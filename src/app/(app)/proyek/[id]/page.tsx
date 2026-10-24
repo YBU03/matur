@@ -362,6 +362,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
           <div className="rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">
             <p>Total nilai pesanan: <b>{formatRupiah(belanjaRingkas.nota)}</b>. Sudah dibayar (semua sumber): <b>{formatRupiah(belanjaRingkas.dibayar)}</b>.</p>
             <p>Sisa tagihan nota: <b>{formatRupiah(belanjaRingkas.tagihan)}</b>. Belanja manual / RAB diarsipkan: <b>{formatRupiah(manual)}</b>.</p>
+            {belanjaRingkas.dpBelumFinal > 0 && <p className="mt-1 text-amber-900">Ada nota DP yang harga total pesanan dan sisa pelunasannya belum dikonfirmasi. Sisa tagihan hanya untuk nilai nota yang sudah dicatat.</p>}
             {realisasiLama > 0 && <p className="mt-1 text-amber-900">Realisasi lama {formatRupiah(realisasiLama)} belum memiliki rincian pembayaran; saldo tercatat belum memperhitungkannya.</p>}
             <Link href={`/proyek/${p.id}?tab=belanja`} className="mt-2 inline-block font-semibold underline">Buka Realisasi Belanja →</Link>
           </div>
