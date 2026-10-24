@@ -15,6 +15,14 @@ export function barangDariRab(r: Pick<ItemRab, "id" | "nama" | "kategori" | "sat
   return { item_rab_id: r.id, nama: r.nama, kategori: r.kategori, satuan: r.satuan ?? "", qty: String(qty), harga_satuan: String(harga) };
 }
 
+/** Pilihan RAB yang sudah ada memperbarui rincian, bukan menambah barang yang sama lagi. */
+export function terapkanPilihanRab(items: BarangInput[], pilihan: BarangInput[]): BarangInput[] {
+  const lama = items.filter(i => i.item_rab_id || i.nama.trim() || i.harga_satuan);
+  const refs = new Map(pilihan.map(i => [i.item_rab_id, i]));
+  const ids = new Set(lama.map(i => i.item_rab_id));
+  return [...lama.map(i => i.item_rab_id && refs.has(i.item_rab_id) ? { ...refs.get(i.item_rab_id)! } : i), ...pilihan.filter(i => !ids.has(i.item_rab_id))];
+}
+
 export function jumlahBarang(qty: string | number, harga: string | number) {
   return Math.floor((Math.round(Number(qty) * 1000) * Number(harga) + 500) / 1000);
 }

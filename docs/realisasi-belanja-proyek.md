@@ -75,3 +75,11 @@ Di bawah Total Harga Pesanan terdapat pilihan Belum Dibayar / DP / Lunas. DP mem
 Uji browser lokal memverifikasi RAB 10 sak x Rp70.000 = Rp700.000; RAB tanpa harga satuan Rp2.600.000 otomatis terisi, DP Rp1.491.750 menghasilkan sisa Rp1.108.250; Lunas mengikuti harga yang diubah menjadi Rp3.000.000 dan Belum Dibayar tidak membawa nominal sebelumnya. Konfirmasi DP, pilihan metode transfer dan tampilan 320/390/1280 diperiksa tanpa overflow. Data uji tidak disimpan ke produksi; preview dihapus sebelum build akhir.
 
 Validasi tambahan: 224 tes dari 34 berkas dan ESLint seluruh src lulus. Tiga regresi baru memeriksa kuantitas RAB, total baris tidak dikalikan ulang, harga satuan turunan serta pembulatan. Tidak ada migrasi atau perubahan data produksi untuk penyederhanaan form ini.
+
+### Edit dan hapus nota lama (24 Oktober 2026)
+
+Semua nota aktif, termasuk nota DP lama, memakai tombol **Edit nota**. Pilihan jumlah dan harga RAB memperbarui baris yang sama tanpa menggandakan barang. Pembayaran lama tetap tersimpan; total baru tidak boleh lebih kecil daripada pembayaran aktif. Pengguna tetap mengonfirmasi harga pesanan sebenarnya sebelum menyimpan.
+
+**Hapus nota** mengarsipkan nota beserta rincian dan riwayatnya. Wajib alasan, mengetik HAPUS, dan untuk nota berbayar mengakui dampak koreksi pembayaran serta saldo. Koreksi pembayaran dan pengarsipan berlangsung atomik melalui `hapus_belanja_proyek`, dengan pemeriksaan Owner/Admin Pusat aktif, versi nota, serta perlindungan pengiriman ulang. Ini koreksi pencatatan yang salah, bukan pengembalian uang bank. Filter awal hanya nota aktif; arsip dapat dilihat melalui filter. Ringkasan dan PDF mengikuti status pembatalan yang sudah tersedia.
+
+Migrasi: `20261024033438_hapus_nota_berbayar.sql`. Fixture SQL `supabase/tests/hapus_nota.sql` lulus di database dalam transaksi ROLLBACK; tidak ada temuan keamanan baru. Seluruh 230 pengujian pada 34 berkas dan lint lulus. Tidak ada penghapusan atau perubahan nota Andriyanto untuk penerapan fitur ini.

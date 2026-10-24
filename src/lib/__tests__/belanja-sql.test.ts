@@ -21,6 +21,7 @@ beforeAll(async()=>{
  set app.role='admin_pusat';`);
  await db.exec(sql);
  await db.exec(readFileSync(new URL('../../../supabase/migrations/20261024022630_belanja_status_pembayaran.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261024033438_hapus_nota_berbayar.sql',import.meta.url),'utf8'));
 });
 afterAll(()=>db.close());
 describe('nota dan pembayaran atomik',()=>{
@@ -71,4 +72,14 @@ describe('koreksi pembayaran dan nota DP',()=>{
   await expect(correct(null,await version(b))).rejects.toThrow(/aktif/);await db.exec("update pengguna set status='aktif'");
   expect((await db.query<{anon:boolean;direct:boolean}>("select has_function_privilege('anon','koreksi_bayar_belanja_proyek(uuid,uuid,timestamptz,text)','EXECUTE') anon,has_table_privilege('authenticated','belanja_proyek_bayar','UPDATE') direct")).rows[0]).toEqual({anon:false,direct:false});
  });
+});
+
+describe('hapus nota dengan arsip dan koreksi atomik',()=>{
+ const hapus=(bid:string,v:string,ack=false,reason='Nota salah dicatat')=>db.query('select hapus_belanja_proyek($1,$2,$3,$4)',[bid,v,reason,ack]);
+ const newBill=async(paid=false)=>{const bid=crypto.randomUUID();await save(bid,{...data,...(paid?{pembayaran:{id:crypto.randomUUID(),tanggal:'2026-10-22',jumlah:'10000',sumber:'dana_proyek',metode:'transfer'}}:{})});return bid;};
+ it('nota belum dibayar diarsipkan tanpa menghapus item dan tidak dihitung ulang saat retry',async()=>{const b=await newBill();const v=await version(b);await hapus(b,v);await hapus(b,v);expect((await db.query<{batal:boolean}>('select batal_at is not null batal from belanja_proyek where id=$1',[b])).rows[0].batal).toBe(true);expect((await db.query('select * from belanja_proyek_item where belanja_id=$1',[b])).rows).toHaveLength(2);});
+ it('nota berbayar membutuhkan persetujuan dampak saldo dan riwayat pembayaran tetap ada',async()=>{const b=await newBill(true);const v=await version(b);await expect(hapus(b,v)).rejects.toThrow(/Konfirmasi/);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(1);await hapus(b,v,true);await hapus(b,v,true);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1',[b])).rows).toHaveLength(1);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(0);});
+ it('versi lama dan alasan kosong ditolak sebelum mengoreksi uang keluar',async()=>{const b=await newBill(true);await expect(hapus(b,'2020-01-01',true)).rejects.toThrow(/berubah/);await expect(hapus(b,await version(b),true,' ')).rejects.toThrow(/alasan/);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(1);});
+ it('kegagalan pembatalan nota membatalkan koreksi pembayaran dan perubahan versi sekaligus',async()=>{const b=await newBill(true);const v=await version(b);await db.exec(`create function test_tolak_hapus() returns trigger language plpgsql as $$begin if new.batal_at is not null then raise exception 'Uji rollback hapus';end if;return new;end$$;create trigger test_tolak_hapus before update on belanja_proyek for each row execute function test_tolak_hapus();`);await expect(hapus(b,v,true)).rejects.toThrow(/Uji rollback/);expect(await version(b)).toBe(v);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(1);await db.exec('drop trigger test_tolak_hapus on belanja_proyek;drop function test_tolak_hapus()');});
+ it('mitra/nonaktif/anon ditolak dan wrapper memakai SECURITY INVOKER',async()=>{const b=await newBill();await db.exec("set app.role='mitra'");await expect(hapus(b,await version(b))).rejects.toThrow(/Hanya/);await db.exec("set app.role='admin_pusat';update pengguna set status='nonaktif'");await expect(hapus(b,await version(b))).rejects.toThrow(/aktif/);await db.exec("update pengguna set status='aktif'");expect((await db.query<{anon:boolean;definer:boolean}>("select has_function_privilege('anon','hapus_belanja_proyek(uuid,timestamptz,text,boolean)','EXECUTE') anon,(select prosecdef from pg_proc where oid='hapus_belanja_proyek(uuid,timestamptz,text,boolean)'::regprocedure) definer")).rows[0]).toEqual({anon:false,definer:false});});
 });
