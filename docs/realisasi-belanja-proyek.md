@@ -43,3 +43,13 @@ Nota, rincian dan pembayaran awal disimpan satu transaksi. UUID permintaan melin
 - Halaman preview dan gambar QA hanya di folder kerja, tidak disertakan ke produksi. Bukti nota fisik dan transfer bank tidak diuji sebagai transaksi nyata.
 
 Production build akhir lulus tanpa halaman preview. Peringatan lint lama di simulasi-view.tsx:80 tetap ada, tidak menggagalkan build.
+
+## Ringkasan kas dan PDF realisasi
+
+Kartu Biaya & Dana serta Realisasi Belanja menggunakan komponen yang sama, berurutan: Grand Total RAB, Dana Masuk Mitra, Realisasi Pembayaran (hanya sumber dana_proyek), Sisa Dana Aktual. Nilai pesanan, pembayaran seluruh sumber, dan sisa tagihan ditampilkan terpisah. Tidak menyamakan anggaran RAB dengan harga pesanan aktual.
+
+Form nota baru membuka bagian pembayaran secara default, namun nominal wajib diisi secara eksplisit. Input harga barang adalah harga pesanan penuh; input DP/pembayaran adalah nominal yang sudah keluar. Pilihan belum dibayar tetap tersedia. Catatan pembayaran awal membedakan DP/sebagian dan lunas. RPC transaksi, validasi server, RLS, serta batas tidak boleh lebih bayar tetap digunakan tanpa perubahan.
+
+Download PDF Realisasi tersedia di kedua tab untuk pembaca proyek sesuai akses yang sudah berlaku. PDF mencakup seluruh proyek, terlepas dari filter daftar: ringkasan dana, setoran mitra, rincian barang per nota, penanggung jawab/pencatat, DP/pelunasan per tanggal/sumber/metode, serta sisa tagihan. Nota batal ditandai dan tidak masuk total aktif; realisasi lama tanpa rincian pembayaran diberi peringatan. Tidak mengekspor signed URL atau berkas bukti privat. Pembuatan PDF memakai impor dinamis jsPDF yang sudah tersedia; ada status loading, tombol nonaktif saat proses, pesan gagal, tabel berlanjut dan nomor halaman.
+
+Validasi pembaruan: seluruh 213 tes dari 34 berkas lulus, termasuk tiga tes baru DP/pelunasan serta PDF kosong/multihalaman. ESLint seluruh src tanpa error dan TypeScript lulus. PDF lima halaman data tiruan dirender dan diperiksa, termasuk teks panjang, tabel lanjutan dan footer. Browser lokal memverifikasi unduh PDF sungguhan, konfirmasi pesanan Rp3.250.000 dengan DP Rp1.491.750, opsi belum dibayar, tampilan 320/390/1280 tanpa overflow di mobile dan akses baca mitra tanpa tombol tambah. Tidak ada penulisan data proyek nyata dari browser. Preview dihapus sebelum build akhir.

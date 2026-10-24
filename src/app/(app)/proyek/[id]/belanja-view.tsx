@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah as rp, formatTanggal } from "@/lib/format";
 import { hariIni } from "@/lib/jadwal/waktu";
+import { RingkasanDana } from "./ringkasan-dana";
+import { BelanjaPdf } from "./belanja-pdf";
+import { totalEstimasiRab } from "@/lib/rab-total";
+import type { Setoran } from "@/lib/proyek";
 import type { ItemRab } from "@/lib/proyek";
 import { SUMBER_BELANJA, jumlahBarang, ringkasanBelanja, statusBelanja, terbayar, type Belanja, type BelanjaInput, type BarangInput, type SumberBelanja } from "@/lib/belanja-proyek";
 import { simpanBelanja, catatBayarBelanja, batalkanBelanja } from "@/lib/belanja-proyek-actions";
@@ -30,9 +34,9 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
   const [picker, setPicker] = useState(false);
   const [cari, setCari] = useState("");
   const [pilihan, setPilihan] = useState<string[]>([]);
-  const [bayar, setBayar] = useState(false);
+  const [bayar, setBayar] = useState(true);
   const [nominal, setNominal] = useState("");
-  const [tglBayar, setTglBayar] = useState(hariIni());
+  const [tglBayar, setTglBayar] = useState(nota?.tanggal ?? hariIni());
   const [sumber, setSumber] = useState<SumberBelanja>("dana_proyek");
   const [metode, setMetode] = useState("tunai");
   const [cek, setCek] = useState(false);
@@ -40,7 +44,7 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
   const [pending, start] = useTransition();
   const total = items.reduce((s,i) => s + (jumlahBarang(i.qty,i.harga_satuan) || 0), 0);
   const edit = (n: number, field: keyof BarangInput, value: string) => setItems(items.map((i,k) => k === n ? { ...i, [field]: value } : i));
-  const payload: BelanjaInput = { tanggal, toko, nomor_nota: nomor, penanggung_jawab: pj, catatan, nota_path: nota?.nota_path ?? null, items, ...(!nota && bayar ? { pembayaran: { id: payId, tanggal: tglBayar, jumlah: nominal, sumber, metode, catatan: "Pembayaran awal nota" } } : {}) };
+  const payload: BelanjaInput = { tanggal, toko, nomor_nota: nomor, penanggung_jawab: pj, catatan, nota_path: nota?.nota_path ?? null, items, ...(!nota && bayar ? { pembayaran: { id: payId, tanggal: tglBayar, jumlah: nominal, sumber, metode, catatan: Number(nominal) < total ? "DP / pembayaran sebagian" : "Pembayaran lunas" } } : {}) };
   const kirim = () => start(async () => {
     const f = new FormData(); if (file) f.set("nota",file);
     const r = await simpanBelanja(proyekId,id,nota?.updated_at ?? null,payload,f);
@@ -66,7 +70,7 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
           <label className="text-sm">Penanggung jawab belanja<input required maxLength={200} className={input} value={pj} onChange={(e) => setPj(e.target.value)} /></label>
         </div>
         <div className="rounded-xl bg-matur-50 p-3 text-sm">
-          <p>Satu nota boleh mencampur barang RAB dan input manual. Isikan jumlah serta harga aktual; anggaran RAB tetap.</p>
+          <p>Satu nota boleh mencampur barang RAB dan input manual. Isikan harga keseluruhan pesanan, bukan nominal DP. Catat DP di bagian pembayaran; anggaran RAB tetap.</p>
           <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => setPicker(!picker)} className={btn}>Pilih barang RAB</button><button type="button" disabled={items.length>=200} onClick={() => setItems([...items,baru()])} className={btn}>+ Barang manual</button></div>
           {picker && <div className="mt-3 space-y-2">
             <label className="block">Cari barang RAB<input className={input} value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Nama atau kategori material…" /></label>
@@ -86,13 +90,14 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
           <div className="mt-2 grid grid-cols-2 gap-2"><label className="text-sm">Jumlah {i.satuan && `(${i.satuan})`}<input required type="number" min="0.001" max="1000000" step="0.001" className={input} value={i.qty} onChange={(e) => edit(k,"qty",e.target.value)} /></label><label className="text-sm">Harga aktual / satuan<input required type="number" min="0" max="1000000000000" step="1" className={input} value={i.harga_satuan} onChange={(e) => edit(k,"harga_satuan",e.target.value)} /></label></div>
           <p className="mt-2 text-right text-sm font-bold">{rp(jumlahBarang(i.qty,i.harga_satuan) || 0)}</p>
         </li>)}</ol>
-        <p className="text-right text-lg font-bold">Total nota: {rp(total)}</p>
+        <p className="text-right text-lg font-bold">Total harga pesanan (bukan nominal DP): {rp(total)}</p>
         <label className="block text-sm">Foto / PDF nota (opsional, maksimal 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={input} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />{file && <small className="block">Dipilih: {file.name}</small>}{nota?.nota_path && <small>Bukti sebelumnya tetap dipakai jika tidak memilih file baru.</small>}</label>
         <label className="block text-sm">Catatan<textarea maxLength={2000} className={input} value={catatan} onChange={(e) => setCatatan(e.target.value)} /></label>
         {!nota && <div className="rounded-xl border p-3">
-          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={bayar} onChange={(e) => { setBayar(e.target.checked); if (!nominal) setNominal(String(total)); }} />Catat pembayaran sekarang</label>
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={bayar} onChange={(e) => { setBayar(e.target.checked); if (!nominal) setNominal(String(total)); }} />Sudah membayar DP / lunas</label>
           {!bayar && <p className="mt-1 text-xs text-stone-500">Nota tercatat sebagai belum dibayar. Pembayaran dapat ditambahkan nanti.</p>}
-          {bayar && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Tanggal pembayaran<input required type="date" min={tanggal} value={tglBayar} onChange={(e) => setTglBayar(e.target.value)} className={input} /></label><label className="text-sm">Nominal dibayar<input required type="number" min="1" max={total} step="1" value={nominal} onChange={(e) => setNominal(e.target.value)} className={input} /></label><Sumber value={sumber} onChange={setSumber} /><label className="text-sm">Metode<select className={input} value={metode} onChange={(e) => setMetode(e.target.value)}><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select></label></div>}
+          {bayar && <p className="mt-2 text-xs text-stone-600">Isi nominal yang benar-benar sudah dibayar. DP boleh lebih kecil dari total pesanan. Dana proyek otomatis mengurangi saldo.</p>}
+          {bayar && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Tanggal pembayaran<input required type="date" min={tanggal} value={tglBayar} onChange={(e) => setTglBayar(e.target.value)} className={input} /></label><label className="text-sm">Nominal DP / pembayaran yang sudah keluar<input required type="number" min="1" max={total} step="1" value={nominal} onChange={(e) => setNominal(e.target.value)} className={input} /></label><Sumber value={sumber} onChange={setSumber} /><label className="text-sm">Metode<select className={input} value={metode} onChange={(e) => setMetode(e.target.value)}><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select></label></div>}
         </div>}
         {nota && <p className="text-xs text-stone-500">Pembayaran yang sudah tercatat tetap dipertahankan. Total nota tidak boleh kurang dari {rp(terbayar(nota))}.</p>}
       </fieldset>
@@ -114,16 +119,17 @@ function FormBayar({ proyekId, nota, onClose }: { proyekId: string; nota: Belanj
     <div className="mt-4 flex justify-end gap-2"><button disabled={pending} type="button" className={btn} onClick={()=>cek?setCek(false):onClose()}>{cek?"Periksa lagi":"Batal"}</button><button disabled={pending} className={utama}>{pending?"Menyimpan…":cek?"Konfirmasi pembayaran":"Periksa pembayaran"}</button></div>
   </form></Modal>;
 }
-export function BelanjaProyekView({ proyekId, rab, belanja, danaMasuk, admin }: { proyekId: string; rab: ItemRab[]; belanja: Belanja[]; danaMasuk: number; admin: boolean }) {
+export function BelanjaProyekView({ proyekId, namaProyek, rab, belanja, danaMasuk, setoran, admin }: { proyekId: string; namaProyek: string; rab: ItemRab[]; belanja: Belanja[]; danaMasuk: number; setoran: Setoran[]; admin: boolean }) {
   const router=useRouter(); const [form,setForm]=useState<Belanja | "baru" | null>(null);const [bayar,setBayar]=useState<Belanja|null>(null);const [batal,setBatal]=useState<Belanja|null>(null);
   const [alasan,setAlasan]=useState("");const [konfirmasi,setKonfirmasi]=useState("");const [err,setErr]=useState("");const [pending,start]=useTransition();
   const [q,setQ]=useState("");const [status,setStatus]=useState("");const [dari,setDari]=useState("");const [sampai,setSampai]=useState("");
   const lama=rab.reduce((s,r)=>s+Number(r.harga_realisasi??0),0);const ringkas=ringkasanBelanja(belanja,lama,danaMasuk);
   const tampil=belanja.filter((b)=>(!status || statusBelanja(b)===status)&&(!dari||b.tanggal>=dari)&&(!sampai||b.tanggal<=sampai)&&`${b.toko} ${b.nomor_nota??""} ${b.penanggung_jawab} ${b.items.map(i=>i.nama).join(" ")}`.toLowerCase().includes(q.toLowerCase()));
   return <section className="space-y-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Realisasi Belanja</h2><p className="text-sm text-stone-500">Satu nota, banyak barang. Pilih RAB atau tulis manual.</p></div>{admin&&<button className={utama} onClick={()=>setForm("baru")}>+ Tambah Belanja</button>}</div>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[["Dana masuk mitra",danaMasuk],["Total realisasi",ringkas.realisasi],["Dibayar dari dana proyek",ringkas.dariProyek],["Saldo dana tercatat",ringkas.saldo],["Sisa tagihan nota",ringkas.tagihan],["Talangan pusat",ringkas.talangan],["Dibayar langsung mitra",ringkas.mitra],["Realisasi lama",lama]].map(([label,value])=><div key={label} className="rounded-xl border border-matur-200 bg-white p-3"><p className="text-xs text-stone-500">{label}</p><p className={`mt-1 break-words font-bold ${Number(value)<0?"text-red-600":""}`}>{rp(Number(value))}</p></div>)}</div>
-    <p className="text-xs text-stone-500">Ringkasan seluruh proyek. Saldo tercatat = dana masuk mitra − pembayaran dari dana proyek. Talangan pusat dan pembayaran langsung mitra tidak mengurangi saldo ini; pelunasan talangan belum dicatat di sini.</p>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Realisasi Belanja</h2><p className="text-sm text-stone-500">Satu nota, banyak barang. Pilih RAB atau tulis manual.</p></div><div className="flex flex-wrap gap-2"><BelanjaPdf data={{nama:namaProyek,rab:totalEstimasiRab(rab),realisasiLama:lama,setoran,belanja}} />{admin&&<button className={utama} onClick={()=>setForm("baru")}>+ Tambah Belanja</button>}</div></div>
+    <RingkasanDana rab={totalEstimasiRab(rab)} danaMasuk={danaMasuk} ringkas={ringkas} />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[["Total nilai pesanan",ringkas.nota],["Sudah dibayar (semua sumber)",ringkas.dibayar],["Sisa tagihan nota",ringkas.tagihan],["Talangan pusat",ringkas.talangan],["Dibayar langsung mitra",ringkas.mitra],["Realisasi lama",lama]].map(([label,value])=><div key={label} className="rounded-xl border border-stone-200 bg-white p-3"><p className="text-xs text-stone-500">{label}</p><p className={`mt-1 break-words font-bold ${Number(value)<0?"text-red-600":""}`}>{rp(Number(value))}</p></div>)}</div>
+    <p className="text-xs text-stone-500">Ringkasan dan PDF mencakup seluruh proyek, tidak mengikuti filter nota. Sisa Dana Aktual = dana masuk mitra − DP dan pelunasan dari dana proyek. Talangan pusat dan pembayaran langsung mitra tidak mengurangi saldo ini; pelunasan talangan belum dicatat di sini.</p>
     {lama>0&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Ada realisasi lama {rp(lama)} yang belum memiliki rincian pembayaran. Saldo tercatat belum memperhitungkan pembayaran lama tersebut. Jangan masukkan ulang belanja yang sama sebagai nota baru sebelum dicocokkan.</p>}
     <div className="grid gap-3 rounded-xl border bg-white p-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-sm">Cari nota / barang<input className={input} value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Toko, barang, penanggung jawab…"/></label><label className="text-sm">Status<select className={input} value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">Semua status</option>{["Belum dibayar","Sebagian","Lunas","Dibatalkan"].map(s=><option key={s}>{s}</option>)}</select></label><label className="text-sm">Dari tanggal<input type="date" className={input} value={dari} onChange={(e)=>setDari(e.target.value)}/></label><label className="text-sm">Sampai tanggal<input type="date" className={input} min={dari} value={sampai} onChange={(e)=>setSampai(e.target.value)}/></label></div>
     {!tampil.length&&<p className="rounded-xl border border-dashed p-6 text-center text-stone-500">{belanja.length?"Tidak ada nota sesuai filter.":"Belum ada belanja tercatat. Tambahkan nota pertama dari RAB atau input manual."}</p>}

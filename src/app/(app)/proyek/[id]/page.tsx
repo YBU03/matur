@@ -1,3 +1,5 @@
+import { RingkasanDana } from "./ringkasan-dana";
+import { BelanjaPdf } from "./belanja-pdf";
 import { BelanjaProyekView } from "./belanja-view";
 import { ringkasanBelanja, belanjaDiLuarRab } from "@/lib/belanja-proyek";
 import { TimelineKegiatan } from "./timeline-kegiatan";
@@ -350,18 +352,15 @@ export default async function DetailProyek({ params, searchParams }: { params: P
         </section>
       )}
 
-      {tab === "belanja" && <BelanjaProyekView proyekId={p.id} rab={rabAsli} belanja={belanja} danaMasuk={danaMasuk} admin={admin} />}
+      {tab === "belanja" && <BelanjaProyekView proyekId={p.id} namaProyek={p.nama} rab={rabAsli} belanja={belanja} danaMasuk={danaMasuk} setoran={setoran} admin={admin} />}
 
       {tab === "biaya" && (
         <>
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="Grand Total RAB" value={formatRupiah(estimasiRab)} sub="Jumlah seluruh rincian RAB aktif" />
-            <Kpi label="Realisasi" value={formatRupiah(realisasi)} sub={estimasiRab ? `${Math.round((realisasi / estimasiRab) * 100)}% dari total RAB` : undefined} />
-            <Kpi label="Dana Masuk Mitra" value={formatRupiah(danaMasuk)} sub={`${setoran.length} setoran`} kelolaHref={admin ? "#setoran-dana-mitra" : undefined} />
-            <Kpi label="Saldo Dana Tercatat" value={formatRupiah(belanjaRingkas.saldo)} sub="dana masuk − pembayaran dari dana proyek" warn={belanjaRingkas.saldo < 0} />
-          </section>
+          <RingkasanDana rab={estimasiRab} danaMasuk={danaMasuk} ringkas={belanjaRingkas} kelolaHref={admin ? "#setoran-dana-mitra" : undefined} />
+          <div className="flex justify-end"><BelanjaPdf data={{ nama: p.nama, rab: estimasiRab, realisasiLama, setoran, belanja }} /></div>
 
           <div className="rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">
+            <p>Total nilai pesanan: <b>{formatRupiah(belanjaRingkas.nota)}</b>. Sudah dibayar (semua sumber): <b>{formatRupiah(belanjaRingkas.dibayar)}</b>.</p>
             <p>Sisa tagihan nota: <b>{formatRupiah(belanjaRingkas.tagihan)}</b>. Belanja manual / RAB diarsipkan: <b>{formatRupiah(manual)}</b>.</p>
             {realisasiLama > 0 && <p className="mt-1 text-amber-900">Realisasi lama {formatRupiah(realisasiLama)} belum memiliki rincian pembayaran; saldo tercatat belum memperhitungkannya.</p>}
             <Link href={`/proyek/${p.id}?tab=belanja`} className="mt-2 inline-block font-semibold underline">Buka Realisasi Belanja →</Link>
@@ -471,19 +470,6 @@ export default async function DetailProyek({ params, searchParams }: { params: P
 
       {tab === "dokumen" && <DokumenPanel proyekId={p.id} admin={admin} items={dokumen} />}
       {tab === "diskusi" && <Diskusi proyekId={p.id} userId={s.userId} admin={admin} items={komentar} />}
-    </div>
-  );
-}
-
-function Kpi({ label, value, sub, warn, kelolaHref }: { label: string; value: string; sub?: string; warn?: boolean; kelolaHref?: string }) {
-  return (
-    <div className="rounded-2xl border border-matur-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-stone-500">{label}</p>
-        {kelolaHref && <a href={kelolaHref} className="rounded-lg border border-matur-200 px-2 py-1 text-xs font-semibold text-kopi-900 hover:bg-matur-50 focus-visible:outline-2 focus-visible:outline-matur-500">Kelola Dana</a>}
-      </div>
-      <p className={`text-lg font-bold ${warn ? "text-red-600" : ""}`}>{value}</p>
-      {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
   );
 }
