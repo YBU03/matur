@@ -63,3 +63,12 @@ export async function koreksiBayarBelanja(proyekId: string, belanjaId: string, p
     refresh(proyekId); return {};
   } catch (e) { return { error: e instanceof Error ? e.message : "Koreksi belum tersimpan." }; }
 }
+
+export async function hapusBelanja(proyekId: string, id: string, versi: string, alasan: string, akuiPembayaran: boolean): Promise<{ error?: string }> {
+  try {
+    const db = await admin();
+    const { error } = await db.rpc("hapus_belanja_proyek", { p_id: id, p_versi: versi, p_alasan: alasan, p_akui_pembayaran: akuiPembayaran });
+    if (error) return { error: error.message };
+    refresh(proyekId); return {};
+  } catch (e) { return { error: e instanceof Error ? e.message : "Nota belum dihapus." }; }
+}
