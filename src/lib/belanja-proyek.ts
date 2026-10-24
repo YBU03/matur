@@ -1,3 +1,5 @@
+import type { ItemRab } from "./proyek";
+
 export const SUMBER_BELANJA = { dana_proyek: "Dana proyek (pusat)", talangan_pusat: "Talangan pusat", langsung_mitra: "Dibayar langsung mitra" } as const;
 export type SumberBelanja = keyof typeof SUMBER_BELANJA;
 export type BelanjaItem = { id: string; belanja_id: string; item_rab_id: string | null; nama: string; kategori: string; satuan: string | null; qty: number; harga_satuan: number; jumlah: number; urutan: number };
@@ -5,6 +7,13 @@ export type BelanjaBayar = { id: string; belanja_id: string; tanggal: string; ju
 export type Belanja = { nota_dp?: boolean; id: string; proyek_id: string; tanggal: string; toko: string; nomor_nota: string | null; penanggung_jawab: string; catatan: string | null; nota_path: string | null; nota_url?: string; total: number; nama_pencatat: string; updated_at: string; batal_at: string | null; alasan_batal: string | null; items: BelanjaItem[]; pembayaran: BelanjaBayar[] };
 export type BarangInput = { item_rab_id: string | null; nama: string; kategori: string; satuan: string; qty: string; harga_satuan: string };
 export type BelanjaInput = { nota_dp?: boolean; tanggal: string; toko: string; nomor_nota: string; penanggung_jawab: string; catatan: string; nota_path: string | null; items: BarangInput[]; pembayaran?: { id: string; tanggal: string; jumlah: string; sumber: SumberBelanja; metode: string; catatan: string } };
+
+/** RAB menyimpan harga_estimasi sebagai total baris, bukan harga per unit. */
+export function barangDariRab(r: Pick<ItemRab, "id" | "nama" | "kategori" | "satuan" | "qty" | "harga_satuan" | "harga_estimasi">): BarangInput {
+  const qty = Number(r.qty) > 0 ? Number(r.qty) : 1;
+  const harga = r.harga_satuan == null ? Math.round(Number(r.harga_estimasi) / qty) : Number(r.harga_satuan);
+  return { item_rab_id: r.id, nama: r.nama, kategori: r.kategori, satuan: r.satuan ?? "", qty: String(qty), harga_satuan: String(harga) };
+}
 
 export function jumlahBarang(qty: string | number, harga: string | number) {
   return Math.floor((Math.round(Number(qty) * 1000) * Number(harga) + 500) / 1000);
