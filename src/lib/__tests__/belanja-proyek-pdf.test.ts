@@ -27,6 +27,11 @@ describe("DP dan laporan realisasi",()=>{
     expect(doc.getNumberOfPages()).toBeGreaterThan(2);
     if(process.env.QA_PDF_PATH){const {writeFile}=await import("node:fs/promises");await writeFile(process.env.QA_PDF_PATH,Buffer.from(doc.output("arraybuffer")));}
   });
+  it("PDF mempertahankan riwayat koreksi dan membedakan nota DP dari harga penuh",async()=>{
+    const b={...nota,total:1491750,nota_dp:true,pembayaran:[...nota.pembayaran,{...nota.pembayaran[0],id:"void",jumlah:100000,batal_at:"2026-10-24T01:00:00Z",alasan_batal:"Nominal salah",nama_pembatal:"Admin Uji"}]};
+    const doc=await buatPdfRealisasi({nama:"Uji DP",rab:2600000,realisasiLama:0,setoran:[{id:"s",tanggal:"2026-10-24",jumlah:25000000,keterangan:null}],belanja:[b]});
+    for(const text of ["Rp 23.508.250","Dibayar Sebagian ","DIKOREKSI","Nominal salah","Belum dikonfirmasi; belum dianggap lunas"]){expect(doc.output()).toContain(text);}
+  });
   it("PDF tetap dapat dibuat saat nota dan setoran kosong",async()=>{
     const doc=await buatPdfRealisasi({nama:"Kosong",rab:0,realisasiLama:0,setoran:[],belanja:[]});
     expect(doc.output()).toContain("Belum ada realisasi belanja tercatat.");
