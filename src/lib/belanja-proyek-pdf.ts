@@ -21,6 +21,7 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   doc.setFont("helvetica", "normal").setFontSize(9).text(`Seluruh nota proyek | Dicetak ${formatTanggal(dicetak.toISOString(), true)} WIB`, 14, y);
   y += 5;
   const table = (headers: string[], body: string[][], moneyColumns: number[] = []) => {
+    if (y > 240) { doc.addPage(); y = 16; }
     autoTable(doc, { startY: y, head: [headers], body, headStyles: head, styles,
       margin: { top: 16, bottom: 18, left: 14, right: 14 }, rowPageBreak: "avoid",
       columnStyles: Object.fromEntries((headers.length === 1 ? [182] : headers.length === 2 ? (headers[0] === "Ringkasan dana" ? [130, 52] : [48, 134]) : headers.length === 3 ? [30, 116, 36] : headers[0] === "Barang / jasa" ? [86, 24, 36, 36] : [30, 48, 68, 36]).map((width, i) => [i, { cellWidth: width, ...(moneyColumns.includes(i) ? { halign: "right" as const } : {}) }])),
@@ -28,7 +29,7 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7;
   };
   const heading = (text: string) => {
-    if (y > 245) { doc.addPage(); y = 16; }
+    if (y > 220) { doc.addPage(); y = 16; }
     const lines = doc.splitTextToSize(text, 180);
     doc.setFont("helvetica", "bold").setFontSize(10).text(lines, 14, y);
     y += lines.length * 5 + 2;
