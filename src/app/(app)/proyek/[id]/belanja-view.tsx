@@ -10,7 +10,7 @@ import { BelanjaPdf } from "./belanja-pdf";
 import { totalEstimasiRab } from "@/lib/rab-total";
 import type { Setoran } from "@/lib/proyek";
 import type { ItemRab } from "@/lib/proyek";
-import { SUMBER_BELANJA, jumlahBarang, ringkasanBelanja, statusBelanja, terbayar, type Belanja, type BelanjaInput, type BarangInput, type SumberBelanja } from "@/lib/belanja-proyek";
+import { SUMBER_BELANJA, barangDariRab, jumlahBarang, ringkasanBelanja, statusBelanja, terbayar, type Belanja, type BelanjaInput, type BarangInput, type SumberBelanja } from "@/lib/belanja-proyek";
 import { simpanBelanja, catatBayarBelanja, batalkanBelanja, koreksiBayarBelanja } from "@/lib/belanja-proyek-actions";
 
 const input = "mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm disabled:bg-stone-100";
@@ -35,7 +35,7 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
   const [picker, setPicker] = useState(false);
   const [cari, setCari] = useState("");
   const [pilihan, setPilihan] = useState<string[]>([]);
-  const [bayar, setBayar] = useState(true);
+  const [modeBayar, setModeBayar] = useState<"belum" | "dp" | "lunas">("dp");
   const [nominal, setNominal] = useState("");
   const [tglBayar, setTglBayar] = useState(nota?.tanggal ?? hariIni());
   const [sumber, setSumber] = useState<SumberBelanja>("dana_proyek");
@@ -44,13 +44,18 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
   const total = items.reduce((s,i) => s + (jumlahBarang(i.qty,i.harga_satuan) || 0), 0);
+  const bayar = modeBayar !== "belum";
+  const nominalBayar = modeBayar === "lunas" ? total : Number(nominal) || 0;
+  const sisaTagihan = total - (nota ? terbayar(nota) : bayar ? nominalBayar : 0);
   const edit = (n: number, field: keyof BarangInput, value: string) => setItems(items.map((i,k) => k === n ? { ...i, [field]: value } : i));
-  const payload: BelanjaInput = { nota_dp: notaDp, tanggal, toko, nomor_nota: nomor, penanggung_jawab: pj, catatan, nota_path: nota?.nota_path ?? null, items, ...(!nota && bayar ? { pembayaran: { id: payId, tanggal: tglBayar, jumlah: nominal, sumber, metode, catatan: Number(nominal) < total ? "DP / pembayaran sebagian" : "Pembayaran lunas" } } : {}) };
+  const payload: BelanjaInput = { nota_dp: notaDp, tanggal, toko, nomor_nota: nomor, penanggung_jawab: pj, catatan, nota_path: nota?.nota_path ?? null, items, ...(!nota && bayar ? { pembayaran: { id: payId, tanggal: tglBayar, jumlah: String(nominalBayar), sumber, metode, catatan: notaDp || nominalBayar < total ? "DP / pembayaran sebagian" : "Pembayaran lunas" } } : {}) };
   const kirim = () => start(async () => {
     const f = new FormData(); if (file) f.set("nota",file);
-    const r = await simpanBelanja(proyekId,id,nota?.updated_at ?? null,payload,f);
-    if (r.error) { setErr(r.error); setCek(false); return; }
-    onClose(); router.refresh();
+    try {
+      const r = await simpanBelanja(proyekId,id,nota?.updated_at ?? null,payload,f);
+      if (r.error) { setErr(r.error); setCek(false); return; }
+      onClose(); router.refresh();
+    } catch { setErr("Nota belum tersimpan. Coba lagi."); setCek(false); }
   });
   return <Modal title={nota ? "Edit realisasi belanja" : "Tambah realisasi belanja"}>
     {cek ? <div className="space-y-3 text-sm">
@@ -59,10 +64,12 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
       <ul className="max-h-52 space-y-2 overflow-y-auto">{items.map((i,k) => <li key={k} className="flex justify-between gap-3 border-b pb-1"><span>{i.nama} · {i.qty} {i.satuan}</span><b>{rp(jumlahBarang(i.qty,i.harga_satuan))}</b></li>)}</ul>
       <p className="text-lg font-bold">{notaDp ? "Nilai nota DP" : "Total pesanan"} {rp(total)}</p>{notaDp && <p className="text-amber-800">Ini hanya nilai DP. Sisa harga pesanan belum diketahui.</p>}
       <p>Penanggung jawab: {pj}</p>
-      {bayar && !nota && <p>Pembayaran {rp(Number(nominal))} · {SUMBER_BELANJA[sumber]} · {metode}</p>}
+      {!nota && <p>Status pembayaran: <b>{bayar ? modeBayar === "lunas" ? "Lunas" : "DP" : "Belum Dibayar"}</b></p>}
+      {bayar && !nota && <p>Sudah dibayar {rp(nominalBayar)} · {SUMBER_BELANJA[sumber]} · {metode} · {formatTanggal(tglBayar)}</p>}
+      <p>{notaDp ? "Sisa pelunasan pesanan belum diketahui." : <>Sisa tagihan: <b>{rp(sisaTagihan)}</b></>}</p>
       {file && <p>Bukti nota: {file.name}</p>}
       <div className="flex justify-end gap-2"><button disabled={pending} type="button" onClick={() => setCek(false)} className={btn}>Periksa lagi</button><button disabled={pending} type="button" onClick={kirim} className={utama}>{pending ? "Menyimpan…" : "Konfirmasi simpan"}</button></div>
-    </div> : <form onSubmit={(e) => { e.preventDefault(); setErr(""); if (!items.length || total <= 0) { setErr("Isi barang dan harga aktualnya."); return; } if (file && file.size>5*1024*1024) { setErr("Bukti nota maksimal 5 MB."); return; } setCek(true); }}>
+    </div> : <form onSubmit={(e) => { e.preventDefault(); setErr(""); if (!items.length || total <= 0) { setErr("Isi barang dan harga aktualnya."); return; } if (!nota && bayar && (!Number.isSafeInteger(nominalBayar) || nominalBayar <= 0 || nominalBayar > total || (modeBayar === "dp" && !notaDp && nominalBayar >= total))) { setErr("Isi nominal DP lebih dari nol dan lebih kecil dari total pesanan. Jika dibayar penuh, pilih Lunas."); return; } if (file && file.size>5*1024*1024) { setErr("Bukti nota maksimal 5 MB."); return; } setCek(true); }}>
       <fieldset disabled={pending} className="max-h-[65vh] space-y-4 overflow-y-auto px-0.5 pb-2">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Tanggal nota<input required type="date" className={input} value={tanggal} onChange={(e) => setTanggal(e.target.value)} /></label>
@@ -71,13 +78,13 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
           <label className="text-sm">Penanggung jawab belanja<input required maxLength={200} className={input} value={pj} onChange={(e) => setPj(e.target.value)} /></label>
         </div>
         <div className="rounded-xl bg-matur-50 p-3 text-sm">
-          <p>Satu nota boleh mencampur barang RAB dan input manual. Isikan harga keseluruhan pesanan, bukan nominal DP. Catat DP di bagian pembayaran; anggaran RAB tetap.</p>
+          <p>Pilih barang RAB: jumlah dan harga otomatis terisi. Sesuaikan jika jumlah pembelian atau harga penjual berbeda. DP diisi terpisah di bawah total pesanan; anggaran RAB tetap.</p>
           <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => setPicker(!picker)} className={btn}>Pilih barang RAB</button><button type="button" disabled={items.length>=200} onClick={() => setItems([...items,baru()])} className={btn}>+ Barang manual</button></div>
           {picker && <div className="mt-3 space-y-2">
             <label className="block">Cari barang RAB<input className={input} value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Nama atau kategori material…" /></label>
-            <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg bg-white p-2">{rab.filter((r) => `${r.nama} ${r.kategori}`.toLowerCase().includes(cari.toLowerCase())).map((r) => <label key={r.id} className="flex items-start gap-2"><input type="checkbox" checked={pilihan.includes(r.id)} onChange={(e) => setPilihan(e.target.checked ? [...pilihan,r.id] : pilihan.filter((id) => id!==r.id))} className="mt-1" /><span>{r.nama}<small className="block text-stone-500">{r.kategori} · {r.satuan ?? "tanpa satuan"}</small></span></label>)}{rab.length===0 && <p>Belum ada RAB. Gunakan input manual.</p>}</div>
+            <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg bg-white p-2">{rab.filter((r) => `${r.nama} ${r.kategori}`.toLowerCase().includes(cari.toLowerCase())).map((r) => <label key={r.id} className="flex items-start gap-2"><input type="checkbox" checked={pilihan.includes(r.id)} onChange={(e) => setPilihan(e.target.checked ? [...pilihan,r.id] : pilihan.filter((id) => id!==r.id))} className="mt-1" /><span>{r.nama}<small className="block text-stone-500">{r.kategori} · {r.qty} {r.satuan ?? "unit"} · Total RAB {rp(r.harga_estimasi)}</small></span></label>)}{rab.length===0 && <p>Belum ada RAB. Gunakan input manual.</p>}</div>
             <button type="button" disabled={!pilihan.length} className={utama} onClick={() => {
-              const terpilih = rab.filter((r) => pilihan.includes(r.id)).map((r) => ({ item_rab_id:r.id,nama:r.nama,kategori:r.kategori,satuan:r.satuan ?? "",qty:"1",harga_satuan:String(r.harga_satuan ?? (r.qty>0 ? Math.round(r.harga_estimasi/r.qty) : 0)) }));
+              const terpilih = rab.filter((r) => pilihan.includes(r.id)).map(barangDariRab);
               const lama = items.filter((i) => i.item_rab_id || i.nama.trim() || i.harga_satuan);
               if (lama.length+terpilih.length>200) { setErr("Maksimal 200 barang per nota."); return; }
               setItems([...lama,...terpilih]); setPilihan([]); setPicker(false);
@@ -91,16 +98,20 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
           <div className="mt-2 grid grid-cols-2 gap-2"><label className="text-sm">Jumlah {i.satuan && `(${i.satuan})`}<input required type="number" min="0.001" max="1000000" step="0.001" className={input} value={i.qty} onChange={(e) => edit(k,"qty",e.target.value)} /></label><label className="text-sm">Harga aktual / satuan<input required type="number" min="0" max="1000000000000" step="1" className={input} value={i.harga_satuan} onChange={(e) => edit(k,"harga_satuan",e.target.value)} /></label></div>
           <p className="mt-2 text-right text-sm font-bold">{rp(jumlahBarang(i.qty,i.harga_satuan) || 0)}</p>
         </li>)}</ol>
-        <label className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm"><input type="checkbox" className="mt-1" checked={notaDp} onChange={e=>setNotaDp(e.target.checked)}/><span>Nota ini hanya berisi nilai DP, total harga pesanan belum lengkap. Setelah harga penuh diketahui, edit harga barang dan matikan pilihan ini.</span></label>
-        <p className="text-right text-lg font-bold">{notaDp ? "Nilai nota DP" : "Total harga pesanan (bukan nominal DP)"}: {rp(total)}</p>
-        <label className="block text-sm">Foto / PDF nota (opsional, maksimal 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={input} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />{file && <small className="block">Dipilih: {file.name}</small>}{nota?.nota_path && <small>Bukti sebelumnya tetap dipakai jika tidak memilih file baru.</small>}</label>
-        <label className="block text-sm">Catatan<textarea maxLength={2000} className={input} value={catatan} onChange={(e) => setCatatan(e.target.value)} /></label>
-        {!nota && <div className="rounded-xl border p-3">
-          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={bayar} onChange={(e) => { setBayar(e.target.checked); if (!nominal) setNominal(String(total)); }} />Sudah membayar DP / lunas</label>
-          {!bayar && <p className="mt-1 text-xs text-stone-500">Nota tercatat sebagai belum dibayar. Pembayaran dapat ditambahkan nanti.</p>}
-          {bayar && <p className="mt-2 text-xs text-stone-600">Isi nominal yang benar-benar sudah dibayar. DP boleh lebih kecil dari total pesanan. Dana proyek otomatis mengurangi saldo.</p>}
-          {bayar && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Tanggal pembayaran<input required type="date" min={tanggal} value={tglBayar} onChange={(e) => setTglBayar(e.target.value)} className={input} /></label><label className="text-sm">Nominal DP / pembayaran yang sudah keluar<input required type="number" min="1" max={total} step="1" value={nominal} onChange={(e) => setNominal(e.target.value)} className={input} /></label><Sumber value={sumber} onChange={setSumber} /><label className="text-sm">Metode<select className={input} value={metode} onChange={(e) => setMetode(e.target.value)}><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select></label></div>}
+        <details className="rounded-xl bg-amber-50 p-3 text-xs" open={nota?.nota_dp || undefined}><summary className="cursor-pointer font-semibold">Jika harga penuh pesanan belum diketahui</summary><label className="mt-2 flex items-start gap-2"><input type="checkbox" className="mt-1" checked={notaDp} onChange={e=>{setNotaDp(e.target.checked);if(e.target.checked&&modeBayar==="lunas")setModeBayar("dp");}}/><span>Nota ini hanya berisi nilai DP. Setelah harga penuh diketahui, edit harga barang dan matikan pilihan ini.</span></label></details>
+        <div className="rounded-xl border border-matur-200 bg-matur-50 p-3">
+          <p className="text-sm text-stone-600">{notaDp ? "Nilai nota DP (harga penuh belum diketahui)" : "Total Harga Pesanan"}</p>
+          <p className="mt-1 text-xl font-bold">{rp(total)}</p>
+          <p className="mt-1 text-xs text-stone-500">{notaDp ? "Nilai di atas hanya nominal nota DP. Lengkapi harga penuh pesanan sebelum mencatat pelunasan." : "Harga barang di atas adalah harga penuh pesanan. Jangan menggantinya dengan nominal DP. Harga satuan turunan RAB dibulatkan ke rupiah; periksa sebelum menyimpan."}</p>
+        </div>
+        {!nota && <div className="space-y-3 rounded-xl border p-3">
+          <label className="block text-sm font-semibold">Status pembayaran<select className={input} value={modeBayar} onChange={e=>setModeBayar(e.target.value as "belum"|"dp"|"lunas")}><option value="belum">Belum Dibayar</option><option value="dp">DP</option><option value="lunas" disabled={notaDp}>Lunas</option></select></label>
+          {!bayar && <p className="text-xs text-stone-500">Tidak ada pembayaran yang dicatat. Dana proyek tidak berkurang.</p>}
+          {bayar && <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">{modeBayar==="lunas"?"Nominal lunas (otomatis)":"Nominal DP yang sudah dibayar"}<input required type="number" min="1" max={modeBayar==="dp"&&!notaDp?Math.max(0,total-1):total} step="1" readOnly={modeBayar==="lunas"} value={modeBayar==="lunas"?total:nominal} onChange={e=>setNominal(e.target.value)} className={input}/></label><label className="text-sm">Tanggal pembayaran<input required type="date" min={tanggal} value={tglBayar} onChange={e=>setTglBayar(e.target.value)} className={input}/></label><Sumber value={sumber} onChange={setSumber}/><label className="text-sm">Metode<select className={input} value={metode} onChange={e=>setMetode(e.target.value)}><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select></label></div>}
+          <div className="rounded-lg bg-stone-50 p-3 text-sm"><p>Sudah dibayar: <b>{rp(bayar?nominalBayar:0)}</b></p><p>{notaDp?"Sisa pelunasan pesanan belum diketahui.":<>Sisa tagihan: <b>{rp(sisaTagihan)}</b></>}</p>{bayar&&<p className="mt-1 text-xs text-stone-500">{sumber==="dana_proyek"?`Dana proyek berkurang ${rp(nominalBayar)} setelah penyimpanan berhasil.`:"Pembayaran dari sumber ini tidak mengurangi saldo dana proyek."}</p>}</div>
         </div>}
+        <label className="block text-sm">Foto / PDF nota (opsional, maksimal 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={input} onChange={e=>setFile(e.target.files?.[0]??null)}/>{file&&<small className="block">Dipilih: {file.name}</small>}{nota?.nota_path&&<small>Bukti sebelumnya tetap dipakai jika tidak memilih file baru.</small>}</label>
+        <label className="block text-sm">Catatan<textarea maxLength={2000} className={input} value={catatan} onChange={e=>setCatatan(e.target.value)}/></label>
         {nota && <p className="text-xs text-stone-500">Pembayaran yang sudah tercatat tetap dipertahankan. Total nota tidak boleh kurang dari {rp(terbayar(nota))}.</p>}
       </fieldset>
       {err && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</p>}
