@@ -2,15 +2,16 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "./confirm-edit";
-import { izinkanLanjutKas } from "@/lib/pos-lanjut-kas-actions";
+import { izinkanLanjutKas, akhiriPresentasiPos } from "@/lib/pos-lanjut-kas-actions";
 import { formatRupiah as rp } from "@/lib/format";
 export type KasLanjut={id:string;outlet:string;tanggal:string;ditutup_at:string;modal:number;aktual:number|null;alasan_tolak:string|null};
-export type PanelLanjut={kas:KasLanjut[];riwayat:{outlet:string;tanggal:string;waktu:string;admin:string;alasan:string;ditutup_at:string;aktual:number|null}[]};
+export type PanelLanjut={presentasi?:{outlet_id:string;outlet:string;sampai_at:string}[];kas:KasLanjut[];riwayat:{outlet:string;tanggal:string;waktu:string;admin:string;alasan:string;ditutup_at:string;aktual:number|null}[]};
 const waktu=(v:string)=>new Date(v).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"});
 const btn="rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-50";
 export function PosLanjutKasPanel({data}:{data:PanelLanjut}){
  const router=useRouter();const [pilih,setPilih]=useState<KasLanjut|null>(null);const [alasan,setAlasan]=useState("");const [cek,setCek]=useState(false);const [pesan,setPesan]=useState("");const [error,setError]=useState("");const [busy,start]=useTransition();const flight=useRef(false);
  return <section id="lanjutkan-kas" className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
+  {data.presentasi?.map(p=><div key={p.outlet_id} className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm"><b>Presentasi POS lengkap · {p.outlet}</b><p>Syarat shift/Clock In dilonggarkan sampai {waktu(p.sampai_at)}. Transaksi tetap masuk data asli.</p><button type="button" disabled={busy} className={`${btn} mt-2`} onClick={()=>start(async()=>{const r=await akhiriPresentasiPos(p.outlet_id);setPesan(r.error??r.ok??"");if(!r.error)router.refresh();})}>Kembalikan aturan shift</button></div>)}
   <h2 className="font-bold">Izinkan Lanjutkan Kas</h2>
   <p className="text-sm text-stone-600">Untuk kas harian yang terlanjur ditutup. HRD/Admin Pusat dapat mengizinkan kas yang sama dilanjutkan pada jam shift terbit di tanggal operasionalnya. Pergantian S1/S2/S3 biasanya cukup melalui Serah Terima di POS.</p>
   {pesan&&<p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{pesan}</p>}

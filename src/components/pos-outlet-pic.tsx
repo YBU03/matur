@@ -60,7 +60,7 @@ export function PosOutletPic({
         {sesi ? "Lanjutkan / Serah Terima Kas" : "Buka Kas Harian"}
       </h2>
       <p>{outlet}</p>
-      <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">Anggota sesuai shift terbit yang sudah Clock In dan belum Clock Out dapat dipilih sebagai PIC. S1 ke S2/S3 gunakan serah terima, bukan Tutup Kas Harian.</p>
+      <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">{s.presentasi ? "PRESENTASI SEMENTARA · Pilih petugas outlet aktif tanpa syarat jam shift/Clock In. Semua transaksi tetap tercatat pada data asli." : "Anggota sesuai shift terbit yang sudah Clock In dan belum Clock Out dapat dipilih sebagai PIC. S1 ke S2/S3 gunakan serah terima, bukan Tutup Kas Harian."}</p>
       {sesi && (
         <p className="rounded-xl bg-matur-50 p-3 text-sm">
           Modal awal {formatRupiah(sesi.modal)} tetap diteruskan. S2/S3 tidak
@@ -83,7 +83,7 @@ export function PosOutletPic({
               onChange={(e) => setPic(e.target.value)}
               className="mt-1 w-full rounded-xl border p-3"
             >
-              <option value="">Pilih nama yang sudah Clock In</option>
+              <option value="">{s.presentasi ? "Pilih petugas presentasi" : "Pilih nama yang sudah Clock In"}</option>
               {s.roster.map((r, i) => (
                 <option key={`${r.id}-${r.shift_id}-${i}`} value={r.id}>
                   {r.nama} · {r.shift} · {r.tanggal}

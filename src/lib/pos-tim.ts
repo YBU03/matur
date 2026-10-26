@@ -4,6 +4,7 @@ import { supabaseServer } from "./supabase/server";
 export const POS_DEVICE = "matur_pos_device";
 export const POS_UNLOCK = "matur_pos_unlock";
 export type TimStatus = {
+  presentasi?: boolean;
   katalog?: {
     menu: Record<string, { langsung: number; ojol: number }>;
     varian: Record<string, number>;

@@ -49,7 +49,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
           <PrinterTombol />
           {status.boleh&&<TombolKunci/>}
         </TabletHeader>
-        <main className="p-3 sm:p-4"><PosAntrean/>{children}</main>
+        <main className="p-3 sm:p-4">{status.presentasi&&<p className="mb-3 rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-950">PRESENTASI SEMENTARA · POS lengkap, transaksi masuk data asli. Pengecualian shift berakhir otomatis.</p>}<PosAntrean/>{children}</main>
       </div>
     );
   }
@@ -74,7 +74,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
           {ingat.teks} ›
         </Link>
       )}
-      <main className="p-3 sm:p-4"><PosAntrean/>{children}</main>
+      <main className="p-3 sm:p-4">{status.presentasi&&<p className="mb-3 rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-950">PRESENTASI SEMENTARA · POS lengkap, transaksi masuk data asli. Pengecualian shift berakhir otomatis.</p>}<PosAntrean/>{children}</main>
     </div>
   );
 }
