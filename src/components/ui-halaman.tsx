@@ -17,18 +17,26 @@ export function HeaderHalaman({
   /** isi tambahan di bawah judul (badge, filter ringkas) */
   children?: ReactNode;
 }) {
+  // HP: ikon + judul sebaris, keterangan & chip selebar kartu, tombol aksi penuh di bawah.
+  // Desktop (sm+): ikon kiri, judul/keterangan di tengah, aksi di kanan.
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-matur-400 via-matur-500 to-orange-600 p-5 text-white shadow-md sm:p-6">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-matur-400 via-matur-500 to-orange-600 p-4 text-white shadow-md sm:p-6">
       <span className="pointer-events-none absolute -right-10 -top-12 size-40 rounded-full bg-white/10" aria-hidden />
       <span className="pointer-events-none absolute -bottom-16 right-24 size-32 rounded-full bg-white/10" aria-hidden />
-      <div className="relative flex flex-wrap items-start gap-4">
-        {ikon && <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl backdrop-blur">{ikon}</span>}
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{judul}</h1>
-          {keterangan && <p className="mt-1 max-w-2xl text-sm text-white/90">{keterangan}</p>}
-          {children && <div className="mt-3 flex flex-wrap items-center gap-2">{children}</div>}
-        </div>
-        {aksi && <div className="flex flex-wrap items-center gap-2">{aksi}</div>}
+      <div className={`relative grid items-center gap-x-3 gap-y-3 sm:gap-x-4 ${ikon ? "grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
+        {ikon && <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl backdrop-blur sm:row-span-2 sm:size-12 sm:self-start">{ikon}</span>}
+        <h1 className="min-w-0 text-[1.35rem] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{judul}</h1>
+        {(keterangan || children) && (
+          <div className={`min-w-0 ${ikon ? "col-span-2 sm:col-span-1 sm:col-start-2" : "sm:col-start-1"} sm:-mt-1`}>
+            {keterangan && <p className="max-w-2xl text-sm leading-relaxed text-white/90">{keterangan}</p>}
+            {children && <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">{children}</div>}
+          </div>
+        )}
+        {aksi && (
+          <div className={`flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:justify-center sm:[&>*]:flex-none ${ikon ? "col-span-2 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1" : "sm:col-start-2 sm:row-span-2 sm:row-start-1"} sm:justify-end sm:self-start`}>
+            {aksi}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -40,7 +48,7 @@ export const tombolHeaderUtama = "inline-flex items-center gap-1.5 rounded-xl bg
 
 /** chip info di dalam HeaderHalaman */
 export function ChipHeader({ children }: { children: ReactNode }) {
-  return <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur">{children}</span>;
+  return <span className="whitespace-nowrap rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold backdrop-blur sm:px-3">{children}</span>;
 }
 
 type Nada = "netral" | "hijau" | "kuning" | "merah" | "biru" | "ungu";

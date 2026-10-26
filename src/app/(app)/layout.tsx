@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { isAdminDashboardRole, mobileQuickLinks } from "@/lib/dashboard-navigation";
 import { Lonceng } from "@/components/lonceng";
+import { Alihkan } from "@/components/alihkan";
 import { AppShell } from "@/components/app-shell";
 import { InstallButton } from "@/components/install-button";
 import { SideNav } from "@/components/side-nav";
@@ -14,14 +14,14 @@ import { KEBAL_MAINTENANCE, statusMaintenance } from "@/lib/maintenance";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
-  if (!s) redirect("/login");
-  if (s.assignments.length === 0) redirect("/menunggu");
-  if (!s.active) redirect("/pilih-peran");
-  if (s.active.role === "tablet") redirect("/pos");
-  if (POS_ONLY.includes(s.active.role)) redirect("/karyawan");
+  if (!s) return <Alihkan ke="/login" />;
+  if (s.assignments.length === 0) return <Alihkan ke="/menunggu" />;
+  if (!s.active) return <Alihkan ke="/pilih-peran" />;
+  if (s.active.role === "tablet") return <Alihkan ke="/pos" />;
+  if (POS_ONLY.includes(s.active.role)) return <Alihkan ke="/karyawan" />;
   if (s.active.role === "pemantau_pos") {
     const path = (await headers()).get("x-matur-pathname") ?? "";
-    if (![PANTAU_POS, "/profil"].some((p) => path === p || path.startsWith(p + "/"))) redirect(PANTAU_POS);
+    if (![PANTAU_POS, "/profil"].some((p) => path === p || path.startsWith(p + "/"))) return <Alihkan ke={PANTAU_POS} />;
   }
   if (!KEBAL_MAINTENANCE.includes(s.active.role)) {
     const m = await statusMaintenance();

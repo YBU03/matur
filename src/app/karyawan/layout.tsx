@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Bell } from "lucide-react";
+import { Alihkan } from "@/components/alihkan";
 import { InstallButton } from "@/components/install-button";
 import { LiveRefresh } from "@/components/live-refresh";
 import { NavBawah, NavSamping } from "@/components/staf/nav";
@@ -16,15 +16,16 @@ import { supabaseServer } from "@/lib/supabase/server";
 // pil melayang di bawah (HP), sidebar (desktop), kartu besar membulat; warna Matoer.
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
-  if (!s) redirect("/login");
-  if (s.active?.role === "tablet") redirect("/pos");
-  if (!s.assignments.some((a) => POS_ROLES.includes(a.role))) redirect(s.status === "aktif" ? "/dashboard" : "/menunggu");
+  // pengalihan lewat <Alihkan> (bukan redirect()) agar tidak blank setelah login
+  if (!s) return <Alihkan ke="/login" />;
+  if (s.active?.role === "tablet") return <Alihkan ke="/pos" />;
+  if (!s.assignments.some((a) => POS_ROLES.includes(a.role))) return <Alihkan ke={s.status === "aktif" ? "/dashboard" : "/menunggu"} />;
 
   const supabase = await supabaseServer();
   // profil wajib lengkap (foto, TTL, alamat KTP, sharelok, kontak darurat); absen tetap boleh agar shift tidak terhambat
   const path = (await headers()).get("x-matur-pathname") ?? "/karyawan";
   const { data: kurang } = await supabase.rpc("profil_kurang", { p_uid: s.userId });
-  if ((kurang ?? []).length && !path.startsWith("/karyawan/profil") && !path.startsWith("/karyawan/absen")) redirect("/karyawan/profil#lengkapi");
+  if ((kurang ?? []).length && !path.startsWith("/karyawan/profil") && !path.startsWith("/karyawan/absen")) return <Alihkan ke="/karyawan/profil#lengkapi" label="Lengkapi profil dulu, ya…" />;
   const [{ count: belumDibaca }, { count: tukarMasuk }] = await Promise.all([
     supabase.from("notifikasi").select("id", { count: "exact", head: true }).eq("pengguna_id", s.userId).is("dibaca_at", null),
     supabase.from("tukar_shift").select("id", { count: "exact", head: true }).eq("rekan_id", s.userId).eq("status", "menunggu_rekan"),
