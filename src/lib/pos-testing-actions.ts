@@ -5,7 +5,7 @@ import { supabaseServer } from "./supabase/server";
 export async function aturTestingPos(
   outlet: string,
   aktif: boolean,
-  versi: string,
+  versi: string | null,
 ) {
   const db = await supabaseServer();
   const { error } = await db.rpc("atur_testing_pos", {

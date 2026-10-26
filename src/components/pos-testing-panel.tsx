@@ -6,7 +6,7 @@ export type TestingOutlet = {
   id: string;
   nama: string;
   aktif: boolean;
-  versi: string;
+  versi: string | null;
 };
 export function PosTestingPanel({ rows }: { rows: TestingOutlet[] }) {
   const [pilih, setPilih] = useState<TestingOutlet | null>(null);
@@ -18,9 +18,9 @@ export function PosTestingPanel({ rows }: { rows: TestingOutlet[] }) {
     <section className="space-y-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
       <h2 className="font-bold text-amber-950">Mode Testing POS</h2>
       <p className="text-sm text-amber-900">
-        Khusus outlet demo. Login POS tetap diperlukan, tetapi tidak perlu
+        Pilih outlet untuk presentasi atau latihan sementara. Login POS tetap diperlukan, tetapi tidak perlu
         jadwal, Clock In, atau membuka kas. Transaksi latihan tidak masuk omzet,
-        stok, setoran, dan laporan asli.
+        stok, setoran, dan laporan asli. Nonaktifkan testing setelah selesai agar POS kembali beroperasi normal.
       </p>
       {rows.map((r) => (
         <div
@@ -57,7 +57,7 @@ export function PosTestingPanel({ rows }: { rows: TestingOutlet[] }) {
             <strong>{pilih.nama}</strong>?{" "}
             {pilih.aktif
               ? "Setelah nonaktif, syarat shift dan absensi berlaku kembali."
-              : "Latihan tidak akan membuat transaksi asli."}
+              : "Semua perangkat POS outlet ini masuk mode latihan. Transaksi asli baru diblokir sampai testing dinonaktifkan. Kas yang sudah ditutup tidak dibuka ulang."}
           </p>
           {pesan && (
             <p role="alert" className="mt-3 text-sm text-red-700">

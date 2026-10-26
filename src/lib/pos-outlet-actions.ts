@@ -65,7 +65,12 @@ export async function pilihPicOutlet(
     p_catatan: catatan,
     p_token: token,
   });
-  if (error || data?.error) return { error: error?.message ?? data.error };
+  if (error || data?.error) {
+    const pesan = error?.message ?? data.error;
+    return { error: pesan.includes("Kas tanggal ini sudah ditutup")
+      ? "Kas tanggal ini sudah ditutup. Untuk latihan, minta HRD/Admin Pusat membuka Akses Kasir POS per Outlet → Mode Testing POS → aktifkan outlet ini, lalu muat ulang POS. Kas asli tidak dibuka ulang."
+      : pesan };
+  }
   const opts = {
     httpOnly: true,
     sameSite: "lax" as const,

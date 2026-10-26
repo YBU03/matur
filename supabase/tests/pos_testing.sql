@@ -18,16 +18,18 @@ begin
  select diubah_at into version from matur_internal.pos_testing where outlet_id=o;
  perform set_config('request.jwt.claim.sub',admin::text,true);
  if not public.status_testing_pos(o) then raise exception 'Central admin cannot read testing mode';end if;
- denied:=false;
- begin perform public.atur_testing_pos(other_o,true,version);exception when raise_exception then denied:=true;end;
- if not denied then raise exception 'Non-demo outlet can be enabled';end if;
+ -- Pusat dapat menyiapkan outlet biasa tanpa allowlist awal.
+ perform public.atur_testing_pos(other_o,true,null);
+ if not public.status_testing_pos(other_o) then raise exception 'Ordinary outlet missing';end if;
  perform set_config('request.jwt.claim.sub',staf::text,true);
+ if jsonb_array_length(public.panel_testing_pos())<>1 then raise exception 'HRD scope incorrect';end if;
+ perform public.atur_testing_pos(o,false,version);
+ select diubah_at into version from matur_internal.pos_testing where outlet_id=o;
+ perform public.atur_testing_pos(o,true,version);
+ select diubah_at into version from matur_internal.pos_testing where outlet_id=o;
  denied:=false;
- begin perform public.atur_testing_pos(o,false,version);exception when raise_exception then denied:=true;end;
- if not denied then raise exception 'HRD can change testing mode';end if;
- denied:=false;
- begin perform public.panel_testing_pos();exception when raise_exception then denied:=true;end;
- if not denied then raise exception 'HRD can read central testing panel';end if;
+ begin perform public.atur_testing_pos(other_o,false,null);exception when raise_exception then denied:=true;end;
+ if not denied then raise exception 'HRD can change another outlet';end if;
  perform set_config('request.jwt.claim.sub','',true);
  denied:=false;
  begin perform public.status_testing_pos(o);exception when raise_exception then denied:=true;end;
@@ -75,5 +77,5 @@ begin
  if has_table_privilege('authenticated','matur_internal.pos_testing','select') or has_function_privilege('anon','public.atur_testing_pos(uuid,boolean,timestamptz)','execute') then raise exception 'Grants too broad';end if;
  if not exists(select 1 from public.log_aktivitas where entitas_id=o::text and aksi='atur_testing_pos' and pengguna_id=admin) then raise exception 'Toggle audit missing';end if;
 end $$;
-select 'PASS: demo allowlist, central roles, outlet/device scope, no shift required, toggle/version/audit, blocked live sales, historical sync, no real cash/sales' as result;
+select 'PASS: all outlets, scoped HRD/central roles, outlet/device scope, no shift required, toggle/version/audit, blocked live sales, historical sync, no real cash/sales' as result;
 rollback;
