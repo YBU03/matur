@@ -1398,7 +1398,7 @@ it('shift settings are limited to active HRD/warehouse assignments and PIN attem
 it('outlet shift PIN is kept encrypted for authorized admins, logged when viewed, and forgotten when changed',async()=>{
  const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
  await db.exec('create or replace view vault.secrets as select * from vault.decrypted_secrets');
- await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026150000_pos_pin_shift_terenkripsi.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026123827_pos_pin_shift_terenkripsi.sql',import.meta.url),'utf8'));
  await db.exec('begin');
  try{
   await as(owner);
