@@ -234,7 +234,7 @@ export async function simpanDraft(
   const supabase = await supabaseServer();
   const proof = await buktiTablet();
   const st = await statusPos(o);
-  if (!st.boleh) return { error: "POS terkunci atau sesi shift berakhir." };
+  if (!st.boleh) return { error: "Sesi login POS tidak tersedia. Masuk ulang dengan akun outlet." };
   const { data, error } = await supabase.rpc("draft_pos_tim", {
     p: {
       ...d,
@@ -266,7 +266,7 @@ export async function batalDraft(
   if (!o) return { error: "Pilih outlet." };
   const proof = await buktiTablet();
   const st = await statusPos(o);
-  if (!st.boleh) return { error: "POS terkunci atau sesi shift berakhir." };
+  if (!st.boleh) return { error: "Sesi login POS tidak tersedia. Masuk ulang dengan akun outlet." };
   const { error } = await supabase.rpc("draft_pos_tim", {
     p: {
       id,

@@ -37,7 +37,7 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
         </p>
       )}
       <p className="mt-1 text-sm text-stone-500">
-        Uang fisik mencakup modal yang masih ada. Setoran ke pusat dicatat
+        Kas baru akan tersedia otomatis setelah kas ini ditutup. Uang fisik mencakup modal yang masih ada. Setoran ke pusat dicatat
         terpisah melalui dashboard karyawan.
       </p>
       <dl className="my-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -152,18 +152,11 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
             Jika ada transaksi offline, rekap tetap sementara sampai semuanya
             tersinkron. Selisih tidak otomatis memotong gaji tim.
           </p>
-          {kas.kas_harian && (
-            <label className="flex gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" required />
-              Ini penutupan terakhir hari ini. Untuk S1 ke S2/S3, gunakan serah
-              terima dari beranda POS.
-            </label>
-          )}
           <button
             disabled={busy}
             className="rounded-xl bg-kopi-900 p-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Memeriksa…" : "Hitung dan tutup kas hari ini"}
+            {busy ? "Memeriksa…" : "Simpan hitungan & tutup kas"}
           </button>
         </form>
       )}

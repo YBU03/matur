@@ -4,6 +4,7 @@ import { supabaseServer } from "./supabase/server";
 export const POS_DEVICE = "matur_pos_device";
 export const POS_UNLOCK = "matur_pos_unlock";
 export type TimStatus = {
+  langsung?: boolean;
   presentasi?: boolean;
   katalog?: {
     menu: Record<string, { langsung: number; ojol: number }>;
@@ -51,10 +52,8 @@ export type TimStatus = {
 };
 export async function buktiTablet() {
   const c = await cookies();
-  return {
-    device: c.get(POS_DEVICE)?.value ?? "",
-    token: c.get(POS_UNLOCK)?.value ?? "",
-  };
+  const device = c.get(POS_DEVICE)?.value ?? "";
+  return { device, token: c.get(POS_UNLOCK)?.value ?? device };
 }
 export async function statusPos(outlet: string, perbarui = false) {
   const db = await supabaseServer();

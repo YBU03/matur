@@ -1,5 +1,3 @@
-import { PosLanjutKasPanel, type PanelLanjut } from "@/components/pos-lanjut-kas-panel";
-import { PosTestingPanel, type TestingOutlet } from "@/components/pos-testing-panel";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -13,12 +11,6 @@ import {
   KartuAngka,
   tombolHeader,
 } from "@/components/ui-halaman";
-import {
-  KasTertinggalPanel,
-  RiwayatKasOtomatis,
-  type KasOtomatis,
-  type KasTertinggal,
-} from "@/components/kas-tertinggal";
 export default async function Page() {
   const s = await getSession();
   if (
@@ -36,16 +28,6 @@ export default async function Page() {
   );
   if (aksesError) throw new Error(aksesError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
-  let testing: TestingOutlet[] = [];
-  let lanjut: PanelLanjut | null = null;
-  if (["owner", "admin_pusat", "hrd"].includes(s.active.role)) {
-    const { data, error } = await db.rpc("panel_testing_pos");
-    if (error) throw new Error(error.message);
-    testing = data ?? [];
-    const { data: izin, error: izinError } = await db.rpc("panel_lanjut_kas_pos");
-    if (izinError) throw new Error(izinError.message);
-    lanjut = izin as PanelLanjut;
-  }
   const panel = data as PanelData;
   if (["hrd", "admin_gudang"].includes(s.active.role)) {
     const ids = new Set(allowed.map((x) => x.id));
@@ -59,24 +41,17 @@ export default async function Page() {
       panel.sessions.some((y) => y.id === x.sesi_id),
     );
   }
-  const [{ data: tertinggal }, { data: otomatis }] = await Promise.all([
-    db.rpc("kas_tertinggal"),
-    db.rpc("riwayat_kas_otomatis"),
-  ]);
   const sesiBuka = panel.sessions.filter((x) => !x.ditutup_at).length;
   const perangkatAktif = panel.devices.filter(
     (x) => x.status === "aktif",
   ).length;
   const aksesAktif = allowed.filter((x) => x.username && x.aktif).length;
-  const pindahMenunggu = (panel.pindah ?? []).filter(
-    (x) => !x.selesai_at && !x.batal_at,
-  ).length;
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <HeaderHalaman
         ikon="🧾"
         judul="Akses Kasir POS per Outlet"
-        keterangan="Satu akun POS dan satu kas harian per outlet. Modal sekali, serah terima PIC setiap pergantian shift."
+        keterangan="Login akun outlet langsung membuka kasir. Kas dan modal dicatat tanpa syarat shift, absensi atau PIC."
         aksi={
           <Link href="/pengguna" className={tombolHeader}>
             👥 Kelola Pengguna Matoer
@@ -85,9 +60,6 @@ export default async function Page() {
       >
         <ChipHeader>{panel.outlets.length} outlet</ChipHeader>
         {sesiBuka > 0 && <ChipHeader>🟢 {sesiBuka} kas sedang buka</ChipHeader>}
-        {pindahMenunggu > 0 && (
-          <ChipHeader>⏳ {pindahMenunggu} pindah perangkat menunggu</ChipHeader>
-        )}
       </HeaderHalaman>
       <BarisAngka>
         <KartuAngka
@@ -112,16 +84,12 @@ export default async function Page() {
         />
         <KartuAngka
           ikon="💵"
-          label="Kas harian buka"
+          label="Kas terbuka"
           nilai={sesiBuka}
           sub={`${panel.sessions.length} sesi tercatat`}
           nada={sesiBuka ? "hijau" : "netral"}
         />
       </BarisAngka>
-      <KasTertinggalPanel list={(tertinggal ?? []) as KasTertinggal[]} />
-      <RiwayatKasOtomatis list={(otomatis ?? []) as KasOtomatis[]} />
-      {lanjut && <PosLanjutKasPanel data={lanjut} />}
-      <PosTestingPanel rows={testing} />
       <PanelPos data={panel} role={s.active.role} akses={allowed} />
     </div>
   );
