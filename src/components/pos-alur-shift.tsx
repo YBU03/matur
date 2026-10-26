@@ -1,31 +1,17 @@
 "use client";
-import Image from "next/image";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { TimStatus } from "@/lib/pos-tim";
-import type { CatatanShift, LaporanShift, PilihanShift } from "@/lib/pos-alur";
+import type { CatatanShift, LaporanShift } from "@/lib/pos-alur";
 import { teksLaporanShift } from "@/lib/pos-alur";
 import { ambilLaporanShift, prosesAlurShift } from "@/lib/pos-alur-actions";
 import { bacaAntrean } from "@/lib/pos-offline";
 import { formatRupiah as rp } from "@/lib/format";
+import { KartuPetugas, PosMulaiShift } from "./pos-mulai-shift";
 const input = "mt-1 block w-full rounded-xl border bg-white p-3";
 const button =
   "rounded-xl bg-kopi-900 px-4 py-3 font-semibold text-white disabled:opacity-50";
-function Avatar({ p }: { p: PilihanShift }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <Image
-      unoptimized
-      src={!failed && p.foto_url ? p.foto_url : "/mascot/kasir-pos.webp"}
-      alt=""
-      width={72}
-      height={72}
-      onError={() => setFailed(true)}
-      className="mx-auto h-16 w-16 rounded-full bg-amber-100 object-cover"
-    />
-  );
-}
 export function PosAlurShift({
   status: s,
   outlet,
@@ -177,6 +163,8 @@ export function PosAlurShift({
       }
     });
   }
+  // mulai shift & lanjut kas berjalan: layar bertahap (petugas → PIN → modal → mulai)
+  if (!sh || lanjut) return <PosMulaiShift pilihan={pilih} outlet={outlet} sesiBerjalan={lanjut ? sh : null} />;
   if (sh && !kelola && s.boleh) return null;
   return (
     <div
@@ -339,23 +327,9 @@ export function PosAlurShift({
                     <legend className="mb-2 font-semibold">
                       {sh ? "Petugas penerima" : "Petugas bertugas"}
                     </legend>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {pilih.map((p) => (
-                        <button
-                          type="button"
-                          key={p.id}
-                          aria-pressed={pic === p.id}
-                          onClick={() => setPic(p.id)}
-                          className={`space-y-1 rounded-2xl border p-3 text-center ${pic === p.id ? "border-amber-500 bg-amber-50" : "bg-white"}`}
-                        >
-                          <Avatar p={p} />
-                          <span className="block text-sm font-bold">
-                            {p.nama}
-                          </span>
-                          <span className="block text-xs text-stone-500">
-                            {p.terjadwal ? p.label : "Staf pengganti"}
-                          </span>
-                        </button>
+                        <KartuPetugas key={p.id} p={p} aktif={pic === p.id} onPilih={() => setPic(p.id)} />
                       ))}
                     </div>
                     {!pilih.length && (

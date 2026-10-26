@@ -1425,3 +1425,24 @@ it('outlet shift PIN is kept encrypted for authorized admins, logged when viewed
   expect(v).toBeGreaterThanOrEqual(0);
  }finally{await db.exec('rollback');}
 });
+
+it('early PIN check for the start-shift wizard uses the device-bound verifier and its attempt limit',async()=>{
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261027090000_pos_cek_pin_alur_shift.sql',import.meta.url),'utf8'));
+ await db.exec('begin');
+ try{
+  await as(owner);await q('update sesi_kas set ditutup_at=now() where outlet_id=$1 and ditutup_at is null',[o]);
+  const v=(await q<{versi:number}>('select coalesce((select versi from pos_kas_internal.aturan_shift where outlet_id=$1),0) versi',[o]))[0].versi;
+  await safeCall('atur_alur_shift_pos',[o,true,'1234',v]);
+  const secret='C'.repeat(64);const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali',secret,'z'.repeat(40)]);
+  const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);await as(tablet.id);
+  await safeCall('status_pos_tim',[o,secret,'',false]);
+  expect(await safeCall('cek_pin_alur_shift',[o,secret,'12'])).toEqual({error:'PIN outlet terdiri dari 4–6 angka'});
+  expect((await safeCall<{error:string}>('cek_pin_alur_shift',[o,secret,'9999'])).error).toMatch(/tidak sesuai/);
+  expect(await safeCall('cek_pin_alur_shift',[o,secret,'1234'])).toEqual({ok:true});
+  await expect(safeCall('cek_pin_alur_shift',[o,'perangkat-lain','1234'])).rejects.toThrow(/perangkat/);
+  for(let i=0;i<8;i++)await safeCall('cek_pin_alur_shift',[o,secret,'0000']);
+  expect((await safeCall<{error:string}>('cek_pin_alur_shift',[o,secret,'1234'])).error).toMatch(/satu menit/);
+  expect((await q("select has_function_privilege('anon','public.cek_pin_alur_shift(uuid,text,text)','execute') ok"))[0].ok).toBe(false);
+ }finally{await db.exec('rollback');}
+});

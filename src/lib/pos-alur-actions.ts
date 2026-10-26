@@ -125,3 +125,13 @@ export async function simpanPinLamaOutlet(outlet: string, pin: string): Promise<
   if (error || data?.error) return { error: error ? belumAktif(error.message) : data.error };
   return { ok: "PIN yang sama sudah tersimpan." };
 }
+/** Langkah PIN layar mulai shift: cek PIN outlet lebih awal (perangkat tablet yang sama, batas percobaan sama). */
+export async function cekPinAlurShift(pin: string): Promise<{ ok?: boolean; error?: string }> {
+  const s = await getSession();
+  if (s?.active?.role !== "tablet" || !s.active.outletId) return { error: "Masuk dengan akun outlet dahulu." };
+  const b = await buktiTablet();
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("cek_pin_alur_shift", { p_outlet: s.active.outletId, p_device: b.device, p_pin: pin });
+  if (error) return { error: error.message };
+  return data ?? { error: "PIN belum dapat diperiksa. Coba lagi." };
+}
