@@ -4,6 +4,9 @@ import { supabaseServer } from "./supabase/server";
 export const POS_DEVICE = "matur_pos_device";
 export const POS_UNLOCK = "matur_pos_unlock";
 export type TimStatus = {
+  alur_shift?: boolean;
+  shift_aktif?: import("./pos-alur").ShiftBaru | null;
+  pilihan?: import("./pos-alur").PilihanShift[];
   langsung?: boolean;
   presentasi?: boolean;
   katalog?: {
@@ -65,7 +68,11 @@ export async function statusPos(outlet: string, perbarui = false) {
     p_perbarui: perbarui,
   });
   if (error) throw new Error(error.message);
-  return data as TimStatus;
+  const status = data as TimStatus;
+  if(status.pilihan){
+    await Promise.all(status.pilihan.map(async p=>{if(!p.foto_path)return;const {data: foto}=await db.storage.from("profil").createSignedUrl(p.foto_path,3600);if(foto?.signedUrl)p.foto_url=foto.signedUrl;}));
+  }
+  return status;
 }
 
 /** ringkasan untuk header tablet POS */

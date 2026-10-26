@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { statusPos } from "@/lib/pos-tim";
 import { MasukPos } from "@/app/pos/masuk-pos";
+import {PosAlurShift} from "@/components/pos-alur-shift";
 import { PosRuntime } from "@/components/pos-runtime";
 
 import { type Draft, type PosMenu } from "./pos-screen";
@@ -15,6 +16,7 @@ export default async function PosPage() {
   const supabase = await supabaseServer();
   const status = await statusPos(s.active.outletId).catch(()=>null);
   if(!status)return <MasukPos pesan="Sesi login outlet perlu diperbarui. Silakan masuk kembali."/>;
+  if(status.alur_shift && !status.boleh)return <PosAlurShift status={status} outlet={s.active.outletNama}/>;
   const sesi = status.sesi!;
 
   const [

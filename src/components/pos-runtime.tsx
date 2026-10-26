@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
+import {PosAlurShift} from "@/components/pos-alur-shift";
 import { PosScreen } from "@/app/kasir/(terminal)/pos/pos-screen";
 import type { TimStatus } from "@/lib/pos-tim";
 import { perbaruiPos } from "@/lib/pos-tim-actions";
@@ -15,5 +16,6 @@ export function PosRuntime({initial,offlineBoot=false}:{initial:PosSnapshot;offl
   if(!offlineBoot)void save(initial.status);void verify();const timer=setInterval(()=>void verify(),30000);window.addEventListener("online",verify);window.addEventListener("offline",verify);
   return()=>{live=false;clearInterval(timer);window.removeEventListener("online",verify);window.removeEventListener("offline",verify);};
  },[initial,offlineBoot]);
+ if(s.alur_shift&&!s.boleh)return <PosAlurShift status={s} outlet={initial.screen.outletNama}/>;
  return <div className="space-y-3"><div className="rounded-xl bg-matur-50 p-3 text-xs font-semibold">{online?"● Terhubung":"● Offline · tunai saja"} · {initial.screen.outletNama}</div>{error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error} <Link className="underline" href="/pos">Masuk ulang</Link></p>}{storageError&&<p role="status" className="rounded-xl bg-amber-50 p-3 text-sm">{storageError}</p>}<PosScreen {...initial.screen} kasir={s.operator?.nama??initial.screen.kasir} bisaBayar izin={{id:s.izin!.id,sampai_at:s.izin!.sampai_at,server_at:s.server_at,client_at:anchor.current,offlineBoleh:!storageError}}/></div>;
 }

@@ -1300,3 +1300,97 @@ it("direct outlet POS needs no shifts/PIC, supports multiple devices and continu
   expect((await q("select has_function_privilege('anon','public.buat_transaksi(jsonb)','execute') ok"))[0].ok).toBe(false);
  }finally{await db.exec('rollback');}
 });
+
+it('optional outlet shift preserves free mode, carries actual cash once, keeps discrepancies separate and closes idempotently',async()=>{
+ await db.exec('create table if not exists public.profil_karyawan(pengguna_id uuid primary key,foto_path text)');
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026070831_pos_alur_shift_opsional.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026071016_pos_alur_shift_rpc_invoker.sql',import.meta.url),'utf8'));
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('begin');
+ try{
+  await as(owner);await q('update sesi_kas set ditutup_at=now() where outlet_id=$1 and ditutup_at is null',[o]);
+  await q("update jadwal_shift set status='draft' where outlet_id=$1",[o]);
+  const secret='N'.repeat(64);const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali',secret,'z'.repeat(40)]);
+  const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);await as(tablet.id);
+  type Status={alur_shift?:boolean;boleh:boolean;sesi:{id:string};izin:{id:string};pilihan:{id:string;terjadwal:boolean}[];shift_aktif:{id:string;awal:number;seharusnya:number;selisih:number}};
+  const status=()=>safeCall<Status>('status_pos_tim',[o,secret,'',false]);
+  const free=await status();expect(free.boleh).toBe(true);expect(free.alur_shift).toBeUndefined();
+  await expect(safeCall('atur_alur_shift_pos',[o,true,'1234',0])).rejects.toThrow(/berwenang/);
+  await as(owner);await expect(safeCall('atur_alur_shift_pos',[o,true,'',0])).rejects.toThrow(/PIN/);
+  await safeCall('atur_alur_shift_pos',[o,true,'1234',0]);
+  await expect(safeCall('atur_alur_shift_pos',[o,false,'',0])).rejects.toThrow(/berubah/);
+  await as(tablet.id);expect((await status()).alur_shift).toBeUndefined(); // no interruption of existing drawer
+  await safeCall('tutup_kas_outlet',[free.sesi.id,secret,'','',0,'Kas bebas selesai',[]]);
+  // now() is transaction-stable in this fixture; emulate the next HTTP transaction opening.
+  await q("update pos_kas_internal.aturan_shift set diubah_at=now()-interval '1 second' where outlet_id=$1",[o]);
+  const locked=await status();expect(locked.alur_shift).toBe(true);expect(locked.boleh).toBe(false);expect(locked.pilihan.some(p=>p.id===andi&&!p.terjadwal)).toBe(true);
+  const request=crypto.randomUUID();const start={request_id:request,aksi:'mulai',shift_id:null,pic_id:andi,pin:'9999',modal:200000};
+  const run=(p:Record<string,unknown>)=>safeCall('proses_alur_shift_pos',[o,secret,'',p]);
+  expect((await run(start)).error).toMatch(/PIN/);
+  await expect(run({...start,pin:'1234'})).rejects.toThrow(/alasan/);
+  await run({...start,pin:'1234',alasan:'Pengganti jadwal'});await run({...start,pin:'1234',alasan:'Pengganti jadwal'});
+  const first=await status();expect(first.boleh).toBe(true);expect(first.shift_aktif.awal).toBe(200000);
+  await expect(run({...start,pin:'1234',modal:300000,alasan:'Pengganti jadwal'})).rejects.toThrow(/data lain/);
+  await safeCall('proses_alur_shift_pos',[o,secret,'token-setelah-retry',{...start,pin:'1234',alasan:'Pengganti jadwal'}]);
+  expect((await safeCall<Status>('status_pos_tim',[o,secret,'token-setelah-retry',false])).boleh).toBe(true);
+  await run({...start,pin:'1234',alasan:'Pengganti jadwal'});
+  const secret2='M'.repeat(64);const login2=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali',secret2,'z'.repeat(40)]);const [tablet2]=await q<{id:string}>('select id from pengguna where email=$1',[login2.email]);await as(tablet2.id);
+  const onSecond=await safeCall<Status>('status_pos_tim',[o,secret2,'',false]);expect(onSecond.boleh).toBe(false);expect(onSecond.shift_aktif.id).toBe(first.shift_aktif.id);
+  await safeCall('proses_alur_shift_pos',[o,secret2,'token-perangkat-kedua',{aksi:'lanjut',request_id:crypto.randomUUID(),shift_id:first.shift_aktif.id,pin:'1234'}]);
+  expect((await safeCall<Status>('status_pos_tim',[o,secret2,'token-perangkat-kedua',false])).boleh).toBe(true);
+  await as(tablet.id);expect((await status()).boleh).toBe(true);
+
+  await expect(safeCall('atur_modal_pos',[first.sesi.id,secret,300000])).rejects.toThrow(/sudah dicatat/);
+  await expect(safeCall('tutup_kas_outlet',[first.sesi.id,secret,'','',0,'Bypass',[]])).rejects.toThrow(/Serah Terima/);
+  await q("update pos_kas_internal.shift_baru set mulai_at=now()-interval '1 second' where id=$1",[first.shift_aktif.id]);
+  const salePacket={...payload(),client_id:crypto.randomUUID(),sesi_id:first.sesi.id,izin_id:first.izin.id,device_token:secret,pos_token:secret};
+  const sale=await safeCall('buat_transaksi',[salePacket]);
+  expect((await q('select operator_id from transaksi where id=$1',[sale.id]))[0].operator_id).toBe(andi);
+  await q("update transaksi set created_at=now()-interval '500 milliseconds' where id=$1",[sale.id]);
+  const hand={request_id:crypto.randomUUID(),aksi:'serah',shift_id:first.shift_aktif.id,pic_id:budi,pin:'1234',aktual:205000,catatan:'Kurang lima ribu',alasan:'Petugas pengganti'};
+  await run(hand);await run(hand);
+  const second=await status();expect(second.sesi.id).toBe(first.sesi.id);expect(second.shift_aktif.awal).toBe(205000);expect(second.shift_aktif.seharusnya).toBe(205000);
+  expect((await q('select modal_laci from sesi_kas where id=$1',[first.sesi.id]))[0].modal_laci).toBe(200000);
+  const old=(await safeCall<{shifts:{selisih:number}[]}>('laporan_alur_shift_pos',[o,secret,first.sesi.id])).shifts;expect(old[0].selisih).toBe(-5000);expect(old).toHaveLength(2);
+  await q('update pos_kas_internal.shift_baru set selesai_at=now() where id=$1',[first.shift_aktif.id]);
+  await q('update pos_kas_internal.shift_baru set mulai_at=now() where id=$1',[second.shift_aktif.id]);
+  const pendingSale=await safeCall('buat_transaksi',[{...salePacket,client_id:crypto.randomUUID(),sinkron_offline:true,waktu_asli:(await q<{v:string}>("select (now()-interval '250 milliseconds')::text v"))[0].v}]);
+  expect((await q('select operator_id from transaksi where id=$1',[pendingSale.id]))[0].operator_id).toBe(andi);
+  const secondSale=await safeCall('buat_transaksi',[{...salePacket,client_id:crypto.randomUUID()}]);
+  expect((await q('select operator_id from transaksi where id=$1',[secondSale.id]))[0].operator_id).toBe(budi);
+  const updated=await status();expect(updated.shift_aktif.seharusnya).toBe(215000);
+  await expect(run({...hand,request_id:crypto.randomUUID()})).rejects.toThrow(/berubah/);
+  await run({request_id:crypto.randomUUID(),aksi:'draft',shift_id:second.shift_aktif.id,laporan:{stok:'Cup 240',order:'Matcha'}});
+  const close={request_id:crypto.randomUUID(),aksi:'tutup',shift_id:second.shift_aktif.id,aktual:215000,catatan:'Selesai hari ini',pending:[],laporan:{stok:'Cup 240',order:'Matcha'}};
+  await run(close);await run(close);
+  const report=await safeCall<{shifts:{awal:number;selisih:number;laporan:{stok:string}}[];sesi:{selisih:number}}> ('laporan_alur_shift_pos',[o,secret,first.sesi.id]);
+  expect(report.shifts[1].selisih).toBe(0);expect(report.sesi.selisih).toBe(-15000);expect(report.shifts[1].laporan.stok).toBe('Cup 240');
+  expect((await q('select count(*) n from pos_kas_internal.shift_baru where sesi_id=$1',[first.sesi.id]))[0].n).toBe(2);
+  const next=await status();expect(next.sesi.id).not.toBe(first.sesi.id);expect(next.boleh).toBe(false);
+  await as(owner);await safeCall('atur_alur_shift_pos',[o,false,'',1]);await as(tablet.id);expect((await status()).boleh).toBe(true);
+  for(const sig of ['public.proses_alur_shift_pos(uuid,text,text,jsonb)','public.atur_alur_shift_pos(uuid,boolean,text,integer)','public.laporan_alur_shift_pos(uuid,text,uuid)'])expect((await q("select has_function_privilege('anon',$1,'execute') ok",[sig]))[0].ok).toBe(false);
+ }finally{await db.exec('rollback');}
+});
+
+it('shift settings are limited to active HRD/warehouse assignments and PIN attempts expire without admin intervention',async()=>{
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('begin');
+ try{
+  const gudang=id(77001);await as(owner);
+  await q("insert into pengguna(id,nama,status) values($1,'Admin gudang fixture','aktif')",[gudang]);
+  await q("insert into penugasan(pengguna_id,peran,outlet_id) values($1,'admin_gudang',$2)",[gudang,o]);
+  await as(gudang);await safeCall('atur_alur_shift_pos',[o,false,'1234',0]);
+  await expect(safeCall('atur_alur_shift_pos',[id(9999),true,'1234',0])).rejects.toThrow(/berwenang/);
+  const panel=await safeCall<{id:string}[]>('panel_alur_shift_pos',[]);expect(panel.map(p=>p.id)).toEqual([o]);
+  await as(id(9));await safeCall('atur_alur_shift_pos',[o,false,'',1]);
+  await as(owner);await q('update sesi_kas set ditutup_at=now() where outlet_id=$1 and ditutup_at is null',[o]);
+  await safeCall('atur_alur_shift_pos',[o,true,'1234',2]);await q("update pos_kas_internal.aturan_shift set diubah_at=now()-interval '1 second' where outlet_id=$1",[o]);
+  const secret='Q'.repeat(64);const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali',secret,'z'.repeat(40)]);const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);await as(tablet.id);
+  await safeCall('status_pos_tim',[o,secret,'',false]);
+  const p={aksi:'mulai',request_id:crypto.randomUUID(),modal:0,pic_id:andi,alasan:'Pengganti uji',pin:'9999'};
+  for(let i=0;i<8;i++)expect((await safeCall('proses_alur_shift_pos',[o,secret,'',p])).error).toMatch(/tidak sesuai/);
+  expect((await safeCall('proses_alur_shift_pos',[o,secret,'',{...p,pin:'1234'}])).error).toMatch(/satu menit/);
+  await q("update pos_kas_internal.pin_percobaan set sejak=now()-interval '2 minutes'");
+  expect((await safeCall('proses_alur_shift_pos',[o,secret,'',{...p,pin:'1234'}])).ok).toBe(true);
+ }finally{await db.exec('rollback');}
+});

@@ -1,3 +1,5 @@
+import {PosRiwayatShift} from "@/components/pos-riwayat-shift";
+import {PosAlurShift} from "@/components/pos-alur-shift";
 import { PosModalKas } from "@/components/pos-modal-kas";
 import { notFound } from "next/navigation";
 import { POS_ROLES } from "@/lib/roles";
@@ -78,14 +80,16 @@ export default async function KasPage() {
   ]);
   return (
     <div className="space-y-4">
-      {pos.sesi && <PosModalKas key={pos.sesi.id} sesi={pos.sesi.id} modal={pos.sesi.modal} />}
-      {kasTim && (
+      {pos.alur_shift && <PosAlurShift status={pos} outlet={s.active.outletNama} kelola/>}
+      {!pos.alur_shift && pos.sesi && <PosModalKas key={pos.sesi.id} sesi={pos.sesi.id} modal={pos.sesi.modal} />}
+      {!pos.alur_shift && kasTim && (
         <div id="tutup" className="scroll-mt-20">
           <TutupKasTim
             kas={{ ...(kasTim as KasTim), kas_harian: pos.sesi?.kas_harian }}
           />
         </div>
       )}
+      <PosRiwayatShift outlet={outlet}/>
       <KasView
         kategori={(kat ?? []) as { id: string; nama: string; grup: string }[]}
         catatan={(catatan ?? []) as unknown as Catatan[]}

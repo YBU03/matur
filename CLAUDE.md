@@ -32,3 +32,7 @@ owner, admin_pusat, finance, hrd, admin_gudang, manajer_area, spv, kasir, barist
 ## POS aktif (26 Oktober 2026)
 
 Login akun outlet langsung masuk POS lengkap. Atas permintaan pemilik, pengunci shift/absensi/PIC/perangkat tunggal/testing/presentasi sudah dilepas. Baca `docs/pos-login-langsung.md` sebelum menyentuh POS. Jangan mengaktifkan skema pengunci lama tanpa diskusi dan persetujuan baru. Histori dan login/kewenangan outlet tetap dijaga.
+
+## Alur shift opsional yang disetujui (26 Oktober 2026)
+
+Pemilik telah menyetujui alur baru, terpisah dari pengunci lama. Default semua outlet tetap langsung; switch **Alur Shift** per outlet tersedia untuk Owner/Admin Pusat/HRD/Admin Gudang sesuai kewenangan. Berlaku kas berikutnya; PIN bersama outlet, pemilihan staf terjadwal/pengganti, modal sekali, hitung fisik dan serah terima, laporan harian. Baca `docs/pos-alur-shift-opsional.md`. Jangan aktifkan otomatis atau menghapus riwayat pelatihan.
