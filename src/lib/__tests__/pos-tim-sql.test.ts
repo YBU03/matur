@@ -1229,3 +1229,30 @@ it("HRD authorizes the same closed daily drawer, retains history, revokes leases
   expect(Number((await q('select modal_laci from sesi_kas where id=$1',[daily.id]))[0].modal_laci)).toBe(200000);
  }finally{await db.exec('rollback');}
 });
+
+it("temporary presentation exposes full POS to outlet staff without clock-in, expires and leaves other outlets protected",async()=>{
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026040452_pos_presentasi_sementara.sql',import.meta.url),'utf8'));
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('begin');
+ try{
+  await as(id(9));await safeCall('atur_presentasi_pos',[o,30,'Presentasi outlet uji']);
+  await expect(safeCall('atur_presentasi_pos',[o,121,'Durasi terlalu panjang'])).rejects.toThrow(/durasi/);
+  await as(budi);await expect(safeCall('atur_presentasi_pos',[o,30,'Bukan kewenangan staf'])).rejects.toThrow(/berwenang/);
+  await as(owner);const [daily]=await q<{id:string}>('select id from sesi_kas where outlet_id=$1 and kas_harian order by dibuka_at desc limit 1',[o]);
+  await q("update sesi_kas set ditutup_at=null,pending_offline=0 where id=$1",[daily.id]);
+  await q('update pos_serah_terima set selesai_at=now() where sesi_id=$1',[daily.id]);
+  await q('update absensi set pulang_at=now() where outlet_id=$1',[o]);
+  const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali','x'.repeat(64),'z'.repeat(40)]);
+  const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);await as(tablet.id);
+  const st=await safeCall<{presentasi:boolean;roster:{id:string}[]}>('status_pos_tim',[o,'x'.repeat(64),'',false]);expect(st.presentasi).toBe(true);expect(st.roster.some(x=>x.id===andi)).toBe(true);
+  const r=await safeCall('pilih_pic_pos_outlet',[o,'x'.repeat(64),andi,null,200000,'Uang diperiksa','8'.repeat(64)]);expect(r.sesi_id).toBe(daily.id);
+  expect((await safeCall('status_pos_tim',[o,'x'.repeat(64),'8'.repeat(64),false])).boleh).toBe(true);
+  const sale=await safeCall('buat_transaksi',[{...payload(),client_id:crypto.randomUUID(),sesi_id:daily.id,izin_id:r.izin_id,device_token:'x'.repeat(64),pos_token:'8'.repeat(64),waktu_asli:new Date().toISOString()}]);expect(sale.id).toBeTruthy();
+  expect((await q('select count(*) n from absensi where outlet_id=$1 and pulang_at is null',[o]))[0].n).toBe(0);
+  expect((await q('select modal_laci from sesi_kas where id=$1',[daily.id]))[0].modal_laci).toBe(200000);
+  expect((await q('select pos_kas_internal.presentasi_aktif($1) ok',[id(9999)]))[0].ok).toBe(false);
+  await as(id(9));await safeCall('atur_presentasi_pos',[o,0,'Presentasi sudah selesai']);await as(tablet.id);
+  expect((await safeCall('status_pos_tim',[o,'x'.repeat(64),'8'.repeat(64),false])).boleh).toBe(false);
+  await expect(safeCall('buat_transaksi',[{...payload(),client_id:crypto.randomUUID(),sesi_id:daily.id,izin_id:r.izin_id,device_token:'x'.repeat(64),pos_token:'8'.repeat(64),waktu_asli:new Date().toISOString()}])).rejects.toThrow(/bertugas/);
+ }finally{await db.exec('rollback');}
+});
