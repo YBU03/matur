@@ -28,3 +28,7 @@ owner, admin_pusat, finance, hrd, admin_gudang, manajer_area, spv, kasir, barist
 - Uji tampilan: halaman sementara `src/app/zz` + tambah `zz|` di matcher `src/middleware.ts`, dev port 3005, Playwright `executablePath: /opt/pw-browsers/chromium`. Hapus sebelum commit.
 - Sandbox tidak bisa akses matoer.id/supabase.co langsung: DB lewat Supabase MCP, deploy lewat Vercel MCP (`create_deployment` gitSource ke SHA terbaru, target production), lalu pastikan deploy produksi terakhir = SHA terbaru & READY.
 - Git: merge (bukan rebase/force). Hemat token: satu topik per sesi; baca potongan file, jangan ulang baca.
+
+## POS aktif (26 Oktober 2026)
+
+Login akun outlet langsung masuk POS lengkap. Atas permintaan pemilik, pengunci shift/absensi/PIC/perangkat tunggal/testing/presentasi sudah dilepas. Baca `docs/pos-login-langsung.md` sebelum menyentuh POS. Jangan mengaktifkan skema pengunci lama tanpa diskusi dan persetujuan baru. Histori dan login/kewenangan outlet tetap dijaga.

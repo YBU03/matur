@@ -1,3 +1,5 @@
+> Arsip: alur ini dinonaktifkan atas instruksi pemilik 26 Oktober 2026. Jalur aktif memakai [POS login langsung](pos-login-langsung.md). Jangan mengaktifkan kembali pengunci tanpa persetujuan baru.
+
 # Mode Testing POS Outlet Demo
 
 Login tetap menggunakan akun POS outlet. Ketika flag testing aktif, `/pos` mengarahkan tablet ke `/pos/testing` tanpa mensyaratkan jadwal, Clock In, PIC, modal, atau sesi kas. Halaman terminal tablet juga dialihkan. Katalog hanya diberikan kepada akun tablet yang memiliki token perangkat aktif dan kredensial outlet yang masih berlaku.

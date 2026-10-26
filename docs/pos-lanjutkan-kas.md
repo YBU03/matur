@@ -1,3 +1,5 @@
+> Arsip: alur ini dinonaktifkan atas instruksi pemilik 26 Oktober 2026. Jalur aktif memakai [POS login langsung](pos-login-langsung.md). Jangan mengaktifkan kembali pengunci tanpa persetujuan baru.
+
 # Izin lanjut kas harian POS
 
 HRD (sesuai outlet penugasannya), Admin Pusat dan Owner mempunyai panel **Akses Kasir POS per Outlet → Izinkan Lanjutkan Kas**. Panel menampilkan kas tertutup 7 hari terakhir berikut alasan apabila tidak dapat dilanjutkan. Admin mengisi alasan minimal 5 karakter dan menyetujui dampaknya. Ini pembukaan kembali kas operasional, terpisah dari mode testing; tidak mengubah flag testing secara otomatis.

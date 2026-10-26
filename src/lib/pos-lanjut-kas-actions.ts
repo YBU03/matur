@@ -13,3 +13,6 @@ export async function izinkanLanjutKas(sesi: string, ditutup: string, alasan: st
 export async function akhiriPresentasiPos(outlet: string): Promise<{ok?:string;error?:string}> {
  try {const db=await supabaseServer();const {error}=await db.rpc("atur_presentasi_pos",{p_outlet:outlet,p_menit:0,p_alasan:"Presentasi selesai; kembalikan aturan shift"});if(error)return {error:error.message};revalidatePath("/pengaturan/pos");revalidatePath("/pos");return {ok:"Pengecualian presentasi dihentikan. Aturan shift/absensi normal berlaku kembali."};}catch{return {error:"Status belum diperbarui. Coba lagi."};}
 }
+export async function simpanModalPos(sesi:string,jumlah:number):Promise<{ok?:string;error?:string}>{
+ try{const db=await supabaseServer();const {buktiTablet}=await import("./pos-tim");const proof=await buktiTablet();const {error}=await db.rpc("atur_modal_pos",{p_sesi:sesi,p_device:proof.device,p_jumlah:jumlah});if(error)return {error:error.message};revalidatePath("/kasir/shift");return {ok:"Modal kas tersimpan."};}catch{return {error:"Modal belum tersimpan. Coba lagi."};}
+}

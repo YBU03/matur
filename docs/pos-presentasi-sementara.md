@@ -1,3 +1,5 @@
+> Arsip: alur ini dinonaktifkan atas instruksi pemilik 26 Oktober 2026. Jalur aktif memakai [POS login langsung](pos-login-langsung.md). Jangan mengaktifkan kembali pengunci tanpa persetujuan baru.
+
 # Pengecualian sementara untuk presentasi POS lengkap
 
 Berbeda dari testing lokal yang fiturnya terbatas, pengecualian ini memakai seluruh halaman POS operasional. Transaksi, stok dan kas tetap merupakan data asli. Login outlet, perangkat yang sah, satu kas/perangkat, PIC aktif outlet, uang fisik serah terima, harga dan pencatatan transaksi tetap diperiksa. Tidak membuat absensi atau jadwal palsu.

@@ -233,10 +233,6 @@ export function PosScreen({
     const waktu = new Date(
       Date.parse(izin.server_at) + Date.now() - izin.client_at,
     );
-    if (waktu.getTime() > Date.parse(izin.sampai_at))
-      return setErr(
-        "Izin POS berakhir. Hubungkan internet dan verifikasi ulang.",
-      );
     if (
       !navigator.onLine &&
       (!izin.offlineBoleh ||

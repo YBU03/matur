@@ -1,3 +1,4 @@
+import { PosModalKas } from "@/components/pos-modal-kas";
 import { notFound } from "next/navigation";
 import { POS_ROLES } from "@/lib/roles";
 import { getSession } from "@/lib/session";
@@ -77,6 +78,7 @@ export default async function KasPage() {
   ]);
   return (
     <div className="space-y-4">
+      {pos.sesi && <PosModalKas key={pos.sesi.id} sesi={pos.sesi.id} modal={pos.sesi.modal} />}
       {kasTim && (
         <div id="tutup" className="scroll-mt-20">
           <TutupKasTim

@@ -7,7 +7,7 @@ import { masukPos } from "@/lib/pos-tablet-actions";
 const FITUR = [
   "🧾 Kasir & struk",
   "📋 Antrean barista",
-  "💵 Kas shift",
+  "💵 Kas outlet",
   "📦 Stok real-time",
 ];
 
@@ -50,7 +50,7 @@ export function MasukPos({ pesan, kunci }: { pesan?: string; kunci?: string }) {
             Matoer POS
           </h1>
           <p className="relative mt-1 text-sm text-white/90">
-            Kasir & barista outlet, satu tablet untuk satu tim.
+            Login akun outlet untuk mulai bertransaksi.
           </p>
           <div className="relative mt-4 hidden flex-wrap justify-center gap-2 sm:flex">
             {FITUR.map((f) => (

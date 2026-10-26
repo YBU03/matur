@@ -3,7 +3,7 @@ import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { statusPos } from "@/lib/pos-tim";
-import { PosGate } from "@/components/pos-gate";
+import { MasukPos } from "@/app/pos/masuk-pos";
 import { PosRuntime } from "@/components/pos-runtime";
 
 import { type Draft, type PosMenu } from "./pos-screen";
@@ -13,16 +13,8 @@ export default async function PosPage() {
   if (!s?.active?.outletId || !BISA_JUAL.includes(s.active.role)) notFound();
   if(s.active.role!=="tablet")redirect("/pos");
   const supabase = await supabaseServer();
-  const status = await statusPos(s.active.outletId);
-  if (!status.boleh)
-    return (
-      <PosGate
-        status={status}
-        outlet={s.active.outletNama}
-        namaSaya={s.nama}
-        saya={s.userId}
-      />
-    );
+  const status = await statusPos(s.active.outletId).catch(()=>null);
+  if(!status)return <MasukPos pesan="Sesi login outlet perlu diperbarui. Silakan masuk kembali."/>;
   const sesi = status.sesi!;
 
   const [

@@ -1256,3 +1256,47 @@ it("temporary presentation exposes full POS to outlet staff without clock-in, ex
   await expect(safeCall('buat_transaksi',[{...payload(),client_id:crypto.randomUUID(),sesi_id:daily.id,izin_id:r.izin_id,device_token:'x'.repeat(64),pos_token:'8'.repeat(64),waktu_asli:new Date().toISOString()}])).rejects.toThrow(/bertugas/);
  }finally{await db.exec('rollback');}
 });
+
+it("direct outlet POS needs no shifts/PIC, supports multiple devices and continues after closing cash",async()=>{
+ await db.exec('create table matur_internal.pos_testing(outlet_id uuid,aktif boolean,diubah_at timestamptz)');
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026042921_pos_login_langsung.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026043618_pos_katalog_izin_tetap.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026044320_pos_antrean_login_baru.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026044502_pos_antrean_lintas_kas.sql',import.meta.url),'utf8'));
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('begin');
+ try{
+  await as(owner);await q('update absensi set pulang_at=now()');await q("update jadwal_shift set status='draft'");
+  const devices=[];
+  for(let i=0;i<12;i++){const secret=String(i).padStart(64,'d');const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali',secret,'z'.repeat(40)]);expect(login.error).toBeUndefined();const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);devices.push({uid:tablet.id,secret});}
+  const one=devices[0],two=devices[1];await as(one.uid);
+  const st=await safeCall<{langsung:boolean;boleh:boolean;sesi:{id:string;modal:number};izin:{id:string};server_at:string}>('status_pos_tim',[o,one.secret,'',false]);expect(st.boleh).toBe(true);expect(st.langsung).toBe(true);
+  await expect(safeCall('status_pos_tim',[id(9999),one.secret,'',false])).rejects.toThrow(/Masuk kembali/);
+  await expect(safeCall('status_pos_tim',[o,two.secret,'',false])).rejects.toThrow(/Masuk kembali/);
+  await as(two.uid);const other=await safeCall<typeof st>('status_pos_tim',[o,two.secret,'',false]);expect(other.sesi.id).toBe(st.sesi.id);
+  await safeCall('atur_modal_pos',[st.sesi.id,two.secret,123000]);
+  const draft=await safeCall('draft_pos_tim',[{aksi:'simpan',outlet_id:o,sesi_id:st.sesi.id,device_token:two.secret,pos_token:two.secret,kanal:'langsung',tipe:'dine_in',label:'Meja uji',items:[{menu_id:menu,qty:1}],total:10000,diskon:0}]);expect(draft).toBeTruthy();
+  await as(one.uid);const packet={...payload(),client_id:crypto.randomUUID(),sesi_id:st.sesi.id,izin_id:st.izin.id,device_token:one.secret,pos_token:one.secret,waktu_asli:st.server_at};
+  await expect(safeCall('buat_transaksi',[{...packet,pos_token:'token-salah'}])).rejects.toThrow(/identitas/);
+  const receipt=await safeCall('buat_transaksi',[packet]);expect(receipt.id).toBeTruthy();expect((await safeCall('buat_transaksi',[packet])).id).toBe(receipt.id);
+  const pending=crypto.randomUUID();await as(two.uid);await safeCall('tutup_kas_outlet',[st.sesi.id,two.secret,'','',123000,'Uji tutup kas',[pending]]);
+  const next=await safeCall<typeof st>('status_pos_tim',[o,two.secret,'',false]);expect(next.boleh).toBe(true);expect(next.sesi.id).not.toBe(st.sesi.id);expect(next.sesi.modal).toBe(0);
+  await as(one.uid);const historical=await safeCall('buat_transaksi',[{...packet,client_id:pending,sinkron_offline:true,pos_token:'cookie-login-sudah-berganti'}]);expect(historical.id).toBeTruthy();
+  expect((await q('select pending_offline from sesi_kas where id=$1',[st.sesi.id]))[0].pending_offline).toBe(0);
+  expect((await q('select modal_laci from sesi_kas where id=$1',[st.sesi.id]))[0].modal_laci).toBe(123000);
+  const latePacket={...packet,client_id:crypto.randomUUID(),sinkron_offline:true,waktu_asli:new Date(Date.parse(st.server_at)+2000).toISOString()};
+  const late=await safeCall('buat_transaksi',[latePacket]);expect((await q('select sesi_kas_id from transaksi where id=$1',[late.id]))[0].sesi_kas_id).toBe(next.sesi.id);
+  expect((await safeCall('buat_transaksi',[latePacket])).id).toBe(late.id);
+  await expect(safeCall('buat_transaksi',[{...latePacket,sesi_id:next.sesi.id}])).rejects.toThrow(/ID transaksi/);
+  const after=await safeCall<typeof st>('status_pos_tim',[o,one.secret,'',false]);expect(after.sesi.id).toBe(next.sesi.id);
+  expect((await q('select * from transaksi where id=$1',[receipt.id]))).toHaveLength(1);
+  expect((await q('select count(*) n from absensi where pulang_at is null'))[0].n).toBe(0);
+  const immutable=(await q('select katalog from matur_internal.pos_izin where id=$1',[after.izin.id]))[0].katalog;
+  await q('update menu set harga_langsung=harga_langsung+1000 where id=$1',[menu]);
+  const repriced=await safeCall<typeof st>('status_pos_tim',[o,one.secret,'',true]);expect(repriced.izin.id).not.toBe(after.izin.id);
+  expect((await q('select katalog from matur_internal.pos_izin where id=$1',[after.izin.id]))[0].katalog).toEqual(immutable);
+  await as(andi);await expect(safeCall('status_pos_tim',[o,one.secret,'',false])).rejects.toThrow(/Masuk kembali/);
+  await as('');await expect(safeCall('status_pos_tim',[o,one.secret,'',false])).rejects.toThrow(/Masuk kembali/);
+  expect((await q("select has_function_privilege('anon','public.buat_transaksi(jsonb)','execute') ok"))[0].ok).toBe(false);
+ }finally{await db.exec('rollback');}
+});
