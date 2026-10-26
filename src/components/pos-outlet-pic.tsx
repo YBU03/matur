@@ -60,6 +60,7 @@ export function PosOutletPic({
         {sesi ? "Lanjutkan / Serah Terima Kas" : "Buka Kas Harian"}
       </h2>
       <p>{outlet}</p>
+      <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">Anggota sesuai shift terbit yang sudah Clock In dan belum Clock Out dapat dipilih sebagai PIC. S1 ke S2/S3 gunakan serah terima, bukan Tutup Kas Harian.</p>
       {sesi && (
         <p className="rounded-xl bg-matur-50 p-3 text-sm">
           Modal awal {formatRupiah(sesi.modal)} tetap diteruskan. S2/S3 tidak
