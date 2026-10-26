@@ -1,3 +1,4 @@
+import type {AturanShift} from "@/lib/pos-alur";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -27,6 +28,8 @@ export default async function Page() {
     "panel_akses_pos_outlet",
   );
   if (aksesError) throw new Error(aksesError.message);
+  const {data: aturan, error: aturanError} = await db.rpc("panel_alur_shift_pos");
+  if(aturanError) throw new Error(aturanError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
   const panel = data as PanelData;
   if (["hrd", "admin_gudang"].includes(s.active.role)) {
@@ -51,7 +54,7 @@ export default async function Page() {
       <HeaderHalaman
         ikon="🧾"
         judul="Akses Kasir POS per Outlet"
-        keterangan="Login akun outlet langsung membuka kasir. Kas dan modal dicatat tanpa syarat shift, absensi atau PIC."
+        keterangan="Kelola akun outlet dan pilihan alur shift. Alur langsung tetap tersedia untuk pelatihan."
         aksi={
           <Link href="/pengguna" className={tombolHeader}>
             👥 Kelola Pengguna Matoer
@@ -90,7 +93,7 @@ export default async function Page() {
           nada={sesiBuka ? "hijau" : "netral"}
         />
       </BarisAngka>
-      <PanelPos data={panel} role={s.active.role} akses={allowed} />
+      <PanelPos aturan={(aturan??[]) as AturanShift[]} data={panel} role={s.active.role} akses={allowed} />
     </div>
   );
 }

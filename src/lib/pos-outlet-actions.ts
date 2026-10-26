@@ -1,9 +1,7 @@
 "use server";
-import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "./supabase/server";
-import { getSession } from "./session";
 import { POS_DEVICE, POS_UNLOCK } from "./pos-tim";
 import { COOKIE_SESI } from "./shift";
 import type { PosHasil } from "./pos-tim-actions";
@@ -42,49 +40,6 @@ export async function hapusAksesOutlet(
   revalidatePath("/pos");
   return {
     ok: "Akses POS outlet dihapus. Riwayat transaksi, kas, dan serah terima tetap tersimpan.",
-  };
-}
-export async function pilihPicOutlet(
-  pic: string,
-  modal: number | null,
-  fisik: number | null,
-  catatan: string,
-): Promise<PosHasil> {
-  const s = await getSession();
-  if (s?.active?.role !== "tablet" || !s.active.outletId)
-    return { error: "Masuk dengan akun POS outlet dahulu." };
-  const c = await cookies();
-  const token = randomBytes(32).toString("hex");
-  const db = await supabaseServer();
-  const { data, error } = await db.rpc("pilih_pic_pos_outlet", {
-    p_outlet: s.active.outletId,
-    p_device: c.get(POS_DEVICE)?.value ?? "",
-    p_pic: pic,
-    p_modal: modal,
-    p_fisik: fisik,
-    p_catatan: catatan,
-    p_token: token,
-  });
-  if (error || data?.error) {
-    const pesan = error?.message ?? data.error;
-    return { error: pesan.includes("Kas tanggal ini sudah ditutup")
-      ? "Kas tanggal ini sudah ditutup. Minta HRD/Admin Pusat membuka Akses Kasir POS per Outlet → Izinkan Lanjutkan Kas. Setelah diizinkan, muat ulang POS dan pilih PIC yang sudah Clock In; modal tidak diinput ulang."
-      : pesan };
-  }
-  const opts = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24,
-  };
-  c.set(POS_UNLOCK, token, opts);
-  c.set(COOKIE_SESI, data.sesi_id, opts);
-  revalidatePath("/pos");
-  revalidatePath("/kasir");
-  return {
-    ok: "PIC dan tim shift tercatat. Modal kas tetap sama.",
-    id: data.sesi_id,
   };
 }
 export async function tutupKasOutlet(
