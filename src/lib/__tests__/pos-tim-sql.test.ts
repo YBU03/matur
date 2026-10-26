@@ -1174,3 +1174,58 @@ it("adds, edits and deletes outlet access without deleting financial history or 
     ).toBe(false);
   }
 });
+
+it("HRD authorizes the same closed daily drawer, retains history, revokes leases and requires a fresh PIC handover", async()=>{
+ // Schema additions already deployed by automatic-close migration.
+ await db.exec("alter table sesi_kas add column if not exists tutup_otomatis boolean default false,add column if not exists dihitung_at timestamptz,add column if not exists dihitung_oleh uuid");
+ await db.exec("create schema pos_training_internal");
+ const scope=readFileSync(new URL('../../../supabase/migrations/20261026033059_pos_testing_hrd_outlet.sql',import.meta.url),'utf8').split('create function matur_internal.panel_testing_outlet')[0].replaceAll('matur_internal.admin_testing_outlet','pos_training_internal.admin_testing_outlet');
+ await db.exec(scope);
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026034322_pos_lanjutkan_kas_admin.sql',import.meta.url),'utf8'));
+ const safeCall: typeof call = async(name,args)=>{await db.exec('savepoint request');try{const result=await call(name,args);await db.exec('release savepoint request');return result as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('begin');
+ try {
+  await as(owner);
+  const [daily]=await q<{id:string}>("select id from sesi_kas where kas_harian and outlet_id=$1 order by dibuka_at desc limit 1",[o]);
+  await q("update sesi_kas set ditutup_at=now(),fisik_akhir=200000,setoran=0,selisih=0,rekap_status='final',pending_offline=0 where id=$1",[daily.id]);
+  await q('delete from matur_internal.pos_pending where sesi_id=$1',[daily.id]);
+  await q('update matur_internal.pos_pindah set selesai_at=now() where sesi_id=$1 and selesai_at is null',[daily.id]);
+  const v=(await q<{v:string}>('select ditutup_at::text v from sesi_kas where id=$1',[daily.id]))[0].v;
+  await as(budi);await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/berwenang/);
+  await as(id(9));
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'x'])).rejects.toThrow(/alasan/);
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,'2000-01-01','Kas terlanjur ditutup'])).rejects.toThrow(/berubah/);
+  await q('update sesi_kas set pending_offline=1 where id=$1',[daily.id]);await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/sinkronisasi/);
+  await q('update sesi_kas set pending_offline=0 where id=$1',[daily.id]);
+  await q("update pengguna set status='nonaktif' where id=$1",[id(9)]);
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/berwenang/);
+  await q("update pengguna set status='aktif' where id=$1",[id(9)]);
+  await q('update penugasan set outlet_id=$1 where pengguna_id=$2',[id(9999),id(9)]);
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/berwenang/);
+  await q('update penugasan set outlet_id=null where pengguna_id=$1',[id(9)]);
+  await q('update sesi_kas set tanggal_shift=tanggal_shift-1 where id=$1',[daily.id]);
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/jam shift/);
+  await q('update sesi_kas set tanggal_shift=tanggal_shift+1 where id=$1',[daily.id]);
+  await q("insert into laporan_bulanan(id,outlet_id,periode,nama_outlet,tgl_terbit) select $1,outlet_id,date_trunc('month',tanggal_shift)::date,'Uji',current_date from sesi_kas where id=$2",[id(8888),daily.id]);
+  await expect(safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup'])).rejects.toThrow(/diterbitkan/);
+  await q('delete from laporan_bulanan where id=$1',[id(8888)]);
+  await db.exec('set local role authenticated');
+  expect((await safeCall<{kas:unknown[]}>('panel_lanjut_kas_pos',[])).kas.length).toBeGreaterThan(0);
+  await db.exec('reset role');
+  const before=(await q('select count(*) n from transaksi'))[0].n;
+  await safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup']);
+  await safeCall('izinkan_lanjut_kas_pos',[daily.id,v,'Kas terlanjur ditutup']);
+  expect((await q('select modal_laci,ditutup_at,fisik_akhir from sesi_kas where id=$1',[daily.id]))[0]).toEqual({modal_laci:200000,ditutup_at:null,fisik_akhir:null});
+  expect((await q('select * from pos_kas_internal.riwayat_lanjut where sesi_id=$1',[daily.id]))).toHaveLength(1);
+  expect((await q<{penutupan:{fisik_akhir:number}}>('select penutupan from pos_kas_internal.riwayat_lanjut where sesi_id=$1',[daily.id]))[0].penutupan.fisik_akhir).toBe(200000);
+  expect((await q('select * from matur_internal.pos_izin where sesi_id=$1 and ditarik_at is null',[daily.id]))).toHaveLength(0);
+  expect((await q('select count(*) n from transaksi'))[0].n).toBe(before);
+  const login=await safeCall('masuk_pos_outlet',['outlet-kembali','password-baru-kembali','x'.repeat(64),'z'.repeat(40)]);
+  const [tablet]=await q<{id:string}>('select id from pengguna where email=$1',[login.email]);await as(tablet.id);
+  await q('update absensi set pulang_at=null where pengguna_id=$1',[andi]);
+  await expect(safeCall('pilih_pic_pos_outlet',[o,'x'.repeat(64),andi,null,null,'','7'.repeat(64)])).rejects.toThrow(/fisik/);
+  const r=await safeCall('pilih_pic_pos_outlet',[o,'x'.repeat(64),andi,null,200000,'Terima kembali','7'.repeat(64)]);expect(r.sesi_id).toBe(daily.id);
+  expect((await safeCall('status_pos_tim',[o,'x'.repeat(64),'7'.repeat(64),false])).boleh).toBe(true);
+  expect(Number((await q('select modal_laci from sesi_kas where id=$1',[daily.id]))[0].modal_laci)).toBe(200000);
+ }finally{await db.exec('rollback');}
+});

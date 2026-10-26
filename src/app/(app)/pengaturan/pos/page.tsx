@@ -1,3 +1,4 @@
+import { PosLanjutKasPanel, type PanelLanjut } from "@/components/pos-lanjut-kas-panel";
 import { PosTestingPanel, type TestingOutlet } from "@/components/pos-testing-panel";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
@@ -36,10 +37,14 @@ export default async function Page() {
   if (aksesError) throw new Error(aksesError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
   let testing: TestingOutlet[] = [];
+  let lanjut: PanelLanjut | null = null;
   if (["owner", "admin_pusat", "hrd"].includes(s.active.role)) {
     const { data, error } = await db.rpc("panel_testing_pos");
     if (error) throw new Error(error.message);
     testing = data ?? [];
+    const { data: izin, error: izinError } = await db.rpc("panel_lanjut_kas_pos");
+    if (izinError) throw new Error(izinError.message);
+    lanjut = izin as PanelLanjut;
   }
   const panel = data as PanelData;
   if (["hrd", "admin_gudang"].includes(s.active.role)) {
@@ -115,6 +120,7 @@ export default async function Page() {
       </BarisAngka>
       <KasTertinggalPanel list={(tertinggal ?? []) as KasTertinggal[]} />
       <RiwayatKasOtomatis list={(otomatis ?? []) as KasOtomatis[]} />
+      {lanjut && <PosLanjutKasPanel data={lanjut} />}
       <PosTestingPanel rows={testing} />
       <PanelPos data={panel} role={s.active.role} akses={allowed} />
     </div>

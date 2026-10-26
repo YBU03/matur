@@ -68,7 +68,7 @@ export async function pilihPicOutlet(
   if (error || data?.error) {
     const pesan = error?.message ?? data.error;
     return { error: pesan.includes("Kas tanggal ini sudah ditutup")
-      ? "Kas tanggal ini sudah ditutup. Untuk latihan, minta HRD/Admin Pusat membuka Akses Kasir POS per Outlet → Mode Testing POS → aktifkan outlet ini, lalu muat ulang POS. Kas asli tidak dibuka ulang."
+      ? "Kas tanggal ini sudah ditutup. Minta HRD/Admin Pusat membuka Akses Kasir POS per Outlet → Izinkan Lanjutkan Kas. Setelah diizinkan, muat ulang POS dan pilih PIC yang sudah Clock In; modal tidak diinput ulang."
       : pesan };
   }
   const opts = {
