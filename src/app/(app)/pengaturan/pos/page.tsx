@@ -36,7 +36,7 @@ export default async function Page() {
   if (aksesError) throw new Error(aksesError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
   let testing: TestingOutlet[] = [];
-  if (["owner", "admin_pusat"].includes(s.active.role)) {
+  if (["owner", "admin_pusat", "hrd"].includes(s.active.role)) {
     const { data, error } = await db.rpc("panel_testing_pos");
     if (error) throw new Error(error.message);
     testing = data ?? [];
