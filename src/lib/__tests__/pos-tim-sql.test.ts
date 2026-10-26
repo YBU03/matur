@@ -1394,3 +1394,34 @@ it('shift settings are limited to active HRD/warehouse assignments and PIN attem
   expect((await safeCall('proses_alur_shift_pos',[o,secret,'',{...p,pin:'1234'}])).ok).toBe(true);
  }finally{await db.exec('rollback');}
 });
+
+it('outlet shift PIN is kept encrypted for authorized admins, logged when viewed, and forgotten when changed',async()=>{
+ const safeCall:typeof call=async(name,args)=>{await db.exec('savepoint request');try{const r=await call(name,args);await db.exec('release savepoint request');return r as never;}catch(e){await db.exec('rollback to savepoint request;release savepoint request');throw e;}};
+ await db.exec('create or replace view vault.secrets as select * from vault.decrypted_secrets');
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261026150000_pos_pin_shift_terenkripsi.sql',import.meta.url),'utf8'));
+ await db.exec('begin');
+ try{
+  await as(owner);
+  const v=(await q<{versi:number}>('select coalesce((select versi from pos_kas_internal.aturan_shift where outlet_id=$1),0) versi',[o]))[0].versi;
+  // PIN lama (hanya hash, belum ada salinan): perlu dimasukkan sekali
+  await q("insert into pos_kas_internal.aturan_shift(outlet_id) values($1) on conflict do nothing",[o]);
+  await q("update pos_kas_internal.aturan_shift set pin_hash=extensions.crypt('2468','x'),pin_secret_id=null where outlet_id=$1",[o]);
+  expect(await safeCall('lihat_pin_alur_shift',[o])).toEqual({belum_tersimpan:true});
+  expect((await safeCall<{error?:string}>('simpan_pin_alur_shift_lama',[o,'1111'])).error).toMatch(/tidak cocok/);
+  expect(await safeCall('simpan_pin_alur_shift_lama',[o,'2468'])).toEqual({ok:true});
+  expect(await safeCall('lihat_pin_alur_shift',[o])).toEqual({pin:'2468'});
+  expect((await q("select count(*)::int n from log_aktivitas where aksi='lihat_pin_alur_shift' and entitas_id=$1",[o]))[0].n).toBeGreaterThan(0);
+  // ganti PIN lewat pengaturan: salinan ikut diperbarui, salinan lama dihapus
+  const lama=(await q<{s:string}>('select pin_secret_id s from pos_kas_internal.aturan_shift where outlet_id=$1',[o]))[0].s;
+  const versi=(await q<{versi:number}>('select versi from pos_kas_internal.aturan_shift where outlet_id=$1',[o]))[0].versi;
+  await safeCall('atur_alur_shift_pos',[o,false,'97531',versi]);
+  expect(await safeCall('lihat_pin_alur_shift',[o])).toEqual({pin:'97531'});
+  expect((await q('select count(*)::int n from vault.decrypted_secrets where id=$1',[lama]))[0].n).toBe(0);
+  // tanpa kewenangan: ditolak; anon tidak punya akses
+  await as(andi);
+  await expect(safeCall('lihat_pin_alur_shift',[o])).rejects.toThrow(/berwenang/);
+  await expect(safeCall('simpan_pin_alur_shift_lama',[o,'97531'])).rejects.toThrow(/berwenang/);
+  for(const sig of ['public.lihat_pin_alur_shift(uuid)','public.simpan_pin_alur_shift_lama(uuid,text)'])expect((await q("select has_function_privilege('anon',$1,'execute') ok",[sig]))[0].ok).toBe(false);
+  expect(v).toBeGreaterThanOrEqual(0);
+ }finally{await db.exec('rollback');}
+});

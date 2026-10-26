@@ -1,5 +1,5 @@
 "use client";
-import { InputSandi, SandiOutlet } from "./sandi-outlet";
+import { InputSandi, PinOutlet, SandiOutlet } from "./sandi-outlet";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
@@ -26,7 +26,7 @@ const tombolUtama =
   "rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-kopi-700 disabled:opacity-50";
 const tombolGaris =
   "rounded-xl border border-matur-200 bg-white px-4 py-2 text-sm font-semibold text-kopi-900 hover:bg-matur-50 disabled:opacity-50";
-export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
+export function AksesOutletPanel({ outlets, pin = {} }: { outlets: AksesOutlet[]; /** outlet id → sudah punya PIN Alur Shift (hanya outlet yang boleh diatur) */ pin?: Record<string, boolean> }) {
   const router = useRouter();
   const [filter, setFilter] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -174,6 +174,7 @@ export function AksesOutletPanel({ outlets }: { outlets: AksesOutlet[] }) {
               </dd>
             </dl>
             <SandiOutlet key={`${o.id}:${o.diubah_at}`} outlet={o} />
+            {o.id in pin && <PinOutlet outlet={o} adaPin={pin[o.id]} />}
             <div className="flex gap-2 border-t border-stone-100 pt-3">
               <button
                 type="button"

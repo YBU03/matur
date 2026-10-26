@@ -101,3 +101,27 @@ export async function laporanAlurOutlet(
   });
   return error ? { error: error.message } : { data: data as LaporanShift };
 }
+
+const belumAktif = (m: string) =>
+  /could not find the function|PGRST202|does not exist/i.test(m)
+    ? "Fitur lihat PIN belum aktif di database. Hubungi admin sistem."
+    : m;
+/** Tampilkan PIN outlet Alur Shift (admin POS outlet berwenang; dicatat di log). */
+export async function lihatPinOutlet(outlet: string): Promise<{
+  pin?: string;
+  belum_tersimpan?: boolean;
+  belum_diatur?: boolean;
+  error?: string;
+}> {
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("lihat_pin_alur_shift", { p_outlet: outlet });
+  if (error) return { error: belumAktif(error.message) };
+  return data ?? { error: "PIN belum dapat ditampilkan." };
+}
+/** PIN lama (tersimpan sebagai hash): masukkan sekali agar bisa ditampilkan, PIN tidak berubah. */
+export async function simpanPinLamaOutlet(outlet: string, pin: string): Promise<{ ok?: string; error?: string }> {
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("simpan_pin_alur_shift_lama", { p_outlet: outlet, p_pin: pin });
+  if (error || data?.error) return { error: error ? belumAktif(error.message) : data.error };
+  return { ok: "PIN yang sama sudah tersimpan." };
+}
