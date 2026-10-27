@@ -30,3 +30,13 @@ Fitur tetap menggunakan mesin mutasi/penerimaan yang sudah ada. Tidak mengubah k
 Tes PostgreSQL lokal menguji edit/stale harga, otorisasi, snapshot HPP, penerimaan parsial dan periode, stok opname kosong/selisih/konflik/retry, biaya dan pembatalan. Tes laporan memeriksa HPP belum lengkap dan selisih bertanda positif/negatif. Tes PDF membandingkan satu set NCR dengan tiga set kertas biasa, empat kotak tanda tangan, ukuran kertas, laporan opname dan laba rugi. Lima contoh PDF dirender dengan Poppler dan diperiksa batas teks serta tata letaknya. Fixture Supabase `supabase/tests/gudang_revisi.sql` menggunakan role authenticated dan penerimaan barang asli dalam transaksi yang seluruhnya ROLLBACK.
 
 Hasil: 256 tes dalam 39 file lolos; lint, TypeScript dan build produksi lolos (warning lama halaman simulasi). Fixture authenticated Supabase lolos dan seluruh data uji di-ROLLBACK. Advisor keamanan tidak menambah temuan; indeks FK baru belum digunakan sebelum fitur dipakai. Browser UI tidak tersedia pada sesi ini, sehingga verifikasi visual dilakukan pada hasil PDF; cetak fisik tetap perlu disesuaikan printer.
+
+## Penyesuaian invoice sesuai contoh
+
+Invoice Penjualan memakai logo resmi `public/brand/hazna-logo.png`, identitas perusahaan dari pengaturan, informasi invoice/outlet/penerima dan tabel No, SKU, Produk, Qty, Satuan, Harga, Diskon, Jumlah, Pajak. Catatan berada di kiri ringkasan subtotal/total dan pembayaran di kanan, diikuti empat kotak tanda tangan. Tidak ada service charge. Surat jalan dan perhitungan nilai/penerimaan tidak berubah; NCR/tiga salinan dan ukuran kertas tetap berlaku.
+
+Data SKU, diskon, pajak dan jatuh tempo belum tersedia pada kiriman, sehingga ditampilkan tanda -. Pembayaran dan sisa tagihan ditandai belum tercatat/belum direkonsiliasi; tidak mengarang jumlah terbayar, piutang atau status lunas dari penerimaan barang. Logo dimuat sebelum PDF dibuat; kegagalan memuat gambar mengembalikan pesan gagal PDF, bukan proses yang menggantung.
+
+Tes tambahan memeriksa logo benar-benar tertanam, total berdasarkan barang diterima (bukan jumlah dikirim), tidak ada service charge dan tidak ada pembayaran fiktif; render A4, continuous setengah halaman dan ukuran minimum.
+
+Verifikasi revisi invoice: 257 tes dalam 39 file, lint dan TypeScript lolos. PDF A4, continuous, tiga salinan dan ukuran minimum dirender; teks berada dalam batas halaman.

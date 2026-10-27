@@ -7,6 +7,7 @@ import {
   validCetakGudang,
   type CetakGudang,
 } from "./gudang-cetak-config";
+export type LogoGudang = { url: string; w: number; h: number };
 const uang = (v: number) => "Rp " + Math.round(v).toLocaleString("id-ID");
 const nf = (v: number) =>
   Number(v).toLocaleString("id-ID", { maximumFractionDigits: 3 });
@@ -16,6 +17,7 @@ export function buatDokumenGudang(
   items: ItemKiriman[],
   pt: Kop,
   opsi: CetakGudang = cetakGudangDefault,
+  logo?: LogoGudang,
 ) {
   if (!validCetakGudang(opsi))
     throw new Error(
@@ -40,7 +42,108 @@ export function buatDokumenGudang(
       : Number(i.qty);
   const copies = opsi.rangkap === "salinan" ? 3 : 1,
     ranges: { start: number; end: number; copy: number }[] = [];
+  const total = items.reduce(
+    (s, i) => s + Math.round(qty(i) * Number(i.harga)),
+    0,
+  );
+  const tanggal = (v: string) => {
+    const [y, m, d] = v.slice(0, 10).split("-");
+    return d && m && y ? d + "/" + m + "/" + y : v;
+  };
+  function invoiceHeader() {
+    doc.setTextColor(0).setDrawColor(0);
+    const leftW = (W - 2 * M) * 0.55;
+    const rightX = M + leftW + 5;
+    const rightW = W - M - rightX;
+    const logoW = logo ? Math.min(17, (18 * logo.w) / logo.h) : 0;
+    if (logo) {
+      const lh = (logoW * logo.h) / logo.w;
+      doc.addImage(logo.url, "PNG", M, 8, logoW, lh, "hazna-logo");
+    }
+    const tx = M + (logo ? logoW + 3 : 0);
+    doc.setFont("helvetica", "bold").setFontSize(9);
+    doc.text(
+      doc.splitTextToSize(pt.nama.toUpperCase(), leftW - (tx - M)).slice(0, 2),
+      tx,
+      12,
+    );
+    doc.setFont("helvetica", "normal").setFontSize(7);
+    doc.text(
+      doc.splitTextToSize(pt.alamat ?? "", leftW - (tx - M)).slice(0, 2),
+      tx,
+      21,
+    );
+    doc.text(
+      doc
+        .splitTextToSize(
+          [pt.telepon, pt.email].filter(Boolean).join(" | "),
+          leftW,
+        )
+        .slice(0, 1),
+      M,
+      30,
+    );
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(11)
+      .text("INVOICE PENJUALAN", W - M, 12, { align: "right" });
+    doc.setFont("helvetica", "normal").setFontSize(7.5);
+    const meta = [
+      ["Invoice #", k.nomor],
+      ["Tanggal", tanggal(k.tanggal)],
+      ["Jatuh tempo", "-"],
+      ["Outlet", k.outlet?.nama ?? "-"],
+      ["Penerima", k.nama_penerima || "-"],
+    ];
+    meta.forEach(([label, value], n) => {
+      const y = 22 + n * 5.5;
+      doc.text(label, rightX, y);
+      // One bounded line; full outlet name/address also appears in the left recipient block.
+      doc
+        .setFontSize(7)
+        .text(
+          doc.splitTextToSize(value, rightW - 23).slice(0, 1),
+          rightX + 23,
+          y,
+        );
+      doc.setFontSize(7.5);
+    });
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(7.5)
+      .text("Tagih / Kirim ke", M, 36);
+    doc.setFont("helvetica", "normal").setFontSize(7.5);
+    doc.text(
+      doc.splitTextToSize(k.outlet?.nama ?? "-", leftW).slice(0, 1),
+      M,
+      40,
+    );
+    doc.text(
+      doc.splitTextToSize(k.outlet?.alamat ?? "", leftW).slice(0, 1),
+      M,
+      44,
+    );
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(7)
+      .text(
+        k.status === "draft"
+          ? "DRAFT - BELUM DIKIRIM"
+          : k.status === "batal"
+            ? "DIBATALKAN"
+            : diperiksa
+              ? "SUDAH DIPERIKSA OUTLET"
+              : "MENUNGGU PEMERIKSAAN OUTLET",
+        M,
+        49,
+      );
+    doc.setLineWidth(0.3).line(M, 51, W - M, 51);
+  }
   function header() {
+    if (invoice) {
+      invoiceHeader();
+      return;
+    }
     doc
       .setTextColor(0)
       .setDrawColor(0)
@@ -113,8 +216,8 @@ export function buatDokumenGudang(
       theme: "grid",
       styles: {
         font: "helvetica",
-        fontSize: 8,
-        cellPadding: 1.5,
+        fontSize: invoice ? 7 : 8,
+        cellPadding: invoice ? 1.2 : 1.5,
         lineColor: 80,
         lineWidth: 0.15,
         textColor: 0,
@@ -125,7 +228,17 @@ export function buatDokumenGudang(
       didDrawPage: () => header(),
       head: [
         invoice
-          ? ["No", "Nama Barang", "Jumlah", "Satuan", "Harga", "Subtotal"]
+          ? [
+              "No",
+              "SKU",
+              "Produk",
+              "Qty",
+              "Satuan",
+              "Harga",
+              "Diskon",
+              "Jumlah",
+              "Pajak",
+            ]
           : [
               "No",
               "Nama Barang",
@@ -139,11 +252,14 @@ export function buatDokumenGudang(
         invoice
           ? [
               String(n + 1),
+              "-",
               i.nama,
               nf(qty(i)),
               i.satuan ?? "",
               uang(Number(i.harga)),
-              uang(qty(i) * Number(i.harga)),
+              "-",
+              uang(Math.round(qty(i) * Number(i.harga))),
+              "-",
             ]
           : [
               String(n + 1),
@@ -154,37 +270,59 @@ export function buatDokumenGudang(
               "",
             ],
       ),
-      foot: invoice
-        ? [
-            [
-              "",
-              "TOTAL",
-              "",
-              "",
-              "",
-              uang(
-                items.reduce(
-                  (s, i) => s + Math.round(qty(i) * Number(i.harga)),
-                  0,
-                ),
-              ),
-            ],
-          ]
-        : undefined,
-      columnStyles: {
-        0: { cellWidth: 9 },
-        2: { halign: "right" },
-        4: { halign: "right" },
-        5: { halign: "right" },
-      },
+      columnStyles: invoice
+        ? {
+            0: { cellWidth: 7 },
+            1: { cellWidth: 12 },
+            2: {},
+            3: { cellWidth: 11, halign: "right" },
+            4: { cellWidth: 14 },
+            5: { cellWidth: 23, halign: "right" },
+            6: { cellWidth: 13, halign: "right" },
+            7: { cellWidth: 24, halign: "right" },
+            8: { cellWidth: 12, halign: "right" },
+          }
+        : {
+            0: { cellWidth: 9 },
+            2: { halign: "right" },
+            4: { halign: "right" },
+            5: { halign: "right" },
+          },
     });
     let y =
       (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
         .finalY + 5;
+    let summaryPage = 0,
+      summaryBottom = 0;
+    if (invoice) {
+      // Payments are not stored on kiriman; never infer debt or settlement from receipt status.
+      const rows = [
+        ["Subtotal", uang(total)],
+        ["Diskon", "-"],
+        ["Pajak", "-"],
+        ["TOTAL", uang(total)],
+        ["Pembayaran", "Belum tercatat"],
+        ["SISA TAGIHAN", "Belum direkonsiliasi"],
+      ];
+      const sh = rows.length * 5 + 3;
+      if (y + sh > H - 14) y = page();
+      const sx = W - M - 88;
+      doc.setLineWidth(0.2).line(sx, y - 2, W - M, y - 2);
+      rows.forEach(([label, value], n) => {
+        doc
+          .setFont("helvetica", n === 3 || n === 5 ? "bold" : "normal")
+          .setFontSize(8);
+        doc.text(label, sx, y + n * 5);
+        doc.text(value, W - M, y + n * 5, { align: "right" });
+      });
+      summaryPage = doc.getNumberOfPages();
+      summaryBottom = y + sh;
+    }
     const notes = [
       ...(k.catatan ? ["Catatan: " + k.catatan] : []),
       ...(invoice
         ? [
+            "SKU, diskon, pajak dan jatuh tempo: - (belum dicatat). Pembayaran/sisa tagihan belum direkonsiliasi.",
             diperiksa
               ? "Nilai mengikuti barang baik diterima. Selisih/kiriman susulan tercatat terpisah."
               : "Nilai rencana kirim; menunggu pemeriksaan outlet.",
@@ -193,13 +331,18 @@ export function buatDokumenGudang(
     ];
     doc.setFont("helvetica", "normal").setFontSize(8);
     for (const note of notes) {
-      for (const line of doc.splitTextToSize(note, W - 2 * M)) {
+      for (const line of doc.splitTextToSize(
+        note,
+        invoice ? W - 2 * M - 96 : W - 2 * M,
+      )) {
         if (y > H - 18) y = page();
         doc.setFont("helvetica", "normal").setFontSize(8).text(line, M, y);
         y += 4;
       }
       y += 2;
     }
+    if (invoice && doc.getNumberOfPages() === summaryPage)
+      y = Math.max(y, summaryBottom);
     const height = 35;
     if (y + height > H - 12) y = page();
     const labels = [
