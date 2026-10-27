@@ -21,6 +21,7 @@ export async function gambar(src: string) {
 }
 
 export type Kop = {
+  logo_url?: string;
   nama: string;
   alamat: string | null;
   email: string | null;

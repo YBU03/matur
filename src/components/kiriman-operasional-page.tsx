@@ -1,3 +1,4 @@
+import { kopGudang } from "@/lib/gudang-dokumen-data";
 import Link from "next/link";
 import { konteksOperasional, buktiUrls } from "@/lib/operasional-data";
 import {
@@ -37,7 +38,9 @@ export async function KirimanOperasionalPage({
     ? await Promise.all([
         db
           .from("kiriman")
-          .select("*,outlet(nama,alamat),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)")
+          .select(
+            "*,outlet(nama,alamat),penyesuaian:invoice_penyesuaian_gudang(nilai,keterangan,versi),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)",
+          )
           .eq("id", selected.id)
           .single(),
         db
@@ -62,7 +65,9 @@ export async function KirimanOperasionalPage({
         { data: [], error: null },
         { data: null },
       ];
-  if(k)k.pembuat_nama??=(k.pembuat as unknown as {nama:string}|null)?.nama??null;
+  if (k)
+    k.pembuat_nama ??=
+      (k.pembuat as unknown as { nama: string } | null)?.nama ?? null;
   if (ek || ei || er) throw new Error("Rincian kiriman tidak dapat dimuat.");
   const urls = await buktiUrls(
     db,
@@ -146,9 +151,15 @@ export async function KirimanOperasionalPage({
             )}
             bolehTerima={s.active!.role !== "finance"}
             namaSaya={s.nama}
-            pt={
-              pt ?? { nama: "Matoer", alamat: null, email: null, telepon: null }
-            }
+            pt={await kopGudang(
+              db,
+              pt ?? {
+                nama: "CV. Hazna Berkah Indonesia",
+                alamat: null,
+                email: null,
+                telepon: null,
+              },
+            )}
           />
         )}
       </div>

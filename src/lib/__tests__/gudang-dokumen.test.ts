@@ -195,14 +195,12 @@ it("prints the Hazna sales invoice without service charge or invented payment da
     w: png.readUInt32BE(16),
     h: png.readUInt32BE(20),
   };
-  const goods = items
-    .slice(0, 6)
-    .map((i, n) => ({
-      ...i,
-      harga: 12000 + n * 1000,
-      qty: 2,
-      qty_diterima: 1,
-    }));
+  const goods = items.slice(0, 6).map((i, n) => ({
+    ...i,
+    harga: 12000 + n * 1000,
+    qty: 2,
+    qty_diterima: 1,
+  }));
   const formats = [
     ["invoice-hazna-a4", 210, 297],
     ["invoice-hazna-continuous", 241.3, 139.7],
@@ -232,6 +230,78 @@ it("prints the Hazna sales invoice without service charge or invented payment da
     expect(pdf).toContain("/Subtype /Image");
     expect(pdf).not.toMatch(/service charge/i);
     expect(pdf).not.toContain("Rp 174.000");
+    if (process.env.GUDANG_PDF_QA) {
+      mkdirSync("work/gudang-pdf", { recursive: true });
+      writeFileSync(
+        "work/gudang-pdf/" + name + ".pdf",
+        new Uint8Array(doc.output("arraybuffer")),
+      );
+    }
+  }
+});
+
+it("prints saved address, custom logo and signed invoice adjustment", () => {
+  const png = readFileSync("public/brand/hazna-logo.png");
+  const logo = {
+    url: "data:image/png;base64," + png.toString("base64"),
+    w: png.readUInt32BE(16),
+    h: png.readUInt32BE(20),
+  };
+  const alamat =
+    "Jl. Raya Pengalusan No.6, Kompas, Pengalusan, Kec. Mrebet, Kabupaten Purbalingga, Jawa Tengah 53352";
+  const company = { ...pt, alamat };
+  const kiriman = {
+    ...k,
+    pemeriksaan_status: "selesai",
+    penyesuaian: {
+      nilai: -750,
+      keterangan: "Pembulatan sesuai kesepakatan",
+      versi: 1,
+    },
+  } as Kiriman;
+  const docs = [
+    [
+      "invoice-pengaturan-alamat",
+      buatDokumenGudang(
+        "invoice",
+        kiriman,
+        items.slice(0, 3),
+        company,
+        { lebar: 210, tinggi: 297, rangkap: "ncr" },
+        logo,
+      ),
+    ],
+    [
+      "surat-jalan-pengaturan-alamat",
+      buatDokumenGudang(
+        "surat-jalan",
+        kiriman,
+        items.slice(0, 3),
+        company,
+        { lebar: 210, tinggi: 297, rangkap: "ncr" },
+        logo,
+      ),
+    ],
+    [
+      "invoice-pengaturan-continuous",
+      buatDokumenGudang(
+        "invoice",
+        kiriman,
+        items.slice(0, 3),
+        company,
+        { lebar: 241.3, tinggi: 139.7, rangkap: "ncr" },
+        logo,
+      ),
+    ],
+  ] as const;
+  for (const [name, doc] of docs) {
+    expect(doc.output()).toContain("53352");
+    expect(doc.output()).toContain("/Subtype /Image");
+    if (name.startsWith("invoice")) {
+      expect(doc.output()).toContain("Penyesuaian");
+      expect(doc.output()).toContain("Rp -750");
+      expect(doc.output()).toContain("Rp 71.250");
+    }
     if (process.env.GUDANG_PDF_QA) {
       mkdirSync("work/gudang-pdf", { recursive: true });
       writeFileSync(

@@ -37,5 +37,16 @@ do $$begin
  if (select jumlah from public.stok where mode='asli' and outlet_id is null and bahan_id=current_setting('test.gudang_bahan')::uuid)<>78 then raise exception 'Stok akhir salah';end if;
  if (select count(*) from public.mutasi_stok where ref_id=current_setting('test.gudang_opname')::uuid)<>1 then raise exception 'Opname terposting ganda';end if;
 end $$;
-select 'PASS: authenticated harga, pemeriksa, pengiriman, HPP terkunci, penerimaan asli, opname idempotent, biaya dan laporan; ROLLBACK' as result;
+
+set local role authenticated;
+select public.periksa_kiriman(current_setting('test.gudang_kirim')::uuid,gen_random_uuid(),jsonb_build_array(jsonb_build_object('id',current_setting('test.gudang_item'),'baik',1,'rusak',0,'salah',0)),'Fixture penerimaan lengkap',null);
+do $$declare g public.pengaturan_dokumen_gudang;r jsonb;d date:=(now() at time zone 'Asia/Jakarta')::date;begin
+ select * into g from public.pengaturan_dokumen_gudang where id;
+ perform public.atur_dokumen_gudang('Alamat fixture perubahan sementara rollback',g.logo_path,g.versi);
+ perform public.atur_penyesuaian_invoice(current_setting('test.gudang_kirim')::uuid,-100,'Potongan fixture rollback',0);
+ r:=public.laporan_laba_gudang(d,d,current_setting('test.gudang_outlet')::uuid,null);
+ if jsonb_array_length(r->'invoice')<>1 or (r#>>'{invoice,0,nilai}')::numeric<>-100 then raise exception 'Penyesuaian invoice hilang atau dihitung ganda';end if;
+end $$;
+reset role;
+select 'PASS: authenticated gudang, pengaturan alamat, pemeriksaan lengkap dan penyesuaian invoice sekali; seluruh fixture ROLLBACK' as result;
 rollback;

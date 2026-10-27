@@ -90,6 +90,7 @@ export function buatLabaPDF(
       ["Laba kotor diketahui", uang(r.labaKotor)],
       ["Biaya operasional", uang(r.biaya)],
       ["Penyesuaian stok diketahui", uang(r.penyesuaian)],
+      ["Penyesuaian invoice", uang(r.invoice)],
       ["Laba / kontribusi diketahui", uang(r.laba)],
       ["Penjualan HPP belum lengkap", uang(r.penjualanBelum)],
       ["Termasuk internal Pusat", uang(r.pusat)],
@@ -135,6 +136,25 @@ export function buatLabaPDF(
     body: d.biaya.map((b) => [b.tanggal, b.keterangan, uang(Number(b.jumlah))]),
     didDrawPage: () => header(doc, "LABA RUGI GUDANG", sub),
   });
+  if (d.invoice?.length) {
+    y =
+      (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 5;
+    autoTable(doc, {
+      startY: y,
+      margin: { top: 28, bottom: 15 },
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: 235, textColor: 0 },
+      head: [["Penyesuaian invoice", "Outlet", "Nilai", "Alasan"]],
+      body: d.invoice.map((x) => [
+        x.nomor,
+        x.outlet,
+        uang(Number(x.nilai)),
+        x.keterangan,
+      ]),
+      didDrawPage: () => header(doc, "LABA RUGI GUDANG", sub),
+    });
+  }
   footer(doc);
   return doc;
 }
