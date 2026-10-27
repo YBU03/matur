@@ -2,7 +2,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { ringkasGudang, type GudangLaporan } from "./gudang-laporan";
 import type { DraftGudang, HitungGudang } from "@/app/(app)/gudang/opname/view";
-const uang = (v: number) => "Rp " + Math.round(v).toLocaleString("id-ID");
+const uang = (v: number) => (v < 0 ? "-Rp " : "Rp ") + Math.abs(Math.round(v)).toLocaleString("id-ID");
+const angka = (v: number) => Number(v).toLocaleString("id-ID", { maximumFractionDigits: 3 });
 function header(doc: jsPDF, title: string, sub: string) {
   doc.setFont("helvetica", "bold").setFontSize(13).text(title, 14, 16);
   doc.setFont("helvetica", "normal").setFontSize(8).text(sub, 14, 22);
@@ -28,15 +29,27 @@ export function buatOpnamePDF(d: DraftGudang, items: HitungGudang[]) {
     margin: { top: 28, bottom: 15 },
     styles: { fontSize: 8 },
     headStyles: { fillColor: 235, textColor: 0 },
-    head: [["Bahan", "Satuan", "Sistem", "Fisik", "Selisih", "Alasan"]],
-    body: items.map((i) => [
-      i.nama,
-      i.satuan,
-      String(Number(i.sistem)),
-      i.fisik === null ? "Belum dihitung" : String(Number(i.fisik)),
-      i.fisik === null ? "-" : String(Number(i.fisik) - Number(i.sistem)),
-      i.alasan,
-    ]),
+    columnStyles: { 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+    head: [["Bahan", "Satuan", "Sistem", "Fisik", "Selisih", "Nilai selisih", "Alasan"]],
+    body: [
+      ...items.map((i) => {
+        const sel = i.fisik === null ? null : Number(i.fisik) - Number(i.sistem);
+        return [
+          i.nama,
+          i.satuan,
+          angka(Number(i.sistem)),
+          i.fisik === null ? "Belum dihitung" : angka(Number(i.fisik)),
+          sel === null ? "-" : (sel > 0 ? "+" : "") + angka(sel),
+          sel === null ? "-" : i.hpp === null ? "HPP belum ada" : uang(sel * Number(i.hpp)),
+          i.alasan,
+        ];
+      }),
+      [
+        { content: `TOTAL · ${items.filter((i) => i.fisik !== null).length} dari ${items.length} bahan dihitung`, colSpan: 5, styles: { fontStyle: "bold" } },
+        { content: uang(items.reduce((n, i) => n + (i.fisik === null || i.hpp === null ? 0 : (Number(i.fisik) - Number(i.sistem)) * Number(i.hpp)), 0)), styles: { fontStyle: "bold", halign: "right" } },
+        "",
+      ],
+    ],
     didDrawPage: () =>
       header(
         doc,
@@ -83,20 +96,24 @@ export function buatLabaPDF(
     margin: { top: 28, bottom: 15 },
     styles: { fontSize: 8 },
     headStyles: { fillColor: 235, textColor: 0 },
-    head: [["Ringkasan", "Nilai"]],
+    columnStyles: { 0: { cellWidth: 120 }, 1: { halign: "right" } },
+    head: [["Ringkasan laba rugi", { content: "Nilai", styles: { halign: "right" } }]],
     body: [
       ["Penjualan diterima", uang(r.penjualan)],
-      ["HPP diketahui", uang(r.hpp)],
-      ["Laba kotor diketahui", uang(r.labaKotor)],
-      ["Biaya operasional", uang(r.biaya)],
-      ["Penyesuaian stok diketahui", uang(r.penyesuaian)],
-      ["Penyesuaian invoice", uang(r.invoice)],
-      ["Laba / kontribusi diketahui", uang(r.laba)],
-      ["Penjualan HPP belum lengkap", uang(r.penjualanBelum)],
-      ["Termasuk internal Pusat", uang(r.pusat)],
+      ["   dikurangi HPP diketahui", uang(-r.hpp)],
+      [{ content: "Laba kotor diketahui", styles: { fontStyle: "bold" } }, { content: uang(r.labaKotor), styles: { fontStyle: "bold" } }],
+      ["   dikurangi Biaya operasional", uang(-r.biaya)],
+      ["   Penyesuaian invoice", uang(r.invoice)],
+      ["   Penyesuaian stok diketahui", uang(r.penyesuaian)],
+      [{ content: "LABA / RUGI DIKETAHUI", styles: { fontStyle: "bold", fillColor: 238 } }, { content: uang(r.laba), styles: { fontStyle: "bold", fillColor: 238 } }],
+      ["Info: penjualan HPP belum lengkap", uang(r.penjualanBelum)],
+      ["Info: termasuk internal Pusat", uang(r.pusat)],
       [
         "Catatan",
-        `${r.belum} baris HPP belum lengkap. Margin internal Pusat bukan laba konsolidasi. Biaya umum tidak dialokasikan saat filter outlet/bahan.`,
+        {
+          content: `${r.belum} baris HPP belum lengkap. Margin internal Pusat bukan laba konsolidasi. Biaya umum tidak dialokasikan saat filter outlet/bahan.`,
+          styles: { halign: "left" },
+        },
       ],
     ],
     didDrawPage: () => header(doc, "LABA RUGI GUDANG", sub),

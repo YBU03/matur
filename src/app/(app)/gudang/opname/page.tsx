@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -37,16 +36,6 @@ export default async function Page({
       ).data
     : [];
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <Link href="/gudang/stok" className="text-sm underline">
-        ← Stok Gudang
-      </Link>
-      <h1 className="text-2xl font-bold">Stok Opname Gudang</h1>
-      <p className="text-sm text-stone-600">
-        Khusus Gudang Pusat. Isian kosong berarti belum dihitung dan tidak
-        mengubah stok. Hitung dalam satuan pakai yang tertera; misalnya gram, ml
-        atau pcs.
-      </p>
       <OpnameGudang
         key={d?.id + ":" + d?.versi}
         draft={d as DraftGudang | null}
@@ -54,6 +43,5 @@ export default async function Page({
         list={(list ?? []) as DraftGudang[]}
         boleh={s.active.role !== "finance"}
       />
-    </div>
   );
 }
