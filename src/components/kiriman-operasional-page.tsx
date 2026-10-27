@@ -37,7 +37,7 @@ export async function KirimanOperasionalPage({
     ? await Promise.all([
         db
           .from("kiriman")
-          .select("*,outlet(nama,alamat)")
+          .select("*,outlet(nama,alamat),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)")
           .eq("id", selected.id)
           .single(),
         db
@@ -62,6 +62,7 @@ export async function KirimanOperasionalPage({
         { data: [], error: null },
         { data: null },
       ];
+  if(k)k.pembuat_nama??=(k.pembuat as unknown as {nama:string}|null)?.nama??null;
   if (ek || ei || er) throw new Error("Rincian kiriman tidak dapat dimuat.");
   const urls = await buktiUrls(
     db,

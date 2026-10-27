@@ -1,4 +1,5 @@
 "use client";
+import {PengaturanCetakGudang,useCetakGudang} from "./gudang-cetak";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
@@ -44,6 +45,7 @@ export function KirimanOperasionalView({
   namaSaya: string;
   pt: Kop;
 }) {
+  const [cetak,setCetak]=useCetakGudang();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result>({});
@@ -91,7 +93,7 @@ export function KirimanOperasionalView({
       const { cetakDokumen } = await import(
         "@/app/(app)/gudang/kiriman/[id]/dokumen"
       );
-      await cetakDokumen(jenis, k, items, pt);
+      await cetakDokumen(jenis, k, items, pt,cetak);
     } catch {
       setMsg({ error: "PDF belum dapat dibuat." });
     }
@@ -112,6 +114,7 @@ export function KirimanOperasionalView({
             Kiriman susulan dari pengiriman sebelumnya.
           </p>
         )}
+        <PengaturanCetakGudang opsi={cetak} onChange={setCetak}/>
         <nav className="my-3 flex flex-wrap gap-2">
           {[
             ["surat", "Surat Jalan"],

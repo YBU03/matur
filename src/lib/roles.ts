@@ -323,3 +323,5 @@ export const POS_ONLY: Role[] = ["kasir", "barista"];
 export const BISA_JUAL: Role[] = ["kasir", "spv", "tablet"];
 /** akun perangkat: hanya membuka POS di /pos, tidak punya dashboard/absen */
 export const TABLET: Role = "tablet";
+
+for(const role of ["owner","admin_pusat","admin_gudang","finance"] as Role[])ROLES[role].menu.push({href:"/gudang/opname",label:"Opname Gudang",stage:4},{href:"/gudang/laba-rugi",label:"Laba Rugi Gudang",stage:4});

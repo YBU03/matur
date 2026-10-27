@@ -1,0 +1,24 @@
+import {it,expect} from 'vitest';
+import {writeFileSync,mkdirSync} from 'node:fs';
+import {buatDokumenGudang} from '../gudang-dokumen';
+import {validCetakGudang} from '../gudang-cetak-config';
+import type {Kiriman,ItemKiriman} from '../kiriman';
+const k:Kiriman={id:'uji',nomor:'KRM-UJI-001',tanggal:'2026-10-27',status:'diterima',catatan:'Data contoh untuk pemeriksaan format. Barang dihitung dan diperiksa saat diterima.',pengirim:'Dimas - Pengiriman',total:120000,dikirim_at:null,diterima_at:null,nama_penerima:'Rani - Outlet',pembuat_nama:'Sinta - Admin Gudang',pemeriksa_nama:'Budi - Pemeriksa Gudang',outlet:{nama:'Outlet Contoh Matoer',alamat:'Jalan Contoh No. 10, Purwokerto'}};
+const pt={nama:'CV. Hazna Berkah Indonesia',alamat:'Alamat perusahaan contoh untuk uji cetak',email:null,telepon:null};
+const items:ItemKiriman[]=Array.from({length:10},(_,n)=>({id:String(n),bahan_id:String(n),nama:['Kopi Arabika kemasan 1 kg','Susu kental manis pouch','Cup minuman 16 oz','Sedotan hitam kemasan'][n%4],satuan:'pack',konversi:1,qty:n+1,harga:12000,qty_diterima:n+1}));
+it('renders four signature boxes, one NCR set and exactly three regular-paper sets',()=>{
+ const a=buatDokumenGudang('surat-jalan',k,items,pt,{lebar:210,tinggi:297,rangkap:'ncr'});const b=buatDokumenGudang('invoice',k,items,pt,{lebar:241.3,tinggi:139.7,rangkap:'ncr'});const c=buatDokumenGudang('invoice',k,items,pt,{lebar:241.3,tinggi:139.7,rangkap:'salinan'});
+ for(const text of ['Dibuat oleh','Diperiksa oleh','Dikirim oleh','Diterima oleh'])expect(a.output()).toContain(text);
+ expect(a.getNumberOfPages()).toBe(1);expect(c.getNumberOfPages()).toBe(b.getNumberOfPages()*3);expect(c.output()).toContain('Arsip Gudang');expect(c.output()).toContain('Accounting');
+ if(process.env.GUDANG_PDF_QA){mkdirSync('work/gudang-pdf',{recursive:true});for(const [name,doc] of [['surat-jalan-a4',a],['invoice-continuous-3-salinan',c],['surat-jalan-multipage',buatDokumenGudang('surat-jalan',{...k,catatan:'Catatan panjang untuk memastikan teks tidak terpotong. '.repeat(24)},[...items,...items,...items],pt,{lebar:241.3,tinggi:139.7,rangkap:'ncr'})]] as const)writeFileSync(`work/gudang-pdf/${name}.pdf`,new Uint8Array(doc.output('arraybuffer')));}
+});
+it('rejects unreadable or invalid paper sizes',()=>{expect(validCetakGudang({lebar:58,tinggi:100,rangkap:'ncr'})).toBe(false);expect(()=>buatDokumenGudang('invoice',k,items,pt,{lebar:0,tinggi:0,rangkap:'ncr'})).toThrow(/Ukuran/);});
+
+import {buatOpnamePDF,buatLabaPDF} from '../gudang-laporan-pdf';
+import type {GudangLaporan} from '../gudang-laporan';
+it('exports warehouse reports directly as PDF without the receipt-only browser print stylesheet',()=>{
+ const d={id:'contoh',tanggal:'2026-10-27',status:'final',versi:1,catatan:'Selisih hasil hitung fisik.',nama_petugas:'Petugas Gudang Uji',created_at:'2026-10-27',final_at:'2026-10-27'};
+ const rows=[{bahan_id:'1',nama:'Kopi kemasan',satuan:'g',sistem:1000,fisik:980,hpp:100,alasan:'Selisih fisik'},{bahan_id:'2',nama:'Cup',satuan:'pcs',sistem:200,fisik:null,hpp:500,alasan:''}];const a=buatOpnamePDF(d,rows);
+ const r:GudangLaporan={rows:[{id:'1',nomor:'KRM-UJI-001',outlet_id:'1',outlet:'Outlet Contoh',kepemilikan:'Pusat',waktu:'2026-10-27T02:00:00Z',bahan_id:'1',nama:'Kopi kemasan',harga:150000,hpp_gudang:100000,qty:2}],biaya:[{id:'1',tanggal:'2026-10-27',jumlah:10000,keterangan:'Ongkos kirim',outlet_id:null}],mutasi:[]};const b=buatLabaPDF(r,'2026-10-01','2026-10-27','Semua outlet');expect(a.output()).toContain('Belum dihitung');expect(b.output()).toContain('HPP diketahui');
+ if(process.env.GUDANG_PDF_QA){mkdirSync('work/gudang-pdf',{recursive:true});writeFileSync('work/gudang-pdf/opname-gudang.pdf',new Uint8Array(a.output('arraybuffer')));writeFileSync('work/gudang-pdf/laba-rugi-gudang.pdf',new Uint8Array(b.output('arraybuffer')));}
+});

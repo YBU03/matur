@@ -11,7 +11,7 @@ export default async function StokGudangPage() {
   const [{ data: bahan }, { data: stok }] = await Promise.all([
     supabase
       .from("bahan")
-      .select("id, nama, kategori, satuan_beli, satuan_pakai, konversi, kemasan, harga_beli, harga_pokok, stok_min, catatan")
+      .select("id, nama, kategori, satuan_beli, satuan_pakai, konversi, kemasan, harga_beli, harga_jual_gudang, harga_pokok, stok_min, catatan")
       .eq("mode", "asli")
       .is("deleted_at", null)
       .order("urutan")

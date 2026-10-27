@@ -1,5 +1,6 @@
 "use client";
 
+import {HargaGudang} from "@/components/gudang-harga";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -18,6 +19,7 @@ export type BahanStok = {
   konversi: number;
   kemasan: string | null;
   harga_beli: number;
+  harga_jual_gudang: number | null;
   harga_pokok: number;
   stok_min: number;
   catatan: string | null;
@@ -69,6 +71,7 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
         )}
       </div>
 
+      <nav className="flex gap-2 text-sm font-semibold"><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/opname">📋 Opname Gudang</Link><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/laba-rugi">📊 Laba Rugi Gudang</Link></nav>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Jenis bahan" value={String(rows.length)} />
         <StatTile label="Nilai persediaan gudang" value={rupiah(total)} sub="jumlah kemasan × harga beli" />
@@ -102,22 +105,14 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
             <span className="tabular-nums">{rupiah(g.items.reduce((s, b) => s + nilai(b), 0))}</span>
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] table-fixed text-sm">
-              <colgroup>
-                <col className="w-[34%]" />
-                <col className="w-[12%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[12%]" />
-                <col className="w-[7%]" />
-                {canEdit && <col className="w-[10%]" />}
-              </colgroup>
+            <table className="w-full min-w-[1000px] text-sm">
+
               <thead className="text-left text-xs text-stone-500">
                 <tr>
                   <th className="px-3 py-2">Bahan</th>
                   <th className="px-3 text-right">Stok</th>
                   <th className="px-3 text-right">Harga beli</th>
-                  <th className="px-3 text-right">HPP / satuan pakai</th>
+                  <th className="px-3 text-right">Harga jual / kemasan</th><th className="px-3 text-right">Margin / kemasan</th><th className="px-3 text-right">HPP / satuan pakai</th>
                   <th className="px-3 text-right">Nilai</th>
                   <th className="px-3">Status</th>
                   {canEdit && <th className="px-3" />}
@@ -142,12 +137,13 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
                         {b.konversi !== 1 && <p className="text-xs text-stone-500 tabular-nums">{nf(b.jumlah, 0)} {b.satuan_pakai}</p>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_beli)}<span className="text-xs text-stone-500">/{b.satuan_beli}</span></td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_jual_gudang??b.harga_beli)}{b.harga_jual_gudang===null&&<p className="text-xs text-stone-500">Mengikuti harga beli</p>}</td><td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah((b.harga_jual_gudang??b.harga_beli)-b.harga_beli)}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">Rp {nf(b.harga_pokok)}<span className="text-xs text-stone-500">/{b.satuan_pakai}</span></td>
                       <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">{rupiah(nilai(b))}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs ${BADGE[st]}`}>{st}</span></td>
                       {canEdit && (
                         <td className="whitespace-nowrap px-3 py-2 text-right">
-                          <button onClick={() => setEdit(b)} className="text-matur-700 hover:underline">Koreksi stok</button>
+                          <HargaGudang id={b.id} nama={b.nama} satuan={b.satuan_beli} harga={b.harga_jual_gudang} beli={b.harga_beli}/><br/><button onClick={() => setEdit(b)} className="text-matur-700 hover:underline">Koreksi stok</button>
                         </td>
                       )}
                     </tr>
@@ -158,7 +154,7 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
           </div>
         </section>
       ))}
-      <p className="text-xs text-stone-500">Pembelian ke supplier, kiriman ke outlet, dan stok opname akan menambah/mengurangi stok otomatis di tahap berikutnya.</p>
+      <p className="text-xs text-stone-500">Pembelian diterima menambah stok gudang; pengiriman menguranginya. Gunakan Opname Gudang untuk mencocokkan stok fisik dengan riwayat penyesuaian.</p>
       {edit && <KoreksiDialog b={edit} onClose={() => setEdit(null)} />}
     </div>
   );
@@ -216,16 +212,16 @@ async function exportExcel(rows: BahanStok[]) {
   const ws = wb.addWorksheet("Stok Gudang");
   ws.addRow([`Bahan Baku & Stok Gudang · ${new Date().toLocaleDateString("id-ID", { dateStyle: "long" })}`]).font = { bold: true, size: 13 };
   ws.addRow([]);
-  const h = ws.addRow(["Kategori", "Bahan", "Satuan Beli", "Kemasan", "Stok (satuan beli)", "Stok (satuan pakai)", "Satuan Pakai", "Harga Beli", "HPP / Satuan Pakai", "Nilai", "Catatan"]);
+  const h = ws.addRow(["Kategori", "Bahan", "Satuan Beli", "Kemasan", "Stok (satuan beli)", "Stok (satuan pakai)", "Satuan Pakai", "Harga Beli", "Harga Jual Gudang", "Margin / Kemasan", "HPP / Satuan Pakai", "Nilai", "Catatan"]);
   h.font = { bold: true };
   h.eachCell((c) => (c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFDE85" } }));
   for (const b of rows)
-    ws.addRow([b.kategori, b.nama, b.satuan_beli, b.kemasan, b.jumlah / b.konversi, b.jumlah, b.satuan_pakai, b.harga_beli, b.harga_pokok, Math.round(nilai(b)), b.catatan]);
+    ws.addRow([b.kategori, b.nama, b.satuan_beli, b.kemasan, b.jumlah / b.konversi, b.jumlah, b.satuan_pakai, b.harga_beli,b.harga_jual_gudang??b.harga_beli,(b.harga_jual_gudang??b.harga_beli)-b.harga_beli, b.harga_pokok, Math.round(nilai(b)), b.catatan]);
   ws.addRow([]);
-  ws.addRow(["GRAND TOTAL", null, null, null, null, null, null, null, null, Math.round(rows.reduce((s, b) => s + nilai(b), 0))]).font = { bold: true };
-  [14, 30, 11, 16, 12, 12, 10, 14, 14, 15, 40].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  [8, 10].forEach((c) => (ws.getColumn(c).numFmt = '"Rp" #,##0'));
-  ws.getColumn(9).numFmt = '"Rp" #,##0.00';
+  ws.addRow(["GRAND TOTAL", null, null, null, null, null, null, null, null, null, null, Math.round(rows.reduce((s, b) => s + nilai(b), 0)), null]).font = { bold: true };
+  [14,30,11,16,12,12,10,14,14,14,14,15,40].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  [8,9,10,12].forEach((c) => (ws.getColumn(c).numFmt = '"Rp" #,##0'));
+  ws.getColumn(11).numFmt = '"Rp" #,##0.00';
   const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);

@@ -14,14 +14,15 @@ export default async function DetailKiriman({ params }: { params: Promise<{ id: 
   const [{ data: k }, { data: items }, { data: pt }] = await Promise.all([
     supabase
       .from("kiriman")
-      .select("id, outlet_id, nomor, tanggal, status, pemeriksaan_status, catatan, pengirim, total, dikirim_at, diterima_at, nama_penerima, outlet(nama, alamat)")
+      .select("id, outlet_id, nomor, tanggal, status, pemeriksaan_status, pembuat_nama, pemeriksa_nama, catatan, pengirim, total, dikirim_at, diterima_at, nama_penerima, outlet(nama, alamat), pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle(),
     supabase.from("item_kiriman").select("id, bahan_id, nama, satuan, konversi, qty, harga, qty_diterima").eq("kiriman_id", id).order("nama"),
     supabase.from("perusahaan").select("nama, alamat, email, telepon").limit(1).maybeSingle(),
   ]);
-  if (!k) notFound(); // RLS: outlet hanya melihat kirimannya sendiri
+  if (!k) notFound();
+  k.pembuat_nama??=(k.pembuat as unknown as {nama:string}|null)?.nama??null; // RLS: outlet hanya melihat kirimannya sendiri
   if(k.status === "dikirim" || k.status === "diterima") redirect(`/operasional/kiriman?outlet=${k.outlet_id}&id=${k.id}`);
   let bahan: { id: string; nama: string; satuan_beli: string; harga: number; stok: number }[] = [];
   if (gudang && k.status === "draft") {
