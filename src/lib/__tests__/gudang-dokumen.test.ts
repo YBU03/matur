@@ -299,7 +299,7 @@ it("prints saved address, custom logo and signed invoice adjustment", () => {
     expect(doc.output()).toContain("/Subtype /Image");
     if (name.startsWith("invoice")) {
       expect(doc.output()).toContain("Penyesuaian");
-      expect(doc.output()).toContain("Rp -750");
+      expect(doc.output()).toContain("- Rp 750");
       expect(doc.output()).toContain("Rp 71.250");
     }
     if (process.env.GUDANG_PDF_QA) {

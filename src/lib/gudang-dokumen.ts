@@ -311,28 +311,43 @@ export function buatDokumenGudang(
       summaryBottom = 0;
     if (invoice) {
       // Payments are not stored on kiriman; never infer debt or settlement from receipt status.
-      const rows = [
+      // Penyesuaian opsional: hanya tampil bila ada, dengan tanda +/- yang jelas.
+      const adj = ringkasan.penyesuaian;
+      const rows: [string, string][] = [
         ["Subtotal", uang(total)],
         ["Diskon", "-"],
         ["Pajak", "-"],
-        ["Penyesuaian", uang(ringkasan.penyesuaian)],
-        ["TOTAL", uang(ringkasan.total)],
+        ...(adj ? ([["Penyesuaian", `${adj > 0 ? "+" : "-"} ${uang(Math.abs(adj))}`]] as [string, string][]) : []),
+      ];
+      const akhir: [string, string][] = [
         ["Pembayaran", "Belum tercatat"],
         ["SISA TAGIHAN", "Belum direkonsiliasi"],
       ];
-      const sh = rows.length * 5 + 3;
+      const baris = 5;
+      const sh = (rows.length + 1 + akhir.length) * baris + 9;
       if (y + sh > H - 14) y = page();
       const sx = W - M - 88;
-      doc.setLineWidth(0.2).line(sx, y - 2, W - M, y - 2);
-      rows.forEach(([label, value], n) => {
-        doc
-          .setFont("helvetica", n === 4 || n === 6 ? "bold" : "normal")
-          .setFontSize(8);
-        doc.text(label, sx, y + n * 5);
-        doc.text(value, W - M, y + n * 5, { align: "right" });
-      });
+      // garis atas di atas tinggi huruf (± 2,8 mm untuk 8 pt) agar tidak menabrak "Subtotal"
+      doc.setDrawColor(0).setLineWidth(0.2).line(sx, y - 1, W - M, y - 1);
+      let ty = y + 4;
+      const tulis = (label: string, value: string, tebal: boolean) => {
+        doc.setFont("helvetica", tebal ? "bold" : "normal").setFontSize(8);
+        doc.text(label, sx, ty);
+        doc.text(value, W - M, ty, { align: "right" });
+        ty += baris;
+      };
+      for (const [l, v] of rows) tulis(l, v, false);
+      // TOTAL: garis tipis di atasnya + latar abu muda
+      ty += 1;
+      doc.setLineWidth(0.15).line(sx, ty - 4, W - M, ty - 4);
+      doc.setFillColor(238, 238, 238).rect(sx - 1.5, ty - 3.6, W - M - sx + 3, 5.2, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold").text("TOTAL", sx, ty);
+      doc.text(uang(ringkasan.total), W - M, ty, { align: "right" });
+      ty += baris + 1.5;
+      akhir.forEach(([l, v], n) => tulis(l, v, n === akhir.length - 1));
       summaryPage = doc.getNumberOfPages();
-      summaryBottom = y + sh;
+      summaryBottom = ty;
     }
     const notes = [
       ...(k.catatan ? ["Catatan: " + k.catatan] : []),
