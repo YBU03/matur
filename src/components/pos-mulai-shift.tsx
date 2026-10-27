@@ -50,7 +50,7 @@ export function KartuPetugas({ p, aktif, onPilih }: { p: PilihanShift; aktif: bo
   );
 }
 
-function Langkah({ aktif, daftar }: { aktif: number; daftar: string[] }) {
+export function Langkah({ aktif, daftar }: { aktif: number; daftar: string[] }) {
   return (
     <ol className="flex items-center justify-center gap-2" aria-label="Langkah">
       {daftar.map((l, i) => (
@@ -71,7 +71,7 @@ function Langkah({ aktif, daftar }: { aktif: number; daftar: string[] }) {
 
 const tombolAngka = "grid h-16 place-items-center rounded-2xl bg-white text-2xl font-extrabold text-kopi-900 shadow-sm ring-1 ring-stone-200 transition active:scale-95 active:bg-matur-50 disabled:opacity-40";
 
-function PapanAngka({ onAngka, onHapus, kiriBawah }: { onAngka: (d: string) => void; onHapus: () => void; kiriBawah?: { label: string; aksi: () => void } }) {
+export function PapanAngka({ onAngka, onHapus, kiriBawah }: { onAngka: (d: string) => void; onHapus: () => void; kiriBawah?: { label: string; aksi: () => void } }) {
   return (
     <div className="mx-auto grid max-w-xs grid-cols-3 gap-3">
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (

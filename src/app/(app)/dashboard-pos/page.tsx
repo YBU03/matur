@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { loadDashboardPos } from "@/lib/dashboard-pos";
 import { LiveRefresh } from "@/components/live-refresh";
+import { HeaderHalaman, tombolHeader } from "@/components/ui-halaman";
 import { Filters } from "../dashboard/filters";
 import { SalesDashboard } from "../dashboard/sales";
 import { KartuOmzetHariIni } from "../dashboard/omzet-hari-ini";
@@ -17,20 +18,16 @@ export default async function DashboardPos({
   return (
     <div className="space-y-5">
       <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard POS</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Pantau omzet, transaksi, menu terlaris, dan kinerja outlet.
-          </p>
-        </div>
-        <Link
-          href="/laporan"
-          className="rounded-xl border border-matur-200 bg-white px-4 py-2 text-sm font-semibold text-kopi-900"
-        >
-          Laporan Keuangan ›
-        </Link>
-      </div>
+      <HeaderHalaman
+        ikon="📊"
+        judul="Dashboard POS"
+        keterangan="Pantau omzet, transaksi, menu terlaris, dan kinerja outlet."
+        aksi={
+          <Link href="/laporan" className={tombolHeader}>
+            📑 Laporan Keuangan ›
+          </Link>
+        }
+      />
       {error ? (
         <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">
           Daftar outlet belum dapat dimuat. Silakan muat ulang halaman.

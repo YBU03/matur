@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { QrisTampil } from "@/components/qris-tampil";
+import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 import { cekQris } from "@/lib/qris";
 import { aturQris, hapusQris, type Result } from "@/lib/qris-actions";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -138,10 +139,14 @@ function Kartu({ o }: { o: OutletQris }) {
 export function QrisView({ outlets }: { outlets: OutletQris[] }) {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">QRIS Outlet</h1>
-        <p className="text-sm text-stone-500">QRIS tampil di layar kasir saat pelanggan bayar QRIS. Statis memakai gambar/kode yang diunggah dan dikonfirmasi kasir. Dinamis disiapkan untuk integrasi konfirmasi pembayaran otomatis.</p>
-      </div>
+      <HeaderHalaman
+        ikon="📱"
+        judul="QRIS Outlet"
+        keterangan="QRIS tampil di layar kasir saat pelanggan bayar QRIS. Statis memakai gambar/kode yang diunggah dan dikonfirmasi kasir; dinamis disiapkan untuk konfirmasi pembayaran otomatis."
+      >
+        <ChipHeader>🏪 {outlets.length} outlet</ChipHeader>
+        <ChipHeader>✅ {outlets.filter((o) => o.qris_url || o.qris_payload).length} sudah ada QRIS</ChipHeader>
+      </HeaderHalaman>
       <section className="rounded-2xl border border-matur-200 bg-white p-4" aria-labelledby="suara-pembayaran">
         <h2 id="suara-pembayaran" className="font-bold">Suara pembayaran diterima</h2>
         <p className="mt-1 text-sm text-stone-600">Suara untuk konfirmasi pembayaran QRIS dinamis sudah disiapkan. Coba putar di perangkat kasir untuk mengecek volume.</p>

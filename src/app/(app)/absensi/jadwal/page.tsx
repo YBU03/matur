@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { hariIni } from "@/lib/jadwal/waktu";
 import { LiveRefresh } from "@/components/live-refresh";
+import { ChipHeader, HeaderHalaman, tombolHeaderUtama } from "@/components/ui-halaman";
+import { PENGELOLA_SDM } from "@/lib/sdm";
 import { loadJadwalLihat } from "@/lib/jadwal-lihat";
 import type { JadwalLihatParams } from "@/lib/jadwal/rentang-lihat";
 
@@ -39,15 +41,25 @@ export default async function JadwalLihatPage({
           cadanganDetik={60}
         />
       )}
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-matur-700">
-          Rekap Absensi
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-kopi-900">Jadwal Shift</h1>
-        <p className="mt-2 text-sm text-stone-500">
-          Jadwal yang sudah diterbitkan HRD · hanya lihat · jam WIB
-        </p>
-      </header>
+      <HeaderHalaman
+        ikon="🗓️"
+        judul="Jadwal Shift"
+        keterangan="Jadwal yang sudah diterbitkan HRD · jam WIB"
+        aksi={
+          PENGELOLA_SDM.includes(d.role) ? (
+            <Link
+              href={`/jadwal?${new URLSearchParams({ bulan: (r.mode === "bulan" ? r.bulan : r.tanggal.slice(0, 7)), ...(d.outlet ? { outlet: d.outlet.id } : {}) })}`}
+              className={tombolHeaderUtama}
+            >
+              ✏️ Ubah di Jadwal Shift
+            </Link>
+          ) : undefined
+        }
+      >
+        <ChipHeader>👁 Hanya lihat</ChipHeader>
+        {d.outlet && <ChipHeader>🏪 {d.outlet.nama}</ChipHeader>}
+        <ChipHeader>👥 {totalPeople} orang terjadwal</ChipHeader>
+      </HeaderHalaman>
       <nav className="flex gap-2" aria-label="Bagian rekap absensi">
         {d.role === "owner" && (
           <Link

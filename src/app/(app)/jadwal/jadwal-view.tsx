@@ -126,6 +126,7 @@ function Kalender(p: Props & Aksi) {
   const [tambah, setTambah] = useState<string | null>(null);
   const [edit, setEdit] = useState<{ j: Jadwal; shiftId: string; penggunaId: string } | null>(null);
   const [izinAksi, setIzinAksi] = useState<{ i: Izin; alasan: string } | null>(null);
+  const [liburAksi, setLiburAksi] = useState<LiburAksi | null>(null);
   const aktif = p.shifts.filter((s) => s.aktif);
   const { start, end } = monthRange(p.bulan);
   const dates = eachDate(start, end);
@@ -273,10 +274,23 @@ function Kalender(p: Props & Aksi) {
                 );
               })}
               {!!libur.get(d)?.length && (
-                <p className="mt-1 text-[11px]">
-                  <span className="mr-1 inline-block rounded bg-emerald-50 px-1 font-semibold text-emerald-800">🌴 Libur:</span>
-                  {libur.get(d)!.map((id) => namaDepan(nama.get(id) ?? "?")).join(", ")}
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
+                  <span className="rounded bg-emerald-50 px-1 font-semibold text-emerald-800">🌴 Libur</span>
+                  {libur.get(d)!.map((id) => (
+                    <button
+                      key={id}
+                      disabled={p.pending}
+                      title={`${nama.get(id) ?? "?"} libur — ketuk untuk ubah`}
+                      onClick={() => setLiburAksi({ d, id, mode: "menu", shiftId: aktif[0]?.id ?? "" })}
+                      className="inline-flex items-center gap-0.5 rounded-full border border-emerald-300 bg-emerald-50 py-0.5 pl-1.5 pr-1 font-semibold text-emerald-900 hover:bg-emerald-100"
+                    >
+                      {namaDepan(nama.get(id) ?? "?")}
+                      <span className="grid size-3.5 place-items-center rounded-full bg-emerald-200 text-[9px] leading-none text-emerald-900" aria-hidden>
+                        ✕
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
               {!!izinD.length && (
                 <p className="mt-1 text-[11px] text-stone-500">
@@ -414,6 +428,20 @@ function Kalender(p: Props & Aksi) {
         </Modal>
       )}
 
+      {liburAksi && (
+        <ModalLibur
+          a={liburAksi}
+          set={setLiburAksi}
+          p={p}
+          aktif={aktif}
+          nama={nama}
+          namaShift={namaShift}
+          sudahTerbit={sudahTerbit}
+          izinLibur={(izinHari.get(liburAksi.d) ?? []).find((i) => i.pengguna_id === liburAksi.id && i.jenis === "libur" && i.status === "disetujui") ?? null}
+          liburMap={libur}
+        />
+      )}
+
       {izinAksi && (
         <Modal title={`${JENIS_IZIN[izinAksi.i.jenis]} · ${nama.get(izinAksi.i.pengguna_id) ?? "?"} · ${izinAksi.i.tanggal}`}>
           <div className="space-y-3 text-sm">
@@ -472,6 +500,153 @@ function Kalender(p: Props & Aksi) {
         </Modal>
       )}
     </div>
+  );
+}
+
+type LiburAksi = { d: string; id: string; mode: "menu" | "masuk" | "ganti" | "pindah"; shiftId: string; ganti?: string; ke?: string };
+
+const labelTgl = (t: string) => `${WEEKDAY_LABELS[weekdayIndex(t)]} ${Number(t.slice(8))}`;
+
+/** Edit hari libur: jadikan masuk (✕), ganti orang yang libur, atau pindahkan libur ke tanggal lain. */
+function ModalLibur({ a, set, p, aktif, nama, namaShift, sudahTerbit, izinLibur, liburMap }: {
+  a: LiburAksi;
+  set: (v: LiburAksi | null) => void;
+  p: Props & Aksi;
+  aktif: Shift[];
+  nama: Map<string, string>;
+  namaShift: Map<string, string>;
+  sudahTerbit: boolean;
+  izinLibur: Izin | null;
+  liburMap: Map<string, string[]>;
+}) {
+  const orang = nama.get(a.id) ?? "?";
+  // jadwal orang lain di hari ini (calon "ganti orang yang libur")
+  const kerjaHariIni = p.jadwal.filter((j) => j.tanggal === a.d && j.pengguna_id !== a.id);
+  // tanggal lain bulan ini saat orang ini masuk & belum libur (tujuan "pindah libur")
+  const kerjaSaya = p.jadwal.filter((j) => j.pengguna_id === a.id && j.tanggal !== a.d && !(liburMap.get(j.tanggal) ?? []).includes(a.id)).sort((x, y) => x.tanggal.localeCompare(y.tanggal));
+  const tujuan = kerjaSaya.find((j) => j.tanggal === a.ke);
+  const btnPilih = (on: boolean) => `rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${on ? "border-kopi-900 bg-kopi-900 text-white" : "border-stone-200 bg-white hover:border-matur-300"}`;
+  const masukkan = (shiftId: string) => async () => {
+    if (izinLibur) {
+      const b = await batalIzinAtasan(izinLibur.id);
+      if (b.error) return b;
+    }
+    return tambahJadwal(p.outlet.id, shiftId, a.id, a.d, sudahTerbit);
+  };
+  const tutup = () => set(null);
+  return (
+    <Modal title={`🌴 ${orang} libur · ${labelTgl(a.d)}`}>
+      <div className="space-y-4 text-sm">
+        {izinLibur && <p className="rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-800">Libur ini tercatat sebagai pengajuan/izin libur yang sudah disetujui. Mengubahnya akan membatalkan catatan libur tersebut.</p>}
+
+        {a.mode === "menu" && (
+          <div className="grid gap-2">
+            <button onClick={() => set({ ...a, mode: "masuk" })} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 text-left hover:border-matur-300">
+              <span className="grid size-10 place-items-center rounded-xl bg-red-50 text-lg">✕</span>
+              <span>
+                <b className="block text-kopi-900">Hapus libur · jadikan masuk</b>
+                <span className="text-xs text-stone-500">{orang} masuk kerja di tanggal ini, pilih shift-nya.</span>
+              </span>
+            </button>
+            <button disabled={!kerjaHariIni.length} onClick={() => set({ ...a, mode: "ganti", ganti: kerjaHariIni[0]?.id })} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 text-left hover:border-matur-300 disabled:opacity-40">
+              <span className="grid size-10 place-items-center rounded-xl bg-amber-50 text-lg">🔄</span>
+              <span>
+                <b className="block text-kopi-900">Ganti orang yang libur</b>
+                <span className="text-xs text-stone-500">{orang} menggantikan shift rekan; rekan itu yang libur.</span>
+              </span>
+            </button>
+            <button disabled={!kerjaSaya.length} onClick={() => set({ ...a, mode: "pindah", ke: kerjaSaya[0]?.tanggal })} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 text-left hover:border-matur-300 disabled:opacity-40">
+              <span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-lg">📅</span>
+              <span>
+                <b className="block text-kopi-900">Pindahkan libur ke tanggal lain</b>
+                <span className="text-xs text-stone-500">Masuk di tanggal ini, libur di tanggal pilihan.</span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {a.mode === "masuk" && (
+          <div className="space-y-2">
+            <p className="font-semibold text-kopi-900">Masuk di shift</p>
+            <div className="flex flex-wrap gap-2">
+              {aktif.map((x) => (
+                <button key={x.id} onClick={() => set({ ...a, shiftId: x.id })} className={btnPilih(a.shiftId === x.id)}>
+                  {x.nama} <span className="font-normal opacity-80">{x.jam_mulai}–{x.jam_selesai}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {a.mode === "ganti" && (
+          <div className="space-y-2">
+            <p className="font-semibold text-kopi-900">Siapa yang jadi libur?</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {kerjaHariIni.map((j) => (
+                <button key={j.id} onClick={() => set({ ...a, ganti: j.id })} className={btnPilih(a.ganti === j.id)}>
+                  {nama.get(j.pengguna_id) ?? "?"}
+                  <span className="block text-xs font-normal opacity-80">shift {namaShift.get(j.shift_id)} → diisi {namaDepan(orang)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {a.mode === "pindah" && (
+          <div className="space-y-2">
+            <p className="font-semibold text-kopi-900">Libur dipindah ke tanggal</p>
+            <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+              {kerjaSaya.map((j) => (
+                <button key={j.id} onClick={() => set({ ...a, ke: j.tanggal })} className={btnPilih(a.ke === j.tanggal)}>
+                  {labelTgl(j.tanggal)} <span className="font-normal opacity-80">· {namaShift.get(j.shift_id)}</span>
+                </button>
+              ))}
+            </div>
+            {tujuan && (
+              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                {namaDepan(orang)} masuk <b>{labelTgl(a.d)}</b> (shift {namaShift.get(tujuan.shift_id)}) dan libur <b>{labelTgl(tujuan.tanggal)}</b>.
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+          <button onClick={() => (a.mode === "menu" ? tutup() : set({ ...a, mode: "menu" }))} className="rounded-lg border px-4 py-2">
+            {a.mode === "menu" ? "Tutup" : "← Kembali"}
+          </button>
+          {a.mode !== "menu" && (
+            <button
+              disabled={p.pending || (a.mode === "masuk" && !a.shiftId) || (a.mode === "ganti" && !a.ganti) || (a.mode === "pindah" && !tujuan)}
+              onClick={() => {
+                tutup();
+                if (a.mode === "masuk") p.jalankan(masukkan(a.shiftId));
+                else if (a.mode === "ganti") {
+                  const j = kerjaHariIni.find((x) => x.id === a.ganti)!;
+                  p.jalankan(async () => {
+                    if (izinLibur) {
+                      const b = await batalIzinAtasan(izinLibur.id);
+                      if (b.error) return b;
+                    }
+                    const r = await ubahJadwal(j.id, j.shift_id, a.id);
+                    return r.error ? r : { ok: `${namaDepan(orang)} masuk, ${namaDepan(nama.get(j.pengguna_id) ?? "?")} libur.` };
+                  });
+                } else if (tujuan) {
+                  p.jalankan(async () => {
+                    const r = await masukkan(tujuan.shift_id)();
+                    if (r.error) return r;
+                    const h = await hapusJadwal(tujuan.id);
+                    return h.error ? { error: `Masuk ${labelTgl(a.d)} sudah dicatat, tetapi libur ${labelTgl(tujuan.tanggal)} gagal: ${h.error}` } : { ok: `Libur dipindah ke ${labelTgl(tujuan.tanggal)}.` };
+                  });
+                }
+              }}
+              className="rounded-lg bg-kopi-900 px-4 py-2 font-semibold text-white disabled:opacity-40"
+            >
+              Simpan
+            </button>
+          )}
+        </div>
+      </div>
+    </Modal>
   );
 }
 
