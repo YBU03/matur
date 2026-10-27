@@ -7,7 +7,7 @@ export async function kopGudang(
 ): Promise<Kop> {
   const { data, error } = await db
     .from("pengaturan_dokumen_gudang")
-    .select("alamat,logo_path")
+    .select("alamat,logo_path,judul_ttd")
     .eq("id", true)
     .single();
   if (error || !data)
@@ -15,6 +15,7 @@ export async function kopGudang(
   return {
     ...pt,
     alamat: data.alamat,
+    judul_ttd: data.judul_ttd,
     logo_url: data.logo_path
       ? "/api/gudang/logo?path=" + encodeURIComponent(data.logo_path)
       : "/brand/hazna-logo.png",

@@ -26,6 +26,8 @@ export type Kop = {
   alamat: string | null;
   email: string | null;
   telepon: string | null;
+  /** judul default 4 kotak tanda tangan dokumen gudang */
+  judul_ttd?: string[];
 };
 
 /** Gambar kop di atas halaman; mengembalikan posisi y di bawah garis kop. */

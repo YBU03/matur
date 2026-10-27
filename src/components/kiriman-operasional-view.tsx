@@ -2,6 +2,8 @@
 import { PenyesuaianInvoice } from "./gudang-invoice-penyesuaian";
 import { ringkasInvoice } from "@/lib/gudang-invoice";
 import { PengaturanCetakGudang, useCetakGudang } from "./gudang-cetak";
+import { PanelTtd } from "./gudang-ttd";
+import { kotakTtdAwal, type KotakTtd } from "@/lib/gudang-ttd";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
@@ -90,14 +92,20 @@ export function KirimanOperasionalView({
         setMsg({ error: "Koneksi terputus; coba lagi dengan data yang sama." });
       }
     });
-  const pdf = async (jenis: "surat-jalan" | "invoice") => {
+  const [panel, setPanel] = useState<"" | "surat-jalan" | "invoice">("");
+  const [menyiapkan, setMenyiapkan] = useState(false);
+  const pdf = async (jenis: "surat-jalan" | "invoice", ttd: KotakTtd[]) => {
+    setMenyiapkan(true);
     try {
       const { cetakDokumen } = await import(
         "@/app/(app)/gudang/kiriman/[id]/dokumen"
       );
-      await cetakDokumen(jenis, k, items, pt, cetak);
+      await cetakDokumen(jenis, k, items, pt, cetak, ttd);
+      setPanel("");
     } catch (e) {
       setMsg({ error: e instanceof Error?e.message:"PDF belum dapat dibuat." });
+    } finally {
+      setMenyiapkan(false);
     }
   };
   const jumlahDiterima = items.reduce(
@@ -106,6 +114,15 @@ export function KirimanOperasionalView({
   );
   return (
     <div className="space-y-4">
+      {panel && (
+        <PanelTtd
+          judul={panel === "invoice" ? "Invoice" : "Surat Jalan"}
+          awal={kotakTtdAwal(k, pt)}
+          busy={menyiapkan}
+          onUnduh={(t) => pdf(panel, t)}
+          onTutup={() => setPanel("")}
+        />
+      )}
       <section className="rounded-2xl border bg-white p-4">
         <h2 className="text-xl font-bold">{k.nomor}</h2>
         <p className="text-sm text-stone-500">
@@ -217,7 +234,7 @@ export function KirimanOperasionalView({
               />
             )}
             <button
-              onClick={() => pdf(tab === "invoice" ? "invoice" : "surat-jalan")}
+              onClick={() => setPanel(tab === "invoice" ? "invoice" : "surat-jalan")}
               className="mt-3 rounded-lg border px-3 py-2 text-sm"
             >
               Unduh {tab === "invoice" ? "Invoice" : "Surat Jalan"} PDF

@@ -10,6 +10,8 @@ import { STATUS_KIRIMAN, type ItemKiriman, type Kiriman } from "@/lib/kiriman";
 import { batal, hapusItem, kirim, simpanInfo, tambahItem, terima, ubahItem, type Result } from "@/lib/kiriman-actions";
 import type { Kop } from "@/lib/pdf-kop";
 import { cetakDokumen } from "./dokumen";
+import { PanelTtd } from "@/components/gudang-ttd";
+import { kotakTtdAwal, type KotakTtd } from "@/lib/gudang-ttd";
 
 type Bahan = { id: string; nama: string; satuan_beli: string; harga: number; stok: number };
 const nf = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 });
@@ -22,6 +24,7 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
   const [msg, setMsg] = useState<Result | null>(null);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState("");
+  const [panel, setPanel] = useState<"" | "surat-jalan" | "invoice">("");
   const draft = k.status === "draft" && gudang;
   const run = (fn: () => Promise<Result>) =>
     start(async () => {
@@ -30,10 +33,11 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
       router.refresh();
     });
   const total = items.reduce((s, i) => s + Math.round((k.status === "diterima" && i.qty_diterima !== null ? i.qty_diterima : i.qty) * i.harga), 0);
-  const dok = async (j: "surat-jalan" | "invoice") => {
+  const dok = async (j: "surat-jalan" | "invoice", ttd: KotakTtd[]) => {
     setBusy(j);
     try {
-      await cetakDokumen(j, k, items, pt,cetak);
+      await cetakDokumen(j, k, items, pt, cetak, ttd);
+      setPanel("");
     } catch {setMsg({error:"Dokumen belum dapat dibuat. Periksa ukuran kertas dan coba lagi."});} finally {
       setBusy("");
     }
@@ -41,6 +45,7 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {panel && <PanelTtd judul={panel === "invoice" ? "Invoice" : "Surat Jalan"} awal={kotakTtdAwal(k, pt)} busy={!!busy} onUnduh={(t) => dok(panel, t)} onTutup={() => setPanel("")} />}
       <Link href="/gudang/kiriman" className="inline-flex items-center gap-1 rounded-xl border border-matur-300 bg-white px-3 py-1.5 text-sm font-semibold text-matur-700">
         ← Semua kiriman
       </Link>
@@ -55,10 +60,10 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
           {k.diterima_at && ` · diterima ${formatTanggal(k.diterima_at, true)}${k.nama_penerima ? ` oleh ${k.nama_penerima}` : ""}`}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={!!busy || !items.length} onClick={() => dok("surat-jalan")} className="rounded-lg border border-kopi-700 px-3 py-1.5 text-sm font-semibold text-kopi-700 disabled:opacity-50">
+          <button disabled={!!busy || !items.length} onClick={() => setPanel("surat-jalan")} className="rounded-lg border border-kopi-700 px-3 py-1.5 text-sm font-semibold text-kopi-700 disabled:opacity-50">
             {busy === "surat-jalan" ? "Menyiapkan…" : "⬇ Surat Jalan"}
           </button>
-          <button disabled={!!busy || !items.length} onClick={() => dok("invoice")} className="rounded-lg border border-matur-500 px-3 py-1.5 text-sm font-semibold text-matur-700 disabled:opacity-50">
+          <button disabled={!!busy || !items.length} onClick={() => setPanel("invoice")} className="rounded-lg border border-matur-500 px-3 py-1.5 text-sm font-semibold text-matur-700 disabled:opacity-50">
             {busy === "invoice" ? "Menyiapkan…" : "⬇ Invoice"}
           </button>
         </div>

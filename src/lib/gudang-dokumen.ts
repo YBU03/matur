@@ -3,12 +3,14 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Kiriman, ItemKiriman } from "./kiriman";
 import type { Kop } from "./pdf-kop";
+import { kotakTtdAwal, type KotakTtd } from "./gudang-ttd";
 import {
   cetakGudangDefault,
   validCetakGudang,
   type CetakGudang,
 } from "./gudang-cetak-config";
 export type LogoGudang = { url: string; w: number; h: number };
+
 const uang = (v: number) => "Rp " + Math.round(v).toLocaleString("id-ID");
 const nf = (v: number) =>
   Number(v).toLocaleString("id-ID", { maximumFractionDigits: 3 });
@@ -19,6 +21,7 @@ export function buatDokumenGudang(
   pt: Kop,
   opsi: CetakGudang = cetakGudangDefault,
   logo?: LogoGudang,
+  ttd: KotakTtd[] = kotakTtdAwal(k, pt),
 ) {
   if (!validCetakGudang(opsi))
     throw new Error(
@@ -379,36 +382,24 @@ export function buatDokumenGudang(
       y = Math.max(y, summaryBottom);
     const height = 35;
     if (y + height > H - 12) y = page();
-    const labels = [
-      "Dibuat oleh",
-      "Diperiksa oleh",
-      "Dikirim oleh",
-      "Diterima oleh",
-    ];
-    const names = [
-      k.pembuat_nama ?? "",
-      k.pemeriksa_nama ?? "",
-      k.pengirim ?? "",
-      k.nama_penerima ?? "",
-    ];
     const cw = (W - 2 * M) / 4;
-    labels.forEach((l, i) => {
+    ttd.slice(0, 4).forEach((t, i) => {
       const x = M + i * cw;
       doc.setDrawColor(0).setLineWidth(0.2).rect(x, y, cw, height);
       doc
         .setFont("helvetica", "bold")
         .setFontSize(8)
-        .text(l, x + cw / 2, y + 5, { align: "center" });
+        .text(doc.splitTextToSize(t.judul.trim(), cw - 4).slice(0, 1), x + cw / 2, y + 5, { align: "center" });
       doc
         .setFont("helvetica", "normal")
         .setFontSize(7)
         .text(
-          doc.splitTextToSize(names[i], cw - 4).slice(0, 4),
+          doc.splitTextToSize(t.nama.trim(), cw - 4).slice(0, 4),
           x + cw / 2,
           y + 20,
           { align: "center" },
         );
-      doc.text("Tanggal: ................", x + 2, y + 32);
+      doc.text(doc.splitTextToSize(t.tanggal.trim(), cw - 4).slice(0, 1), x + 2, y + 32);
     });
     ranges.push({ start: first, end: doc.getNumberOfPages(), copy: c });
   }

@@ -311,3 +311,36 @@ it("prints saved address, custom logo and signed invoice adjustment", () => {
     }
   }
 });
+
+it("prints fully editable signature boxes: custom titles, blank names and custom dates", () => {
+  const doc = buatDokumenGudang(
+    "invoice",
+    k,
+    items.slice(0, 3),
+    { ...pt, judul_ttd: ["Hormat kami", "Mengetahui", "Kurir", "Penerima"] },
+    { lebar: 210, tinggi: 297, rangkap: "ncr" },
+    undefined,
+    [
+      { judul: "Hormat kami", nama: "Ayu Finance", tanggal: "Tanggal: 27-10-2026" },
+      { judul: "Mengetahui", nama: "", tanggal: "" },
+      { judul: "", nama: "", tanggal: "Tanggal: ................" },
+      { judul: "Penerima", nama: "", tanggal: "" },
+    ],
+  );
+  const pdf = doc.output();
+  for (const t of ["Hormat kami", "Mengetahui", "Ayu Finance", "Tanggal: 27-10-2026"])
+    expect(pdf).toContain(t);
+  for (const t of ["Dibuat oleh", "Sinta - Admin Gudang"])
+    expect(pdf).not.toContain(t);
+  // tanpa isian khusus: judul dari pengaturan, nama dari data kiriman
+  const awal = buatDokumenGudang(
+    "surat-jalan",
+    k,
+    items.slice(0, 3),
+    { ...pt, judul_ttd: ["Hormat kami", "", "Kurir", "Penerima"] },
+    { lebar: 210, tinggi: 297, rangkap: "ncr" },
+  ).output();
+  expect(awal).toContain("Hormat kami");
+  expect(awal).toContain("Sinta - Admin Gudang");
+  expect(awal).not.toContain("Diperiksa oleh");
+});

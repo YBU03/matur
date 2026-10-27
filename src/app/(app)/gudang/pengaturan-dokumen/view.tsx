@@ -7,10 +7,12 @@ export function PengaturanDokumen({
   alamat,
   versi,
   logo,
+  judul,
 }: {
   alamat: string;
   versi: number;
   logo: string;
+  judul: string[];
 }) {
   const [preview, setPreview] = useState(logo),
     [bawaan, setBawaan] = useState(false),
@@ -31,7 +33,7 @@ export function PengaturanDokumen({
       </Link>
       <h1 className="text-2xl font-bold">Pengaturan Dokumen Gudang</h1>
       <p className="text-sm text-stone-600">
-        Logo dan alamat ini dipakai bersama pada invoice dan surat jalan Gudang,
+        Logo, alamat, dan judul kotak tanda tangan ini dipakai bersama pada invoice dan surat jalan Gudang,
         termasuk saat diunduh oleh outlet. Unduh ulang PDF setelah menyimpan
         perubahan.
       </p>
@@ -110,6 +112,28 @@ export function PengaturanDokumen({
             className="mt-2 block w-full rounded-xl border p-3 font-normal"
           />
         </label>
+        <fieldset className="space-y-2">
+          <legend className="font-semibold">Judul kotak tanda tangan</legend>
+          <p className="text-xs text-stone-500">
+            Judul default untuk 4 kotak di bawah invoice dan surat jalan. Boleh
+            dikosongkan. Saat mencetak, judul, nama, dan tanggal tetap bisa
+            diubah lagi khusus untuk cetakan itu.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <label key={i} className="block text-xs text-stone-500">
+                Kotak {i + 1}
+                <input
+                  name={"judul" + i}
+                  maxLength={40}
+                  defaultValue={judul[i] ?? ""}
+                  disabled={busy}
+                  className="mt-1 block w-full rounded-xl border p-2.5 text-sm text-kopi-900"
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
         {msg.error && (
           <p
             role="alert"

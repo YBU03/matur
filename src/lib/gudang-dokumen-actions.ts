@@ -13,6 +13,11 @@ export async function simpanDokumenGudang(form: FormData) {
     versi = Number(form.get("versi"));
   if (alamat.length < 10 || alamat.length > 600 || !Number.isSafeInteger(versi))
     return { error: "Alamat wajib 10–600 karakter." };
+  const judul = [0, 1, 2, 3].map((i) =>
+    String(form.get("judul" + i) ?? "").trim(),
+  );
+  if (judul.some((j) => j.length > 40))
+    return { error: "Judul kotak tanda tangan maksimal 40 karakter." };
   const db = await supabaseServer();
   const { data: g, error: eg } = await db
     .from("pengaturan_dokumen_gudang")
@@ -44,10 +49,11 @@ export async function simpanDokumenGudang(form: FormData) {
     if (error) return { error: "Logo gagal diunggah. Coba lagi." };
     uploaded = path;
   }
-  const { error } = await db.rpc("atur_dokumen_gudang", {
+  const { error } = await db.rpc("atur_dokumen_gudang_ttd", {
     p_alamat: alamat,
     p_logo: path,
     p_versi: versi,
+    p_judul: judul,
   });
   if (error) {
     if (uploaded) await db.storage.from("dokumen-gudang").remove([uploaded]);
@@ -60,5 +66,5 @@ export async function simpanDokumenGudang(form: FormData) {
     "/karyawan/kiriman",
   ])
     revalidatePath(p, "page");
-  return { ok: "Logo dan alamat dokumen gudang tersimpan." };
+  return { ok: "Pengaturan dokumen gudang tersimpan." };
 }

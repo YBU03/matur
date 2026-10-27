@@ -73,6 +73,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261027120000_gudang_judul_ttd.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 30000);
 afterAll(() => db.close());
 it("edits sale prices with stale-write protection and prevents staff access", async () => {
@@ -310,6 +319,32 @@ it("protects shared document settings and rejects stale edits and unknown logos"
   await q("reset role");
   await q("select set_config('test.uid',$1,false)", [owner]);
 });
+it("saves custom signature box titles atomically with the document settings", async () => {
+  const [g] = await q<{ versi: number; judul_ttd: string[] }>(
+    "select versi,judul_ttd from pengaturan_dokumen_gudang",
+  );
+  expect(g.judul_ttd).toEqual(["Dibuat oleh", "Diperiksa oleh", "Dikirim oleh", "Diterima oleh"]);
+  await expect(
+    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["a", "b", "c"]]),
+  ).rejects.toThrow(/4 isian/);
+  await expect(
+    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["x".repeat(41), "", "", ""]]),
+  ).rejects.toThrow(/40 karakter/);
+  await call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, [" Hormat kami ", "", "Mengetahui", "Penerima"]]);
+  const [h] = await q<{ versi: number; judul_ttd: string[]; alamat: string }>(
+    "select versi,judul_ttd,alamat from pengaturan_dokumen_gudang",
+  );
+  expect(h).toEqual({ versi: g.versi + 1, judul_ttd: ["Hormat kami", "", "Mengetahui", "Penerima"], alamat: "Alamat perusahaan yang valid" });
+  await expect(
+    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["a", "b", "c", "d"]]),
+  ).rejects.toThrow(/berubah/);
+  await q("select set_config('test.uid',$1,false)", [staff]);
+  await expect(
+    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, h.versi, ["a", "b", "c", "d"]]),
+  ).rejects.toThrow(/Hanya admin/);
+  await q("select set_config('test.uid',$1,false)", [owner]);
+});
+
 it("saves signed invoice adjustments once, audits corrections and adds them once to reports", async () => {
   const [k] = await q<{ id: string }>(
     "insert into kiriman(outlet_id) values($1) returning id",
