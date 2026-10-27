@@ -36,3 +36,7 @@ Login akun outlet langsung masuk POS lengkap. Atas permintaan pemilik, pengunci 
 ## Alur shift opsional yang disetujui (26 Oktober 2026)
 
 Pemilik telah menyetujui alur baru, terpisah dari pengunci lama. Default semua outlet tetap langsung; switch **Alur Shift** per outlet tersedia untuk Owner/Admin Pusat/HRD/Admin Gudang sesuai kewenangan. Berlaku kas berikutnya; PIN bersama outlet, pemilihan staf terjadwal/pengganti, modal sekali, hitung fisik dan serah terima, laporan harian. Baca `docs/pos-alur-shift-opsional.md`. Jangan aktifkan otomatis atau menghapus riwayat pelatihan.
+
+## Gudang (27 Oktober 2026)
+
+Harga jual langsung di Stok Gudang; menu `/gudang/opname` dan `/gudang/laba-rugi`; template kiriman dengan empat kotak tanda tangan dan pengaturan kertas/NCR/tiga salinan. Baca `docs/gudang-revisi-2026-10-27.md`. HPP kiriman/pergerakan baru dibekukan; data lama tanpa HPP ditandai belum lengkap, jangan diganti harga sekarang. Opname hanya gudang dan finalisasi memeriksa snapshot stok. Draft POS/PIN sebelumnya tetap terpisah.

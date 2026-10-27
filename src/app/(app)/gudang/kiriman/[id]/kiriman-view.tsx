@@ -1,5 +1,7 @@
 "use client";
 
+import {PengaturanCetakGudang,useCetakGudang} from "@/components/gudang-cetak";
+import {PemeriksaKiriman} from "@/components/gudang-pemeriksa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -15,6 +17,7 @@ const cls = "w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline
 const angka = (v: string) => Number(v.replace(",", "."));
 
 export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya }: { k: Kiriman; items: ItemKiriman[]; bahan: Bahan[]; gudang: boolean; terimaBoleh: boolean; pt: Kop; namaSaya: string }) {
+  const [cetak,setCetak]=useCetakGudang();
   const router = useRouter();
   const [msg, setMsg] = useState<Result | null>(null);
   const [pending, start] = useTransition();
@@ -30,8 +33,8 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
   const dok = async (j: "surat-jalan" | "invoice") => {
     setBusy(j);
     try {
-      await cetakDokumen(j, k, items, pt);
-    } finally {
+      await cetakDokumen(j, k, items, pt,cetak);
+    } catch {setMsg({error:"Dokumen belum dapat dibuat. Periksa ukuran kertas dan coba lagi."});} finally {
       setBusy("");
     }
   };
@@ -61,6 +64,8 @@ export function KirimanView({ k, items, bahan, gudang, terimaBoleh, pt, namaSaya
         </div>
       </section>
 
+      <PengaturanCetakGudang opsi={cetak} onChange={setCetak}/>
+      {draft&&<PemeriksaKiriman id={k.id} nama={k.pemeriksa_nama??null}/>}
       {msg && <p className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{msg.error ?? msg.ok}</p>}
 
       {draft && <InfoForm k={k} pending={pending} onSave={(d) => run(() => simpanInfo(k.id, d))} />}
