@@ -40,3 +40,17 @@ Data SKU, diskon, pajak dan jatuh tempo belum tersedia pada kiriman, sehingga di
 Tes tambahan memeriksa logo benar-benar tertanam, total berdasarkan barang diterima (bukan jumlah dikirim), tidak ada service charge dan tidak ada pembayaran fiktif; render A4, continuous setengah halaman dan ukuran minimum.
 
 Verifikasi revisi invoice: 257 tes dalam 39 file, lint dan TypeScript lolos. PDF A4, continuous, tiga salinan dan ukuran minimum dirender; teks berada dalam batas halaman.
+
+## Pengaturan logo/alamat dan penyesuaian invoice
+
+Menu **Pengaturan Dokumen** di Gudang tersedia untuk Admin Gudang, Admin Pusat dan Owner. Logo PNG/JPG maksimal 2 MB dapat diunggah, diganti atau dikembalikan ke logo Hazna bawaan. Alamat awal dokumen adalah Jl. Raya Pengalusan No.6, Kompas, Pengalusan, Kec. Mrebet, Kabupaten Purbalingga, Jawa Tengah 53352; dapat diedit manual. Pengaturan khusus dokumen Gudang, tidak mengubah identitas/kop modul lain. Invoice dan surat jalan memakai konfigurasi yang sama; PDF yang sudah diunduh tidak berubah, unduh ulang sesudah penyimpanan. Dokumen memuat alamat lengkap dengan tinggi kop menyesuaikan; jika kop terlalu panjang untuk kertas kecil, pilih kertas lebih tinggi.
+
+Logo disimpan pada bucket privat dokumen-gudang, dibaca melalui endpoint autentikasi, tidak memakai URL eksternal. File baru memakai nama unik tanpa menimpa logo aktif. Server memeriksa ukuran dan signature PNG/JPG, perubahan konfigurasi memakai versi, unggahan gagal simpan dibersihkan. Tabel pengaturan hanya dapat ditulis lewat RPC berizin; riwayat perubahan dicatat.
+
+**Penyesuaian invoice** tersedia pada tab Invoice di detail penerimaan setelah pemeriksaan selesai. Pilih tambah/kurang, nominal rupiah dan alasan; lihat pratinjau lalu konfirmasi. Awal Rp0; set Rp0 untuk menghapus efek penyesuaian sambil mempertahankan audit. Nilai barang + penyesuaian = total invoice (diskon/pajak belum dicatat). Total negatif ditolak. Perubahan memakai versi untuk menolak edit bersamaan, tidak mengubah stok/harga/HPP atau membuat pembayaran. Akun outlet hanya melihat hasilnya.
+
+Laporan laba rugi, CSV dan PDF menunjukkan penyesuaian sekali per invoice dalam periode penerimaan selesai. Perubahan penyesuaian memperbarui periode invoice tersebut; tidak dialokasikan pada filter bahan. Nilai penyesuaian ditambah pada laba/kontribusi, terpisah dari HPP dan penyesuaian stok. Margin internal Pusat tetap bukan laba konsolidasi. Status lunas tidak diasumsikan.
+
+Verifikasi tambahan mencakup unggah/penolakan file, pemulihan logo bawaan, cleanup unggahan saat konflik, penolakan akses outlet, stale versi, nilai negatif berlebih, laporan tanpa duplikasi, dan PDF dengan alamat lengkap. Form diuji visual pada desktop dan HP 390px melalui halaman pratinjau lokal yang kemudian dihapus. Fixture Supabase authenticated berhasil dan seluruh data percobaan di-ROLLBACK; tidak ada temuan advisor baru.
+
+Hasil pemeriksaan pengaturan/penyesuaian: 264 tes dalam 40 file, TypeScript dan lint lolos; build produksi diperiksa sebelum publikasi.

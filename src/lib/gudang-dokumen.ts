@@ -1,3 +1,4 @@
+import { ringkasInvoice } from "./gudang-invoice";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Kiriman, ItemKiriman } from "./kiriman";
@@ -42,10 +43,9 @@ export function buatDokumenGudang(
       : Number(i.qty);
   const copies = opsi.rangkap === "salinan" ? 3 : 1,
     ranges: { start: number; end: number; copy: number }[] = [];
-  const total = items.reduce(
-    (s, i) => s + Math.round(qty(i) * Number(i.harga)),
-    0,
-  );
+  const ringkasan = ringkasInvoice(k, items);
+  const total = ringkasan.barang;
+  let tableTop = 55;
   const tanggal = (v: string) => {
     const [y, m, d] = v.slice(0, 10).split("-");
     return d && m && y ? d + "/" + m + "/" + y : v;
@@ -62,27 +62,22 @@ export function buatDokumenGudang(
     }
     const tx = M + (logo ? logoW + 3 : 0);
     doc.setFont("helvetica", "bold").setFontSize(9);
-    doc.text(
-      doc.splitTextToSize(pt.nama.toUpperCase(), leftW - (tx - M)).slice(0, 2),
-      tx,
-      12,
+    const namaLines = doc.splitTextToSize(
+      pt.nama.toUpperCase(),
+      leftW - (tx - M),
     );
+    doc.text(namaLines, tx, 12);
+    let leftY = 12 + namaLines.length * 3.5 + 2;
     doc.setFont("helvetica", "normal").setFontSize(7);
-    doc.text(
-      doc.splitTextToSize(pt.alamat ?? "", leftW - (tx - M)).slice(0, 2),
-      tx,
-      21,
+    const alamatLines = doc.splitTextToSize(pt.alamat ?? "", leftW - (tx - M));
+    doc.text(alamatLines, tx, leftY);
+    leftY = Math.max(leftY + alamatLines.length * 3.2 + 3, 30);
+    const kontakLines = doc.splitTextToSize(
+      [pt.telepon, pt.email].filter(Boolean).join(" | "),
+      leftW,
     );
-    doc.text(
-      doc
-        .splitTextToSize(
-          [pt.telepon, pt.email].filter(Boolean).join(" | "),
-          leftW,
-        )
-        .slice(0, 1),
-      M,
-      30,
-    );
+    doc.text(kontakLines, M, leftY);
+    leftY += kontakLines.length * 3.2 + 4;
     doc
       .setFont("helvetica", "bold")
       .setFontSize(11)
@@ -111,18 +106,16 @@ export function buatDokumenGudang(
     doc
       .setFont("helvetica", "bold")
       .setFontSize(7.5)
-      .text("Tagih / Kirim ke", M, 36);
+      .text("Tagih / Kirim ke", M, leftY);
+    leftY += 4;
     doc.setFont("helvetica", "normal").setFontSize(7.5);
-    doc.text(
-      doc.splitTextToSize(k.outlet?.nama ?? "-", leftW).slice(0, 1),
-      M,
-      40,
-    );
-    doc.text(
-      doc.splitTextToSize(k.outlet?.alamat ?? "", leftW).slice(0, 1),
-      M,
-      44,
-    );
+    const outletLines = doc.splitTextToSize(k.outlet?.nama ?? "-", leftW);
+    doc.text(outletLines, M, leftY);
+    leftY += outletLines.length * 3.3;
+    const outletAlamat = doc.splitTextToSize(k.outlet?.alamat ?? "", leftW);
+    doc.text(outletAlamat, M, leftY);
+    leftY += outletAlamat.length * 3.3;
+    const statusY = Math.max(leftY + 2, 49);
     doc
       .setFont("helvetica", "bold")
       .setFontSize(7)
@@ -135,10 +128,12 @@ export function buatDokumenGudang(
               ? "SUDAH DIPERIKSA OUTLET"
               : "MENUNGGU PEMERIKSAAN OUTLET",
         M,
-        49,
+        statusY,
       );
-    doc.setLineWidth(0.3).line(M, 51, W - M, 51);
+    doc.setLineWidth(0.3).line(M, statusY + 2, W - M, statusY + 2);
+    tableTop = statusY + 6;
   }
+
   function header() {
     if (invoice) {
       invoiceHeader();
@@ -149,36 +144,50 @@ export function buatDokumenGudang(
       .setDrawColor(0)
       .setFont("helvetica", "bold")
       .setFontSize(11);
+    const logoW = logo ? Math.min(17, (18 * logo.w) / logo.h) : 0;
+    if (logo)
+      doc.addImage(
+        logo.url,
+        "PNG",
+        M,
+        7,
+        logoW,
+        (logoW * logo.h) / logo.w,
+        "hazna-logo",
+      );
+    const tx = M + (logo ? logoW + 3 : 0);
     doc.text(
-      doc.splitTextToSize(pt.nama.toUpperCase(), W - 2 * M).slice(0, 2),
-      M,
+      doc.splitTextToSize(pt.nama.toUpperCase(), W - M - tx).slice(0, 2),
+      tx,
       11,
     );
     doc.setFont("helvetica", "normal").setFontSize(8);
-    doc.text(
-      doc.splitTextToSize(pt.alamat ?? "", W - 2 * M).slice(0, 2),
-      M,
-      18,
-    );
+    const alamat = doc.splitTextToSize(pt.alamat ?? "", W - M - tx);
+    doc.text(alamat, tx, 18);
+    const offset = Math.max(0, 18 + alamat.length * 3.3 - 25);
     doc
       .setFont("helvetica", "bold")
       .setFontSize(11)
-      .text(invoice ? "INVOICE" : "SURAT JALAN", W - M, 28, { align: "right" });
-    doc.setFontSize(8).text(k.nomor, M, 28);
-    doc.setFont("helvetica", "normal").text("Tanggal: " + k.tanggal, M, 33);
+      .text(invoice ? "INVOICE" : "SURAT JALAN", W - M, 28 + offset, {
+        align: "right",
+      });
+    doc.setFontSize(8).text(k.nomor, M, 28 + offset);
+    doc
+      .setFont("helvetica", "normal")
+      .text("Tanggal: " + k.tanggal, M, 33 + offset);
     doc.text(
       doc
         .splitTextToSize("Kepada: " + (k.outlet?.nama ?? "-"), W - 2 * M)
         .slice(0, 1),
       M,
-      37,
+      37 + offset,
     );
     doc.text(
       doc
         .splitTextToSize("Alamat: " + (k.outlet?.alamat ?? "-"), W - 2 * M)
         .slice(0, 2),
       M,
-      41,
+      41 + offset,
     );
     doc
       .setFont("helvetica", "bold")
@@ -191,9 +200,10 @@ export function buatDokumenGudang(
               ? "SUDAH DIPERIKSA OUTLET"
               : "MENUNGGU PEMERIKSAAN OUTLET",
         M,
-        49,
+        49 + offset,
       );
-    doc.setLineWidth(0.3).line(M, 51, W - M, 51);
+    doc.setLineWidth(0.3).line(M, 51 + offset, W - M, 51 + offset);
+    tableTop = 55 + offset;
   }
   function page() {
     doc.addPage(
@@ -201,7 +211,7 @@ export function buatDokumenGudang(
       opsi.lebar > opsi.tinggi ? "landscape" : "portrait",
     );
     header();
-    return 56;
+    return tableTop + 1;
   }
   for (let c = 0; c < copies; c++) {
     if (c > 0)
@@ -210,9 +220,14 @@ export function buatDokumenGudang(
         opsi.lebar > opsi.tinggi ? "landscape" : "portrait",
       );
     const first = doc.getNumberOfPages();
+    header();
+    if (tableTop + 40 > H - 12)
+      throw new Error(
+        "Alamat terlalu panjang untuk ukuran kertas ini. Pilih kertas lebih tinggi.",
+      );
     autoTable(doc, {
-      startY: 55,
-      margin: { left: M, right: M, top: 55, bottom: 14 },
+      startY: tableTop,
+      margin: { left: M, right: M, top: tableTop, bottom: 14 },
       theme: "grid",
       styles: {
         font: "helvetica",
@@ -300,7 +315,8 @@ export function buatDokumenGudang(
         ["Subtotal", uang(total)],
         ["Diskon", "-"],
         ["Pajak", "-"],
-        ["TOTAL", uang(total)],
+        ["Penyesuaian", uang(ringkasan.penyesuaian)],
+        ["TOTAL", uang(ringkasan.total)],
         ["Pembayaran", "Belum tercatat"],
         ["SISA TAGIHAN", "Belum direkonsiliasi"],
       ];
@@ -310,7 +326,7 @@ export function buatDokumenGudang(
       doc.setLineWidth(0.2).line(sx, y - 2, W - M, y - 2);
       rows.forEach(([label, value], n) => {
         doc
-          .setFont("helvetica", n === 3 || n === 5 ? "bold" : "normal")
+          .setFont("helvetica", n === 4 || n === 6 ? "bold" : "normal")
           .setFontSize(8);
         doc.text(label, sx, y + n * 5);
         doc.text(value, W - M, y + n * 5, { align: "right" });
@@ -320,6 +336,9 @@ export function buatDokumenGudang(
     }
     const notes = [
       ...(k.catatan ? ["Catatan: " + k.catatan] : []),
+      ...(invoice && k.penyesuaian?.keterangan
+        ? ["Penyesuaian: " + k.penyesuaian.keterangan]
+        : []),
       ...(invoice
         ? [
             "SKU, diskon, pajak dan jatuh tempo: - (belum dicatat). Pembayaran/sisa tagihan belum direkonsiliasi.",

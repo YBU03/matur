@@ -1,5 +1,7 @@
 "use client";
-import {PengaturanCetakGudang,useCetakGudang} from "./gudang-cetak";
+import { PenyesuaianInvoice } from "./gudang-invoice-penyesuaian";
+import { ringkasInvoice } from "@/lib/gudang-invoice";
+import { PengaturanCetakGudang, useCetakGudang } from "./gudang-cetak";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
@@ -45,7 +47,7 @@ export function KirimanOperasionalView({
   namaSaya: string;
   pt: Kop;
 }) {
-  const [cetak,setCetak]=useCetakGudang();
+  const [cetak, setCetak] = useCetakGudang();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result>({});
@@ -93,9 +95,9 @@ export function KirimanOperasionalView({
       const { cetakDokumen } = await import(
         "@/app/(app)/gudang/kiriman/[id]/dokumen"
       );
-      await cetakDokumen(jenis, k, items, pt,cetak);
-    } catch {
-      setMsg({ error: "PDF belum dapat dibuat." });
+      await cetakDokumen(jenis, k, items, pt, cetak);
+    } catch (e) {
+      setMsg({ error: e instanceof Error?e.message:"PDF belum dapat dibuat." });
     }
   };
   const jumlahDiterima = items.reduce(
@@ -114,7 +116,7 @@ export function KirimanOperasionalView({
             Kiriman susulan dari pengiriman sebelumnya.
           </p>
         )}
-        <PengaturanCetakGudang opsi={cetak} onChange={setCetak}/>
+        <PengaturanCetakGudang opsi={cetak} onChange={setCetak} />
         <nav className="my-3 flex flex-wrap gap-2">
           {[
             ["surat", "Surat Jalan"],
@@ -193,6 +195,26 @@ export function KirimanOperasionalView({
                   Susulan mempunyai dokumen terpisah.
                 </p>
               </div>
+            )}
+            {tab === "invoice" && (
+              <p className="mt-2 text-sm">
+                Penyesuaian:{" "}
+                <b>{formatRupiah(ringkasInvoice(k, items).penyesuaian)}</b> ·
+                Total invoice:{" "}
+                <b>{formatRupiah(ringkasInvoice(k, items).total)}</b>
+                {k.penyesuaian?.keterangan && (
+                  <span className="block text-stone-600">
+                    {k.penyesuaian.keterangan}
+                  </span>
+                )}
+              </p>
+            )}
+            {tab === "invoice" && gudang && (
+              <PenyesuaianInvoice
+                key={k.penyesuaian?.versi ?? 0}
+                k={k}
+                items={items}
+              />
             )}
             <button
               onClick={() => pdf(tab === "invoice" ? "invoice" : "surat-jalan")}

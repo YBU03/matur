@@ -10,8 +10,7 @@ export async function cetakDokumen(
   opsi?: CetakGudang,
 ) {
   const { buatDokumenGudang } = await import("@/lib/gudang-dokumen");
-  const logo =
-    jenis === "invoice" ? await gambar("/brand/hazna-logo.png") : undefined;
+  const logo = await gambar(pt.logo_url ?? "/brand/hazna-logo.png");
   const doc = buatDokumenGudang(jenis, k, items, pt, opsi, logo);
   unduh(
     doc,

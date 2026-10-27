@@ -71,7 +71,7 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
         )}
       </div>
 
-      <nav className="flex gap-2 text-sm font-semibold"><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/opname">📋 Opname Gudang</Link><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/laba-rugi">📊 Laba Rugi Gudang</Link></nav>
+      <nav className="flex flex-wrap gap-2 text-sm font-semibold">{canEdit&&<Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/pengaturan-dokumen">Pengaturan Dokumen</Link>}<Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/opname">📋 Opname Gudang</Link><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/laba-rugi">📊 Laba Rugi Gudang</Link></nav>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Jenis bahan" value={String(rows.length)} />
         <StatTile label="Nilai persediaan gudang" value={rupiah(total)} sub="jumlah kemasan × harga beli" />

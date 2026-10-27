@@ -8,6 +8,7 @@ export const STATUS_KIRIMAN: Record<string, [string, string]> = {
 
 export type ItemKiriman = { id: string; bahan_id: string; nama: string; satuan: string | null; konversi: number; qty: number; harga: number; qty_diterima: number | null };
 export type Kiriman = {
+  penyesuaian?: {nilai:number;keterangan:string;versi:number}|null;
   pembuat_nama?: string | null;
   pemeriksa_nama?: string | null;
   pemeriksaan_status?: string;

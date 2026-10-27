@@ -62,8 +62,26 @@ export function LabaGudang({
       ["HPP diketahui", r.hpp],
       ["Laba kotor diketahui", r.labaKotor],
       ["Biaya", r.biaya],
+      ["Penyesuaian invoice", r.invoice],
       ["Penyesuaian stok diketahui", r.penyesuaian],
       ["Laba rugi diketahui", r.laba],
+      [],
+      [
+        "Penyesuaian invoice",
+        "Tanggal",
+        "Kiriman",
+        "Outlet",
+        "Nilai",
+        "Keterangan",
+      ],
+      ...(d.invoice ?? []).map((x) => [
+        "",
+        x.tanggal,
+        x.nomor,
+        x.outlet,
+        x.nilai,
+        x.keterangan,
+      ]),
       [],
       ["Biaya operasional", "Tanggal", "Nominal", "Keterangan"],
       ...d.biaya.map((b) => ["", b.tanggal, b.jumlah, b.keterangan]),
@@ -87,12 +105,29 @@ export function LabaGudang({
   }
   return (
     <>
+      {!!d.invoice?.length && (
+        <section className="rounded-xl border bg-white p-4 text-sm">
+          <h2 className="font-bold">Penyesuaian invoice</h2>
+          <p className="text-xs text-stone-500">
+            Dihitung sekali per invoice di periode penerimaan selesai; tidak
+            dialokasikan saat filter bahan. Koreksi akan memperbarui laporan
+            periode invoice tersebut.
+          </p>
+          {d.invoice.map((x) => (
+            <p key={x.id} className="mt-2 border-t pt-2">
+              {x.nomor} · {x.outlet} · <b>{rp(Number(x.nilai))}</b> ·{" "}
+              {x.keterangan}
+            </p>
+          ))}
+        </section>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ["Penjualan diterima", r.penjualan],
           ["HPP diketahui", r.hpp],
           ["Laba kotor diketahui", r.labaKotor],
           ["Biaya operasional", r.biaya],
+          ["Penyesuaian invoice", r.invoice],
           ["Penyesuaian stok diketahui", r.penyesuaian],
           [
             bahan

@@ -40,3 +40,5 @@ Pemilik telah menyetujui alur baru, terpisah dari pengunci lama. Default semua o
 ## Gudang (27 Oktober 2026)
 
 Harga jual langsung di Stok Gudang; menu `/gudang/opname` dan `/gudang/laba-rugi`; template kiriman dengan empat kotak tanda tangan dan pengaturan kertas/NCR/tiga salinan. Baca `docs/gudang-revisi-2026-10-27.md`. HPP kiriman/pergerakan baru dibekukan; data lama tanpa HPP ditandai belum lengkap, jangan diganti harga sekarang. Opname hanya gudang dan finalisasi memeriksa snapshot stok. Draft POS/PIN sebelumnya tetap terpisah.
+
+Pengaturan logo/alamat khusus dokumen Gudang: /gudang/pengaturan-dokumen, bucket privat dokumen-gudang. Penyesuaian invoice tersimpan terpisah, hanya setelah penerimaan selesai, ikut PDF/laporan sekali per invoice. Baca docs/gudang-revisi-2026-10-27.md.

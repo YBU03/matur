@@ -6,10 +6,20 @@ export async function gudangRpc(
     | "atur_harga_jual_gudang"
     | "atur_pemeriksa_kiriman"
     | "proses_opname_gudang"
-    | "proses_biaya_gudang",
+    | "proses_biaya_gudang"
+    | "atur_penyesuaian_invoice",
   args: Record<string, unknown>,
 ) {
-  if(!["atur_harga_jual_gudang","atur_pemeriksa_kiriman","proses_opname_gudang","proses_biaya_gudang"].includes(fn))return {error:"Aksi tidak dikenal."};
+  if (
+    ![
+      "atur_harga_jual_gudang",
+      "atur_pemeriksa_kiriman",
+      "proses_opname_gudang",
+      "proses_biaya_gudang",
+      "atur_penyesuaian_invoice",
+    ].includes(fn)
+  )
+    return { error: "Aksi tidak dikenal." };
   const db = await supabaseServer();
   const { data, error } = await db.rpc(fn, args);
   if (error) return { error: error.message };
@@ -19,6 +29,7 @@ export async function gudangRpc(
     "/gudang/laba-rugi",
     "/gudang/kiriman",
     "/operasional/kiriman",
+    "/karyawan/kiriman",
   ])
     revalidatePath(path);
   return { id: typeof data === "string" ? data : undefined, ok: "Tersimpan." };
