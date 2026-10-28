@@ -327,3 +327,5 @@ export const TABLET: Role = "tablet";
 for(const role of ["owner","admin_pusat","admin_gudang","finance"] as Role[])ROLES[role].menu.push({href:"/gudang/opname",label:"Opname Gudang",stage:4},{href:"/gudang/laba-rugi",label:"Laba Rugi Gudang",stage:4});
 
 for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/pengaturan-dokumen",label:"Pengaturan Dokumen",stage:4});
+
+for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/outlet",label:"Kontak Outlet",stage:4},{href:"/gudang/dokumen-arsip",label:"Arsip Dokumen",stage:4});

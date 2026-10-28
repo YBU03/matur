@@ -82,6 +82,18 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    "create table perusahaan(nama text,alamat text,email text,telepon text);insert into perusahaan(nama) values('CV. Hazna Berkah Indonesia');",
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261028023257_gudang_dokumen_editor_preview.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 30000);
 afterAll(() => db.close());
 it("edits sale prices with stale-write protection and prevents staff access", async () => {
@@ -323,24 +335,58 @@ it("saves custom signature box titles atomically with the document settings", as
   const [g] = await q<{ versi: number; judul_ttd: string[] }>(
     "select versi,judul_ttd from pengaturan_dokumen_gudang",
   );
-  expect(g.judul_ttd).toEqual(["Dibuat oleh", "Diperiksa oleh", "Dikirim oleh", "Diterima oleh"]);
+  expect(g.judul_ttd).toEqual([
+    "Dibuat oleh",
+    "Diperiksa oleh",
+    "Dikirim oleh",
+    "Diterima oleh",
+  ]);
   await expect(
-    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["a", "b", "c"]]),
+    call("atur_dokumen_gudang_ttd", [
+      "Alamat perusahaan yang valid",
+      null,
+      g.versi,
+      ["a", "b", "c"],
+    ]),
   ).rejects.toThrow(/4 isian/);
   await expect(
-    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["x".repeat(41), "", "", ""]]),
+    call("atur_dokumen_gudang_ttd", [
+      "Alamat perusahaan yang valid",
+      null,
+      g.versi,
+      ["x".repeat(41), "", "", ""],
+    ]),
   ).rejects.toThrow(/40 karakter/);
-  await call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, [" Hormat kami ", "", "Mengetahui", "Penerima"]]);
+  await call("atur_dokumen_gudang_ttd", [
+    "Alamat perusahaan yang valid",
+    null,
+    g.versi,
+    [" Hormat kami ", "", "Mengetahui", "Penerima"],
+  ]);
   const [h] = await q<{ versi: number; judul_ttd: string[]; alamat: string }>(
     "select versi,judul_ttd,alamat from pengaturan_dokumen_gudang",
   );
-  expect(h).toEqual({ versi: g.versi + 1, judul_ttd: ["Hormat kami", "", "Mengetahui", "Penerima"], alamat: "Alamat perusahaan yang valid" });
+  expect(h).toEqual({
+    versi: g.versi + 1,
+    judul_ttd: ["Hormat kami", "", "Mengetahui", "Penerima"],
+    alamat: "Alamat perusahaan yang valid",
+  });
   await expect(
-    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, g.versi, ["a", "b", "c", "d"]]),
+    call("atur_dokumen_gudang_ttd", [
+      "Alamat perusahaan yang valid",
+      null,
+      g.versi,
+      ["a", "b", "c", "d"],
+    ]),
   ).rejects.toThrow(/berubah/);
   await q("select set_config('test.uid',$1,false)", [staff]);
   await expect(
-    call("atur_dokumen_gudang_ttd", ["Alamat perusahaan yang valid", null, h.versi, ["a", "b", "c", "d"]]),
+    call("atur_dokumen_gudang_ttd", [
+      "Alamat perusahaan yang valid",
+      null,
+      h.versi,
+      ["a", "b", "c", "d"],
+    ]),
   ).rejects.toThrow(/Hanya admin/);
   await q("select set_config('test.uid',$1,false)", [owner]);
 });
@@ -394,4 +440,171 @@ it("saves signed invoice adjustments once, audits corrections and adds them once
     call("atur_penyesuaian_invoice", [k.id, 500, "Tidak berwenang", 2]),
   ).rejects.toThrow(/Hanya admin/);
   await q("select set_config('test.uid',$1,false)", [owner]);
+});
+
+it("saves invoice discount/tax, billing snapshots, revisions and archive without stock side effects", async () => {
+  await q("select set_config('test.uid',$1,false)", [owner]);
+  const [ship] = await q<{ id: string }>(
+    "insert into kiriman(outlet_id) values($1) returning id",
+    [o],
+  );
+  const [item] = await q<{ id: string }>(
+    "insert into item_kiriman(kiriman_id,bahan_id,nama,konversi,qty,harga) values($1,$2,'Barang dokumen',10,2,1000) returning id",
+    [ship.id, b],
+  );
+  const p = {
+    id: ship.id,
+    jenis: "invoice",
+    aksi: "simpan",
+    versi: 0,
+    catatan: "Catatan invoice",
+    telepon_gudang: "62 856-9786-5737",
+    jatuh_tempo: null,
+    tagih_mode: "manual",
+    tagih: {
+      nama: "Pihak tagihan",
+      alamat: "Alamat tagihan",
+      telepon: "628123456789",
+    },
+    baris: { [item.id]: { diskon: 200, pajak: 180 } },
+  };
+  await call("editor_dokumen_gudang", [p]);
+  const first = (
+    await q<{ isi: Record<string, unknown>; terbit: unknown }>(
+      "select isi,terbit from dokumen_kiriman_gudang where kiriman_id=$1",
+      [ship.id],
+    )
+  )[0];
+  expect(first.terbit).toBeNull();
+  expect(first.isi).toHaveProperty("catatan", "Catatan invoice");
+  await expect(call("editor_dokumen_gudang", [p])).rejects.toThrow(/berubah/);
+  await expect(
+    call("editor_dokumen_gudang", [
+      { ...p, versi: 1, baris: { [item.id]: { diskon: 2001, pajak: 0 } } },
+    ]),
+  ).rejects.toThrow(/Diskon/);
+  await call("editor_dokumen_gudang", [{ ...p, versi: 1, aksi: "terbit" }]);
+  await q(
+    "update kiriman set status='diterima',pemeriksaan_status='selesai',diterima_at=now() where id=$1",
+    [ship.id],
+  );
+  await q("update item_kiriman set qty_diterima=2 where id=$1", [item.id]);
+  const today = (
+    await q<{ v: string }>(
+      "select (now() at time zone 'Asia/Jakarta')::date::text v",
+    )
+  )[0].v;
+  const result = await call<GudangLaporan>("laporan_laba_gudang", [
+    today,
+    today,
+    o,
+    null,
+  ]);
+  const reported = result.dokumen?.find((x) => x.id === ship.id);
+  expect(reported).toMatchObject({
+    diskon: 200,
+    pajak: 180,
+    perlu_tinjau: false,
+  });
+  const stockBefore = await q(
+    "select jumlah from stok where bahan_id=$1 and outlet_id is null",
+    [b],
+  );
+  await call("editor_dokumen_gudang", [
+    { id: ship.id, jenis: "invoice", aksi: "arsip", versi: 2 },
+  ]);
+  expect(
+    (
+      await call<GudangLaporan>("laporan_laba_gudang", [today, today, o, null])
+    ).dokumen?.find((x) => x.id === ship.id),
+  ).toMatchObject({ diskon: 200, pajak: 180 });
+  expect(
+    await q("select jumlah from stok where bahan_id=$1 and outlet_id is null", [
+      b,
+    ]),
+  ).toEqual(stockBefore);
+  await call("editor_dokumen_gudang", [
+    { id: ship.id, jenis: "invoice", aksi: "pulihkan", versi: 3 },
+  ]);
+  await q("update outlet set nama='Nama berubah sesudah terbit' where id=$1", [
+    o,
+  ]);
+  expect(
+    (
+      await q<{
+        terbit: {
+          identitas: { kirim: { nama: string }; tagih: { nama: string } };
+        };
+      }>("select terbit from dokumen_kiriman_gudang where kiriman_id=$1", [
+        ship.id,
+      ])
+    )[0].terbit.identitas.tagih.nama,
+  ).toBe("Pihak tagihan");
+  expect(
+    (
+      await q<{ terbit: { identitas: { kirim: { nama: string } } } }>(
+        "select terbit from dokumen_kiriman_gudang where kiriman_id=$1",
+        [ship.id],
+      )
+    )[0].terbit.identitas.kirim.nama,
+  ).not.toBe("Nama berubah sesudah terbit");
+  await q("update item_kiriman set qty_diterima=1 where id=$1", [item.id]);
+  expect(
+    (
+      await call<GudangLaporan>("laporan_laba_gudang", [today, today, o, null])
+    ).dokumen?.find((x) => x.id === ship.id),
+  ).toMatchObject({ diskon: 0, pajak: 0, perlu_tinjau: true });
+  await q("select set_config('test.uid',$1,false)", [staff]);
+  await expect(
+    call("editor_dokumen_gudang", [{ ...p, versi: 4 }]),
+  ).rejects.toThrow(/Hanya admin/);
+  await q("select set_config('test.uid',$1,false)", [owner]);
+  expect(
+    (
+      await q<{ c: string }>(
+        "select count(*)::text c from dokumen_kiriman_revisi where kiriman_id=$1",
+        [ship.id],
+      )
+    )[0].c,
+  ).toBe("4");
+});
+it("lets warehouse admins add outlet contact data without creating POS access", async () => {
+  await q("update penugasan set peran='admin_gudang' where pengguna_id=$1",[owner]);
+  const oid = await call<string>("outlet_dokumen_gudang", [
+    {
+      id: null,
+      nama: "Outlet kontak baru",
+      alamat: "Alamat baru",
+      telepon: "62812345",
+      versi: 0,
+    },
+  ]);
+  await call("outlet_dokumen_gudang", [
+    {
+      id: oid,
+      nama: "Outlet kontak edit",
+      alamat: "Alamat berubah",
+      telepon: "62867890",
+      versi: 0,
+    },
+  ]);
+  await expect(
+    call("outlet_dokumen_gudang", [
+      {
+        id: oid,
+        nama: "Outlet kontak edit",
+        alamat: "Alamat",
+        telepon: "62812",
+        versi: 0,
+      },
+    ]),
+  ).rejects.toThrow(/berubah/);
+  expect(
+    (
+      await q<{ telepon: string }>("select telepon from outlet where id=$1", [
+        oid,
+      ])
+    )[0].telepon,
+  ).toBe("62867890");
+  await q("update penugasan set peran='owner' where pengguna_id=$1",[owner]);
 });

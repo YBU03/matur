@@ -1,3 +1,4 @@
+import type {DokumenKiriman} from "./gudang-dokumen-model";
 // Label & warna status kiriman bahan (dipakai di server & browser)
 export const STATUS_KIRIMAN: Record<string, [string, string]> = {
   draft: ["Draft", "bg-stone-100 text-stone-700"],
@@ -8,6 +9,7 @@ export const STATUS_KIRIMAN: Record<string, [string, string]> = {
 
 export type ItemKiriman = { id: string; bahan_id: string; nama: string; satuan: string | null; konversi: number; qty: number; harga: number; qty_diterima: number | null };
 export type Kiriman = {
+  dokumen?: DokumenKiriman[];
   penyesuaian?: {nilai:number;keterangan:string;versi:number}|null;
   pembuat_nama?: string | null;
   pemeriksa_nama?: string | null;
@@ -22,5 +24,5 @@ export type Kiriman = {
   dikirim_at: string | null;
   diterima_at: string | null;
   nama_penerima: string | null;
-  outlet: { nama: string; alamat: string | null } | null;
+  outlet: { nama: string; alamat: string | null; telepon?:string|null } | null;
 };

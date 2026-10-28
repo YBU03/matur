@@ -39,7 +39,7 @@ export async function KirimanOperasionalPage({
         db
           .from("kiriman")
           .select(
-            "*,outlet(nama,alamat),penyesuaian:invoice_penyesuaian_gudang(nilai,keterangan,versi),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)",
+            "*,outlet(nama,alamat,telepon),dokumen:dokumen_kiriman_gudang(jenis,isi,terbit,versi,arsip_at,terbit_at),penyesuaian:invoice_penyesuaian_gudang(nilai,keterangan,versi),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)",
           )
           .eq("id", selected.id)
           .single(),
@@ -140,7 +140,8 @@ export async function KirimanOperasionalPage({
             items={(items ?? []).map((i) => ({
               ...i,
               qty: Number(i.qty),
-              qty_diterima: Number(i.qty_diterima ?? 0),
+              qty_diterima:
+                i.qty_diterima === null ? null : Number(i.qty_diterima),
               harga: Number(i.harga),
               konversi: Number(i.konversi),
             }))}
