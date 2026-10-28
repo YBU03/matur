@@ -329,6 +329,11 @@ export function MasterTable({
                       ) : (
                         <span className="text-stone-300">—</span>
                       )
+                    ) : entityKey === "menu" && f.key === entity.nameKey && !trash ? (
+                      <Link href={`/menu-varian/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-kopi-900 hover:text-matur-700 hover:underline" title="Atur varian & kemasan">
+                        {show(f, r[f.key], refs)}
+                        {r._varian ? <span className="ml-1.5 whitespace-nowrap rounded-full bg-matur-100 px-2 py-0.5 text-[10px] font-semibold text-matur-800">{String(r._varian)}</span> : null}
+                      </Link>
                     ) : entityKey === "outlet" && f.key === entity.nameKey && !trash ? (
                       <Link href={`/outlet/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-matur-700 hover:underline" title="Info mitra & progres BEP">
                         {show(f, r[f.key], refs)} ›
@@ -350,6 +355,11 @@ export function MasterTable({
                       </button>
                     ) : (
                       <>
+                        {entityKey === "menu" && (
+                          <Link href={`/menu-varian/${r.id}`} className="mr-3 font-semibold text-matur-700 hover:underline">
+                            🧋 Varian & Kemasan
+                          </Link>
+                        )}
                         <button onClick={() => setEditing({ row: r, form: toForm(entity, r) })} className="mr-3 text-matur-700 hover:underline">
                           {entityKey === "outlet" ? "Edit Profil Outlet" : "Ubah"}
                         </button>

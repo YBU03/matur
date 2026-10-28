@@ -37,6 +37,9 @@ export type PosMenu = {
   harga_ojol: number;
   foto_url: string | null;
   varian: Varian[];
+  /** kemasan (Cup/Hot/Can) = anak menu dengan harga sendiri */
+  induk_id?: string | null;
+  kemasan?: string | null;
 };
 type Line = { key: string; menu: PosMenu; varian: Varian[]; qty: number };
 export type Draft = {
@@ -175,10 +178,22 @@ export function PosScreen({
   const price = (l: Pick<Line, "menu" | "varian">) => priceFor(kanal, l);
   const subtotal = cart.reduce((s, l) => s + price(l) * l.qty, 0);
   const total = Math.max(subtotal - num(diskon), 0);
+  // kemasan tampil sebagai satu kartu menu induk; dipilih di jendela varian
+  const anakOf = useMemo(() => {
+    const g = new Map<string, PosMenu[]>();
+    for (const m of menus) if (m.induk_id) g.set(m.induk_id, [...(g.get(m.induk_id) ?? []), m]);
+    return g;
+  }, [menus]);
+  const hargaTampil = (m: PosMenu) => {
+    const xs = anakOf.get(m.id);
+    const h = (x: PosMenu) => (OJOL.has(kanal) ? x.harga_ojol : x.harga_langsung);
+    return xs?.length ? Math.min(...xs.map(h)) : h(m);
+  };
   const shown = useMemo(
     () =>
       menus.filter(
         (m) =>
+          !m.induk_id &&
           (!kat || m.kategori_id === kat) &&
           m.nama.toLowerCase().includes(cari.toLowerCase()),
       ),
@@ -200,7 +215,7 @@ export function PosScreen({
     );
   };
   const qtyOf = (menuId: string) =>
-    cart.filter((l) => l.menu.id === menuId).reduce((s, l) => s + l.qty, 0);
+    cart.filter((l) => l.menu.id === menuId || l.menu.induk_id === menuId).reduce((s, l) => s + l.qty, 0);
   const setQty = (key: string, d: number) =>
     setCart((c) =>
       c.flatMap((l) =>
@@ -531,7 +546,7 @@ export function PosScreen({
           {shown.map((m) => (
             <button
               key={m.id}
-              onClick={() => (m.varian.length ? setPicking(m) : add(m, []))}
+              onClick={() => (m.varian.length || anakOf.get(m.id)?.length ? setPicking(m) : add(m, []))}
               className="relative overflow-hidden rounded-2xl border border-matur-200 bg-white text-left shadow-sm transition active:scale-95"
             >
               {m.foto_url ? (
@@ -557,10 +572,12 @@ export function PosScreen({
                   {m.nama}
                 </p>
                 <p className="mt-0.5 text-sm font-bold text-matur-700">
-                  {formatRupiah(
-                    OJOL.has(kanal) ? m.harga_ojol : m.harga_langsung,
-                  )}
+                  {anakOf.get(m.id)?.length ? <span className="text-[11px] font-medium text-stone-500">mulai </span> : null}
+                  {formatRupiah(hargaTampil(m))}
                 </p>
+                {!!anakOf.get(m.id)?.length && (
+                  <p className="truncate text-[11px] text-stone-500">{anakOf.get(m.id)!.map((x) => x.kemasan).join(" · ")}</p>
+                )}
               </div>
             </button>
           ))}
@@ -890,8 +907,10 @@ export function PosScreen({
       {picking && (
         <VariantPicker
           menu={picking}
+          kemasan={anakOf.get(picking.id) ?? []}
+          harga={(x) => (OJOL.has(kanal) ? x.harga_ojol : x.harga_langsung)}
           onCancel={() => setPicking(null)}
-          onPick={(v) => (add(picking, v), setPicking(null))}
+          onPick={(m, v) => (add(m, v), setPicking(null))}
         />
       )}
       {lihatDraft && (
@@ -1085,57 +1104,77 @@ function Row({
 
 function VariantPicker({
   menu,
+  kemasan,
+  harga,
   onPick,
   onCancel,
 }: {
   menu: PosMenu;
-  onPick: (v: Varian[]) => void;
+  kemasan: PosMenu[];
+  harga: (m: PosMenu) => number;
+  onPick: (m: PosMenu, v: Varian[]) => void;
   onCancel: () => void;
 }) {
+  const [pilih, setPilih] = useState<PosMenu>(kemasan[0] ?? menu);
   const [sel, setSel] = useState<Varian[]>([]);
-  const groups = [...new Set(menu.varian.map((v) => v.grup))];
+  const groups = [...new Set(pilih.varian.map((v) => v.grup))];
   const toggle = (v: Varian) =>
     setSel((s) =>
       s.some((x) => x.id === v.id)
         ? s.filter((x) => x.id !== v.id)
         : [...s.filter((x) => MULTI.has(v.grup) || x.grup !== v.grup), v],
     );
+  // ganti kemasan: pilihan gula/extra yang sama dibawa ke kemasan baru
+  const gantiKemasan = (k: PosMenu) => {
+    setSel((s) => k.varian.filter((v) => s.some((x) => x.grup === v.grup && x.nama === v.nama)));
+    setPilih(k);
+  };
+  const total = harga(pilih) + sel.reduce((n, v) => n + v.tambahan_harga, 0);
+  const btn = (on: boolean) => `rounded-xl border px-3 py-2 text-sm font-medium ${on ? "border-matur-500 bg-matur-500 text-white" : "border-stone-200 bg-white text-kopi-800"}`;
   return (
     <Modal title={menu.nama}>
-      <div className="space-y-3">
+      <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+        {kemasan.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-sm font-semibold">
+              Kemasan <span className="text-xs font-normal text-red-600">wajib</span>
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {kemasan.map((k) => (
+                <button key={k.id} type="button" onClick={() => gantiKemasan(k)} className={btn(pilih.id === k.id) + " text-left"}>
+                  <span className="block font-semibold">{k.kemasan}</span>
+                  <span className={`text-xs ${pilih.id === k.id ? "text-white/90" : "text-matur-700"}`}>{formatRupiah(harga(k))}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {groups.map((g) => (
           <div key={g}>
-            <p className="mb-1 text-sm font-semibold">{g}</p>
+            <p className="mb-1.5 text-sm font-semibold">
+              {g} <span className="text-xs font-normal text-stone-400">{MULTI.has(g) ? "boleh lebih dari satu" : "pilih satu"}</span>
+            </p>
             <div className="flex flex-wrap gap-2">
-              {menu.varian
+              {pilih.varian
                 .filter((v) => v.grup === g)
                 .map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => toggle(v)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm ${sel.some((x) => x.id === v.id) ? "border-matur-500 bg-matur-500 text-white" : ""}`}
-                  >
+                  <button key={v.id} type="button" onClick={() => toggle(v)} className={btn(sel.some((x) => x.id === v.id))}>
                     {v.nama}
-                    {v.tambahan_harga
-                      ? ` +${formatRupiah(v.tambahan_harga)}`
-                      : ""}
+                    {v.tambahan_harga ? ` +${formatRupiah(v.tambahan_harga)}` : ""}
                   </button>
                 ))}
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          onClick={onCancel}
-          className="rounded-lg border px-4 py-2 text-sm"
-        >
+      <div className="mt-5 flex items-center justify-end gap-2">
+        <span className="mr-auto text-sm text-stone-500">
+          Total <b className="text-kopi-900">{formatRupiah(total)}</b>
+        </span>
+        <button onClick={onCancel} className="rounded-lg border px-4 py-2 text-sm">
           Batal
         </button>
-        <button
-          onClick={() => onPick(sel)}
-          className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white"
-        >
+        <button onClick={() => onPick(pilih, sel)} className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white">
           Tambah
         </button>
       </div>

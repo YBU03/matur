@@ -35,7 +35,7 @@ export default async function PosPage() {
       .order("urutan"),
     supabase
       .from("menu")
-      .select("id, nama, kategori_id, harga_langsung, harga_ojol, foto_url")
+      .select("id, nama, kategori_id, harga_langsung, harga_ojol, foto_url, induk_id, kemasan")
       .eq("mode", "asli")
       .is("deleted_at", null)
       .eq("aktif", true)
