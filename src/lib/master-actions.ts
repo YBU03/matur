@@ -33,6 +33,13 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   const entity = id && hanya?.length ? { ...g.entity, fields: g.entity.fields.filter((f) => hanya.includes(f.key)) } : g.entity;
   const { values, errors } = parseForm(entity, form);
   if (errors.length) return { error: errors.join(", ") };
+  if (g.entity.table === "varian") {
+    if (!g.entity.editors.includes(g.s.active!.role)) return { error: "Tidak berwenang mengatur additional." };
+    if ("tambahan_harga" in values) {
+      if (values.tambahan_harga == null) values.tambahan_harga = 0;
+      if (!Number.isSafeInteger(Number(values.tambahan_harga)) || Number(values.tambahan_harga) < 0) return { error: "Harga tambahan harus angka rupiah nol atau lebih." };
+    }
+  }
   // HPP per satuan pakai = harga beli ÷ isi kemasan bila tidak diisi
   if (g.entity.table === "bahan" && values.harga_pokok === null)
     values.harga_pokok = Math.round((Number(values.harga_beli ?? 0) / Math.max(Number(values.konversi ?? 1), 0.001)) * 10000) / 10000;
@@ -45,6 +52,7 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   if (error) return { error: friendly(error.message, g.entity) };
   if (URUT.has(g.entity.table) && values.urutan != null) await sisipkan(g.supabase, g.entity.table, String(baru.id), Number(values.urutan));
   revalidatePath(`/master/${entityKey}`);
+  if (g.entity.table === "varian") revalidatePath("/kasir/pos");
   return {};
 }
 

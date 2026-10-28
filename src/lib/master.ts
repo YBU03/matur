@@ -116,14 +116,14 @@ export const ENTITIES: Record<string, Entity> = {
   },
   varian: {
     table: "varian",
-    title: "Varian Menu",
+    title: "Additional & Varian Menu",
     nameKey: "nama",
     editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "menu_id", label: "Menu", type: "select", ref: { table: "menu", label: "nama" }, required: true },
       { key: "grup", label: "Grup", type: "enum", options: ["Ukuran", "Suhu", "Gula", "Extra"], required: true },
-      { key: "nama", label: "Nama Varian", type: "text", required: true },
-      { key: "tambahan_harga", label: "Tambahan Harga", type: "money" },
+      { key: "nama", label: "Pilihan (mis. No Sugar / Less Sugar)", type: "text", required: true },
+      { key: "tambahan_harga", label: "Harga tambahan (Rp, isi 0 jika gratis)", type: "money" },
     ],
   },
   bahan: {

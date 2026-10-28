@@ -59,6 +59,7 @@ export async function hapusManual(id: string): Promise<Result> {
 
 export type ProdukKeluarInput = { outlet_id: string; tanggal?: string; jenis: string; penerima: string; catatan: string; items: { menu_id: string; qty: number }[] };
 export async function catatProdukKeluar(d: ProdukKeluarInput): Promise<Result> {
+  if (!d.items.length || d.items.some(i => !i.menu_id || !Number.isSafeInteger(i.qty) || i.qty <= 0)) return { error: "Pilih produk dan jumlah bulat lebih dari nol." };
   if (!d.penerima.trim()) return { error: "Isi nama penerima (mis. akun influencer)." };
   const supabase = await supabaseServer();
   const { error } = await supabase.rpc("catat_produk_keluar", { p: d });

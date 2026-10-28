@@ -1,5 +1,5 @@
-import {PosRiwayatShift} from "@/components/pos-riwayat-shift";
-import {PosAlurShift} from "@/components/pos-alur-shift";
+import { PosRiwayatShift } from "@/components/pos-riwayat-shift";
+import { PosAlurShift } from "@/components/pos-alur-shift";
 import { PosModalKas } from "@/components/pos-modal-kas";
 import { notFound } from "next/navigation";
 import { POS_ROLES } from "@/lib/roles";
@@ -35,11 +35,11 @@ export default async function KasPage() {
     : { data: null };
   const hari = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
   const [
-    { data: kat },
+    { data: kat, error: katError },
     { data: sesiBuka },
-    { data: catatan },
+    { data: catatan, error: catatanError },
     { data: menu },
-    { data: produk },
+    { data: produk, error: produkError },
   ] = await Promise.all([
     supabase
       .from("kategori_biaya")
@@ -78,10 +78,23 @@ export default async function KasPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   ]);
+  if (katError || catatanError || produkError)
+    throw new Error(
+      "Data pengeluaran belum dapat dimuat: " +
+        (katError ?? catatanError ?? produkError)!.message,
+    );
   return (
     <div className="space-y-4">
-      {pos.alur_shift && <PosAlurShift status={pos} outlet={s.active.outletNama} kelola/>}
-      {!pos.alur_shift && pos.sesi && <PosModalKas key={pos.sesi.id} sesi={pos.sesi.id} modal={pos.sesi.modal} />}
+      {pos.alur_shift && (
+        <PosAlurShift status={pos} outlet={s.active.outletNama} kelola />
+      )}
+      {!pos.alur_shift && pos.sesi && (
+        <PosModalKas
+          key={pos.sesi.id}
+          sesi={pos.sesi.id}
+          modal={pos.sesi.modal}
+        />
+      )}
       {!pos.alur_shift && kasTim && (
         <div id="tutup" className="scroll-mt-20">
           <TutupKasTim
@@ -89,7 +102,7 @@ export default async function KasPage() {
           />
         </div>
       )}
-      <PosRiwayatShift outlet={outlet}/>
+      <PosRiwayatShift outlet={outlet} />
       <KasView
         kategori={(kat ?? []) as { id: string; nama: string; grup: string }[]}
         catatan={(catatan ?? []) as unknown as Catatan[]}
