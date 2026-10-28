@@ -6,25 +6,17 @@ export async function GET(req: NextRequest) {
   if (s?.status !== "aktif")
     return new Response("Unauthorized", { status: 401 });
   const db = await supabaseServer();
-  const { data: g, error } = await db
-    .from("pengaturan_dokumen_gudang")
-    .select("logo_path")
-    .eq("id", true)
-    .single();
-  if (
-    error ||
-    !g?.logo_path ||
-    g.logo_path !== req.nextUrl.searchParams.get("path")
-  )
-    return new Response("Logo berubah. Muat ulang halaman.", { status: 404 });
+  const path = req.nextUrl.searchParams.get("path") ?? "";
+  if (!/^logo\/[0-9a-f-]{36}\.(png|jpg)$/.test(path))
+    return new Response("Logo tidak ditemukan.", { status: 404 });
   const { data, error: e } = await db.storage
     .from("dokumen-gudang")
-    .download(g.logo_path);
+    .download(path);
   if (e || !data)
     return new Response("Logo belum dapat dimuat.", { status: 404 });
   return new Response(data, {
     headers: {
-      "Content-Type": g.logo_path.endsWith(".jpg") ? "image/jpeg" : "image/png",
+      "Content-Type": path.endsWith(".jpg") ? "image/jpeg" : "image/png",
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

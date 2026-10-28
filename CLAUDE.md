@@ -1,6 +1,7 @@
 # Aturan kerja
 
 - Setiap permintaan baru dari pemilik proyek: **diskusikan dulu** (usulan, pertanyaan, dampak) dan jangan mengubah kode aplikasi, database, atau migrasi.
+- Setelah diskusi selesai, berikan **overview daftar pekerjaan dan dampaknya** sebelum menunggu persetujuan Gas.
 - Baru eksekusi kode setelah pemilik proyek bilang **"gas"** (atau persetujuan yang sama jelasnya) untuk usulan tersebut.
 - Komunikasi dalam Bahasa Indonesia dan beri laporan singkat di akhir setiap pekerjaan.
 - Setelah "gas": kerjakan sampai tuntas (tes, commit, push) **dan langsung deploy ke produksi** (Vercel project `matoer`), pastikan deploy terakhir yang aktif adalah commit terbaru dan statusnya READY sebelum melapor.
@@ -42,3 +43,5 @@ Pemilik telah menyetujui alur baru, terpisah dari pengunci lama. Default semua o
 Harga jual langsung di Stok Gudang; menu `/gudang/opname` dan `/gudang/laba-rugi`; template kiriman dengan empat kotak tanda tangan dan pengaturan kertas/NCR/tiga salinan. Baca `docs/gudang-revisi-2026-10-27.md`. HPP kiriman/pergerakan baru dibekukan; data lama tanpa HPP ditandai belum lengkap, jangan diganti harga sekarang. Opname hanya gudang dan finalisasi memeriksa snapshot stok. Draft POS/PIN sebelumnya tetap terpisah.
 
 Pengaturan logo/alamat khusus dokumen Gudang: /gudang/pengaturan-dokumen, bucket privat dokumen-gudang. Penyesuaian invoice tersimpan terpisah, hanya setelah penerimaan selesai, ikut PDF/laporan sekali per invoice. Baca docs/gudang-revisi-2026-10-27.md.
+
+Editor dokumen Gudang 28 Oktober: /gudang/kiriman/[id]/dokumen, Kontak Outlet dan Arsip Dokumen. Baca docs/gudang-dokumen-editor-2026-10-28.md. Hapus dokumen hanya arsip metadata, jangan membatalkan stok. Pajak invoice tidak masuk laba.

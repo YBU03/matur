@@ -21,7 +21,7 @@ export async function simpanDokumenGudang(form: FormData) {
   const db = await supabaseServer();
   const { data: g, error: eg } = await db
     .from("pengaturan_dokumen_gudang")
-    .select("logo_path,versi")
+    .select("logo_path,versi,telepon")
     .eq("id", true)
     .single();
   if (eg || !g) return { error: "Pengaturan belum dapat dimuat." };
@@ -49,11 +49,12 @@ export async function simpanDokumenGudang(form: FormData) {
     if (error) return { error: "Logo gagal diunggah. Coba lagi." };
     uploaded = path;
   }
-  const { error } = await db.rpc("atur_dokumen_gudang_ttd", {
+  const { error } = await db.rpc("atur_dokumen_gudang_lengkap", {
     p_alamat: alamat,
     p_logo: path,
     p_versi: versi,
     p_judul: judul,
+    p_telepon: String(form.get("telepon") ?? g.telepon ?? "62 856-9786-5737"),
   });
   if (error) {
     if (uploaded) await db.storage.from("dokumen-gudang").remove([uploaded]);

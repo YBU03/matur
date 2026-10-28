@@ -22,7 +22,7 @@ export default async function DetailKiriman({
     supabase
       .from("kiriman")
       .select(
-        "id, outlet_id, nomor, tanggal, status, pemeriksaan_status, pembuat_nama, pemeriksa_nama, catatan, pengirim, total, dikirim_at, diterima_at, nama_penerima, outlet(nama, alamat), penyesuaian:invoice_penyesuaian_gudang(nilai,keterangan,versi),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)",
+        "id, outlet_id, nomor, tanggal, status, pemeriksaan_status, pembuat_nama, pemeriksa_nama, catatan, pengirim, total, dikirim_at, diterima_at, nama_penerima, outlet(nama, alamat, telepon), dokumen:dokumen_kiriman_gudang(jenis,isi,terbit,versi,arsip_at,terbit_at),penyesuaian:invoice_penyesuaian_gudang(nilai,keterangan,versi),pembuat:pengguna!kiriman_dibuat_oleh_fkey(nama)",
       )
       .eq("id", id)
       .is("deleted_at", null)

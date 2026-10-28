@@ -1,4 +1,13 @@
 export type GudangLaporan = {
+  dokumen?: {
+    id: string;
+    nomor: string;
+    outlet: string;
+    tanggal: string;
+    diskon: number;
+    pajak: number;
+    perlu_tinjau: boolean;
+  }[];
   invoice?: {
     id: string;
     nomor: string;
@@ -56,17 +65,24 @@ export function ringkasGudang(d: GudangLaporan) {
     .filter((r) => r.hpp !== null)
     .reduce((n, r) => n + Number(r.jumlah) * Number(r.hpp), 0);
   const invoice = (d.invoice ?? []).reduce((n, r) => n + Number(r.nilai), 0);
+  const diskon = (d.dokumen ?? []).reduce((n, r) => n + Number(r.diskon), 0),
+    pajak = (d.dokumen ?? []).reduce((n, r) => n + Number(r.pajak), 0);
+  const perluTinjau = (d.dokumen ?? []).filter((r) => r.perlu_tinjau).length;
   const belum =
     d.rows.filter((r) => r.hpp_gudang === null).length +
     d.mutasi.filter((r) => r.hpp === null).length;
   return {
+    diskon,
+    pajak,
+    perluTinjau,
+    tagihan: penjualan - diskon + pajak + invoice,
     invoice,
     penjualan,
     hpp,
     biaya,
     penyesuaian,
-    labaKotor: penjualanDiketahui - hpp,
-    laba: penjualanDiketahui - hpp - biaya + penyesuaian + invoice,
+    labaKotor: penjualanDiketahui - hpp - diskon,
+    laba: penjualanDiketahui - hpp - biaya + penyesuaian + invoice - diskon,
     belum,
     penjualanBelum: penjualan - penjualanDiketahui,
     pusat: d.rows

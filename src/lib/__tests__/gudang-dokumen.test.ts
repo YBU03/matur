@@ -321,14 +321,23 @@ it("prints fully editable signature boxes: custom titles, blank names and custom
     { lebar: 210, tinggi: 297, rangkap: "ncr" },
     undefined,
     [
-      { judul: "Hormat kami", nama: "Ayu Finance", tanggal: "Tanggal: 27-10-2026" },
+      {
+        judul: "Hormat kami",
+        nama: "Ayu Finance",
+        tanggal: "Tanggal: 27-10-2026",
+      },
       { judul: "Mengetahui", nama: "", tanggal: "" },
       { judul: "", nama: "", tanggal: "Tanggal: ................" },
       { judul: "Penerima", nama: "", tanggal: "" },
     ],
   );
   const pdf = doc.output();
-  for (const t of ["Hormat kami", "Mengetahui", "Ayu Finance", "Tanggal: 27-10-2026"])
+  for (const t of [
+    "Hormat kami",
+    "Mengetahui",
+    "Ayu Finance",
+    "Tanggal: 27-10-2026",
+  ])
     expect(pdf).toContain(t);
   for (const t of ["Dibuat oleh", "Sinta - Admin Gudang"])
     expect(pdf).not.toContain(t);
@@ -343,4 +352,91 @@ it("prints fully editable signature boxes: custom titles, blank names and custom
   expect(awal).toContain("Hormat kami");
   expect(awal).toContain("Sinta - Admin Gudang");
   expect(awal).not.toContain("Diperiksa oleh");
+});
+it("prints editable due date, distinct billing, warehouse/outlet phones, and tax before amount", () => {
+  const png = readFileSync("public/brand/hazna-logo.png");
+  const logo = {
+    url: "data:image/png;base64," + png.toString("base64"),
+    w: png.readUInt32BE(16),
+    h: png.readUInt32BE(20),
+  };
+  const goods = items.slice(0, 3);
+  const isi = {
+    jatuh_tempo: "2026-11-10",
+    catatan: "Catatan versi baru",
+    telepon_gudang: "62 856-9786-5737",
+    tagih_mode: "manual" as const,
+    tagih_outlet: null,
+    baris: Object.fromEntries(
+      goods.map((i) => [i.id, { diskon: 1000, pajak: 500 }]),
+    ),
+    item_basis: Object.fromEntries(
+      goods.map((i) => [i.id, { qty: Number(i.qty_diterima), harga: i.harga }]),
+    ),
+    identitas: {
+      perusahaan: {
+        ...pt,
+        alamat:
+          "Jl. Raya Pengalusan No.6, Kompas, Pengalusan, Kec. Mrebet, Kabupaten Purbalingga, Jawa Tengah 53352",
+        telepon: "62 856-9786-5737",
+        logo_path: null,
+      },
+      kirim: {
+        nama: "Outlet kirim",
+        alamat: "Alamat outlet kirim",
+        telepon: "628111111",
+      },
+      tagih: {
+        nama: "Outlet tagihan manual",
+        alamat: "Alamat penagihan",
+        telepon: "628222222",
+      },
+    },
+  };
+  const edited = {
+    ...k,
+    dokumen: [
+      { jenis: "invoice" as const, isi, terbit: isi, versi: 1, arsip_at: null },
+    ],
+  };
+  const invoice = buatDokumenGudang(
+      "invoice",
+      edited,
+      goods,
+      pt,
+      { lebar: 210, tinggi: 297, rangkap: "ncr" },
+      logo,
+    ),
+    text = invoice.output();
+  for (const label of [
+    "10/11/2026",
+    "628111111",
+    "628222222",
+    "62 856-9786-5737",
+    "Catatan versi baru",
+    "Outlet tagihan manual",
+    "Rp 70.500",
+  ])
+    expect(text).toContain(label);
+  expect(text.indexOf("(Pajak)")).toBeLessThan(text.indexOf("(Jumlah)"));
+  const surat = buatDokumenGudang(
+    "surat-jalan",
+    { ...edited, dokumen: [{ ...edited.dokumen[0], jenis: "surat-jalan" }] },
+    goods,
+    pt,
+    { lebar: 210, tinggi: 297, rangkap: "ncr" },
+    logo,
+  );
+  expect(surat.output()).toContain("628111111");
+  if (process.env.GUDANG_PDF_QA) {
+    mkdirSync("work/gudang-pdf", { recursive: true });
+    writeFileSync(
+      "work/gudang-pdf/invoice-editor-lengkap.pdf",
+      new Uint8Array(invoice.output("arraybuffer")),
+    );
+    writeFileSync(
+      "work/gudang-pdf/surat-jalan-editor-lengkap.pdf",
+      new Uint8Array(surat.output("arraybuffer")),
+    );
+  }
 });

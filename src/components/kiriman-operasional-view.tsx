@@ -1,4 +1,10 @@
 "use client";
+import {
+  PreviewDokumen,
+  usePreviewDokumen,
+} from "@/components/gudang-dokumen-preview";
+import Link from "next/link";
+import { MenuDokumen } from "./gudang-dokumen-menu";
 import { PenyesuaianInvoice } from "./gudang-invoice-penyesuaian";
 import { ringkasInvoice } from "@/lib/gudang-invoice";
 import { PengaturanCetakGudang, useCetakGudang } from "./gudang-cetak";
@@ -50,6 +56,7 @@ export function KirimanOperasionalView({
   pt: Kop;
 }) {
   const [cetak, setCetak] = useCetakGudang();
+  const [preview, setPreview] = usePreviewDokumen();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result>({});
@@ -100,10 +107,13 @@ export function KirimanOperasionalView({
       const { cetakDokumen } = await import(
         "@/app/(app)/gudang/kiriman/[id]/dokumen"
       );
-      await cetakDokumen(jenis, k, items, pt, cetak, ttd);
+      setPreview(await cetakDokumen(jenis, k, items, pt, cetak, ttd));
       setPanel("");
     } catch (e) {
-      setMsg({ error: e instanceof Error?e.message:"PDF belum dapat dibuat." });
+      setPanel("");
+      setMsg({
+        error: e instanceof Error ? e.message : "PDF belum dapat dibuat.",
+      });
     } finally {
       setMenyiapkan(false);
     }
@@ -114,6 +124,9 @@ export function KirimanOperasionalView({
   );
   return (
     <div className="space-y-4">
+      {preview && (
+        <PreviewDokumen pdf={preview} onClose={() => setPreview(null)} />
+      )}
       {panel && (
         <PanelTtd
           judul={panel === "invoice" ? "Invoice" : "Surat Jalan"}
@@ -134,6 +147,22 @@ export function KirimanOperasionalView({
           </p>
         )}
         <PengaturanCetakGudang opsi={cetak} onChange={setCetak} />
+        {gudang && (
+          <div className="my-2 flex items-center justify-between">
+            <Link
+              className="text-sm underline"
+              href={
+                "/gudang/kiriman/" +
+                k.id +
+                "/dokumen?jenis=" +
+                (tab === "surat" ? "surat-jalan" : "invoice")
+              }
+            >
+              Edit Dokumen
+            </Link>
+            <MenuDokumen id={k.id} dokumen={k.dokumen} />
+          </div>
+        )}
         <nav className="my-3 flex flex-wrap gap-2">
           {[
             ["surat", "Surat Jalan"],
@@ -234,10 +263,12 @@ export function KirimanOperasionalView({
               />
             )}
             <button
-              onClick={() => setPanel(tab === "invoice" ? "invoice" : "surat-jalan")}
+              onClick={() =>
+                setPanel(tab === "invoice" ? "invoice" : "surat-jalan")
+              }
               className="mt-3 rounded-lg border px-3 py-2 text-sm"
             >
-              Unduh {tab === "invoice" ? "Invoice" : "Surat Jalan"} PDF
+              Pratinjau {tab === "invoice" ? "Invoice" : "Surat Jalan"}
             </button>
           </>
         ) : (

@@ -8,11 +8,13 @@ export function PengaturanDokumen({
   versi,
   logo,
   judul,
+  telepon = "62 856-9786-5737",
 }: {
   alamat: string;
   versi: number;
   logo: string;
   judul: string[];
+  telepon?: string;
 }) {
   const [preview, setPreview] = useState(logo),
     [bawaan, setBawaan] = useState(false),
@@ -33,9 +35,9 @@ export function PengaturanDokumen({
       </Link>
       <h1 className="text-2xl font-bold">Pengaturan Dokumen Gudang</h1>
       <p className="text-sm text-stone-600">
-        Logo, alamat, dan judul kotak tanda tangan ini dipakai bersama pada invoice dan surat jalan Gudang,
-        termasuk saat diunduh oleh outlet. Unduh ulang PDF setelah menyimpan
-        perubahan.
+        Logo, alamat, dan judul kotak tanda tangan ini dipakai bersama pada
+        invoice dan surat jalan Gudang, termasuk saat diunduh oleh outlet. Unduh
+        ulang PDF setelah menyimpan perubahan.
       </p>
       <form
         className="space-y-5 rounded-2xl border bg-white p-5"
@@ -56,6 +58,19 @@ export function PengaturanDokumen({
         }}
       >
         <input type="hidden" name="versi" value={versi} />
+        <label className="block text-sm font-semibold">
+          Nomor telepon Gudang
+          <input
+            name="telepon"
+            type="tel"
+            defaultValue={telepon}
+            required
+            minLength={5}
+            maxLength={40}
+            disabled={busy}
+            className="mt-2 block w-full rounded-lg border p-3 font-normal"
+          />
+        </label>
         <div>
           <p className="mb-2 font-semibold">Logo perusahaan</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}

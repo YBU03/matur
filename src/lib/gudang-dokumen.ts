@@ -1,3 +1,4 @@
+import { konteksDokumen } from "./gudang-dokumen-model";
 import { ringkasInvoice } from "./gudang-invoice";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -23,6 +24,12 @@ export function buatDokumenGudang(
   logo?: LogoGudang,
   ttd: KotakTtd[] = kotakTtdAwal(k, pt),
 ) {
+  const konteks = konteksDokumen(jenis, k, pt);
+  if (k.dokumen?.find((d) => d.jenis === jenis)?.arsip_at)
+    throw new Error("Dokumen ada di arsip. Pulihkan sebelum mencetak.");
+  const original = k;
+  k = konteks.k;
+  pt = konteks.pt;
   if (!validCetakGudang(opsi))
     throw new Error(
       "Ukuran kertas tidak valid: lebar 180–330 mm dan tinggi 130–420 mm.",
@@ -46,7 +53,11 @@ export function buatDokumenGudang(
       : Number(i.qty);
   const copies = opsi.rangkap === "salinan" ? 3 : 1,
     ranges: { start: number; end: number; copy: number }[] = [];
-  const ringkasan = ringkasInvoice(k, items);
+  const ringkasan = ringkasInvoice(original, items);
+  if (invoice && !ringkasan.valid)
+    throw new Error(
+      "Data barang berubah atau diskon/pajak tidak valid. Buka Edit Dokumen dan periksa ulang.",
+    );
   const total = ringkasan.barang;
   let tableTop = 55;
   const tanggal = (v: string) => {
@@ -89,9 +100,10 @@ export function buatDokumenGudang(
     const meta = [
       ["Invoice #", k.nomor],
       ["Tanggal", tanggal(k.tanggal)],
-      ["Jatuh tempo", "-"],
-      ["Outlet", k.outlet?.nama ?? "-"],
-      ["Penerima", k.nama_penerima || "-"],
+      [
+        "Jatuh tempo",
+        konteks.isi?.jatuh_tempo ? tanggal(konteks.isi.jatuh_tempo) : "-",
+      ],
     ];
     meta.forEach(([label, value], n) => {
       const y = 22 + n * 5.5;
@@ -106,19 +118,34 @@ export function buatDokumenGudang(
         );
       doc.setFontSize(7.5);
     });
-    doc
-      .setFont("helvetica", "bold")
-      .setFontSize(7.5)
-      .text("Tagih / Kirim ke", M, leftY);
-    leftY += 4;
-    doc.setFont("helvetica", "normal").setFontSize(7.5);
-    const outletLines = doc.splitTextToSize(k.outlet?.nama ?? "-", leftW);
-    doc.text(outletLines, M, leftY);
-    leftY += outletLines.length * 3.3;
-    const outletAlamat = doc.splitTextToSize(k.outlet?.alamat ?? "", leftW);
-    doc.text(outletAlamat, M, leftY);
-    leftY += outletAlamat.length * 3.3;
-    const statusY = Math.max(leftY + 2, 49);
+    function kontak(
+      label: string,
+      pihak: {
+        nama: string;
+        alamat?: string | null;
+        telepon?: string | null;
+      } | null,
+      x: number,
+      y: number,
+      w: number,
+    ) {
+      doc.setFont("helvetica", "bold").setFontSize(7.5).text(label, x, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      for (const text of [
+        pihak?.nama ?? "-",
+        pihak?.alamat ?? "",
+        pihak?.telepon ? "Telp: " + pihak.telepon : "Telp: -",
+      ]) {
+        const lines = doc.splitTextToSize(text, w);
+        doc.text(lines, x, y);
+        y += lines.length * 3.3;
+      }
+      return y;
+    }
+    leftY = kontak("Kirim ke", k.outlet, M, leftY, leftW);
+    const rightY = kontak("Tagih ke", konteks.tagih, rightX, 42, rightW);
+    const statusY = Math.max(leftY + 2, rightY + 2, 49);
     doc
       .setFont("helvetica", "bold")
       .setFontSize(7)
@@ -167,7 +194,12 @@ export function buatDokumenGudang(
     doc.setFont("helvetica", "normal").setFontSize(8);
     const alamat = doc.splitTextToSize(pt.alamat ?? "", W - M - tx);
     doc.text(alamat, tx, 18);
-    const offset = Math.max(0, 18 + alamat.length * 3.3 - 25);
+    doc.text(
+      "Telp Gudang: " + (pt.telepon ?? "-"),
+      tx,
+      18 + alamat.length * 3.3,
+    );
+    const offset = Math.max(0, 22 + alamat.length * 3.3 - 25);
     doc
       .setFont("helvetica", "bold")
       .setFontSize(11)
@@ -178,20 +210,17 @@ export function buatDokumenGudang(
     doc
       .setFont("helvetica", "normal")
       .text("Tanggal: " + k.tanggal, M, 33 + offset);
-    doc.text(
-      doc
-        .splitTextToSize("Kepada: " + (k.outlet?.nama ?? "-"), W - 2 * M)
-        .slice(0, 1),
-      M,
-      37 + offset,
-    );
-    doc.text(
-      doc
-        .splitTextToSize("Alamat: " + (k.outlet?.alamat ?? "-"), W - 2 * M)
-        .slice(0, 2),
-      M,
-      41 + offset,
-    );
+    let penerimaY = 37 + offset;
+    for (const line of [
+      "Kirim ke: " + (k.outlet?.nama ?? "-"),
+      "Alamat: " + (k.outlet?.alamat ?? "-"),
+      "Telp Outlet: " + (k.outlet?.telepon ?? "-"),
+    ]) {
+      const lines = doc.splitTextToSize(line, W - 2 * M);
+      doc.text(lines, M, penerimaY);
+      penerimaY += lines.length * 3.5;
+    }
+    const statusY = Math.max(penerimaY + 3, 54 + offset);
     doc
       .setFont("helvetica", "bold")
       .text(
@@ -203,10 +232,10 @@ export function buatDokumenGudang(
               ? "SUDAH DIPERIKSA OUTLET"
               : "MENUNGGU PEMERIKSAAN OUTLET",
         M,
-        49 + offset,
+        statusY,
       );
-    doc.setLineWidth(0.3).line(M, 51 + offset, W - M, 51 + offset);
-    tableTop = 55 + offset;
+    doc.setLineWidth(0.3).line(M, statusY + 2, W - M, statusY + 2);
+    tableTop = statusY + 6;
   }
   function page() {
     doc.addPage(
@@ -254,8 +283,8 @@ export function buatDokumenGudang(
               "Satuan",
               "Harga",
               "Diskon",
-              "Jumlah",
               "Pajak",
+              "Jumlah",
             ]
           : [
               "No",
@@ -275,9 +304,13 @@ export function buatDokumenGudang(
               nf(qty(i)),
               i.satuan ?? "",
               uang(Number(i.harga)),
-              "-",
-              uang(Math.round(qty(i) * Number(i.harga))),
-              "-",
+              uang(Number(konteks.isi?.baris?.[i.id]?.diskon ?? 0)),
+              uang(Number(konteks.isi?.baris?.[i.id]?.pajak ?? 0)),
+              uang(
+                Math.round(qty(i) * Number(i.harga)) -
+                  Number(konteks.isi?.baris?.[i.id]?.diskon ?? 0) +
+                  Number(konteks.isi?.baris?.[i.id]?.pajak ?? 0),
+              ),
             ]
           : [
               String(n + 1),
@@ -296,9 +329,9 @@ export function buatDokumenGudang(
             3: { cellWidth: 11, halign: "right" },
             4: { cellWidth: 14 },
             5: { cellWidth: 23, halign: "right" },
-            6: { cellWidth: 13, halign: "right" },
-            7: { cellWidth: 24, halign: "right" },
-            8: { cellWidth: 12, halign: "right" },
+            6: { cellWidth: 20, halign: "right" },
+            7: { cellWidth: 20, halign: "right" },
+            8: { cellWidth: 24, halign: "right" },
           }
         : {
             0: { cellWidth: 9 },
@@ -318,9 +351,13 @@ export function buatDokumenGudang(
       const adj = ringkasan.penyesuaian;
       const rows: [string, string][] = [
         ["Subtotal", uang(total)],
-        ["Diskon", "-"],
-        ["Pajak", "-"],
-        ...(adj ? ([["Penyesuaian", `${adj > 0 ? "+" : "-"} ${uang(Math.abs(adj))}`]] as [string, string][]) : []),
+        ["Diskon", uang(ringkasan.diskon)],
+        ["Pajak", uang(ringkasan.pajak)],
+        ...(adj
+          ? ([
+              ["Penyesuaian", `${adj > 0 ? "+" : "-"} ${uang(Math.abs(adj))}`],
+            ] as [string, string][])
+          : []),
       ];
       const akhir: [string, string][] = [
         ["Pembayaran", "Belum tercatat"],
@@ -331,7 +368,10 @@ export function buatDokumenGudang(
       if (y + sh > H - 14) y = page();
       const sx = W - M - 88;
       // garis atas di atas tinggi huruf (± 2,8 mm untuk 8 pt) agar tidak menabrak "Subtotal"
-      doc.setDrawColor(0).setLineWidth(0.2).line(sx, y - 1, W - M, y - 1);
+      doc
+        .setDrawColor(0)
+        .setLineWidth(0.2)
+        .line(sx, y - 1, W - M, y - 1);
       let ty = y + 4;
       const tulis = (label: string, value: string, tebal: boolean) => {
         doc.setFont("helvetica", tebal ? "bold" : "normal").setFontSize(8);
@@ -343,7 +383,9 @@ export function buatDokumenGudang(
       // TOTAL: garis tipis di atasnya + latar abu muda
       ty += 1;
       doc.setLineWidth(0.15).line(sx, ty - 4, W - M, ty - 4);
-      doc.setFillColor(238, 238, 238).rect(sx - 1.5, ty - 3.6, W - M - sx + 3, 5.2, "F");
+      doc
+        .setFillColor(238, 238, 238)
+        .rect(sx - 1.5, ty - 3.6, W - M - sx + 3, 5.2, "F");
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold").text("TOTAL", sx, ty);
       doc.text(uang(ringkasan.total), W - M, ty, { align: "right" });
@@ -353,13 +395,14 @@ export function buatDokumenGudang(
       summaryBottom = ty;
     }
     const notes = [
+      ...(konteks.draft ? ["DRAFT DOKUMEN - belum diterbitkan."] : []),
       ...(k.catatan ? ["Catatan: " + k.catatan] : []),
       ...(invoice && k.penyesuaian?.keterangan
         ? ["Penyesuaian: " + k.penyesuaian.keterangan]
         : []),
       ...(invoice
         ? [
-            "SKU, diskon, pajak dan jatuh tempo: - (belum dicatat). Pembayaran/sisa tagihan belum direkonsiliasi.",
+            "Pembayaran/sisa tagihan belum direkonsiliasi.",
             diperiksa
               ? "Nilai mengikuti barang baik diterima. Selisih/kiriman susulan tercatat terpisah."
               : "Nilai rencana kirim; menunggu pemeriksaan outlet.",
@@ -389,7 +432,12 @@ export function buatDokumenGudang(
       doc
         .setFont("helvetica", "bold")
         .setFontSize(8)
-        .text(doc.splitTextToSize(t.judul.trim(), cw - 4).slice(0, 1), x + cw / 2, y + 5, { align: "center" });
+        .text(
+          doc.splitTextToSize(t.judul.trim(), cw - 4).slice(0, 1),
+          x + cw / 2,
+          y + 5,
+          { align: "center" },
+        );
       doc
         .setFont("helvetica", "normal")
         .setFontSize(7)
@@ -399,7 +447,11 @@ export function buatDokumenGudang(
           y + 20,
           { align: "center" },
         );
-      doc.text(doc.splitTextToSize(t.tanggal.trim(), cw - 4).slice(0, 1), x + 2, y + 32);
+      doc.text(
+        doc.splitTextToSize(t.tanggal.trim(), cw - 4).slice(0, 1),
+        x + 2,
+        y + 32,
+      );
     });
     ranges.push({ start: first, end: doc.getNumberOfPages(), copy: c });
   }

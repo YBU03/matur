@@ -12,13 +12,14 @@ export default async function Page() {
   const db = await supabaseServer();
   const { data, error } = await db
     .from("pengaturan_dokumen_gudang")
-    .select("alamat,logo_path,versi,judul_ttd")
+    .select("alamat,logo_path,versi,judul_ttd,telepon")
     .eq("id", true)
     .single();
   if (error || !data) throw new Error("Pengaturan dokumen belum dapat dimuat.");
   return (
     <PengaturanDokumen
       alamat={data.alamat}
+      telepon={data.telepon}
       versi={data.versi}
       judul={data.judul_ttd}
       logo={
