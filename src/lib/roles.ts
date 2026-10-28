@@ -200,6 +200,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/produsen_titipan", label: "Produsen Titipan", stage: 4 },
       { href: "/master/bahan", label: "Data Bahan (master)", stage: 2 },
       { href: "/master/menu", label: "Menu & Harga POS", stage: 2 },
+      { href: "/master/varian", label: "Additional & Varian", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/hpp-menu", label: "HPP Menu", stage: 4 },
       { href: "/pengguna", label: "Pengguna Matoer", stage: 4 },

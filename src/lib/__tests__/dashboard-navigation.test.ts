@@ -45,3 +45,12 @@ describe("admin and guest POS navigation", () => {
       }
   });
 });
+
+it("shows the additional settings in the warehouse sidebar beside POS menu settings", () => {
+  const menu = ROLES.admin_gudang.menu;
+  const index = menu.findIndex(m => m.href === "/master/menu");
+  expect(menu.filter(m => m.href === "/master/varian")).toEqual([
+    { href: "/master/varian", label: "Additional & Varian", stage: 2 },
+  ]);
+  expect(menu[index + 1].href).toBe("/master/varian");
+});
