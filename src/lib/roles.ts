@@ -154,7 +154,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/master/outlet", label: "Outlet", stage: 2 },
       { href: "/master/kategori_menu", label: "Kategori Menu", stage: 2 },
       { href: "/master/menu", label: "Menu", stage: 2 },
-      { href: "/master/varian", label: "Varian Menu", stage: 2 },
+      { href: "/master/varian", label: "Additional & Varian", stage: 2 },
       { href: "/master/resep", label: "Resep", stage: 2 },
       { href: "/master/bahan", label: "Bahan Baku", stage: 2 },
       { href: "/gudang/stok", label: "Stok Gudang", stage: 4 },
@@ -329,3 +329,5 @@ for(const role of ["owner","admin_pusat","admin_gudang","finance"] as Role[])ROL
 for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/pengaturan-dokumen",label:"Pengaturan Dokumen",stage:4});
 
 for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/outlet",label:"Kontak Outlet",stage:4},{href:"/gudang/dokumen-arsip",label:"Arsip Dokumen",stage:4});
+
+for (const role of ["admin_pusat", "admin_gudang"] as Role[]) if (!ROLES[role].menu.some(m => m.href === "/stok")) ROLES[role].menu.push({ href: "/stok", label: "Opname Outlet", stage: 4 });

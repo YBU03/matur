@@ -45,3 +45,5 @@ Harga jual langsung di Stok Gudang; menu `/gudang/opname` dan `/gudang/laba-rugi
 Pengaturan logo/alamat khusus dokumen Gudang: /gudang/pengaturan-dokumen, bucket privat dokumen-gudang. Penyesuaian invoice tersimpan terpisah, hanya setelah penerimaan selesai, ikut PDF/laporan sekali per invoice. Baca docs/gudang-revisi-2026-10-27.md.
 
 Editor dokumen Gudang 28 Oktober: /gudang/kiriman/[id]/dokumen, Kontak Outlet dan Arsip Dokumen. Baca docs/gudang-dokumen-editor-2026-10-28.md. Hapus dokumen hanya arsip metadata, jangan membatalkan stok. Pajak invoice tidak masuk laba.
+
+SO outlet/Additional/Pengeluaran POS 28 Oktober: baca `docs/pos-so-additional-pengeluaran-2026-10-28.md`. SO karyawan di `/karyawan/stok/opname`, tablet `/kasir/stok/opname`; RPC baru idempoten, snapshot SO parsial mencakup seluruh stok. Tidak mengubah switch alur shift atau izin global tablet.
