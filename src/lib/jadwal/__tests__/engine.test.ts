@@ -198,3 +198,32 @@ it("counts a custom published shift toward its template while respecting its act
   expect(result.assignments).toHaveLength(0);
   expect(result.warnings.map((w) => w.shift_id)).toEqual(["s"]);
 });
+
+it("keeps published hours as a constraint after their template is inactive", () => {
+  const result = generateSchedule({
+    startDate: "2026-11-02",
+    endDate: "2026-11-02",
+    hosts: [{ id: "h", weeklyDayOffQuota: 0 }],
+    shifts: [
+      {
+        id: "new",
+        name: "Baru",
+        startTime: "08:00",
+        endTime: "16:00",
+        minHosts: 1,
+        sortOrder: 1,
+      },
+    ],
+    existingAssignments: [
+      {
+        hostId: "h",
+        shiftId: "inactive",
+        workDate: "2026-11-02",
+        startTime: "08:00",
+        endTime: "18:00",
+      },
+    ],
+  });
+  expect(result.assignments).toHaveLength(0);
+  expect(result.warnings).toHaveLength(1);
+});

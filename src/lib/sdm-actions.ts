@@ -255,9 +255,7 @@ export async function generateJadwal(
         hostId: j.pengguna_id,
         shiftId: sh?.induk_shift_id ?? j.shift_id,
         workDate: j.tanggal,
-        ...(sh?.induk_shift_id
-          ? { startTime: sh.jam_mulai, endTime: sh.jam_selesai }
-          : {}),
+        ...(sh ? { startTime: sh.jam_mulai, endTime: sh.jam_selesai } : {}),
       };
     }),
     previousWorkload: beban,

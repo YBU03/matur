@@ -139,7 +139,18 @@ export function generateSchedule(input: SchedulingInput): SchedulingResult {
 
   // Penugasan manual yang sudah ada tetap dihormati dan ikut menghitung beban.
   (input.existingAssignments ?? []).forEach((assignment) => {
-    const shift = shiftById.get(assignment.shiftId);
+    const shift =
+      shiftById.get(assignment.shiftId) ??
+      (assignment.startTime && assignment.endTime
+        ? {
+            id: assignment.shiftId,
+            name: "Penugasan terbit",
+            startTime: assignment.startTime,
+            endTime: assignment.endTime,
+            minHosts: 0,
+            sortOrder: 0,
+          }
+        : undefined);
     if (!shift || !(assignment.hostId in totalLoad)) return;
 
     totalLoad[assignment.hostId] += 1;
