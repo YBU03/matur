@@ -26,6 +26,8 @@ export type SchedulingAssignment = {
   hostId: string;
   shiftId: string;
   workDate: string;
+  startTime?: string;
+  endTime?: string;
 };
 
 export type SchedulingWarning = {
@@ -83,10 +85,17 @@ type Interval = { start: number; end: number };
  */
 export function generateSchedule(input: SchedulingInput): SchedulingResult {
   const dates = eachDate(input.startDate, input.endDate);
-  const shifts = [...input.shifts].sort((a, b) => a.sortOrder - b.sortOrder || a.startTime.localeCompare(b.startTime));
+  const shifts = [...input.shifts].sort(
+    (a, b) =>
+      a.sortOrder - b.sortOrder || a.startTime.localeCompare(b.startTime),
+  );
   const hosts = [...input.hosts].sort((a, b) => a.id.localeCompare(b.id));
 
-  const leaveKeys = new Set((input.approvedLeaves ?? []).map((leave) => `${leave.hostId}|${leave.date}`));
+  const leaveKeys = new Set(
+    (input.approvedLeaves ?? []).map(
+      (leave) => `${leave.hostId}|${leave.date}`,
+    ),
+  );
 
   // Hari libur ditentukan lebih dulu dan disebar merata, bukan dibiarkan
   // muncul sebagai sisa pengisian shift yang gampang menumpuk berurutan.
@@ -130,13 +139,43 @@ export function generateSchedule(input: SchedulingInput): SchedulingResult {
 
   // Penugasan manual yang sudah ada tetap dihormati dan ikut menghitung beban.
   (input.existingAssignments ?? []).forEach((assignment) => {
-    const shift = shiftById.get(assignment.shiftId);
+    const shift =
+      shiftById.get(assignment.shiftId) ??
+      (assignment.startTime && assignment.endTime
+        ? {
+            id: assignment.shiftId,
+            name: "Penugasan terbit",
+            startTime: assignment.startTime,
+            endTime: assignment.endTime,
+            minHosts: 0,
+            sortOrder: 0,
+          }
+        : undefined);
     if (!shift || !(assignment.hostId in totalLoad)) return;
 
     totalLoad[assignment.hostId] += 1;
-    weeklyDays[assignment.hostId].add(`${weekStart(assignment.workDate)}|${assignment.workDate}`);
-    intervals[assignment.hostId].push(toInterval(assignment.workDate, shift));
-    catatRotasi(shiftCounts, lastShiftDay, assignment.hostId, assignment.shiftId, indeksHari(assignment.workDate));
+    weeklyDays[assignment.hostId].add(
+      `${weekStart(assignment.workDate)}|${assignment.workDate}`,
+    );
+    intervals[assignment.hostId].push(
+      toInterval(
+        assignment.workDate,
+        assignment.startTime && assignment.endTime
+          ? {
+              ...shift,
+              startTime: assignment.startTime,
+              endTime: assignment.endTime,
+            }
+          : shift,
+      ),
+    );
+    catatRotasi(
+      shiftCounts,
+      lastShiftDay,
+      assignment.hostId,
+      assignment.shiftId,
+      indeksHari(assignment.workDate),
+    );
 
     const key = `${assignment.workDate}|${assignment.shiftId}`;
     takenSlots.set(key, (takenSlots.get(key) ?? 0) + 1);
@@ -159,7 +198,15 @@ export function generateSchedule(input: SchedulingInput): SchedulingResult {
 
       const candidates = hosts
         .filter((host) =>
-          isEligible(host, { workDate, week, shift, leaveKeys, restKeys: restPlan.keys, weeklyDays, intervals }),
+          isEligible(host, {
+            workDate,
+            week,
+            shift,
+            leaveKeys,
+            restKeys: restPlan.keys,
+            weeklyDays,
+            intervals,
+          }),
         )
         .sort((a, b) =>
           compareCandidates(a, b, {
@@ -181,7 +228,13 @@ export function generateSchedule(input: SchedulingInput): SchedulingResult {
         totalLoad[host.id] += 1;
         weeklyDays[host.id].add(`${week}|${workDate}`);
         intervals[host.id].push(toInterval(workDate, shift));
-        catatRotasi(shiftCounts, lastShiftDay, host.id, shift.id, indeksHari(workDate));
+        catatRotasi(
+          shiftCounts,
+          lastShiftDay,
+          host.id,
+          shift.id,
+          indeksHari(workDate),
+        );
       });
 
       const assigned = alreadyTaken + picked.length;
@@ -206,10 +259,17 @@ function catatRotasi(
   if (!lastShiftDay[hostId]) lastShiftDay[hostId] = {};
 
   shiftCounts[hostId][shiftId] = (shiftCounts[hostId][shiftId] ?? 0) + 1;
-  lastShiftDay[hostId][shiftId] = Math.max(lastShiftDay[hostId][shiftId] ?? BELUM_PERNAH, dayIndex);
+  lastShiftDay[hostId][shiftId] = Math.max(
+    lastShiftDay[hostId][shiftId] ?? BELUM_PERNAH,
+    dayIndex,
+  );
 }
 
-function buildWarning(workDate: string, shift: SchedulingShift, assigned: number): SchedulingWarning {
+function buildWarning(
+  workDate: string,
+  shift: SchedulingShift,
+  assigned: number,
+): SchedulingWarning {
   return {
     work_date: workDate,
     shift_id: shift.id,
@@ -238,14 +298,16 @@ function isEligible(
     intervals: Record<string, Interval[]>;
   },
 ) {
-  const { workDate, week, shift, leaveKeys, restKeys, weeklyDays, intervals } = context;
+  const { workDate, week, shift, leaveKeys, restKeys, weeklyDays, intervals } =
+    context;
 
   if (leaveKeys.has(`${host.id}|${workDate}`)) return false;
   if (restKeys.has(`${host.id}|${workDate}`)) return false;
 
   const candidate = toInterval(workDate, shift);
   const overlaps = intervals[host.id].some(
-    (existing) => candidate.start < existing.end && existing.start < candidate.end,
+    (existing) =>
+      candidate.start < existing.end && existing.start < candidate.end,
   );
   if (overlaps) return false;
 
@@ -272,7 +334,16 @@ function compareCandidates(
     lastShiftDay: Record<string, Record<string, number>>;
   },
 ) {
-  const { totalLoad, weeklyDays, week, workDate, shift, intervals, shiftCounts, lastShiftDay } = context;
+  const {
+    totalLoad,
+    weeklyDays,
+    week,
+    workDate,
+    shift,
+    intervals,
+    shiftCounts,
+    lastShiftDay,
+  } = context;
 
   const loadDiff = totalLoad[a.id] - totalLoad[b.id];
   if (loadDiff !== 0) return loadDiff;
@@ -291,10 +362,14 @@ function compareCandidates(
   );
   if (terakhirDiff !== 0) return terakhirDiff;
 
-  const weekDiff = countDaysInWeek(weeklyDays[a.id], week) - countDaysInWeek(weeklyDays[b.id], week);
+  const weekDiff =
+    countDaysInWeek(weeklyDays[a.id], week) -
+    countDaysInWeek(weeklyDays[b.id], week);
   if (weekDiff !== 0) return weekDiff;
 
-  const restDiff = restPenalty(intervals[a.id], workDate, shift) - restPenalty(intervals[b.id], workDate, shift);
+  const restDiff =
+    restPenalty(intervals[a.id], workDate, shift) -
+    restPenalty(intervals[b.id], workDate, shift);
   if (restDiff !== 0) return restDiff;
 
   return a.id.localeCompare(b.id);
@@ -318,7 +393,11 @@ function bandingkanTerakhir(a: number | undefined, b: number | undefined) {
 }
 
 /** 1 bila host baru saja menutup shift kurang dari jeda istirahat yang dianjurkan. */
-function restPenalty(existing: Interval[], workDate: string, shift: SchedulingShift) {
+function restPenalty(
+  existing: Interval[],
+  workDate: string,
+  shift: SchedulingShift,
+) {
   const candidate = toInterval(workDate, shift);
   const restMs = PREFERRED_REST_HOURS * 60 * 60 * 1000;
 
