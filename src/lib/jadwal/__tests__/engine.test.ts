@@ -3,8 +3,22 @@ import { describe, expect, it } from "vitest";
 import { generateSchedule, type SchedulingInput } from "../engine";
 
 const shifts = [
-  { id: "shift-pagi", name: "Shift Pagi", startTime: "06:00", endTime: "11:00", minHosts: 1, sortOrder: 1 },
-  { id: "shift-siang", name: "Shift Siang", startTime: "11:00", endTime: "16:00", minHosts: 1, sortOrder: 2 },
+  {
+    id: "shift-pagi",
+    name: "Shift Pagi",
+    startTime: "06:00",
+    endTime: "11:00",
+    minHosts: 1,
+    sortOrder: 1,
+  },
+  {
+    id: "shift-siang",
+    name: "Shift Siang",
+    startTime: "11:00",
+    endTime: "16:00",
+    minHosts: 1,
+    sortOrder: 2,
+  },
 ];
 
 function baseInput(overrides: Partial<SchedulingInput> = {}): SchedulingInput {
@@ -38,16 +52,36 @@ describe("generateSchedule", () => {
 
   it("tidak pernah menjadwalkan satu host di dua shift bertumpuk", () => {
     const overlapping = [
-      { id: "shift-a", name: "A", startTime: "06:00", endTime: "12:00", minHosts: 1, sortOrder: 1 },
-      { id: "shift-b", name: "B", startTime: "10:00", endTime: "16:00", minHosts: 1, sortOrder: 2 },
+      {
+        id: "shift-a",
+        name: "A",
+        startTime: "06:00",
+        endTime: "12:00",
+        minHosts: 1,
+        sortOrder: 1,
+      },
+      {
+        id: "shift-b",
+        name: "B",
+        startTime: "10:00",
+        endTime: "16:00",
+        minHosts: 1,
+        sortOrder: 2,
+      },
     ];
     const { assignments } = generateSchedule(
-      baseInput({ shifts: overlapping, hosts: [{ id: "host-a", weeklyDayOffQuota: 0 }] }),
+      baseInput({
+        shifts: overlapping,
+        hosts: [{ id: "host-a", weeklyDayOffQuota: 0 }],
+      }),
     );
 
     const perDate = new Map<string, string[]>();
     assignments.forEach((item) => {
-      perDate.set(item.workDate, [...(perDate.get(item.workDate) ?? []), item.shiftId]);
+      perDate.set(item.workDate, [
+        ...(perDate.get(item.workDate) ?? []),
+        item.shiftId,
+      ]);
     });
     expect([...perDate.values()].every((list) => list.length === 1)).toBe(true);
   });
@@ -81,7 +115,9 @@ describe("generateSchedule", () => {
     const { assignments } = generateSchedule(baseInput());
 
     const counts = new Map<string, number>();
-    assignments.forEach((item) => counts.set(item.hostId, (counts.get(item.hostId) ?? 0) + 1));
+    assignments.forEach((item) =>
+      counts.set(item.hostId, (counts.get(item.hostId) ?? 0) + 1),
+    );
 
     const values = [...counts.values()];
     expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
@@ -97,7 +133,10 @@ describe("generateSchedule", () => {
 
     expect(assignments.length).toBeGreaterThan(0);
     expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings[0]).toMatchObject({ shift_name: "Shift Pagi", required: 3 });
+    expect(warnings[0]).toMatchObject({
+      shift_name: "Shift Pagi",
+      required: 3,
+    });
     expect(warnings[0].assigned).toBeLessThan(3);
   });
 
@@ -106,7 +145,9 @@ describe("generateSchedule", () => {
       baseInput({
         startDate: "2026-03-02",
         endDate: "2026-03-02",
-        existingAssignments: [{ hostId: "host-b", shiftId: "shift-pagi", workDate: "2026-03-02" }],
+        existingAssignments: [
+          { hostId: "host-b", shiftId: "shift-pagi", workDate: "2026-03-02" },
+        ],
       }),
     );
 
@@ -119,4 +160,41 @@ describe("generateSchedule", () => {
     const second = generateSchedule(baseInput());
     expect(first).toEqual(second);
   });
+});
+
+it("counts a custom published shift toward its template while respecting its actual hours", () => {
+  const result = generateSchedule({
+    startDate: "2026-11-02",
+    endDate: "2026-11-02",
+    hosts: [{ id: "h", weeklyDayOffQuota: 0 }],
+    shifts: [
+      {
+        id: "p",
+        name: "Pagi",
+        startTime: "08:00",
+        endTime: "12:00",
+        minHosts: 1,
+        sortOrder: 1,
+      },
+      {
+        id: "s",
+        name: "Siang",
+        startTime: "14:00",
+        endTime: "22:00",
+        minHosts: 1,
+        sortOrder: 2,
+      },
+    ],
+    existingAssignments: [
+      {
+        hostId: "h",
+        shiftId: "p",
+        workDate: "2026-11-02",
+        startTime: "08:00",
+        endTime: "18:00",
+      },
+    ],
+  });
+  expect(result.assignments).toHaveLength(0);
+  expect(result.warnings.map((w) => w.shift_id)).toEqual(["s"]);
 });

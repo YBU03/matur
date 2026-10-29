@@ -24,7 +24,7 @@ export default async function JadwalPage({ searchParams }: { searchParams: Promi
   ]);
   return (
     <>
-      <LiveRefresh pantau={[{ table: "pengajuan_izin" }, { table: "tukar_shift" }]} cadanganDetik={120} />
+      <LiveRefresh pantau={[{ table: "pengajuan_izin" }, { table: "tukar_shift" }, { table: "jadwal_shift" }, { table: "shift_outlet" }]} cadanganDetik={120} />
       <JadwalView
         key={`${outlet.id}-${bulan}`}
         outlets={outlets.map((o) => ({ id: o.id, nama: o.nama }))}
