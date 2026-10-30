@@ -1,4 +1,10 @@
-import { periodeTitipan, type PeriodeTitipan } from "@/lib/periode-titipan";
+import { FilterPeriodeTitipan } from "@/components/filter-periode-titipan";
+import {
+  PERIODE_TITIPAN,
+  tautanTitipan,
+  periodeTitipan,
+  type PeriodeTitipan,
+} from "@/lib/periode-titipan";
 import { notFound } from "next/navigation";
 import { PilihOutlet } from "@/components/pilih-outlet";
 import { getSession } from "@/lib/session";
@@ -24,6 +30,7 @@ export default async function Titipan({
     bulan?: string;
     periode?: string;
     tanggal?: string;
+    akhir?: string;
   }>;
 }) {
   const s = await getSession();
@@ -42,20 +49,39 @@ export default async function Titipan({
       : (semua ?? []);
   const outlet = outlets.find((o) => o.id === sp.outlet) ?? outlets[0];
   if (!outlet) notFound();
-  const periode: PeriodeTitipan =
-    sp.periode === "harian" || sp.periode === "mingguan"
-      ? sp.periode
-      : "bulanan";
+  const periode: PeriodeTitipan = PERIODE_TITIPAN.includes(
+    sp.periode as PeriodeTitipan,
+  )
+    ? (sp.periode as PeriodeTitipan)
+    : "bulanan";
   const hariIni = new Date(Date.now() + 7 * 3600_000)
     .toISOString()
     .slice(0, 10);
   let tanggal = sp.tanggal ?? (sp.bulan ? `${sp.bulan}-01` : hariIni);
   let rentang;
   try {
-    rentang = periodeTitipan(tanggal, periode);
-  } catch {
+    rentang = periodeTitipan(tanggal, periode, sp.akhir);
+  } catch (e) {
     tanggal = hariIni;
-    rentang = periodeTitipan(tanggal, periode);
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <h1 className="text-2xl font-bold">Titipan Produk</h1>
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+        >
+          {(e as Error).message} Pilih ulang rentang tanggal untuk menampilkan
+          rekap.
+        </p>
+        <FilterPeriodeTitipan
+          key={`invalid-${sp.tanggal}-${sp.akhir}`}
+          outletId={outlet.id}
+          tanggal={tanggal}
+          periode={periode}
+          akhir={tanggal}
+        />
+      </div>
+    );
   }
   const { awal, akhir } = rentang;
   const [
@@ -99,14 +125,17 @@ export default async function Titipan({
       <PilihOutlet
         outlets={outlets}
         pilih={outlet.id}
-        href={(id) =>
-          `/titipan?outlet=${id}&tanggal=${tanggal}&periode=${periode}`
-        }
+        href={(id) => tautanTitipan(id, tanggal, periode, akhir)}
       />
-      <TitipanView
+      <FilterPeriodeTitipan
+        key={`${outlet.id}-${tanggal}-${periode}-${akhir}`}
         outletId={outlet.id}
         tanggal={tanggal}
         periode={periode}
+        akhir={akhir}
+      />
+      <TitipanView
+        outletId={outlet.id}
         awal={awal}
         akhir={akhir}
         rekap={(rekap ?? []) as RekapTitipan[]}

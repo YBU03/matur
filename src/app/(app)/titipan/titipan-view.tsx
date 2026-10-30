@@ -1,5 +1,4 @@
 "use client";
-import type { PeriodeTitipan } from "@/lib/periode-titipan";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,8 +21,6 @@ export type RekapTitipan = {
 
 export function TitipanView({
   outletId,
-  tanggal,
-  periode,
   awal,
   akhir,
   rekap,
@@ -31,8 +28,6 @@ export function TitipanView({
   riwayat,
 }: {
   outletId: string;
-  tanggal: string;
-  periode: PeriodeTitipan;
   awal: string;
   akhir: string;
   rekap: RekapTitipan[];
@@ -89,36 +84,6 @@ export function TitipanView({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm">
-          Periode{" "}
-          <select
-            value={periode}
-            onChange={(e) =>
-              router.push(
-                `/titipan?outlet=${outletId}&tanggal=${tanggal}&periode=${e.target.value}`,
-              )
-            }
-            className="rounded-lg border bg-white p-2"
-          >
-            <option value="harian">Harian</option>
-            <option value="mingguan">Mingguan (Senin–Minggu)</option>
-            <option value="bulanan">Bulanan</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          Tanggal acuan{" "}
-          <input
-            type="date"
-            value={tanggal}
-            onChange={(e) =>
-              e.target.value &&
-              router.push(
-                `/titipan?outlet=${outletId}&tanggal=${e.target.value}&periode=${periode}`,
-              )
-            }
-            className="rounded-lg border bg-white p-2"
-          />
-        </label>
         <p className="w-full text-xs text-stone-600">
           {awal} sampai {akhir}. Pilihan periode hanya mengatur rekap;
           perhitungan HPP bulanan tetap berjalan seperti biasa.
