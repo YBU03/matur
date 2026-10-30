@@ -14,6 +14,7 @@ export type Pengeluaran = {
   tanggal?: string;
   request_id?: string;
   sesi_id?: string;
+  items?: { bahan_id: string; qty: number }[];
 };
 
 const segarkan = () => {
@@ -50,14 +51,18 @@ export async function catatPengeluaran(
   const b = bersih(d);
   if (!b.v) return { error: b.error };
   const supabase = await supabaseServer();
-  const { error } = await supabase.rpc("catat_pengeluaran_pos", {
-    p: {
-      ...b.v,
-      outlet_id: outlet,
-      request_id: d.request_id ?? crypto.randomUUID(),
-      sesi_id: d.sesi_id ?? null,
+  const { error } = await supabase.rpc(
+    d.items?.length ? "catat_belanja_bahan" : "catat_pengeluaran_pos",
+    {
+      p: {
+        ...b.v,
+        outlet_id: outlet,
+        request_id: d.request_id ?? crypto.randomUUID(),
+        sesi_id: d.sesi_id ?? null,
+        ...(d.items?.length ? { items: d.items } : {}),
+      },
     },
-  });
+  );
   if (error)
     return {
       error: error.message.includes("row-level")

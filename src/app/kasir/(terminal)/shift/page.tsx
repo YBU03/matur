@@ -1,3 +1,7 @@
+import {
+  PenerimaanBelanja,
+  type BelanjaBahan,
+} from "@/components/penerimaan-belanja";
 import { PosRiwayatShift } from "@/components/pos-riwayat-shift";
 import { PosAlurShift } from "@/components/pos-alur-shift";
 import { PosModalKas } from "@/components/pos-modal-kas";
@@ -83,6 +87,13 @@ export default async function KasPage() {
       "Data pengeluaran belum dapat dimuat: " +
         (katError ?? catatanError ?? produkError)!.message,
     );
+  const { data: belanja, error: belanjaError } = await supabase
+    .from("belanja_bahan_outlet")
+    .select("*")
+    .eq("outlet_id", outlet)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (belanjaError) throw new Error(belanjaError.message);
   return (
     <div className="space-y-4">
       {pos.alur_shift && (
@@ -102,6 +113,7 @@ export default async function KasPage() {
           />
         </div>
       )}
+      <PenerimaanBelanja data={(belanja ?? []) as BelanjaBahan[]} />
       <PosRiwayatShift outlet={outlet} />
       <KasView
         kategori={(kat ?? []) as { id: string; nama: string; grup: string }[]}
