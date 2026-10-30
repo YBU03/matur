@@ -1,3 +1,7 @@
+import {
+  PenerimaanBelanja,
+  type BelanjaBahan,
+} from "@/components/penerimaan-belanja";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StokRealtimeView } from "@/components/stok-realtime-view";
@@ -11,6 +15,13 @@ export default async function StokKasir() {
   const s = await getSession();
   if (!s?.active?.outletId || !POS_ROLES.includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
+  const { data: belanja, error: belanjaError } = await supabase
+    .from("belanja_bahan_outlet")
+    .select("*")
+    .eq("outlet_id", s.active.outletId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (belanjaError) throw new Error(belanjaError.message);
   const [d, titipan] = await Promise.all([
     ambilStok(supabase, s.active.outletId),
     ambilTitipan(supabase, s.active.outletId),
@@ -33,6 +44,7 @@ export default async function StokKasir() {
       >
         Hitung stok / SO Outlet
       </Link>
+      <PenerimaanBelanja data={(belanja ?? []) as BelanjaBahan[]} />
       <StokRealtimeView
         judul="Stok Outlet"
         lokasi={[]}

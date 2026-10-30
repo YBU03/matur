@@ -2,6 +2,7 @@
 
 // Form catat/ubah pengeluaran outlet — dipakai di aplikasi kasir dan di Catatan Harian (admin)
 import { useRef, useState } from "react";
+import { muatBahanBelanja } from "@/lib/accounting-operasional-actions";
 import type { Pengeluaran } from "@/lib/kas-actions";
 
 export type Kat = { id: string; nama: string; grup: string };
@@ -36,8 +37,15 @@ export function FormPengeluaran({
   onSimpan: (d: Pengeluaran, reset: () => void) => void;
   onBatal?: () => void;
 }) {
+  const [bahan, setBahan] = useState<
+    { id: string; nama: string; satuan_pakai: string }[]
+  >([]);
+  const [items, setItems] = useState<{ bahan_id: string; qty: string }[]>([]);
+  const [pesan, setPesan] = useState("");
+  const [memuat, setMemuat] = useState(false);
   const requestId = useRef<string | null>(null);
   const [kat, setKat] = useState(awal?.kategori_id ?? "");
+  const bahanBaku = kategori.find((k) => k.id === kat)?.nama === "Bahan Baku";
   const [jumlah, setJumlah] = useState(awal?.jumlah ? String(awal.jumlah) : "");
   const [ket, setKet] = useState(awal?.keterangan ?? "");
   const [sumber, setSumber] = useState<"laci" | "pusat">(
@@ -49,6 +57,8 @@ export function FormPengeluaran({
   };
   const reset = () => {
     requestId.current = null;
+    setItems([]);
+    setPesan("");
     setKat("");
     setJumlah("");
     setKet("");
@@ -88,6 +98,97 @@ export function FormPengeluaran({
           className={cls}
         />
       </div>
+      {bahanBaku && (!awal || baru) && (
+        <div className="space-y-2 rounded-xl bg-amber-50 p-3 text-sm">
+          <p>
+            Pembelian langsung di luar gudang? Tambahkan rincian bahan. Setelah
+            pengeluaran tersimpan, barista memeriksa dan mengonfirmasi
+            penerimaan pada panel di bawah. Stok belum bertambah saat uang
+            dicatat.
+          </p>
+          <button
+            type="button"
+            disabled={memuat}
+            className="rounded-lg border bg-white px-3 py-2"
+            onClick={async () => {
+              setMemuat(true);
+              try {
+                if (!bahan.length) {
+                  const r = await muatBahanBelanja();
+                  if (r.error) {
+                    setPesan(r.error);
+                    return;
+                  }
+                  setBahan(r.data ?? []);
+                }
+                setItems([...items, { bahan_id: "", qty: "" }]);
+              } catch {
+                setPesan("Bahan belum dapat dimuat. Coba lagi.");
+              } finally {
+                setMemuat(false);
+              }
+            }}
+          >
+            {memuat ? "Memuat bahan…" : "+ Rincian bahan"}
+          </button>
+          {items.map((x, n) => (
+            <div key={n} className="flex flex-wrap gap-2">
+              <select
+                aria-label="Bahan dibeli"
+                className="min-w-0 flex-1 rounded-lg border bg-white p-2"
+                value={x.bahan_id}
+                onChange={(e) =>
+                  setItems(
+                    items.map((v, k) =>
+                      k === n ? { ...v, bahan_id: e.target.value } : v,
+                    ),
+                  )
+                }
+              >
+                <option value="">Pilih bahan</option>
+                {bahan.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nama} ({b.satuan_pakai})
+                  </option>
+                ))}
+              </select>
+              <input
+                aria-label="Jumlah satuan stok"
+                type="number"
+                min="0.001"
+                step="0.001"
+                className="w-28 rounded-lg border bg-white p-2"
+                placeholder="Jumlah"
+                value={x.qty}
+                onChange={(e) =>
+                  setItems(
+                    items.map((v, k) =>
+                      k === n ? { ...v, qty: e.target.value } : v,
+                    ),
+                  )
+                }
+              />
+              <button
+                type="button"
+                aria-label="Hapus rincian"
+                onClick={() => setItems(items.filter((_, k) => k !== n))}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {pesan && (
+            <p role="alert" className="text-red-700">
+              {pesan}
+            </p>
+          )}
+          <p className="text-xs">
+            Gunakan satuan stok yang tertera, misalnya gram atau ml. Pembayaran
+            invoice gudang dan titipan jangan dicatat lagi sebagai pembelian
+            langsung.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2 text-sm">
         {(["laci", "pusat"] as const).map((s) => (
           <button
@@ -111,11 +212,26 @@ export function FormPengeluaran({
           </button>
         )}
         <button
-          disabled={pending || !kat || !(angka(jumlah) > 0)}
+          disabled={
+            pending ||
+            memuat ||
+            !kat ||
+            !(angka(jumlah) > 0) ||
+            (bahanBaku &&
+              items.some((i) => !i.bahan_id || !(Number(i.qty) > 0)))
+          }
           type="button"
           onClick={() =>
             onSimpan(
               {
+                ...(bahanBaku && (!awal || baru) && items.length
+                  ? {
+                      items: items.map((i) => ({
+                        bahan_id: i.bahan_id,
+                        qty: Number(i.qty),
+                      })),
+                    }
+                  : {}),
                 kategori_id: kat,
                 jumlah: angka(jumlah),
                 keterangan: ket,

@@ -51,3 +51,5 @@ SO outlet/Additional/Pengeluaran POS 28 Oktober: baca `docs/pos-so-additional-pe
 Menu Kemasan/Gula/Extra 28 Oktober: editor `/menu-varian/[id]`, kemasan = anak menu (`induk_id`), varian disinkronkan ke semua kemasan, mesin transaksi tidak diubah. Baca `docs/menu-kemasan-varian-2026-10-28.md`.
 
 Jadwal harian 29 Oktober: baca `docs/jadwal-editor-harian-2026-10-29.md`. Jam khusus memakai shift anak non-template yang terikat satu penugasan; jangan ikutkan anak shift ke generator/template aktif. Jadwal/shift yang sudah dipakai absensi dilindungi, agar riwayat gaji tidak berubah.
+
+Accounting 30 Oktober: baca `docs/accounting-operasional-2026-10-30.md`. Belanja langsung mencatat biaya sekali lalu penerimaan barista menambah stok; jangan membuat kiriman/biaya kedua. Revisi aktual kas final khusus Owner/Admin Pusat/Finance dengan audit; jangan membuka ulang kas atau mengubah transaksi. Rekap titipan rentang terpisah dari perhitungan HPP bulanan.
