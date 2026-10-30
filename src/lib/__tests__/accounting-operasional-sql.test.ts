@@ -74,6 +74,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261030033420_accounting_belanja_delete_guard.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 30000);
 afterAll(() => db.close());
 
@@ -271,4 +280,22 @@ it("consignment sale boundaries use WIB and ignore void; legacy cash revision do
   expect(
     (await query("select setoran,selisih from sesi_kas"))[0],
   ).toMatchObject({ setoran: 0, selisih: -120000 });
+});
+
+it("unrelated expenses retain ordinary edit, soft delete and hard delete behavior", async () => {
+  await as(finance);
+  const bid = await call(
+    "catat_pengeluaran_pos",
+    expense(180, { sumber: "pusat" }),
+  );
+  await query(
+    "update biaya_outlet set jumlah=5000,deleted_at=now() where id=$1",
+    [bid],
+  );
+  await query("delete from biaya_outlet where id=$1", [bid]);
+  expect(
+    (
+      await query("select count(*)::int n from biaya_outlet where id=$1", [bid])
+    )[0].n,
+  ).toBe(0);
 });
