@@ -51,6 +51,7 @@ export const ADMIN_MENU_GROUPS = [
       "/rumus-hpp",
       "/stok",
       "/gudang/opname",
+      "/gudang/pergerakan",
       "/operasional/kiriman",
       "/gudang/outlet",
       "/gudang/dokumen-arsip",

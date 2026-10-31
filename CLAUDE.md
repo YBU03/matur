@@ -53,3 +53,5 @@ Menu Kemasan/Gula/Extra 28 Oktober: editor `/menu-varian/[id]`, kemasan = anak m
 Jadwal harian 29 Oktober: baca `docs/jadwal-editor-harian-2026-10-29.md`. Jam khusus memakai shift anak non-template yang terikat satu penugasan; jangan ikutkan anak shift ke generator/template aktif. Jadwal/shift yang sudah dipakai absensi dilindungi, agar riwayat gaji tidak berubah.
 
 Accounting 30 Oktober: baca `docs/accounting-operasional-2026-10-30.md`. Belanja langsung mencatat biaya sekali lalu penerimaan barista menambah stok; jangan membuat kiriman/biaya kedua. Revisi aktual kas final khusus Owner/Admin Pusat/Finance dengan audit; jangan membuka ulang kas atau mengubah transaksi. Rekap titipan rentang terpisah dari perhitungan HPP bulanan.
+
+Gudang Pergerakan & Smart Forecast 1 November: `/gudang/pergerakan`, RPC baca `pergerakan_stok_gudang`/`forecast_stok`, buffer di `pengaturan_gudang`. Baca `docs/gudang-pergerakan-forecast-2026-11-01.md`.
