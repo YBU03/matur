@@ -23,6 +23,7 @@ beforeAll(async () => {
  insert into menu(id,nama,kategori_id,harga_langsung,harga_ojol,foto_url) values('${kopi}','Kopi Susu','${kat}',18000,22000,'foto.jpg');
  insert into resep(menu_id,bahan_id,takaran) values('${kopi}','${gula}',20);`);
   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261028133549_menu_kemasan_varian.sql", import.meta.url), "utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261031095853_menu_resep_editor.sql", import.meta.url), "utf8"));
   await as(owner);
 }, 30000);
 afterAll(() => db.close());
@@ -91,5 +92,29 @@ it("rejects invalid input, nested packaging, stale ids and non-admin users", asy
   await expect(atur({ menu_id: kopi, kemasan: [{ id: id(99), nama: "X", harga_langsung: 1, harga_ojol: 1 }], opsi: [] })).rejects.toThrow(/berubah/);
   await as(barista);
   await expect(atur({ menu_id: kopi, kemasan: [], opsi: [] })).rejects.toThrow(/Hanya Owner/);
+  await as(owner);
+});
+
+it("replaces only the base recipe of a menu, keeps variant recipes and blocks consignment products", async () => {
+  const resep = async (p: Record<string, unknown>) => (await q(`select public.atur_resep_menu($1::jsonb) v`, [JSON.stringify(p)]))[0].v;
+  const susu = id(20);
+  await q(`insert into menu(id,nama,harga_langsung,harga_ojol) values($1,'Teh Java',12000,15000),($2,'Kue Titip',20000,24000)`, [id(21), id(22)]);
+  await q(`update menu set titipan=true where id=$1`, [id(22)]);
+  await q(`insert into bahan(id,nama,satuan_beli,satuan_pakai) values($1,'Gula','kg','g'),($2,'Susu','L','ml')`, [gula, susu]);
+  const extra = (await q(`select id from varian where menu_id=$1 and nama='Extra Shot' and deleted_at is null`, [kopi]))[0].id;
+  await q(`insert into resep(menu_id,varian_id,bahan_id,takaran) values($1,$2,$3,18)`, [kopi, extra, susu]);
+  expect(await resep({ menu_id: kopi, bahan: [{ bahan_id: gula, takaran: 25 }, { bahan_id: susu, takaran: "150.5" }] })).toBe(2);
+  expect(await q(`select bahan_id,takaran::float t,varian_id from resep where menu_id=$1 and deleted_at is null order by varian_id nulls first,takaran`, [kopi])).toEqual([
+    { bahan_id: gula, t: 25, varian_id: null },
+    { bahan_id: susu, t: 150.5, varian_id: null },
+    { bahan_id: susu, t: 18, varian_id: extra },
+  ]);
+  expect(await resep({ menu_id: id(21), bahan: [{ bahan_id: gula, takaran: 10 }] })).toBe(1);
+  await expect(resep({ menu_id: id(22), bahan: [{ bahan_id: gula, takaran: 1 }] })).rejects.toThrow(/titipan/);
+  await expect(resep({ menu_id: kopi, bahan: [{ bahan_id: gula, takaran: 0 }] })).rejects.toThrow(/Takaran/);
+  await expect(resep({ menu_id: kopi, bahan: [{ bahan_id: gula, takaran: 1 }, { bahan_id: gula, takaran: 2 }] })).rejects.toThrow(/berulang/);
+  await expect(resep({ menu_id: kopi, bahan: [{ bahan_id: id(98), takaran: 1 }] })).rejects.toThrow(/tidak ditemukan/);
+  await as(barista);
+  await expect(resep({ menu_id: kopi, bahan: [] })).rejects.toThrow(/Hanya Owner/);
   await as(owner);
 });

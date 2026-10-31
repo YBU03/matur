@@ -6,6 +6,11 @@ import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 import { formatRupiah } from "@/lib/format";
 import { simpanVarianMenu } from "@/lib/menu-varian-actions";
 import { GRUP_OPSI, MULTI_OPSI, SARAN, cekVarian, type GrupOpsi, type KemasanInput, type OpsiInput } from "@/lib/menu-varian";
+import { EditorResep } from "@/components/editor-resep";
+import { hppResep, marginPersen, nadaMargin, type BahanHpp } from "@/lib/hpp-live";
+
+type ResepDasar = { menu_id: string; bahan_id: string; takaran: number };
+const WARNA = { hijau: "bg-emerald-100 text-emerald-800", kuning: "bg-amber-100 text-amber-800", merah: "bg-red-100 text-red-700" };
 
 type Menu = { id: string; nama: string; harga_langsung: number; harga_ojol: number; foto_url: string | null; kategori: string | null };
 const rp = (n: number) => (n ? "Rp " + n.toLocaleString("id-ID") : "Rp 0");
@@ -35,7 +40,10 @@ function InputRp({ value, onChange, label }: { value: number; onChange: (n: numb
   );
 }
 
-export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO }: { menu: Menu; kemasan: KemasanInput[]; opsi: OpsiInput[] }) {
+export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO, bahan, resep }: { menu: Menu; kemasan: KemasanInput[]; opsi: OpsiInput[]; bahan: BahanHpp[]; resep: ResepDasar[] }) {
+  const peta = new Map(bahan.map((b) => [b.id, b]));
+  const resepOf = (id: string) => resep.filter((r) => r.menu_id === id);
+  const [resepEdit, setResepEdit] = useState<{ id: string; nama: string; harga_langsung: number; harga_ojol: number } | null>(null);
   const router = useRouter();
   const [busy, start] = useTransition();
   const [kemasan, setKemasan] = useState(awalK);
@@ -99,8 +107,11 @@ export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO }: { menu: Me
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-base font-bold text-kopi-900">📦 Kemasan & harga</h2>
-            <p className="text-xs text-stone-500">Contoh Cup, Hot, Can. Setiap kemasan punya harga dine-in/take away dan ojol sendiri. Di POS kasir wajib memilih salah satu.</p>
+            <p className="text-xs text-stone-500">Contoh Cup, Hot, Can. Setiap kemasan punya harga dine-in/take away dan ojol sendiri, serta resep & HPP sendiri. Di POS kasir wajib memilih salah satu.</p>
           </div>
+          <button type="button" onClick={() => setResepEdit(menu)} className="rounded-xl border border-matur-300 px-3 py-2 text-xs font-semibold text-kopi-800 hover:bg-matur-50">
+            🧾 Resep dasar · HPP {formatRupiah(hppResep(resepOf(menu.id), peta))}
+          </button>
         </div>
         {!kemasan.length && (
           <p className="mt-3 rounded-xl bg-stone-50 p-3 text-sm text-stone-600">
@@ -125,6 +136,30 @@ export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO }: { menu: Me
               <button type="button" aria-label={"Hapus kemasan " + k.nama} onClick={() => (ubah(), setKemasan(kemasan.filter((_, n) => n !== i)))} className="rounded-xl px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
                 ✕ <span className="sm:hidden">Hapus</span>
               </button>
+              {k.id && (() => {
+                const rows = resepOf(k.id!);
+                const h = hppResep(rows, peta);
+                const md = marginPersen(k.harga_langsung, h);
+                const mo = marginPersen(k.harga_ojol, h);
+                return (
+                  <div className="col-span-full flex flex-wrap items-center gap-2 border-t border-matur-100 pt-2 text-xs">
+                    {rows.length ? (
+                      <>
+                        <span>
+                          HPP <b className="tabular-nums text-kopi-900">{formatRupiah(h)}</b>
+                        </span>
+                        <span className={`rounded-full px-2 py-0.5 font-bold ${WARNA[nadaMargin(md)]}`}>margin {md}%</span>
+                        <span className="text-stone-500">ojol {mo}%</span>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">Belum ada resep: stok tidak terpotong</span>
+                    )}
+                    <button type="button" onClick={() => setResepEdit({ id: k.id!, nama: `${menu.nama} (${k.nama})`, harga_langsung: k.harga_langsung, harga_ojol: k.harga_ojol })} className="ml-auto rounded-lg bg-kopi-900 px-3 py-1.5 font-semibold text-white">
+                      🧾 Atur resep
+                    </button>
+                  </div>
+                );
+              })()}
             </li>
           ))}
         </ul>
@@ -138,7 +173,7 @@ export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO }: { menu: Me
             + Kemasan lain
           </button>
         </div>
-        {kemasan.some((k) => !k.id) && <p className="mt-2 text-xs text-stone-500">💡 Kemasan baru menyalin resep menu ini sebagai awal. Sesuaikan bahan tiap kemasan (mis. cup vs can) di Resep / HPP Menu.</p>}
+        {kemasan.some((k) => !k.id) && <p className="mt-2 text-xs text-stone-500">💡 Kemasan baru menyalin resep dasar sebagai awal. Setelah disimpan, atur bahan tiap kemasan (mis. cup vs can) lewat tombol Atur resep.</p>}
       </section>
 
       {grupTampil.map((g) => {
@@ -217,6 +252,9 @@ export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO }: { menu: Me
         </div>
       </section>
 
+      {resepEdit && (
+        <EditorResep key={resepEdit.id} menu={resepEdit} awal={resepOf(resepEdit.id)} bahan={bahan} onTutup={() => setResepEdit(null)} />
+      )}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-matur-200 bg-white/95 p-3 backdrop-blur sm:sticky sm:bottom-3 sm:rounded-2xl sm:border sm:shadow-lg">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2">
           <p role="status" className={`mr-auto text-xs ${pesan?.error ? "font-semibold text-red-700" : pesan?.ok ? "text-emerald-700" : dirty ? "font-semibold text-amber-700" : "text-stone-500"}`}>

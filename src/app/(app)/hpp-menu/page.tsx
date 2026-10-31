@@ -5,10 +5,11 @@ import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { TambahHpp } from "./tambah-hpp";
 import { PilihMenu } from "./pilih-menu";
-import { DaftarHpp, type Hpp } from "./daftar-hpp";
+import { DaftarHpp, type Hpp, type MenuHpp } from "./daftar-hpp";
+import { hppResep, marginPersen, type BahanHpp, type BarisResep } from "@/lib/hpp-live";
 
 
-// HPP per menu (dari file HPP RUMA): biaya bahan per cup dan margin terhadap harga jual
+// HPP per menu: dihitung live dari resep POS × HPP bahan; data file HPP RUMA tetap sebagai referensi
 export default async function HppMenu() {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance"].includes(s.active.role)) notFound();
@@ -16,45 +17,44 @@ export default async function HppMenu() {
   const supabase = await supabaseServer();
   const [{ data: h }, { data: m }, { data: bahan }, { data: kategori }, { data: resep }] = await Promise.all([
     supabase.from("hpp_menu").select("id, menu_id, nama_hpp, seri, komponen, total_hpp, harga_jual").is("deleted_at", null),
-    supabase.from("menu").select("id, nama, harga_langsung, kategori_menu(nama, urutan), urutan").eq("mode", "asli").is("deleted_at", null).order("urutan"),
+    supabase.from("menu").select("id, nama, harga_langsung, harga_ojol, titipan, harga_titip, aktif, induk_id, kemasan, kategori_menu(nama, urutan), urutan").eq("mode", "asli").is("deleted_at", null).order("urutan").order("nama"),
     supabase.from("bahan").select("id, nama, satuan_pakai, harga_pokok").eq("mode", "asli").is("deleted_at", null).order("nama"),
     supabase.from("kategori_menu").select("id, nama").is("deleted_at", null).order("nama"),
-    supabase.from("resep").select("menu_id").eq("mode", "asli").is("deleted_at", null),
+    supabase.from("resep").select("menu_id, varian_id, bahan_id, takaran").eq("mode", "asli").is("deleted_at", null),
   ]);
   const hpp = (h ?? []) as Hpp[];
-  const menus = (m ?? []) as unknown as { id: string; nama: string; harga_langsung: number; kategori_menu: { nama: string; urutan: number } | null }[];
+  const menus = (m ?? []) as unknown as MenuHpp[];
+  const rs = ((resep ?? []) as BarisResep[]).map((r) => ({ ...r, takaran: Number(r.takaran) }));
+  const bh = (bahan ?? []) as BahanHpp[];
   const lepas = hpp.filter((x) => !x.menu_id);
-  const opsi = menus.map((x) => ({ id: x.id, nama: x.nama }));
+  const opsi = menus.filter((x) => !x.induk_id).map((x) => ({ id: x.id, nama: x.nama }));
 
-  // ringkasan dari data yang sudah dimuat
-  const marginMenu = menus.map((menu) =>
-    hpp
-      .filter((x) => x.menu_id === menu.id)
-      .map((x) => {
-        const jual = x.harga_jual ?? menu.harga_langsung;
-        return jual ? Math.round(((jual - x.total_hpp) / jual) * 100) : 0;
-      }),
-  );
-  const semuaMargin = marginMenu.flat();
-  const rataMargin = semuaMargin.length ? Math.round(semuaMargin.reduce((t, m) => t + m, 0) / semuaMargin.length) : null;
-  const marginRendah = marginMenu.filter((m) => m.some((x) => x < 45)).length;
-  const tanpaHpp = marginMenu.filter((m) => m.length === 0).length;
+  // ringkasan live atas item yang benar-benar dijual: kemasan, atau menu tanpa kemasan
+  const peta = new Map(bh.map((b) => [b.id, b]));
+  const dijual = menus.filter((x) => x.aktif && !menus.some((k) => k.induk_id === x.id && k.aktif));
+  const punyaResep = (id: string) => rs.some((r) => r.menu_id === id && !r.varian_id);
+  const margins = dijual
+    .filter((x) => x.titipan || punyaResep(x.id))
+    .map((x) => marginPersen(x.harga_langsung, x.titipan ? Number(x.harga_titip ?? 0) : hppResep(rs.filter((r) => r.menu_id === x.id && !r.varian_id), peta)));
+  const rataMargin = margins.length ? Math.round(margins.reduce((t, n) => t + n, 0) / margins.length) : null;
+  const marginRendah = margins.filter((n) => n < 45).length;
+  const tanpaResep = dijual.filter((x) => !x.titipan && !punyaResep(x.id)).length;
 
   return (
     <div className="space-y-4">
-      <HeaderHalaman judul="HPP Menu" ikon="☕" keterangan="Biaya bahan per menu dan margin harga jual POS. Tambahkan HPP beserta resep untuk menu baru.">
+      <HeaderHalaman judul="HPP Menu" ikon="☕" keterangan="HPP live dari resep yang dipakai POS × HPP bahan terbaru (ikut pembelian Gudang), beserta harga jual dan margin. Ubah resep langsung di sini.">
         <ChipHeader>{hpp.length} data HPP</ChipHeader>
         {lepas.length > 0 && <ChipHeader>⚠️ {lepas.length} belum terhubung</ChipHeader>}
       </HeaderHalaman>
 
       <BarisAngka>
-        <KartuAngka label="Jumlah menu" nilai={menus.length} ikon="☕" />
-        <KartuAngka label="Rata-rata margin" nilai={rataMargin === null ? "–" : `${rataMargin}%`} ikon="📈" nada={rataMargin === null ? "netral" : rataMargin >= 60 ? "hijau" : rataMargin >= 45 ? "kuning" : "merah"} sub={`dari ${semuaMargin.length} varian`} />
-        <KartuAngka label="Menu margin < 45%" nilai={marginRendah} ikon="⚠️" nada="merah" sub="perlu ditinjau" />
-        <KartuAngka label="Menu tanpa HPP" nilai={tanpaHpp} ikon="❔" nada="kuning" sub="belum ada data" />
+        <KartuAngka label="Item dijual" nilai={dijual.length} ikon="☕" sub="menu & kemasan aktif" />
+        <KartuAngka label="Rata-rata margin" nilai={rataMargin === null ? "–" : `${rataMargin}%`} ikon="📈" nada={rataMargin === null ? "netral" : rataMargin >= 60 ? "hijau" : rataMargin >= 45 ? "kuning" : "merah"} sub={`dari ${margins.length} item (harga dine-in)`} />
+        <KartuAngka label="Margin < 45%" nilai={marginRendah} ikon="⚠️" nada="merah" sub="perlu ditinjau" />
+        <KartuAngka label="Belum ada resep" nilai={tanpaResep} ikon="❔" nada="kuning" sub="stok tidak terpotong, HPP Rp 0" />
       </BarisAngka>
 
-      {bisaUbah && <TambahHpp menus={menus.filter((m) => !(resep ?? []).some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
+      {bisaUbah && <TambahHpp menus={menus.filter((m) => !m.induk_id && !m.titipan && !rs.some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
       {lepas.length > 0 && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
           <h2 className="font-bold text-amber-900">HPP belum terhubung ke menu POS ({lepas.length})</h2>
@@ -72,7 +72,7 @@ export default async function HppMenu() {
         </section>
       )}
 
-      <DaftarHpp menus={menus} hpp={hpp.filter((x) => x.menu_id)} opsi={opsi} bisaUbah={bisaUbah} />
+      <DaftarHpp menus={menus} hpp={hpp.filter((x) => x.menu_id)} resep={rs} bahan={bh} opsi={opsi} bisaUbah={bisaUbah} />
     </div>
   );
 }
