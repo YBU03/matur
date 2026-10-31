@@ -10,6 +10,12 @@ import {
   type DeleteOutcome,
 } from "@/lib/user-delete";
 
+export type UserSelection = {
+  selected: string[];
+  toggle: (id: string) => void;
+  canSelect: (u: DeleteTarget) => boolean;
+};
+
 export function UserDeletePanel({
   visible,
   meId,
@@ -18,6 +24,7 @@ export function UserDeletePanel({
   selecting,
   setSelecting,
   scope,
+  children,
 }: {
   visible: DeleteTarget[];
   meId: string;
@@ -26,6 +33,7 @@ export function UserDeletePanel({
   selecting: boolean;
   setSelecting: (v: boolean) => void;
   scope: string;
+  children?: (selection: UserSelection) => React.ReactNode;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [batch, setBatch] = useState<DeleteTarget[] | null>(null);
@@ -102,51 +110,55 @@ export function UserDeletePanel({
               filter untuk memulai pilihan baru. Maksimal {MAX_DELETE_USERS}{" "}
               akun per proses.
             </p>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {visible.map((u) => {
-                const allowed = bolehHapus(u, meId);
-                const checked = chosen.some((x) => x.id === u.id);
-                return (
-                  <li key={u.id}>
-                    <label
-                      className={`flex h-full items-start gap-3 rounded-xl border p-3 text-sm ${checked ? "border-red-300 bg-red-50" : "border-stone-200"} ${!allowed ? "opacity-60" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={
-                          !allowed ||
-                          busy ||
-                          (!checked && chosen.length >= MAX_DELETE_USERS)
-                        }
-                        onChange={(e) =>
-                          setSelected((xs) =>
-                            e.target.checked
-                              ? [...new Set([...xs, u.id])]
-                              : xs.filter((id) => id !== u.id),
-                          )
-                        }
-                        className="mt-1 accent-red-600"
-                      />
-                      <span className="min-w-0">
-                        <span className="block break-words font-semibold">
-                          {u.nama}
-                        </span>
-                        <span className="block break-all text-xs text-stone-500">
-                          {u.email ?? "Tanpa email"}
-                        </span>
-                        {!allowed && (
-                          <span className="block text-xs text-stone-500">
-                            {u.id === meId ? "Akun Anda sendiri" : "Akun Owner"}{" "}
-                            · tidak dapat dipilih
+            {!children && (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {visible.map((u) => {
+                  const allowed = bolehHapus(u, meId);
+                  const checked = chosen.some((x) => x.id === u.id);
+                  return (
+                    <li key={u.id}>
+                      <label
+                        className={`flex h-full items-start gap-3 rounded-xl border p-3 text-sm ${checked ? "border-red-300 bg-red-50" : "border-stone-200"} ${!allowed ? "opacity-60" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={
+                            !allowed ||
+                            busy ||
+                            (!checked && chosen.length >= MAX_DELETE_USERS)
+                          }
+                          onChange={(e) =>
+                            setSelected((xs) =>
+                              e.target.checked
+                                ? [...new Set([...xs, u.id])]
+                                : xs.filter((id) => id !== u.id),
+                            )
+                          }
+                          className="mt-1 accent-red-600"
+                        />
+                        <span className="min-w-0">
+                          <span className="block break-words font-semibold">
+                            {u.nama}
                           </span>
-                        )}
-                      </span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
+                          <span className="block break-all text-xs text-stone-500">
+                            {u.email ?? "Tanpa email"}
+                          </span>
+                          {!allowed && (
+                            <span className="block text-xs text-stone-500">
+                              {u.id === meId
+                                ? "Akun Anda sendiri"
+                                : "Akun Owner"}{" "}
+                              · tidak dapat dipilih
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {!visible.length && (
               <p className="text-sm text-stone-500">
                 Tidak ada pengguna pada hasil filter ini.
@@ -179,6 +191,22 @@ export function UserDeletePanel({
           </div>
         )}
       </section>
+      {children?.({
+        selected: chosen.map((u) => u.id),
+        canSelect: (u) =>
+          bolehHapus(u, meId) &&
+          !busy &&
+          (!chosen.length ||
+            chosen.some((x) => x.id === u.id) ||
+            chosen.length < MAX_DELETE_USERS),
+        toggle: (id) => {
+          if (busy) return;
+          setSelecting(true);
+          setSelected((xs) =>
+            xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id],
+          );
+        },
+      })}
       {targets && (
         <DeleteUsersDialog
           key={targets.map((u) => u.id).join(",")}

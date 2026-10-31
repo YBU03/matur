@@ -78,11 +78,13 @@ export function Modal({
   children,
   onClose,
   scrollable = false,
+  mobileSheet = false,
 }: {
   title: string;
   children: React.ReactNode;
   onClose?: () => void;
   scrollable?: boolean;
+  mobileSheet?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -104,14 +106,16 @@ export function Modal({
     return () => window.removeEventListener("keydown", f);
   }, [onClose]);
   const content = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${mobileSheet ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}
+    >
       <div
         ref={panel}
         tabIndex={-1}
         role="dialog"
         aria-label={title}
         aria-modal
-        className={`w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl ${scrollable ? "max-h-[90dvh] overflow-y-auto overscroll-contain" : ""}`}
+        className={`w-full max-w-lg bg-white p-5 shadow-xl ${mobileSheet ? "rounded-t-3xl sm:rounded-2xl" : "rounded-2xl"} ${scrollable ? "max-h-[90dvh] overflow-y-auto overscroll-contain" : ""}`}
         onKeyDown={(e) => {
           if (!scrollable || e.key !== "Tab") return;
           const els = panel.current?.querySelectorAll<HTMLElement>(
