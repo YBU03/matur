@@ -152,7 +152,8 @@ export function PosScreen({
   const [meja, setMeja] = useState("");
   const [diskon, setDiskon] = useState("");
   const [metode, setMetode] = useState<string>("tunai");
-  const [lihatQris, setLihatQris] = useState<number | null>(null);
+  // QRIS: klik Bayar → QR tampil → kasir konfirmasi dana masuk → transaksi tersimpan
+  const [qrisBayar, setQrisBayar] = useState<{ nominal: number; otorisasi?: string } | null>(null);
   const [diterima, setDiterima] = useState("");
   const [bayarTunai, setBayarTunai] = useState(false);
   const [err, setErr] = useState("");
@@ -354,6 +355,7 @@ export function PosScreen({
             /* Safe to replay: the server already has this ID. */
           }
         }
+        setQrisBayar(null);
         setReceipt({ r: res.receipt, lines: cart, kanal, metode: c.metode });
       } catch (e) {
         if (!galatJaringan(e)) return setErr("Gagal menyimpan transaksi.");
@@ -498,6 +500,23 @@ export function PosScreen({
       if (r.error) setErr(r.error);
       else if (draftId === d.id) reset();
     });
+  };
+
+  // Non-tunai: bila ada bagian QRIS, tampilkan QR dulu (setelah cek diskon/split/online), baru simpan saat dana masuk.
+  const mulaiBayar = (otorisasi?: string) => {
+    const nominalQris = split
+      ? bayarList.filter((b) => b.metode === "qris").reduce((t, b) => t + num(b.nominal), 0)
+      : metode === "qris"
+        ? total
+        : 0;
+    if (nominalQris <= 0) return checkout(otorisasi);
+    setErr("");
+    if (persenDiskon > batasDiskon && !otorisasi) return setMintaSpv(true);
+    if (split && sisaSplit !== 0)
+      return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
+    if (!qris) return setErr("QRIS outlet belum diatur (Pengaturan → QRIS Outlet). Pilih metode lain.");
+    if (!navigator.onLine) return setErr("QRIS membutuhkan internet. Gunakan tunai saat offline.");
+    setQrisBayar({ nominal: nominalQris, otorisasi });
   };
 
   const chip = (active: boolean) =>
@@ -716,33 +735,11 @@ export function PosScreen({
             {split ? "✕ Satu metode" : "➗ Split bayar"}
           </button>
         </div>
-        {!split && metode === "qris" && total > 0 && (
-          <button
-            onClick={() => setLihatQris(total)}
-            disabled={!qris}
-            className="w-full rounded-xl border-2 border-sky-500 bg-sky-50 py-2 text-sm font-bold text-sky-700 disabled:opacity-50"
-          >
-            {qris
-              ? `📱 Tampilkan QRIS ${qris.dinamis ? formatRupiah(total) : ""}`
-              : "QRIS outlet belum diatur (Pengaturan → QRIS Outlet)"}
-          </button>
+        {(split ? bayarList.some((b) => b.metode === "qris" && num(b.nominal) > 0) : metode === "qris" && total > 0) && (
+          <p className={`rounded-xl px-3 py-2 text-xs font-semibold ${qris ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800"}`}>
+            {qris ? "📱 QR muncul setelah klik Bayar. Selesaikan setelah dana masuk." : "⚠️ QRIS outlet belum diatur (Pengaturan → QRIS Outlet)."}
+          </p>
         )}
-        {split &&
-          qris &&
-          bayarList.some((b) => b.metode === "qris" && num(b.nominal) > 0) && (
-            <button
-              onClick={() =>
-                setLihatQris(
-                  bayarList
-                    .filter((b) => b.metode === "qris")
-                    .reduce((t, b) => t + num(b.nominal), 0),
-                )
-              }
-              className="w-full rounded-xl border-2 border-sky-500 bg-sky-50 py-2 text-sm font-bold text-sky-700"
-            >
-              📱 Tampilkan QRIS bagian split
-            </button>
-          )}
         {split && (
           <div className="space-y-1.5 rounded-xl bg-matur-50 p-2 text-sm">
             {bayarList.map((b, i) => (
@@ -876,7 +873,7 @@ export function PosScreen({
                 setErr("");
                 setDiterima("");
                 setBayarTunai(true);
-              } else checkout();
+              } else mulaiBayar();
             }}
             className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
           >
@@ -972,26 +969,34 @@ export function PosScreen({
           </div>
         </Modal>
       )}
-      {lihatQris !== null && qris && (
-        <Modal title="Scan untuk bayar">
+      {qrisBayar && qris && !receipt && (
+        <Modal title="Bayar dengan QRIS">
           <div className="space-y-2 text-center">
-            <QrisTampil q={qris} nominal={lihatQris} ukuran={300} />
+            <QrisTampil q={qris} nominal={qrisBayar.nominal} ukuran={300} />
             {qris.nama && <p className="font-semibold">{qris.nama}</p>}
-            <p className="text-3xl font-bold tabular-nums">
-              {formatRupiah(lihatQris)}
-            </p>
-            <p className="text-xs text-stone-500">
+            <p className="text-3xl font-bold tabular-nums">{formatRupiah(qrisBayar.nominal)}</p>
+            {split && <p className="text-xs text-stone-500">Bagian QRIS dari total {formatRupiah(total)}</p>}
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {qris.mode === "dinamis"
                 ? "Menunggu konfigurasi penyedia. Pembayaran QRIS belum dapat diproses."
-                : "Minta pelanggan mengetik nominal di atas. Cek dana masuk sebelum menekan Bayar."}
+                : "Minta pelanggan mengetik nominal di atas. Cek notifikasi dana masuk di HP merchant sebelum menyelesaikan."}
             </p>
+            {err && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex gap-2">
             <button
-              onClick={() => setLihatQris(null)}
-              className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white"
+              disabled={pending}
+              onClick={() => setQrisBayar(null)}
+              className="rounded-xl border px-4 py-3 text-sm font-semibold text-stone-700 disabled:opacity-50"
             >
-              Tutup
+              Batal
+            </button>
+            <button
+              disabled={pending || qris.mode === "dinamis"}
+              onClick={() => checkout(qrisBayar.otorisasi)}
+              className="flex-1 rounded-xl bg-emerald-600 py-3 text-base font-bold text-white disabled:opacity-50"
+            >
+              {pending ? "Menyimpan…" : "✅ Dana masuk, selesaikan"}
             </button>
           </div>
         </Modal>
@@ -1013,7 +1018,7 @@ export function PosScreen({
             const r = await izinDiskonSpv(login, pin, persenDiskon);
             if (r.error) return r.error;
             setMintaSpv(false);
-            checkout(r.otorisasi);
+            mulaiBayar(r.otorisasi);
             return null;
           }}
         />
