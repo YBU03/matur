@@ -11,6 +11,7 @@ import {
   namaPrinter,
   sambungPrinter,
   susunStruk,
+  type BarisStruk,
 } from "@/lib/printer-bt";
 export type ReceiptLine = {
   key: string;
@@ -45,7 +46,15 @@ export function ReceiptDialog({
   outletNama,
   kasir,
   onClose,
+  waktuTransaksi,
+  salinan = false,
+  voidAlasan,
 }: {
+  /** waktu transaksi asli (struk salinan dari Riwayat); kosong = sekarang */
+  waktuTransaksi?: string;
+  /** struk dibuka ulang dari Riwayat: tandai SALINAN, tombol Tutup */
+  salinan?: boolean;
+  voidAlasan?: string | null;
   r: Receipt;
   offline?: boolean;
   testing?: boolean;
@@ -81,7 +90,8 @@ export function ReceiptDialog({
       : String(r.nomor);
   const [bt, setBt] = useState<string | null>(namaPrinter());
   const [btErr, setBtErr] = useState("");
-  const waktu = new Date().toLocaleString("id-ID", {
+  const waktu = (waktuTransaksi ? new Date(waktuTransaksi) : new Date()).toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -97,10 +107,10 @@ export function ReceiptDialog({
     r.kembalian ? `Kembali: ${formatRupiah(r.kembalian)}` : "",
     "Terima kasih 🙏",
   ].filter(Boolean);
-  const dataStruk = () => {
-    const lebar = kertas === "58" ? 32 : 48;
-    return susunStruk(
-      [
+  const [unduhErr, setUnduhErr] = useState("");
+  const barisStruk = (lebar: number): BarisStruk[] => [
+        ...(salinan ? [{ teks: voidAlasan != null ? "*** VOID - DIBATALKAN ***" : "*** SALINAN ***", tengah: true, tebal: true }] : []),
+        ...(voidAlasan ? [{ teks: "Alasan: " + voidAlasan, tengah: true }] : []),
         ...(testing
           ? [
               {
@@ -158,9 +168,16 @@ export function ReceiptDialog({
           : []),
         "-".repeat(lebar),
         { teks: "Terima kasih", tengah: true },
-      ],
-      lebar,
-    );
+      ];
+  const dataStruk = () => susunStruk(barisStruk(kertas === "58" ? 32 : 48), kertas === "58" ? 32 : 48);
+  const unduhPdf = async () => {
+    setUnduhErr("");
+    try {
+      const [{ buatStrukPdf }, { unduh }] = await Promise.all([import("@/lib/struk-pdf"), import("@/lib/pdf-kop")]);
+      unduh(await buatStrukPdf(barisStruk(kertas === "58" ? 32 : 48), kertas), `Struk ${outletNama} #${nomor}${salinan ? " (salinan)" : ""}`);
+    } catch {
+      setUnduhErr("PDF belum dapat dibuat. Coba lagi.");
+    }
   };
   const cetakBt = async () => {
     setBtErr("");
@@ -175,11 +192,13 @@ export function ReceiptDialog({
   return (
     <Modal
       title={
-        testing
-          ? "Transaksi testing berhasil"
-          : offline
-            ? "Tersimpan offline"
-            : "Transaksi berhasil"
+        salinan
+          ? `🧾 Struk #${nomor}`
+          : testing
+            ? "Transaksi testing berhasil"
+            : offline
+              ? "Tersimpan offline"
+              : "Transaksi berhasil"
       }
     >
       {offline && (
@@ -196,6 +215,12 @@ export function ReceiptDialog({
         {testing && (
           <p className="mb-2 text-center font-bold">
             TESTING · BUKAN TRANSAKSI ASLI
+          </p>
+        )}
+        {salinan && (
+          <p className={`mb-2 rounded border-2 border-dashed py-1 text-center font-bold ${voidAlasan != null ? "border-red-500 text-red-600" : "border-stone-400 text-stone-600"}`}>
+            {voidAlasan != null ? "VOID · DIBATALKAN" : "SALINAN"}
+            {voidAlasan && <span className="block text-[10px] font-normal">Alasan: {voidAlasan}</span>}
           </p>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element -- logo struk */}
@@ -249,8 +274,8 @@ export function ReceiptDialog({
           </button>
         ))}
       </div>
-      {btErr && (
-        <p className="mt-2 text-center text-xs text-red-600">{btErr}</p>
+      {(btErr || unduhErr) && (
+        <p className="mt-2 text-center text-xs text-red-600">{btErr || unduhErr}</p>
       )}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <a
@@ -279,6 +304,9 @@ export function ReceiptDialog({
             RawBT
           </button>
         )}
+        <button onClick={unduhPdf} className="rounded-lg border px-4 py-2 text-sm">
+          ⬇ Unduh PDF
+        </button>
         <button
           onClick={() => window.print()}
           className="rounded-lg border px-4 py-2 text-sm"
@@ -289,7 +317,7 @@ export function ReceiptDialog({
           onClick={onClose}
           className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white"
         >
-          Pesanan baru
+          {salinan ? "Tutup" : "Pesanan baru"}
         </button>
       </div>
     </Modal>
