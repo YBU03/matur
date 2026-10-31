@@ -9,20 +9,46 @@ export default async function PenggunaPage() {
   const s = await getSession();
   if (!s?.active || !findMenu(s.active.role, "/pengguna")) notFound();
   const supabase = await supabaseServer();
-  const [{ data: users }, { data: tugas }, { data: outlets }] = await Promise.all([
-    supabase.from("pengguna").select("id, nama, email, no_hp, status, permintaan, created_at").neq("status", "dihapus").eq("akun_tablet", false).order("nama"),
+  const [
+    { data: users, error: usersError },
+    { data: tugas, error: tugasError },
+    { data: outlets, error: outletsError },
+  ] = await Promise.all([
+    supabase
+      .from("pengguna")
+      .select("id, nama, email, no_hp, status, permintaan, created_at")
+      .neq("status", "dihapus")
+      .eq("akun_tablet", false)
+      .order("nama"),
     supabase.from("penugasan").select("id, pengguna_id, peran, outlet_id"),
-    supabase.from("outlet").select("id, nama").eq("mode", "asli").is("deleted_at", null).order("nama"),
+    supabase
+      .from("outlet")
+      .select("id, nama")
+      .eq("mode", "asli")
+      .is("deleted_at", null)
+      .order("nama"),
   ]);
+  if (usersError || tugasError || outletsError)
+    throw new Error(
+      "Daftar pengguna belum dapat dimuat: " +
+        (usersError ?? tugasError ?? outletsError)!.message,
+    );
   // HRD & Admin Gudang hanya mengelola akun kasir/barista dan pendaftar karyawan outlet
   const staf = s.active.role === "hrd" || s.active.role === "admin_gudang";
   let ids: Set<string> | null = null;
   if (staf) {
-    const { data } = await supabase.rpc("id_staf_outlet");
+    const { data, error } = await supabase.rpc("id_staf_outlet");
+    if (error) throw new Error(error.message);
     ids = new Set(((data ?? []) as unknown as string[]).map(String));
   }
   const rows: UserRow[] = (users ?? [])
-    .filter((u) => !ids || ids.has(u.id) || (u.status === "menunggu" && (u.permintaan as { jenis?: string } | null)?.jenis === "staf_outlet"))
+    .filter(
+      (u) =>
+        !ids ||
+        ids.has(u.id) ||
+        (u.status === "menunggu" &&
+          (u.permintaan as { jenis?: string } | null)?.jenis === "staf_outlet"),
+    )
     .map((u) => ({
       ...u,
       assignments: (tugas ?? []).filter((t) => t.pengguna_id === u.id),
@@ -30,7 +56,13 @@ export default async function PenggunaPage() {
   return (
     <>
       <LiveRefresh pantau={[{ table: "pengguna" }, { table: "penugasan" }]} />
-      <UserAdmin users={rows} outlets={outlets ?? []} isOwner={s.active.role === "owner"} staf={staf} meId={s.userId} />
+      <UserAdmin
+        users={rows}
+        outlets={outlets ?? []}
+        isOwner={s.active.role === "owner"}
+        staf={staf}
+        meId={s.userId}
+      />
     </>
   );
 }
