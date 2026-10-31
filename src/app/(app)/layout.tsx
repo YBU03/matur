@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="text-xs font-medium text-matur-700">Profil saya ›</p>
         </div>
       </Link>
-      <SideNav items={r.menu} />
+      <SideNav items={r.menu} grouped={isAdminDashboardRole(s.active.role)} />
       <div className="space-y-2 p-4 text-sm">
         {/* Aplikasi kasir (POS) terpisah di /kasir — untuk akun yang bertugas sebagai kasir/barista/SPV */}
         {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
