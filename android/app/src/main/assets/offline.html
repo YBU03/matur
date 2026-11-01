@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tidak ada internet</title>
+<style>
+ body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#fff7ed;color:#3b2412;text-align:center}
+ .k{max-width:420px;padding:28px;background:#fff;border-radius:24px;box-shadow:0 6px 24px #0001;margin:16px}
+ h1{font-size:22px;margin:8px 0} p{color:#6b5444;line-height:1.5}
+ button{margin-top:12px;background:#f97316;color:#fff;border:0;border-radius:14px;padding:14px 22px;font-size:16px;font-weight:700}
+</style></head>
+<body><div class="k">
+ <div style="font-size:48px">📶</div>
+ <h1>Tidak ada koneksi internet</h1>
+ <p>Matoer POS butuh internet untuk membuka halaman kasir. Periksa Wi-Fi atau data seluler tablet, lalu coba lagi.</p>
+ <button onclick="window.MatoerAndroid ? MatoerAndroid.muatUlang() : location.reload()">Coba lagi</button>
+</div></body></html>

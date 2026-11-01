@@ -48,9 +48,68 @@ const KUNCI_JALUR = "matoer_printer_jalur";
 export type Jalur = { layanan: string; uuid: string; ch: Karakteristik };
 let printer: { nama: string; kunci: string; dev: Perangkat; jalur: Jalur[]; pilih: number } | null = null;
 
-export const bisaBluetooth = () => typeof navigator !== "undefined" && "bluetooth" in navigator;
+// Aplikasi Android "Matoer POS" (folder android/) menyediakan window.MatoerAndroid: printer klasik/SPP + BLE bawaan.
+type Jembatan = {
+  versi(): string;
+  daftarPrinter(): string;
+  pilihPrinter(alamat: string, nama: string): void;
+  printerTerpilih(): string;
+  lupakanPrinter(): void;
+  cetak(base64: string, id: string): void;
+  simpanFile(base64: string, nama: string, mime: string): string;
+};
+const jembatan = (): Jembatan | undefined => (typeof window !== "undefined" ? (window as unknown as { MatoerAndroid?: Jembatan }).MatoerAndroid : undefined);
+export const diAplikasi = () => !!jembatan();
+export type PrinterAplikasi = { izin: boolean; ada?: boolean; aktif?: boolean; perangkat?: { nama: string; alamat: string; tipe: string }[] };
+export function daftarPrinterAplikasi(): PrinterAplikasi {
+  try {
+    return JSON.parse(jembatan()!.daftarPrinter()) as PrinterAplikasi;
+  } catch {
+    return { izin: false };
+  }
+}
+export function printerAplikasi(): { alamat: string; nama: string } | null {
+  try {
+    const t = jembatan()?.printerTerpilih();
+    return t ? (JSON.parse(t) as { alamat: string; nama: string }) : null;
+  } catch {
+    return null;
+  }
+}
+export const pilihPrinterAplikasi = (alamat: string, nama: string) => jembatan()?.pilihPrinter(alamat, nama);
+export const lupakanPrinterAplikasi = () => jembatan()?.lupakanPrinter();
+const keBase64 = (data: Uint8Array) => {
+  let bin = "";
+  data.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+};
+let nomorCetak = 0;
+const menunggu = new Map<string, { ok: (pesan: string) => void; gagal: (e: Error) => void }>();
+function cetakAplikasi(data: Uint8Array) {
+  const id = `c${Date.now()}-${++nomorCetak}`;
+  const w = window as unknown as { __matoerCetak?: (id: string, ok: boolean, pesan: string) => void };
+  w.__matoerCetak ??= (i, ok, pesan) => {
+    const t = menunggu.get(i);
+    menunggu.delete(i);
+    if (t) ok ? t.ok(pesan) : t.gagal(new Error(pesan));
+  };
+  return new Promise<string>((ok, gagal) => {
+    menunggu.set(id, { ok, gagal });
+    setTimeout(() => menunggu.has(id) && (menunggu.delete(id), gagal(new Error("Printer tidak merespons. Pastikan printer menyala lalu coba lagi."))), 30_000);
+    jembatan()!.cetak(keBase64(data), id);
+  });
+}
+/** Simpan file lewat aplikasi Android (WebView tidak bisa mengunduh blob). Mengembalikan false bila bukan di aplikasi. */
+export function simpanFileAplikasi(data: Uint8Array | ArrayBuffer, nama: string, mime: string) {
+  const j = jembatan();
+  if (!j) return false;
+  j.simpanFile(keBase64(data instanceof Uint8Array ? data : new Uint8Array(data)), nama, mime);
+  return true;
+}
+
+export const bisaBluetooth = () => diAplikasi() || (typeof navigator !== "undefined" && "bluetooth" in navigator);
 export const diAndroid = () => typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
-export const namaPrinter = () => printer?.nama ?? null;
+export const namaPrinter = () => (diAplikasi() ? (printerAplikasi()?.nama ?? null) : (printer?.nama ?? null));
 const pendek = (u: string) => (/^0000[0-9a-f]{4}-0000-1000-8000-00805f9b34fb$/i.test(u) ? u.slice(4, 8).toUpperCase() : u.slice(0, 8));
 
 function bacaIngatan(): Record<string, string> {
@@ -90,6 +149,11 @@ async function sambungGatt(dev: Perangkat) {
 }
 
 export async function sambungPrinter() {
+  if (diAplikasi()) {
+    const p = printerAplikasi();
+    if (!p) throw new Error("Pilih printer dulu di menu 🖨 Printer (pasangkan printer di Pengaturan Bluetooth tablet).");
+    return p.nama;
+  }
   if (!bisaBluetooth()) throw new Error("Browser ini tidak mendukung Bluetooth. Pakai Chrome di Android, atau aplikasi RawBT.");
   const bt = (navigator as unknown as { bluetooth: Bt }).bluetooth;
   const dev = await bt.requestDevice({ acceptAllDevices: true, optionalServices: LAYANAN });
@@ -217,6 +281,10 @@ const tunggu = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Kirim per 20 byte (batas aman BLE untuk printer murah). Pakai tulis-dengan-balasan bila didukung (lebih andal),
  *  tanpa balasan diberi jeda; bila koneksi putus di tengah, sambung ulang sekali lalu lanjutkan. */
 export async function cetakBluetooth(data: Uint8Array) {
+  if (diAplikasi()) {
+    await cetakAplikasi(data);
+    return;
+  }
   let ch = await pastikanTersambung();
   const kirim = async (c: Karakteristik, bagian: Uint8Array) => {
     const potong = bagian as unknown as BufferSource;

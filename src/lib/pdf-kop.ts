@@ -55,6 +55,12 @@ export async function kopSurat(doc: jsPDF, pt: Kop) {
 }
 
 export function unduh(doc: jsPDF, nama: string) {
+  // di aplikasi Android Matoer POS: simpan lewat aplikasi (WebView tidak bisa mengunduh blob)
+  const w = window as unknown as { MatoerAndroid?: { simpanFile(b64: string, nama: string, mime: string): string } };
+  if (w.MatoerAndroid) {
+    w.MatoerAndroid.simpanFile(doc.output("datauristring").split(",")[1], `${nama}.pdf`.replace(/[\\/:*?"<>|]/g, "-"), "application/pdf");
+    return;
+  }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(doc.output("blob"));
   a.download = `${nama}.pdf`.replace(/[\\/:*?"<>|]/g, "-");

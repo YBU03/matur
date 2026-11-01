@@ -112,3 +112,36 @@ describe("pemilihan jalur cetak (RPP02N dengan beberapa jalur tulis)", () => {
     vi.unstubAllGlobals();
   });
 });
+
+import { diAplikasi, daftarPrinterAplikasi } from "../printer-bt";
+
+describe("aplikasi Android Matoer POS (window.MatoerAndroid)", () => {
+  it("memakai printer bawaan aplikasi: nama dari pilihan, cetak lewat jembatan dengan balasan", async () => {
+    const w: Record<string, unknown> = {};
+    let diterima = "";
+    w.MatoerAndroid = {
+      versi: () => "1.0.0",
+      daftarPrinter: () => JSON.stringify({ izin: true, ada: true, aktif: true, perangkat: [{ nama: "RPP02N", alamat: "AA:BB", tipe: "klasik" }] }),
+      printerTerpilih: () => JSON.stringify({ alamat: "AA:BB", nama: "RPP02N" }),
+      pilihPrinter: () => {},
+      lupakanPrinter: () => {},
+      simpanFile: () => "ok",
+      cetak: (b64: string, id: string) => {
+        diterima = b64;
+        setTimeout(() => (w.__matoerCetak as (i: string, ok: boolean, p: string) => void)(id, true, "terkirim"), 5);
+      },
+    };
+    vi.stubGlobal("window", w);
+    expect(diAplikasi()).toBe(true);
+    expect(namaPrinter()).toBe("RPP02N");
+    expect(daftarPrinterAplikasi().perangkat).toHaveLength(1);
+    expect(await sambungPrinter()).toBe("RPP02N");
+    const data = strukTes(32);
+    await cetakBluetooth(data);
+    expect(Uint8Array.from(atob(diterima), (c) => c.charCodeAt(0))).toEqual(data);
+    // gagal dari aplikasi diteruskan sebagai error berpesan
+    (w.MatoerAndroid as { cetak: (b: string, id: string) => void }).cetak = (_b, id) => setTimeout(() => (w.__matoerCetak as (i: string, ok: boolean, p: string) => void)(id, false, "Bluetooth tablet mati"), 5);
+    await expect(cetakBluetooth(data)).rejects.toThrow(/Bluetooth tablet mati/);
+    vi.unstubAllGlobals();
+  });
+});

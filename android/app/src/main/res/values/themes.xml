@@ -1,0 +1,15 @@
+<resources>
+    <!-- Tema utama: tanpa action bar, layar penuh (bar sistem disembunyikan di MainActivity) -->
+    <style name="Theme.MatoerPOS" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@color/putih</item>
+        <item name="colorPrimary">@color/oranye</item>
+        <item name="colorAccent">@color/oranye</item>
+    </style>
+
+    <!-- Layar pembuka (Android 12+ SplashScreen API, juga dipakai di Android lama lewat core-splashscreen) -->
+    <style name="Theme.MatoerPOS.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/putih</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.MatoerPOS</item>
+    </style>
+</resources>

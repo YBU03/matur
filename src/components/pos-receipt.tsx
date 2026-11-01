@@ -8,6 +8,7 @@ import {
   cetakBluetooth,
   cetakRawBT,
   diAndroid,
+  diAplikasi,
   namaPrinter,
   sambungPrinter,
   susunStruk,
@@ -295,7 +296,7 @@ export function ReceiptDialog({
             🖨 {bt ? "Cetak Bluetooth" : "Printer Bluetooth"}
           </button>
         )}
-        {diAndroid() && !bt && (
+        {diAndroid() && !bt && !diAplikasi() && (
           <button
             onClick={() => cetakRawBT(dataStruk())}
             className="rounded-lg border px-4 py-2 text-sm"
