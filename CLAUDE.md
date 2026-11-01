@@ -55,3 +55,5 @@ Jadwal harian 29 Oktober: baca `docs/jadwal-editor-harian-2026-10-29.md`. Jam kh
 Accounting 30 Oktober: baca `docs/accounting-operasional-2026-10-30.md`. Belanja langsung mencatat biaya sekali lalu penerimaan barista menambah stok; jangan membuat kiriman/biaya kedua. Revisi aktual kas final khusus Owner/Admin Pusat/Finance dengan audit; jangan membuka ulang kas atau mengubah transaksi. Rekap titipan rentang terpisah dari perhitungan HPP bulanan.
 
 Gudang Pergerakan & Smart Forecast 1 November: `/gudang/pergerakan`, RPC baca `pergerakan_stok_gudang`/`forecast_stok`, buffer di `pengaturan_gudang`. Baca `docs/gudang-pergerakan-forecast-2026-11-01.md`.
+
+Aplikasi Android Matoer POS 1 November: folder `android/` (WebView matoer.id/pos + printer SPP/BLE via `window.MatoerAndroid`), APK otomatis lewat `.github/workflows/android-apk.yml` (artefak MatoerPOS-apk). Kunci tanda tangan TIDAK di repo (GitHub Secrets / `android/keystore.properties` lokal). Panduan: `docs/android-pos-panduan.md`. Server tidak bisa mengunduh Android SDK; verifikasi build lewat GitHub Actions.
