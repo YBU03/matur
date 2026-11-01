@@ -8,7 +8,7 @@ export function TerminalNav({ items }: { items: { href: string; label: string }[
   return (
     <nav className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1">
       {items.map((i) => (
-        <Link key={i.href} href={i.href} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold ${path.startsWith(i.href) ? "bg-matur-500 text-white" : "text-kopi-700 hover:bg-matur-50"}`}>
+        <Link key={i.href} href={i.href} className={`flex-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-[13px] font-semibold sm:px-3 sm:text-sm md:flex-none ${path.startsWith(i.href) ? "bg-matur-500 text-white" : "text-kopi-700 hover:bg-matur-50"}`}>
           {i.label}
         </Link>
       ))}

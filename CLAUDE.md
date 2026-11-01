@@ -59,3 +59,5 @@ Gudang Pergerakan & Smart Forecast 1 November: `/gudang/pergerakan`, RPC baca `p
 Aplikasi Android Matoer POS 1 November: folder `android/` (WebView matoer.id/pos + printer SPP/BLE via `window.MatoerAndroid`), APK otomatis lewat `.github/workflows/android-apk.yml` (artefak MatoerPOS-apk). Kunci tanda tangan TIDAK di repo (GitHub Secrets / `android/keystore.properties` lokal). Panduan: `docs/android-pos-panduan.md`. Server tidak bisa mengunduh Android SDK; verifikasi build lewat GitHub Actions.
 
 Tampilan HRD 1 November: Jadwal Bulanan/Mingguan, popup foto absen, grafik Absensi/Persetujuan. Baca `docs/hrd-tampilan-2026-11-01.md`. Hanya tampilan; aksi jadwal tetap lewat `kartuHari`.
+
+POS di HP 1 November: bar keranjang mengambang + lembar bawah (hanya tampilan, `aside` keranjang sama). Baca `docs/pos-hp-keranjang-2026-11-01.md`.

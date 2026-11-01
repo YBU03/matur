@@ -161,3 +161,6 @@ body {
 
 /* PIN salah di layar mulai shift: titik PIN bergetar ke samping */
 @keyframes pin-salah { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+
+@keyframes pos-pop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 100% { transform: scale(1); } }
+@keyframes pos-naik { from { transform: translateY(100%); } to { transform: translateY(0); } }
