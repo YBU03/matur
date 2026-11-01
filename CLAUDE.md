@@ -61,3 +61,5 @@ Aplikasi Android Matoer POS 1 November: folder `android/` (WebView matoer.id/pos
 Tampilan HRD 1 November: Jadwal Bulanan/Mingguan, popup foto absen, grafik Absensi/Persetujuan. Baca `docs/hrd-tampilan-2026-11-01.md`. Hanya tampilan; aksi jadwal tetap lewat `kartuHari`.
 
 POS di HP 1 November: bar keranjang mengambang + lembar bawah (hanya tampilan, `aside` keranjang sama). Baca `docs/pos-hp-keranjang-2026-11-01.md`.
+
+Struk POS 2 November: format kasir Ruma + `/pengaturan/struk` (tabel `struk_outlet`, RPC `atur_struk_outlet`). Baca `docs/pos-struk-2026-11-02.md`.

@@ -22,6 +22,13 @@ import {
   simpanTertunda,
 } from "@/lib/pos-offline";
 import { ReceiptDialog } from "@/components/pos-receipt";
+import type { BayarStruk, StrukOutlet } from "@/lib/struk";
+
+/** rincian pembayaran untuk struk (Tender & Change) dari data checkout */
+function bayarStruk(c: { metode: string; diterima?: number; pembayaran?: { metode: string; nominal: number; diterima?: number }[] }): BayarStruk[] | undefined {
+  if (c.pembayaran?.length) return c.pembayaran.map((b) => ({ metode: b.metode, nominal: b.nominal, diterima: b.diterima ?? null }));
+  return undefined;
+}
 
 type Varian = {
   id: string;
@@ -123,7 +130,10 @@ export function PosScreen({
   qris,
   izin,
   bisaBayar = true,
+  struk = null,
 }: {
+  /** isi struk outlet (Pengaturan → Struk) */
+  struk?: StrukOutlet | null;
   kategori: { id: string; nama: string }[];
   menus: PosMenu[];
   outletNama: string;
@@ -163,6 +173,7 @@ export function PosScreen({
     kanal: string;
     metode: string;
     offline?: boolean;
+    bayar?: BayarStruk[];
   } | null>(null);
   const [pending, start] = useTransition();
   const [split, setSplit] = useState(false);
@@ -370,7 +381,7 @@ export function PosScreen({
           }
         }
         setQrisBayar(null);
-        setReceipt({ r: res.receipt, lines: cart, kanal, metode: c.metode });
+        setReceipt({ r: res.receipt, lines: cart, kanal, metode: c.metode, bayar: bayarStruk(c) });
       } catch (e) {
         if (!galatJaringan(e)) return setErr("Gagal menyimpan transaksi.");
         // offline: simpan di perangkat, struk tetap bisa diberikan; terkirim otomatis saat online
@@ -1071,6 +1082,7 @@ export function PosScreen({
           lines={receipt.lines.map((l) => ({ key: l.key, nama: l.menu.nama + (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""), qty: l.qty, total: priceFor(receipt.kanal, l) * l.qty }))}
           outletNama={outletNama}
           kasir={kasir}
+          struk={struk}
           onClose={() => setReceipt(null)}
         />
       )}

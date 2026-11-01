@@ -1,5 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { barisTeks } from "@/lib/struk-pdf";
+import { logoStruk } from "@/lib/struk-logo";
+import { bayarDariMetode, KOLOM_STRUK, STRUK_BAWAAN, susunBarisStruk, type BayarStruk, type StrukOutlet } from "@/lib/struk";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
 import type { Receipt } from "@/lib/pos-actions";
@@ -50,7 +53,13 @@ export function ReceiptDialog({
   waktuTransaksi,
   salinan = false,
   voidAlasan,
+  struk,
+  bayar,
 }: {
+  /** isi struk outlet (Pengaturan → Struk); kosong = bawaan */
+  struk?: StrukOutlet | null;
+  /** rincian pembayaran (split/tunai diterima); kosong = dari metode & kembalian */
+  bayar?: BayarStruk[];
   /** waktu transaksi asli (struk salinan dari Riwayat); kosong = sekarang */
   waktuTransaksi?: string;
   /** struk dibuka ulang dari Riwayat: tandai SALINAN, tombol Tutup */
@@ -109,73 +118,46 @@ export function ReceiptDialog({
     "Terima kasih 🙏",
   ].filter(Boolean);
   const [unduhErr, setUnduhErr] = useState("");
+  const isiStruk = struk ?? STRUK_BAWAAN;
+  const [logo, setLogo] = useState<Awaited<ReturnType<typeof logoStruk>>>(null);
+  useEffect(() => {
+    let aktif = true;
+    if (isiStruk.tampil_logo) logoStruk(kertas).then((g) => aktif && setLogo(g));
+    else setLogo(null);
+    return () => {
+      aktif = false;
+    };
+  }, [kertas, isiStruk.tampil_logo]);
+  const tglAsli = waktuTransaksi ? new Date(waktuTransaksi) : new Date();
   const barisStruk = (lebar: number): BarisStruk[] => [
-        ...(salinan ? [{ teks: voidAlasan != null ? "*** VOID - DIBATALKAN ***" : "*** SALINAN ***", tengah: true, tebal: true }] : []),
-        ...(voidAlasan ? [{ teks: "Alasan: " + voidAlasan, tengah: true }] : []),
-        ...(testing
-          ? [
-              {
-                teks: "TESTING - BUKAN TRANSAKSI ASLI",
-                tengah: true,
-                tebal: true,
-              },
-            ]
-          : []),
-        { teks: "RUMA", tengah: true, tebal: true, besar: true },
-        { teks: outletNama, tengah: true, tebal: true },
-        { teks: waktu, tengah: true },
-        { teks: "NO. ANTREAN", tengah: true },
-        { teks: nomor, tengah: true, tebal: true, besar: true },
-        {
-          teks: `${KANAL.find(([k]) => k === kanal)?.[1]} - ${kasir}`,
-          tengah: true,
-        },
-        "-".repeat(lebar),
-        ...lines.map((l) => ({
-          teks: "",
-          kiriKanan: [`${l.qty}x ${l.nama}`, formatRupiah(l.total)] as [
-            string,
-            string,
-          ],
-        })),
-        "-".repeat(lebar),
-        ...(r.diskon > 0
-          ? [
-              {
-                teks: "",
-                kiriKanan: ["Diskon", formatRupiah(-r.diskon)] as [
-                  string,
-                  string,
-                ],
-              },
-            ]
-          : []),
-        {
-          teks: "",
-          tebal: true,
-          kiriKanan: ["TOTAL", formatRupiah(r.total)] as [string, string],
-        },
-        { teks: "", kiriKanan: ["Bayar", labelMetode] as [string, string] },
-        ...(r.kembalian > 0
-          ? [
-              {
-                teks: "",
-                kiriKanan: ["Kembali", formatRupiah(r.kembalian)] as [
-                  string,
-                  string,
-                ],
-              },
-            ]
-          : []),
-        "-".repeat(lebar),
-        { teks: "Terima kasih", tengah: true },
-      ];
-  const dataStruk = () => susunStruk(barisStruk(kertas === "58" ? 32 : 48), kertas === "58" ? 32 : 48);
+    ...(isiStruk.tampil_logo && logo ? [{ teks: "", gambar: logo }] : []),
+    ...susunBarisStruk(
+      {
+        struk: isiStruk,
+        waktu: tglAsli,
+        nomor: testing || offline ? nomor : r.nomor,
+        kanal,
+        kasir,
+        items: lines.map((l) => ({ nama: l.nama, qty: l.qty, total: l.total })),
+        subtotal: r.subtotal || r.total + r.diskon,
+        diskon: r.diskon,
+        total: r.total,
+        bayar: bayar?.length ? bayar : bayarDariMetode(metode === "split" ? "tunai" : metode, r.total, r.kembalian),
+        kembalian: r.kembalian,
+        cetakUlang: salinan,
+        voidAlasan: salinan ? voidAlasan : null,
+        testing,
+      },
+      lebar,
+    ),
+  ];
+  const kolom = KOLOM_STRUK[kertas];
+  const dataStruk = () => susunStruk(barisStruk(kolom), kolom);
   const unduhPdf = async () => {
     setUnduhErr("");
     try {
       const [{ buatStrukPdf }, { unduh }] = await Promise.all([import("@/lib/struk-pdf"), import("@/lib/pdf-kop")]);
-      unduh(await buatStrukPdf(barisStruk(kertas === "58" ? 32 : 48), kertas), `Struk ${outletNama} #${nomor}${salinan ? " (salinan)" : ""}`);
+      unduh(await buatStrukPdf(barisStruk(kolom), kertas), `Struk ${outletNama} #${nomor}${salinan ? " (salinan)" : ""}`);
     } catch {
       setUnduhErr("PDF belum dapat dibuat. Coba lagi.");
     }
@@ -211,57 +193,22 @@ export function ReceiptDialog({
       <div
         id="struk"
         data-kertas={kertas}
-        className={`mx-auto rounded-xl bg-white p-3 font-mono text-black shadow-inner ${kertas === "58" ? "max-w-[230px] text-[11px]" : "max-w-[310px] text-xs"}`}
+        className="mx-auto w-fit max-w-full overflow-x-auto rounded-xl bg-white p-3 font-mono text-black shadow-inner ring-1 ring-stone-200"
       >
-        {testing && (
-          <p className="mb-2 text-center font-bold">
-            TESTING · BUKAN TRANSAKSI ASLI
-          </p>
+        {isiStruk.tampil_logo && (
+          // eslint-disable-next-line @next/next/no-img-element -- logo struk (versi hitam-putih seperti hasil cetak)
+          <img src={logo?.dataUrl ?? "/brand/ruma-logo.png"} alt="Logo" className={`mx-auto mb-1 h-auto ${kertas === "58" ? "w-[140px]" : "w-[190px]"} ${logo ? "" : "grayscale"}`} />
         )}
-        {salinan && (
-          <p className={`mb-2 rounded border-2 border-dashed py-1 text-center font-bold ${voidAlasan != null ? "border-red-500 text-red-600" : "border-stone-400 text-stone-600"}`}>
-            {voidAlasan != null ? "VOID · DIBATALKAN" : "SALINAN"}
-            {voidAlasan && <span className="block text-[10px] font-normal">Alasan: {voidAlasan}</span>}
-          </p>
-        )}
-        {/* eslint-disable-next-line @next/next/no-img-element -- logo struk */}
-        <img
-          src="/brand/ruma-logo.png"
-          alt="Ruma"
-          className="mx-auto mb-1 h-8 w-auto grayscale"
-        />
-        <p className="text-center font-bold">{outletNama}</p>
-        <p className="text-center">{waktu}</p>
-        <p className="mt-1 text-center text-[10px] tracking-widest">
-          NO. ANTREAN
-        </p>
-        <p className="text-center text-3xl font-black leading-none">{nomor}</p>
-        <p className="mb-2 mt-1 text-center">
-          {KANAL.find(([k]) => k === kanal)?.[1]} · {kasir}
-        </p>
-        {lines.map((l) => (
-          <div key={l.key} className="flex justify-between gap-2">
-            <span>
-              {l.qty}x {l.nama}
-            </span>
-            <span className="shrink-0 whitespace-nowrap">
-              {formatRupiah(l.total)}
-            </span>
-          </div>
-        ))}
-        <div className="mt-2 border-t border-dashed pt-2">
-          {r.diskon > 0 && (
-            <Row label="Diskon" value={formatRupiah(-r.diskon)} />
-          )}
-          <Row label="Total" value={formatRupiah(r.total)} bold />
-          <Row label="Bayar" value={labelMetode} />
-          {r.kembalian > 0 && (
-            <Row label="Kembali" value={formatRupiah(r.kembalian)} />
-          )}
+        <div className={kertas === "58" ? "text-[10.5px] leading-[1.35]" : "text-[10px] leading-[1.35]"} style={{ width: `${kolom}ch` }}>
+          {barisTeks(barisStruk(kolom), kolom).map((b, i) => (
+            <div
+              key={i}
+              className={`whitespace-pre ${b.tengah ? "text-center" : ""} ${b.tebal ? "font-bold" : ""} ${b.besar ? "text-[1.6em]" : ""}`}
+            >
+              {b.teks || "\u00a0"}
+            </div>
+          ))}
         </div>
-        <p className="mt-2 border-t border-dashed pt-2 text-center">
-          Terima kasih 🙏
-        </p>
       </div>
       <div className="mt-3 flex items-center justify-center gap-2 text-sm">
         <span className="text-stone-500">Kertas:</span>

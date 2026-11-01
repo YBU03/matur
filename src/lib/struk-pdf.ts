@@ -21,6 +21,7 @@ export function barisTeks(baris: BarisStruk[], kolom: number): Baris[] {
   const out: Baris[] = [];
   for (const b of baris) {
     const o = typeof b === "string" ? { teks: b } : b;
+    if (o.gambar) continue; // gambar digambar terpisah di buatStrukPdf
     const f = { tengah: !!o.tengah, tebal: !!o.tebal, besar: !!o.besar };
     const kol = o.besar ? Math.floor(kolom / 2) : kolom;
     if (o.kiriKanan) {
@@ -43,10 +44,18 @@ export async function buatStrukPdf(baris: BarisStruk[], kertas: "58" | "80") {
   const fs = (isi / kolom / 0.6) * 2.835; // ukuran huruf Courier (pt) agar `kolom` karakter pas selebar isi
   const tinggiBaris = (fs / 2.835) * 1.35;
   const rows = barisTeks(baris, kolom);
-  const tinggi = margin * 2 + rows.reduce((t, r) => t + tinggiBaris * (r.besar ? 2 : 1), 0) + 4;
+  const gb = baris.find((b) => typeof b !== "string" && b.gambar);
+  const g = gb && typeof gb !== "string" ? gb.gambar : undefined;
+  const lebarGambar = g ? Math.min(isi * 0.7, 40) : 0;
+  const tinggiGambar = g ? (lebarGambar * g.tinggi) / g.lebar + 2 : 0;
+  const tinggi = margin * 2 + tinggiGambar + rows.reduce((t, r) => t + tinggiBaris * (r.besar ? 2 : 1), 0) + 4;
   const h = Math.max(tinggi, 60);
   const doc = new jsPDF({ unit: "mm", format: [lebar, h], orientation: h >= lebar ? "portrait" : "landscape" });
   let y = margin;
+  if (g) {
+    doc.addImage(g.dataUrl, "PNG", (lebar - lebarGambar) / 2, y, lebarGambar, tinggiGambar - 2);
+    y += tinggiGambar;
+  }
   for (const r of rows) {
     const besar = r.besar ? 2 : 1;
     doc.setFont("courier", r.tebal ? "bold" : "normal").setFontSize(fs * besar);

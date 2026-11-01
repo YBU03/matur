@@ -228,7 +228,9 @@ async function pastikanTersambung() {
 
 const ESC = 0x1b, GS = 0x1d;
 
-export type BarisStruk = string | { teks: string; tengah?: boolean; tebal?: boolean; besar?: boolean; kiriKanan?: [string, string] };
+/** Gambar 1-bit untuk printer (GS v 0): lebar kelipatan 8 titik, data baris demi baris (1 = hitam). */
+export type GambarStruk = { lebar: number; tinggi: number; data: Uint8Array; dataUrl: string };
+export type BarisStruk = string | { teks: string; tengah?: boolean; tebal?: boolean; besar?: boolean; kiriKanan?: [string, string]; gambar?: GambarStruk };
 
 /** Huruf non-ASCII diganti/dibuang (printer thermal murah hanya punya kode halaman dasar). */
 export const asciiSaja = (s: string) =>
@@ -262,6 +264,14 @@ export function susunStruk(baris: BarisStruk[], lebar: number) {
   };
   for (const b of baris) {
     const o = typeof b === "string" ? { teks: b } : b;
+    if (o.gambar) {
+      const g = o.gambar;
+      const lb = g.lebar / 8;
+      out.push(ESC, 0x61, 1, GS, 0x76, 0x30, 0, lb & 0xff, lb >> 8, g.tinggi & 0xff, g.tinggi >> 8);
+      for (const x of g.data) out.push(x);
+      out.push(0x0a);
+      continue;
+    }
     out.push(ESC, 0x61, o.tengah ? 1 : 0, ESC, 0x45, o.tebal ? 1 : 0, GS, 0x21, o.besar ? 0x11 : 0x00);
     const kol = o.besar ? Math.floor(lebar / 2) : lebar;
     if (o.kiriKanan) {

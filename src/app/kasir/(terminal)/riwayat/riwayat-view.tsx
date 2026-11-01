@@ -1,5 +1,6 @@
 "use client";
 
+import type { StrukOutlet } from "@/lib/struk";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -47,7 +48,7 @@ const hariIniWib = (t: string, hari: string) => new Date(Date.parse(t) + 7 * 360
 const LABEL_METODE: Record<string, string> = { tunai: "Tunai", qris: "QRIS", debit: "Debit/Kredit", transfer: "Transfer" };
 const isi = "mt-0.5 block w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500";
 
-export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n, ringkas, dari, sampai, hari }: { trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string; awal?: "trx" | "draft"; adaLagi: boolean; n: number; ringkas: Ringkas; dari: string; sampai: string; hari: string }) {
+export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n, ringkas, dari, sampai, hari, struk: isiStruk = null }: { struk?: StrukOutlet | null; trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string; awal?: "trx" | "draft"; adaLagi: boolean; n: number; ringkas: Ringkas; dari: string; sampai: string; hari: string }) {
   const [tab, setTab] = useState<"trx" | "draft">(awal);
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -238,6 +239,8 @@ export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n,
           metode={struk.pembayaran.length > 1 ? "split" : (struk.pembayaran[0]?.metode ?? "tunai")}
           outletNama={outletNama}
           kasir={struk.operator_nama ?? "-"}
+          struk={isiStruk}
+          bayar={struk.pembayaran.map((p) => ({ metode: p.metode, nominal: Number(p.nominal), diterima: p.diterima != null ? Number(p.diterima) : null }))}
           onClose={() => setStruk(null)}
         />
       )}

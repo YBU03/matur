@@ -1,3 +1,4 @@
+import type { StrukOutlet } from "@/lib/struk";
 import { notFound, redirect } from "next/navigation";
 import { BISA_JUAL } from "@/lib/roles";
 import { getSession } from "@/lib/session";
@@ -26,6 +27,7 @@ export default async function PosPage() {
     { data: pt },
     { data: ol },
     { data: draft },
+    { data: struk },
   ] = await Promise.all([
     supabase
       .from("kategori_menu")
@@ -64,6 +66,11 @@ export default async function PosPage() {
       .eq("outlet_id", s.active.outletId)
       .eq("status", "draft")
       .order("created_at"),
+    supabase
+      .from("struk_outlet")
+      .select("judul, alamat, telepon, instagram, wifi, tagline, hashtag, catatan, tampil_logo")
+      .eq("outlet_id", s.active.outletId)
+      .maybeSingle(),
   ]);
   const menus: PosMenu[] = (menu ?? [])
     .filter((m) => !!status.katalog?.menu[m.id])
@@ -88,6 +95,7 @@ export default async function PosPage() {
           menus,
           outletNama: s.active.outletNama,
           kasir: sesi.nama,
+          struk: (struk as StrukOutlet | null) ?? null,
           batasDiskon: pt?.batas_diskon_persen ?? 10,
           drafts: (draft ?? []) as unknown as Draft[],
           sesiId: sesi.id,

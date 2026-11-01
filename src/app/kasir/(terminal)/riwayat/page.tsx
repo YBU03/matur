@@ -1,3 +1,4 @@
+import type { StrukOutlet } from "@/lib/struk";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { RiwayatView, type DraftRiwayat, type Ringkas, type Trx } from "./riwayat-view";
@@ -25,7 +26,7 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
   const supabase = await supabaseServer();
   const seminggu = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  const [{ data }, { data: drafts }] = await Promise.all([
+  const [{ data }, { data: drafts }, { data: struk }] = await Promise.all([
     supabase
       .from("transaksi")
       .select("id, nomor, kanal, subtotal, total, diskon, status, void_alasan, created_at, pelanggan, operator_nama, item_transaksi(nama, qty, harga), pembayaran(metode, nominal, diterima)")
@@ -42,6 +43,11 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
       .or(`status.eq.draft,created_at.gte.${seminggu}`)
       .order("created_at", { ascending: false })
       .limit(200),
+    supabase
+      .from("struk_outlet")
+      .select("judul, alamat, telepon, instagram, wifi, tagline, hashtag, catatan, tampil_logo")
+      .eq("outlet_id", outlet)
+      .maybeSingle(),
   ]);
 
   // ringkasan seluruh periode (bukan hanya baris yang dimuat), diambil bertahap per 1000 baris
@@ -81,6 +87,7 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
       hari={hari}
       drafts={(drafts ?? []) as unknown as DraftRiwayat[]}
       outletNama={s.active!.outletNama}
+      struk={(struk as StrukOutlet | null) ?? null}
       awal={tab}
     />
   );
