@@ -4,6 +4,7 @@ import { hariLibur, rekapLibur } from "@/lib/jadwal/hari-libur";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartCard } from "@/components/charts";
 import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
+import { CalendarOff, Pencil, Plus, UserMinus, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -428,7 +429,8 @@ function Kalender(p: Props & Aksi) {
   );
   const [jour, setJour] = useState<string | null>(null);
   const [ajout, setAjout] = useState<string | null>(null);
-  const [tambah, setTambah] = useState<string | null>(null);
+  const [pilihStaf, setPilihStaf] = useState<Record<string, string>>({});
+  const [formLibur, setFormLibur] = useState<Record<string, { id: string; jenis: string }>>({});
   const [edit, setEdit] = useState<{
     j: Jadwal;
     shiftId: string;
@@ -503,23 +505,62 @@ function Kalender(p: Props & Aksi) {
     ...p.shifts.filter((s) => !s.induk_shift_id && shiftLama.has(s.id)),
   ];
 
+  const ikonBtn =
+    "grid size-8 shrink-0 place-items-center rounded-lg text-stone-500 hover:bg-white hover:text-kopi-900 disabled:opacity-40";
+  const pilihCls =
+    "min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2.5 py-2 text-xs text-kopi-900 outline-none focus:border-matur-400";
+  const tambahBtn =
+    "grid size-9 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 hover:bg-violet-200 disabled:opacity-40";
+  const hapusDariShift = (j: Jadwal) => {
+    if (
+      !confirm(
+        `Lepas ${nama.get(j.pengguna_id) ?? "staf"} dari ${namaShift.get(j.shift_id) ?? "shift"} ${j.tanggal}?`,
+      )
+    )
+      return;
+    p.jalankan(() =>
+      kelolaJadwalHarian({
+        aksi: "hapus",
+        outlet_id: p.outlet.id,
+        id: j.id,
+        versi: j.versi ?? 0,
+      }),
+    );
+  };
   const kartuHari = (d: string) => {
     const izinD = izinHari.get(d) ?? [];
+    const liburD = libur.get(d) ?? [];
+    const izinSetuju = (id: string) =>
+      izinD.find((i) => i.pengguna_id === id && i.status === "disetujui");
+    // izin/sakit (dan libur yang masih menunggu) tampil di kotak yang sama
+    const izinLain = izinD.filter(
+      (i) =>
+        (i.jenis !== "libur" || i.status !== "disetujui") &&
+        !liburD.includes(i.pengguna_id),
+    );
+    const sudahDiKotak = new Set([
+      ...liburD,
+      ...izinD.filter((i) => i.status === "disetujui").map((i) => i.pengguna_id),
+    ]);
+    const calonLibur = p.staf.filter((st) => !sudahDiKotak.has(st.id));
+    const fl = formLibur[d] ?? { id: "", jenis: "libur" };
+    const punyaShift = (id: string) =>
+      p.jadwal.some((j) => j.tanggal === d && j.pengguna_id === id);
     return (
       <div
         key={d}
-        className={`rounded-xl border bg-white p-2 text-xs ${d === today ? "border-matur-500 ring-2 ring-matur-200" : "border-matur-100"}`}
+        className={`space-y-2 rounded-2xl border bg-white p-2.5 text-xs ${d === today ? "border-matur-500 ring-2 ring-matur-200" : "border-matur-100"}`}
       >
         <button
           type="button"
           onClick={() => setJour(d)}
-          className="mb-2 flex w-full items-center justify-between rounded-lg bg-stone-50 p-2 text-left font-bold text-kopi-900"
+          className="flex w-full items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-left font-bold text-kopi-900 hover:bg-amber-50"
           aria-label={`Kelola jadwal ${d}`}
         >
-          <span>
+          <span className="text-sm">
             {WEEKDAY_LABELS[weekdayIndex(d)]} {Number(d.slice(8))}
           </span>
-          <span className="text-[10px] font-medium text-matur-700">
+          <span className="text-[11px] font-semibold text-matur-700">
             Kelola ›
           </span>
         </button>
@@ -536,146 +577,260 @@ function Kalender(p: Props & Aksi) {
                   i.pengguna_id === st.id && i.status === "disetujui",
               ),
           );
+          const dipilih = pilihStaf[k] ?? "";
           return (
             <div
               key={s.id}
-              className={`mb-1.5 rounded-lg border-l-4 p-1.5 ${w.garis} ${kurang ? "bg-red-50" : "bg-stone-50/60"}`}
+              className={`rounded-xl border p-2.5 ${kurang ? "border-red-200 bg-red-50/40" : "border-stone-200"}`}
             >
-              <p className="mb-1 flex items-center justify-between gap-1 text-[11px] text-stone-500">
-                <span className="min-w-0">
-                  <span className="font-semibold text-kopi-900">{s.nama}</span>{" "}
-                  <span className="tabular-nums">
-                    {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)}
-                  </span>
-                  {!s.aktif && " (nonaktif)"}
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-sm font-bold text-kopi-900">
+                    <span className={`size-2.5 shrink-0 rounded-full ${w.titik}`} aria-hidden />
+                    <span className="truncate">Shift {s.nama}</span>
+                  </p>
+                  <p className="text-[11px] tabular-nums text-stone-500">
+                    {s.jam_mulai.slice(0, 5)} – {s.jam_selesai.slice(0, 5)}
+                    {!s.aktif && " · nonaktif"}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${kurang ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
+                >
+                  {isi.length}/{s.min_orang} orang
                 </span>
-                <span className={kurang ? "font-bold text-red-600" : ""}>
-                  {isi.length}/{s.min_orang}
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {isi.map((j) => (
-                  <button
-                    key={j.id}
-                    disabled={p.pending}
-                    title={`${nama.get(j.pengguna_id) ?? "?"} · ${j.status} — ketuk untuk ubah`}
-                    onClick={() => editRow(j)}
-                    className={`inline-flex items-center gap-1 rounded-full border py-0.5 pl-0.5 pr-2 text-left hover:shadow-sm ${j.status === "terbit" ? "border-green-600/60 bg-white text-kopi-900" : "border-dashed border-matur-500 bg-matur-50"}`}
-                  >
-                    <span
-                      className={`grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold ${w.chip}`}
-                      aria-hidden
+              </div>
+              <div className="space-y-1.5">
+                {isi.map((j) => {
+                  const sh = p.shifts.find((x) => x.id === j.shift_id);
+                  return (
+                    <div
+                      key={j.id}
+                      className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${j.status === "terbit" ? "bg-slate-50" : "border border-dashed border-matur-300 bg-matur-50/60"}`}
                     >
-                      {inisial(nama.get(j.pengguna_id) ?? "?")}
-                    </span>
-                    {namaDepan(nama.get(j.pengguna_id) ?? "?")}
-                    {p.shifts.find((s) => s.id === j.shift_id)
-                      ?.induk_shift_id && (
-                      <span className="block text-[10px]">
-                        {
-                          p.shifts.find((s) => s.id === j.shift_id)
-                            ?.jam_mulai
-                        }
-                        –
-                        {
-                          p.shifts.find((s) => s.id === j.shift_id)
-                            ?.jam_selesai
-                        }{" "}
-                        · khusus
+                      <span
+                        className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-bold ${w.chip}`}
+                        aria-hidden
+                      >
+                        {inisial(nama.get(j.pengguna_id) ?? "?")}
                       </span>
-                    )}
-                  </button>
-                ))}
-                {tambah === k ? (
-                  <select
-                    autoFocus
-                    defaultValue=""
-                    onBlur={() => setTambah(null)}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setTambah(null);
-                      if (v)
-                        p.jalankan(() =>
-                          tambahJadwal(
-                            p.outlet.id,
-                            s.id,
-                            v,
-                            d,
-                            sudahTerbit,
-                          ),
-                        );
-                    }}
-                    className="max-w-full rounded border px-1 py-0.5"
-                  >
-                    <option value="">Pilih…</option>
-                    {calon.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nama}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  s.aktif &&
-                  !!calon.length && (
-                    <button
-                      onClick={() => setTambah(k)}
-                      className="grid size-6 place-items-center rounded-full border border-dashed border-stone-400 text-stone-500 hover:border-matur-500 hover:bg-matur-50 hover:text-matur-700"
-                      aria-label="Tambah orang"
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-kopi-900">
+                          {nama.get(j.pengguna_id) ?? "?"}
+                        </p>
+                        <p className="truncate text-[10px] text-stone-500">
+                          {j.status === "terbit" ? "Terbit" : "Draft"}
+                          {sh?.induk_shift_id &&
+                            ` · jam khusus ${sh.jam_mulai.slice(0, 5)}–${sh.jam_selesai.slice(0, 5)}`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={p.pending}
+                        onClick={() => editRow(j)}
+                        className={ikonBtn}
+                        title="Ubah shift / jam / orang"
+                        aria-label={`Ubah jadwal ${nama.get(j.pengguna_id) ?? ""}`}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={p.pending}
+                        onClick={() => hapusDariShift(j)}
+                        className={`${ikonBtn} hover:text-red-600`}
+                        title="Lepas dari shift"
+                        aria-label={`Lepas ${nama.get(j.pengguna_id) ?? ""} dari shift`}
+                      >
+                        <UserMinus size={15} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {s.aktif && !!calon.length && (
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <select
+                      value={dipilih}
+                      onChange={(e) =>
+                        setPilihStaf({ ...pilihStaf, [k]: e.target.value })
+                      }
+                      className={pilihCls}
+                      aria-label={`Pilih staf untuk shift ${s.nama} ${d}`}
                     >
-                      +
+                      <option value="">Pilih staf…</option>
+                      {calon.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nama}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={p.pending || !dipilih}
+                      onClick={() =>
+                        p.jalankan(
+                          () =>
+                            tambahJadwal(
+                              p.outlet.id,
+                              s.id,
+                              dipilih,
+                              d,
+                              sudahTerbit,
+                            ),
+                          () => setPilihStaf({ ...pilihStaf, [k]: "" }),
+                        )
+                      }
+                      className={tambahBtn}
+                      title={sudahTerbit ? "Tambah (langsung terbit)" : "Tambah sebagai draft"}
+                      aria-label={`Tambah ke shift ${s.nama}`}
+                    >
+                      <UserPlus size={16} />
                     </button>
-                  )
+                  </div>
                 )}
               </div>
             </div>
           );
         })}
-        {!!libur.get(d)?.length && (
-          <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
-            <span className="rounded bg-emerald-50 px-1 font-semibold text-emerald-800">
-              🌴 Libur
-            </span>
-            {libur.get(d)!.map((id) => (
-              <button
-                key={id}
-                disabled={p.pending}
-                title={`${nama.get(id) ?? "?"} libur — ketuk untuk ubah`}
-                onClick={() =>
-                  setLiburAksi({
-                    d,
-                    id,
-                    mode: "menu",
-                    shiftId: aktif[0]?.id ?? "",
-                  })
-                }
-                className="inline-flex items-center gap-0.5 rounded-full border border-emerald-300 bg-emerald-50 py-0.5 pl-1.5 pr-1 font-semibold text-emerald-900 hover:bg-emerald-100"
-              >
-                {namaDepan(nama.get(id) ?? "?")}
-                <span
-                  className="grid size-3.5 place-items-center rounded-full bg-emerald-200 text-[9px] leading-none text-emerald-900"
-                  aria-hidden
-                >
-                  ✕
+
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-2.5">
+          <p className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-kopi-900">
+            <CalendarOff size={15} className="text-emerald-600" />
+            Libur hari ini
+          </p>
+          {!liburD.length && !izinLain.length && (
+            <p className="mb-2 text-[11px] text-stone-500">
+              Belum ada yang libur hari ini.
+            </p>
+          )}
+          <div className="space-y-1.5">
+            {liburD.map((id) => {
+              const iz = izinSetuju(id);
+              return (
+                <div key={id} className="flex items-center gap-2 rounded-xl bg-white px-2 py-1.5">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800" aria-hidden>
+                    {inisial(nama.get(id) ?? "?")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-kopi-900">{nama.get(id) ?? "?"}</p>
+                    <p className="truncate text-[10px] text-stone-500">
+                      {iz ? "Libur · pengajuan disetujui" : "Libur mingguan · tidak dapat shift"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={p.pending}
+                    onClick={() => setLiburAksi({ d, id, mode: "menu", shiftId: aktif[0]?.id ?? "" })}
+                    className={ikonBtn}
+                    title="Ganti orang / pindah tanggal libur"
+                    aria-label={`Ubah libur ${nama.get(id) ?? ""}`}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={p.pending}
+                    onClick={() => {
+                      if (iz) {
+                        if (confirm(`Batalkan libur ${nama.get(id) ?? ""} pada ${d}?`)) p.jalankan(() => batalIzinAtasan(iz.id));
+                      } else setLiburAksi({ d, id, mode: "masuk", shiftId: aktif[0]?.id ?? "" });
+                    }}
+                    className={`${ikonBtn} hover:text-red-600`}
+                    title={iz ? "Batalkan libur" : "Jadikan masuk (pilih shift)"}
+                    aria-label={`Batalkan libur ${nama.get(id) ?? ""}`}
+                  >
+                    <UserMinus size={15} />
+                  </button>
+                </div>
+              );
+            })}
+            {izinLain.map((i) => (
+              <div key={i.id} className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${i.status === "menunggu" ? "bg-amber-50 ring-1 ring-amber-200" : "bg-white"}`}>
+                <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-bold ${i.jenis === "sakit" ? "bg-rose-100 text-rose-800" : "bg-sky-100 text-sky-800"}`} aria-hidden>
+                  {inisial(nama.get(i.pengguna_id) ?? "?")}
                 </span>
-              </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold text-kopi-900">{nama.get(i.pengguna_id) ?? "?"}</p>
+                  <p className="truncate text-[10px] text-stone-500">
+                    {JENIS_IZIN[i.jenis]} · {i.status === "menunggu" ? "menunggu persetujuan" : i.status === "disetujui" ? "disetujui" : i.status}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={p.pending}
+                  onClick={() => setIzinAksi({ i, alasan: "" })}
+                  className={ikonBtn}
+                  title={i.status === "menunggu" ? "Setujui / tolak" : "Kelola izin"}
+                  aria-label={`Kelola ${JENIS_IZIN[i.jenis]} ${nama.get(i.pengguna_id) ?? ""}`}
+                >
+                  <Pencil size={15} />
+                </button>
+                {i.status === "disetujui" && (
+                  <button
+                    type="button"
+                    disabled={p.pending}
+                    onClick={() => confirm(`Batalkan ${JENIS_IZIN[i.jenis].toLowerCase()} ${nama.get(i.pengguna_id) ?? ""} pada ${d}?`) && p.jalankan(() => batalIzinAtasan(i.id))}
+                    className={`${ikonBtn} hover:text-red-600`}
+                    title="Batalkan"
+                    aria-label={`Batalkan ${JENIS_IZIN[i.jenis]} ${nama.get(i.pengguna_id) ?? ""}`}
+                  >
+                    <UserMinus size={15} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
-        )}
-        {!!izinD.length && (
-          <p className="mt-1 text-[11px] text-stone-500">
-            {izinD.map((i) => (
-              <button
-                key={i.id}
-                onClick={() => setIzinAksi({ i, alasan: "" })}
-                className={`mr-1 mb-0.5 inline-block rounded px-1 ${i.status === "disetujui" ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800 ring-1 ring-amber-300"}`}
+          {!!calonLibur.length && (
+            <div className="mt-2 space-y-1.5">
+              <select
+                value={fl.id}
+                onChange={(e) => setFormLibur({ ...formLibur, [d]: { ...fl, id: e.target.value } })}
+                className={`${pilihCls} w-full`}
+                aria-label={`Pilih staf yang libur ${d}`}
               >
-                {JENIS_IZIN[i.jenis]}:{" "}
-                {namaDepan(nama.get(i.pengguna_id) ?? "?")}
-                {i.status === "menunggu" && " ?"}
-              </button>
-            ))}
-          </p>
-        )}
+                <option value="">Pilih staf…</option>
+                {calonLibur.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nama}
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={fl.jenis}
+                  onChange={(e) => setFormLibur({ ...formLibur, [d]: { ...fl, jenis: e.target.value } })}
+                  className={pilihCls}
+                  aria-label="Jenis"
+                >
+                  <option value="libur">Libur mingguan</option>
+                  <option value="izin">Izin</option>
+                  <option value="sakit">Sakit</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={p.pending || !fl.id}
+                  onClick={() => {
+                    const n = nama.get(fl.id) ?? "staf";
+                    if (
+                      punyaShift(fl.id) &&
+                      !confirm(`${n} punya shift pada ${d}. Tandai ${JENIS_IZIN[fl.jenis].toLowerCase()}? Shift orang itu di tanggal tsb dilepas.`)
+                    )
+                      return;
+                    p.jalankan(
+                      () => catatIzinStaf(p.outlet.id, fl.id, fl.jenis, d, fl.jenis === "libur" ? "" : "Dicatat HRD/SPV"),
+                      () => setFormLibur({ ...formLibur, [d]: { id: "", jenis: fl.jenis } }),
+                    );
+                  }}
+                  className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40"
+                  title="Tandai libur/izin/sakit"
+                  aria-label="Tambah libur"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -804,8 +959,7 @@ function Kalender(p: Props & Aksi) {
           kurang orang
         </span>
         <span>
-          Ketuk nama untuk ubah shift / ganti orang / libur / hapus · ketuk izin
-          untuk setujui atau batalkan · + untuk menambah
+          ✏️ ubah · 👤− lepas/batalkan · pilih staf lalu 👤+ untuk menambah ke shift · kotak hijau untuk libur/izin/sakit
           {sudahTerbit ? " (langsung terbit)" : " (sebagai draft)"}.
         </span>
       </p>
@@ -2018,7 +2172,7 @@ function TampilanJadwal(p: {
               Berikutnya ›
             </button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {p.dates.filter((d) => d >= minggu.start && d <= minggu.end).map((d) => p.kartuHari(d))}
           </div>
         </div>
