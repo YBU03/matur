@@ -55,3 +55,60 @@ describe("cetakBluetooth (printer tiruan)", () => {
     vi.unstubAllGlobals();
   });
 });
+
+import { infoJalur, jalurBerikut, simpanJalur, putusPrinter } from "../printer-bt";
+
+describe("pemilihan jalur cetak (RPP02N dengan beberapa jalur tulis)", () => {
+  const buatPrinter = (id: string) => {
+    const masuk: Record<string, number> = { cfg: 0, cetak: 0, lain: 0 };
+    const ch = (uuid: string, kunci: string) => ({ uuid, properties: { write: true, writeWithoutResponse: false }, writeValueWithResponse: async (d: Uint8Array) => void (masuk[kunci] += d.length) });
+    const gatt = {
+      connected: true,
+      putus: 0,
+      connect: async () => ((gatt.connected = true), gatt),
+      disconnect: () => ((gatt.connected = false), gatt.putus++),
+      // jalur pengaturan vendor muncul PERTAMA, jalur cetak 2AF1 kedua
+      getPrimaryServices: async () => [
+        { uuid: "0000ff00-0000-1000-8000-00805f9b34fb", getCharacteristics: async () => [ch("0000ff99-0000-1000-8000-00805f9b34fb", "cfg")] },
+        { uuid: "000018f0-0000-1000-8000-00805f9b34fb", getCharacteristics: async () => [ch("00002af1-0000-1000-8000-00805f9b34fb", "cetak")] },
+        { uuid: "0000abcd-0000-1000-8000-00805f9b34fb", getCharacteristics: async () => [ch("0000abce-0000-1000-8000-00805f9b34fb", "lain")] },
+      ],
+    };
+    return { dev: { id, name: "RPP02N", gatt, addEventListener: () => {} }, masuk, gatt };
+  };
+
+  it("memakai jalur cetak yang dikenal, bukan jalur tulis pertama", async () => {
+    const p = buatPrinter("A");
+    vi.stubGlobal("navigator", { userAgent: "Android", bluetooth: { requestDevice: async () => p.dev } });
+    await sambungPrinter();
+    expect(infoJalur()).toMatchObject({ ke: 1, total: 3, dikenal: true });
+    await cetakBluetooth(strukTes(32));
+    expect(p.masuk.cetak).toBeGreaterThan(0);
+    expect(p.masuk.cfg).toBe(0);
+    vi.unstubAllGlobals();
+  });
+
+  it("tes tidak keluar → coba jalur berikut, lalu diingat saat printer disambung lagi; ganti printer memutus yang lama", async () => {
+    const simpan: Record<string, string> = {};
+    vi.stubGlobal("localStorage", { getItem: (k: string) => simpan[k] ?? null, setItem: (k: string, v: string) => void (simpan[k] = v) });
+    const a = buatPrinter("A");
+    vi.stubGlobal("navigator", { userAgent: "Android", bluetooth: { requestDevice: async () => a.dev } });
+    await sambungPrinter();
+    jalurBerikut(); // 2AF1 → jalur lain
+    expect(infoJalur()).toMatchObject({ ke: 2, dikenal: false });
+    simpanJalur();
+    const b = buatPrinter("B");
+    vi.stubGlobal("navigator", { userAgent: "Android", bluetooth: { requestDevice: async () => b.dev } });
+    await sambungPrinter();
+    expect(a.gatt.putus).toBe(1);
+    expect(infoJalur()).toMatchObject({ ke: 1, dikenal: true }); // printer B belum punya ingatan
+    vi.stubGlobal("navigator", { userAgent: "Android", bluetooth: { requestDevice: async () => a.dev } });
+    await sambungPrinter();
+    expect(infoJalur()).toMatchObject({ ke: 2, tersimpan: true }); // printer A pakai jalur yang terbukti berhasil
+    const sebelum = a.masuk.cfg;
+    await cetakBluetooth(strukTes(32));
+    expect(a.masuk.cfg).toBeGreaterThan(sebelum); // jalur ke-2 setelah diurutkan = jalur yang disimpan
+    putusPrinter();
+    vi.unstubAllGlobals();
+  });
+});

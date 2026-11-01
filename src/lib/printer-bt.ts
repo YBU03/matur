@@ -4,70 +4,166 @@
 // Fallback terakhir tetap tombol "Cetak" biasa (dialog print browser).
 
 type Karakteristik = {
+  uuid?: string;
   properties: { write: boolean; writeWithoutResponse: boolean };
   writeValue?: (d: BufferSource) => Promise<void>;
   writeValueWithResponse?: (d: BufferSource) => Promise<void>;
   writeValueWithoutResponse?: (d: BufferSource) => Promise<void>;
 };
-type Gatt = { connected: boolean; connect: () => Promise<Gatt>; getPrimaryServices: () => Promise<{ getCharacteristics: () => Promise<Karakteristik[]> }[]> };
-type Perangkat = { name?: string; gatt?: Gatt; addEventListener?: (t: string, f: () => void) => void };
+type Layanan = { uuid?: string; getCharacteristics: () => Promise<Karakteristik[]> };
+type Gatt = { connected: boolean; connect: () => Promise<Gatt>; disconnect?: () => void; getPrimaryServices: () => Promise<Layanan[]> };
+type Perangkat = { id?: string; name?: string; gatt?: Gatt; addEventListener?: (t: string, f: () => void) => void };
 type Bt = { requestDevice: (o: unknown) => Promise<Perangkat> };
 
-// layanan umum printer thermal murah (58/80 mm): 18F0 (paling umum), FF00, FFE0 (HM-10), FEE7, AE30, ISSC, dsb.
+// Layanan BLE printer thermal murah (58/80 mm). Browser hanya bisa membaca layanan yang didaftarkan di sini.
 const LAYANAN = [
   "000018f0-0000-1000-8000-00805f9b34fb",
+  "0000fff0-0000-1000-8000-00805f9b34fb",
   "0000ff00-0000-1000-8000-00805f9b34fb",
   "0000ffe0-0000-1000-8000-00805f9b34fb",
   "0000fee7-0000-1000-8000-00805f9b34fb",
   "0000ae30-0000-1000-8000-00805f9b34fb",
   "0000af30-0000-1000-8000-00805f9b34fb",
+  "0000ff80-0000-1000-8000-00805f9b34fb",
+  "0000ffb0-0000-1000-8000-00805f9b34fb",
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
 ];
+// Karakteristik yang dikenal sebagai jalur CETAK (urut prioritas). Jalur tulis lain (pengaturan dsb.) dicoba belakangan.
+const JALUR_CETAK = [
+  "00002af1-0000-1000-8000-00805f9b34fb",
+  "0000fff2-0000-1000-8000-00805f9b34fb",
+  "0000ff02-0000-1000-8000-00805f9b34fb",
+  "0000ffe1-0000-1000-8000-00805f9b34fb",
+  "49535343-8841-43f4-a8d4-ecbe34729bb3",
+  "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f",
+  "0000ae01-0000-1000-8000-00805f9b34fb",
+  "0000af01-0000-1000-8000-00805f9b34fb",
+  "0000ff82-0000-1000-8000-00805f9b34fb",
+  "0000ffb2-0000-1000-8000-00805f9b34fb",
+  "0000fec7-0000-1000-8000-00805f9b34fb",
+];
+const KUNCI_JALUR = "matoer_printer_jalur";
 
-let printer: { nama: string; dev: Perangkat; ch: Karakteristik } | null = null;
+export type Jalur = { layanan: string; uuid: string; ch: Karakteristik };
+let printer: { nama: string; kunci: string; dev: Perangkat; jalur: Jalur[]; pilih: number } | null = null;
 
 export const bisaBluetooth = () => typeof navigator !== "undefined" && "bluetooth" in navigator;
 export const diAndroid = () => typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
 export const namaPrinter = () => printer?.nama ?? null;
+const pendek = (u: string) => (/^0000[0-9a-f]{4}-0000-1000-8000-00805f9b34fb$/i.test(u) ? u.slice(4, 8).toUpperCase() : u.slice(0, 8));
 
-async function cariKarakteristik(gatt: Gatt) {
-  for (const sv of await gatt.getPrimaryServices()) {
-    for (const ch of await sv.getCharacteristics()) if (ch.properties.write || ch.properties.writeWithoutResponse) return ch;
+function bacaIngatan(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(KUNCI_JALUR) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
   }
-  return null;
+}
+
+/** Semua jalur tulis di printer, jalur cetak yang dikenal di depan. */
+export async function daftarJalur(gatt: Gatt): Promise<Jalur[]> {
+  const out: Jalur[] = [];
+  for (const sv of await gatt.getPrimaryServices()) {
+    for (const ch of await sv.getCharacteristics()) {
+      if (ch.properties.write || ch.properties.writeWithoutResponse) out.push({ layanan: (sv.uuid ?? "").toLowerCase(), uuid: (ch.uuid ?? "").toLowerCase(), ch });
+    }
+  }
+  const nilai = (j: Jalur) => {
+    const i = JALUR_CETAK.indexOf(j.uuid);
+    return i < 0 ? 100 : i;
+  };
+  return out.map((j, i) => ({ j, i })).sort((a, b) => nilai(a.j) - nilai(b.j) || a.i - b.i).map((x) => x.j);
+}
+
+async function sambungGatt(dev: Perangkat) {
+  let galat: unknown;
+  for (let coba = 0; coba < 3; coba++) {
+    try {
+      return await dev.gatt!.connect();
+    } catch (e) {
+      galat = e;
+      await tunggu(300 * (coba + 1)); // GATT Android sering gagal di percobaan pertama
+    }
+  }
+  throw galat instanceof Error ? galat : new Error("Gagal tersambung ke printer.");
 }
 
 export async function sambungPrinter() {
   if (!bisaBluetooth()) throw new Error("Browser ini tidak mendukung Bluetooth. Pakai Chrome di Android, atau aplikasi RawBT.");
   const bt = (navigator as unknown as { bluetooth: Bt }).bluetooth;
   const dev = await bt.requestDevice({ acceptAllDevices: true, optionalServices: LAYANAN });
-  const gatt = await dev.gatt!.connect();
-  const ch = await cariKarakteristik(gatt);
-  if (!ch) throw new Error("Printer tersambung tapi jalur cetaknya tidak dikenali. Kemungkinan printer Bluetooth klasik — pakai tombol RawBT.");
-  printer = { nama: dev.name ?? "Printer", dev, ch };
+  // ganti printer: lepas koneksi lama dulu agar tidak bentrok
+  if (printer && printer.dev !== dev) {
+    try {
+      printer.dev.gatt?.disconnect?.();
+    } catch {}
+  }
+  const gatt = await sambungGatt(dev);
+  const jalur = await daftarJalur(gatt);
+  if (!jalur.length) throw new Error("Printer tersambung tapi jalur cetaknya tidak dikenali. Kemungkinan printer Bluetooth klasik — pakai tombol RawBT.");
+  const nama = dev.name ?? "Printer";
+  const kunci = dev.id || nama;
+  const ingat = bacaIngatan()[kunci];
+  const pilih = Math.max(0, jalur.findIndex((j) => j.uuid && j.uuid === ingat));
+  printer = { nama, kunci, dev, jalur, pilih };
   dev.addEventListener?.("gattserverdisconnected", () => {
     /* disambung ulang otomatis saat cetak berikutnya */
   });
-  return printer.nama;
+  return nama;
 }
 
 export function putusPrinter() {
+  try {
+    printer?.dev.gatt?.disconnect?.();
+  } catch {}
   printer = null;
+}
+
+/** Info diagnosa untuk menu Printer. */
+export function infoJalur() {
+  if (!printer) return null;
+  const j = printer.jalur[printer.pilih];
+  return {
+    ke: printer.pilih + 1,
+    total: printer.jalur.length,
+    label: j?.uuid ? `${pendek(j.uuid)}${j.layanan ? ` · layanan ${pendek(j.layanan)}` : ""}` : `jalur ${printer.pilih + 1}`,
+    dikenal: !!j && JALUR_CETAK.includes(j.uuid),
+    tersimpan: !!j?.uuid && bacaIngatan()[printer.kunci] === j.uuid,
+  };
+}
+
+/** Struk tes tidak keluar → pindah ke jalur tulis berikutnya (berputar). */
+export function jalurBerikut() {
+  if (!printer || printer.jalur.length < 2) return infoJalur();
+  printer.pilih = (printer.pilih + 1) % printer.jalur.length;
+  return infoJalur();
+}
+
+/** Struk tes keluar → ingat jalur ini untuk printer tersebut di perangkat ini. */
+export function simpanJalur() {
+  const j = printer?.jalur[printer.pilih];
+  if (!printer || !j?.uuid) return;
+  try {
+    localStorage.setItem(KUNCI_JALUR, JSON.stringify({ ...bacaIngatan(), [printer.kunci]: j.uuid }));
+  } catch {}
 }
 
 async function pastikanTersambung() {
   if (!printer) throw new Error("Printer belum tersambung.");
   if (!printer.dev.gatt?.connected) {
-    const gatt = await printer.dev.gatt!.connect();
-    const ch = await cariKarakteristik(gatt);
-    if (!ch) throw new Error("Gagal menyambung ulang printer.");
-    printer.ch = ch;
+    const uuid = printer.jalur[printer.pilih]?.uuid;
+    const gatt = await sambungGatt(printer.dev);
+    const jalur = await daftarJalur(gatt);
+    if (!jalur.length) throw new Error("Gagal menyambung ulang printer.");
+    printer.jalur = jalur;
+    printer.pilih = Math.max(0, jalur.findIndex((j) => j.uuid && j.uuid === uuid));
   }
-  return printer.ch;
+  return printer.jalur[printer.pilih].ch;
 }
 
 const ESC = 0x1b, GS = 0x1d;
+
 export type BarisStruk = string | { teks: string; tengah?: boolean; tebal?: boolean; besar?: boolean; kiriKanan?: [string, string] };
 
 /** Huruf non-ASCII diganti/dibuang (printer thermal murah hanya punya kode halaman dasar). */
@@ -118,17 +214,28 @@ export function susunStruk(baris: BarisStruk[], lebar: number) {
 
 const tunggu = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Kirim per 20 byte: batas aman BLE (MTU standar) untuk printer murah. */
+/** Kirim per 20 byte (batas aman BLE untuk printer murah). Pakai tulis-dengan-balasan bila didukung (lebih andal),
+ *  tanpa balasan diberi jeda; bila koneksi putus di tengah, sambung ulang sekali lalu lanjutkan. */
 export async function cetakBluetooth(data: Uint8Array) {
-  const ch = await pastikanTersambung();
-  const tanpaBalas = ch.properties.writeWithoutResponse && !ch.properties.write;
+  let ch = await pastikanTersambung();
+  const kirim = async (c: Karakteristik, bagian: Uint8Array) => {
+    const potong = bagian as unknown as BufferSource;
+    if (c.properties.write && c.writeValueWithResponse) await c.writeValueWithResponse(potong);
+    else if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) {
+      await c.writeValueWithoutResponse(potong);
+      await tunggu(20);
+    } else await c.writeValue!(potong);
+  };
   for (let i = 0; i < data.length; i += 20) {
     const potong = data.slice(i, i + 20);
-    if (tanpaBalas && ch.writeValueWithoutResponse) {
-      await ch.writeValueWithoutResponse(potong);
-      await tunggu(15);
-    } else if (ch.writeValueWithResponse) await ch.writeValueWithResponse(potong);
-    else await ch.writeValue!(potong);
+    try {
+      await kirim(ch, potong);
+    } catch (e) {
+      if (printer?.dev.gatt?.connected) throw e;
+      ch = await pastikanTersambung();
+      await kirim(ch, potong);
+    }
+    if (i % 400 === 380) await tunggu(30); // beri napas buffer printer
   }
 }
 
