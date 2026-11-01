@@ -136,3 +136,12 @@ export const tabKelas = {
   aktif: "flex-1 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-center text-kopi-900 shadow-sm",
   pasif: "flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-center text-stone-500 hover:text-kopi-900",
 };
+
+/** tombol aksi kecil seragam (ikon + teks) untuk baris tabel/kartu */
+export const tombolAksi = {
+  lihat: "inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-40",
+  edit: "inline-flex items-center gap-1 rounded-lg border border-matur-200 bg-matur-50 px-2.5 py-1.5 text-xs font-semibold text-matur-800 hover:bg-matur-100 disabled:opacity-40",
+  hapus: "inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-40",
+  utama: "inline-flex items-center gap-1 rounded-lg bg-matur-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-matur-600 disabled:opacity-40",
+  netral: "inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-40",
+};

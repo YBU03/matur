@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { hariIni } from "@/lib/jadwal/waktu";
 import { catatIzinStaf, putusIzin, putusTukar, type Result } from "@/lib/sdm-actions";
+import { BarisAngka, HeaderHalaman, KartuAngka, tabKelas, tombolAksi } from "@/components/ui-halaman";
+import { GrafikIzin } from "./grafik";
 
 export type IzinBaris = {
   id: string;
@@ -65,20 +67,27 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Persetujuan</h1>
-        <p className="text-sm text-stone-500">Izin, sakit, libur mingguan, dan tukar shift dari kasir & barista. Izin yang disetujui otomatis melepas jadwal orang itu di tanggal tersebut.</p>
-      </div>
+      <HeaderHalaman judul="Persetujuan" ikon="✅" keterangan="Izin, sakit, libur mingguan, dan tukar shift dari kasir & barista. Izin yang disetujui otomatis melepas jadwal orang itu di tanggal tersebut." />
+      <BarisAngka>
+        <KartuAngka label="Izin menunggu" nilai={izinMenunggu.length} ikon="⏳" nada={izinMenunggu.length ? "kuning" : "netral"} sub="perlu diputuskan" />
+        <KartuAngka label="Tukar shift menunggu" nilai={tukarMenunggu.length} ikon="🔁" nada={tukarMenunggu.length ? "kuning" : "netral"} sub="sudah diterima rekan" />
+        <KartuAngka label="Disetujui 30 hari" nilai={izin.filter((i) => i.status === "disetujui").length} ikon="👍" nada="hijau" sub="izin/sakit/libur" />
+        <KartuAngka label="Ditolak 30 hari" nilai={izin.filter((i) => i.status === "ditolak").length + tukar.filter((t) => t.status === "ditolak").length} ikon="✋" nada="merah" sub="izin & tukar" />
+      </BarisAngka>
+      <GrafikIzin izin={izin} />
       {msg && <p className={`rounded-xl px-4 py-3 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}>{msg.error ?? msg.ok}</p>}
 
-      <nav aria-label="Jenis persetujuan" className="flex flex-wrap gap-2 rounded-2xl bg-matur-50 p-2">
-        {[["izin", `Izin / Sakit / Libur (${izinMenunggu.length})`], ["tukar", `Tukar Shift (${tukarMenunggu.length})`], ["riwayat", "Riwayat"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id} className={`rounded-xl px-4 py-2 text-sm font-semibold ${tab === id ? "bg-white text-kopi-900 shadow-sm" : "text-stone-600"}`}>{label}</button>)}
+      <nav aria-label="Jenis persetujuan" className={tabKelas.wadah}>
+        {[["izin", `Izin / Sakit / Libur (${izinMenunggu.length})`], ["tukar", `Tukar Shift (${tukarMenunggu.length})`], ["riwayat", "Riwayat"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id} className={tab === id ? tabKelas.aktif : tabKelas.pasif}>{label}</button>)}
       </nav>
       <section hidden={tab !== "izin"} className="space-y-2">
         <h2 className="font-bold">Izin & libur menunggu ({izinMenunggu.length})</h2>
         {!izinMenunggu.length && <p className="text-sm text-stone-500">Tidak ada pengajuan yang menunggu.</p>}
         {izinMenunggu.map((i) => (
-          <div key={i.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+          <div key={i.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-white p-3 text-sm shadow-sm">
+            <span className={`grid size-10 shrink-0 place-items-center rounded-full text-lg ${i.jenis === "sakit" ? "bg-rose-100" : i.jenis === "libur" ? "bg-emerald-100" : "bg-violet-100"}`} aria-hidden>
+              {i.jenis === "sakit" ? "🤒" : i.jenis === "libur" ? "🌴" : "📝"}
+            </span>
             <div className="min-w-48 flex-1">
               <p>
                 <b>{n(i.pengguna_id)}</b> · {JENIS[i.jenis]} · <b>{tgl(i.tanggal)}</b>
@@ -86,11 +95,11 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
               </p>
               {i.alasan && <p className="text-stone-600">“{i.alasan}”</p>}
             </div>
-            <button disabled={pending} onClick={() => jalankan(() => putusIzin(i.id, true, ""))} className="rounded-lg bg-green-700 px-3 py-1.5 font-semibold text-white disabled:opacity-50">
-              Setujui
+            <button disabled={pending} onClick={() => jalankan(() => putusIzin(i.id, true, ""))} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50">
+              ✓ Setujui
             </button>
-            <button disabled={pending} onClick={() => tolak((a) => putusIzin(i.id, false, a))} className="rounded-lg border border-red-300 px-3 py-1.5 text-red-700 disabled:opacity-50">
-              Tolak
+            <button disabled={pending} onClick={() => tolak((a) => putusIzin(i.id, false, a))} className={tombolAksi.hapus}>
+              ✕ Tolak
             </button>
           </div>
         ))}
@@ -100,18 +109,19 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
         <h2 className="font-bold">Tukar shift menunggu ({tukarMenunggu.length})</h2>
         {!tukarMenunggu.length && <p className="text-sm text-stone-500">Tidak ada permintaan tukar yang sudah diterima rekan.</p>}
         {tukarMenunggu.map((t) => (
-          <div key={t.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+          <div key={t.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-white p-3 text-sm shadow-sm">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky-100 text-lg" aria-hidden>🔁</span>
             <div className="min-w-48 flex-1">
               <p>
                 <b>{n(t.pengaju_id)}</b> ({jadwalTeks(t.a)}) ⇄ <b>{n(t.rekan_id)}</b> ({jadwalTeks(t.b)})
               </p>
               {t.alasan && <p className="text-stone-600">“{t.alasan}”</p>}
             </div>
-            <button disabled={pending} onClick={() => jalankan(() => putusTukar(t.id, true, ""))} className="rounded-lg bg-green-700 px-3 py-1.5 font-semibold text-white disabled:opacity-50">
-              Setujui
+            <button disabled={pending} onClick={() => jalankan(() => putusTukar(t.id, true, ""))} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50">
+              ✓ Setujui
             </button>
-            <button disabled={pending} onClick={() => tolak((a) => putusTukar(t.id, false, a))} className="rounded-lg border border-red-300 px-3 py-1.5 text-red-700 disabled:opacity-50">
-              Tolak
+            <button disabled={pending} onClick={() => tolak((a) => putusTukar(t.id, false, a))} className={tombolAksi.hapus}>
+              ✕ Tolak
             </button>
           </div>
         ))}
@@ -134,7 +144,7 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
           .map((r) => (
             <p key={r.id} className="flex flex-wrap gap-2 border-b py-1.5 text-sm">
               <span className="flex-1">{r.el}</span>
-              <span className={r.status === "disetujui" ? "text-green-700" : r.status === "ditolak" ? "text-red-600" : "text-stone-500"}>{STATUS[r.status]}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${r.status === "disetujui" ? "bg-emerald-100 text-emerald-800" : r.status === "ditolak" ? "bg-red-100 text-red-700" : "bg-stone-100 text-stone-600"}`}>{STATUS[r.status]}</span>
               {r.tolak && <span className="w-full text-xs text-stone-500">Alasan: {r.tolak}</span>}
             </p>
           ))}

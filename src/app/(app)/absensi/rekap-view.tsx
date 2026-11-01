@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { formatDurasi, LABEL_STATUS, type BarisRekap, type RingkasStaf, type StatusHari } from "@/lib/jadwal/rekap";
-import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, Kartu, Kosong, isian, tabel, tombolHeaderUtama } from "@/components/ui-halaman";
+import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, Kartu, Kosong, isian, tabel, tombolAksi, tombolHeaderUtama } from "@/components/ui-halaman";
+import { Modal } from "@/components/confirm-edit";
+import { GrafikAbsensi } from "./grafik";
 import type { Absen } from "@/lib/sdm";
-import { editAbsensi, ubahAbsensi, type Result } from "@/lib/sdm-actions";
+import { editAbsensi, type Result } from "@/lib/sdm-actions";
 
 export const WARNA_STATUS: Record<StatusHari, string> = {
   tepat: "bg-green-100 text-green-800",
@@ -95,6 +97,8 @@ export function RekapView(p: Props) {
         <KartuAngka label="Tidak absen" nilai={total.tidak} ikon="🚫" nada="merah" sub="periode ini" />
         <KartuAngka label="Izin/sakit/libur" nilai={total.izin} ikon="📝" nada="ungu" sub="disetujui" />
       </BarisAngka>
+
+      <GrafikAbsensi baris={p.rekap.baris} ringkas={p.rekap.ringkas} nama={p.nama} />
 
       <Kartu judul={`Hari ini · ${p.outlet.nama}`} keterangan="Diperbarui otomatis saat ada absen baru.">
         <div className="mb-3 grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
@@ -248,132 +252,206 @@ function Kotak({ label, nilai, warna = "text-kopi-900", latar = "bg-matur-50" }:
 }
 
 function Detail({ b, nama, a, foto }: { b: BarisRekap; nama: string; a?: Absen; foto: Record<string, string> }) {
-  const router = useRouter();
+  const [lihat, setLihat] = useState(false);
   const [edit, setEdit] = useState(false);
-  const [catatan, setCatatan] = useState(a?.catatan ?? "");
-  const [pulang, setPulang] = useState("");
-  const [msg, setMsg] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
-  const simpan = () =>
-    a &&
-    start(async () => {
-      // jam pulang diisi dalam WIB; lebih awal dari jam masuk berarti keesokan harinya
-      let t: Date | null = null;
-      if (pulang) {
-        t = new Date(`${a.tanggal}T${pulang}:00+07:00`);
-        if (t < new Date(a.masuk_at)) t.setUTCDate(t.getUTCDate() + 1);
-      }
-      const r = await ubahAbsensi(a.id, { catatan, pulang: t?.toISOString() ?? null });
-      setMsg(r);
-      if (r.ok) {
-        setEdit(false);
-        router.refresh();
-      }
-    });
+  const fotoMasuk = a?.masuk_foto ? foto[a.masuk_foto] : undefined;
+  const fotoPulang = a?.pulang_foto ? foto[a.pulang_foto] : undefined;
+  const adaFoto = !!(fotoMasuk || fotoPulang);
   return (
-    <div className="flex flex-wrap items-start gap-3 rounded-2xl border border-matur-100 bg-white p-3 text-sm shadow-sm">
-      <div className="flex gap-1">
-        {[a?.masuk_foto, a?.pulang_foto].map((f, i) =>
-          f && foto[f] ? (
-            <a key={i} href={foto[f]} target="_blank" rel="noreferrer" title={i ? "Selfie pulang" : "Selfie masuk"}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={foto[f]} alt="" className="h-14 w-14 rounded-xl object-cover ring-1 ring-matur-100" />
-            </a>
-          ) : null,
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-matur-100 bg-white p-3 text-sm shadow-sm transition hover:border-matur-200 hover:shadow">
+      <button
+        type="button"
+        onClick={() => adaFoto && setLihat(true)}
+        disabled={!adaFoto}
+        className="relative shrink-0 disabled:cursor-default"
+        aria-label={adaFoto ? `Lihat foto absen ${nama}` : "Tanpa foto"}
+      >
+        {fotoMasuk ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fotoMasuk} alt="" className="size-12 rounded-full object-cover ring-2 ring-white shadow" />
+        ) : (
+          <span className="grid size-12 place-items-center rounded-full bg-matur-100 text-sm font-bold text-matur-800">{inisialNama(nama)}</span>
         )}
-      </div>
+        {fotoPulang && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fotoPulang} alt="" className="absolute -bottom-1 -right-1 size-6 rounded-full object-cover ring-2 ring-white" />
+        )}
+      </button>
       <div className="min-w-48 flex-1">
-        <p>
-          <b>{nama}</b> · {tglPendek(b.tanggal)} {b.shift && <span className="text-stone-500">· {b.shift.nama} {b.shift.jam_mulai}–{b.shift.jam_selesai}</span>}
+        <p className="flex flex-wrap items-center gap-x-2">
+          <b className="text-kopi-900">{nama}</b>
+          <span className="text-xs text-stone-500">
+            {tglPendek(b.tanggal)}
+            {b.shift && ` · ${b.shift.nama} ${b.shift.jam_mulai}–${b.shift.jam_selesai}`}
+          </span>
         </p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-stone-600">
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-600">
           <span className={`rounded-full px-2 py-0.5 font-semibold ${WARNA_STATUS[b.status]}`}>
             {LABEL_STATUS[b.status]}
             {b.status === "telat" && ` ${a?.telat_menit} mnt`}
           </span>
           {a && (
             <>
-              <span>
-                Masuk {jamWib(a.masuk_at)} · Pulang {jamWib(a.pulang_at)} · {formatDurasi(b.menitKerja)}
+              <span className="tabular-nums">
+                🟢 {jamWib(a.masuk_at)} → 🔴 {jamWib(a.pulang_at)} · {formatDurasi(b.menitKerja)}
               </span>
-              <span>{a.perangkat === "outlet" ? "📟 perangkat outlet" : "📱 HP sendiri"}</span>
-              {peta(a.masuk_lat, a.masuk_lng) ? (
-                <a href={peta(a.masuk_lat, a.masuk_lng)!} target="_blank" rel="noreferrer" className="text-sky-700 underline">
-                  lokasi masuk
-                </a>
-              ) : (
-                <span className="text-stone-400">lokasi tidak diizinkan</span>
-              )}
-              {peta(a.pulang_lat, a.pulang_lng) && (
-                <a href={peta(a.pulang_lat, a.pulang_lng)!} target="_blank" rel="noreferrer" className="text-sky-700 underline">
-                  lokasi pulang
-                </a>
-              )}
+              <span>{a.perangkat === "outlet" ? "📟 Perangkat outlet" : "📱 HP sendiri"}</span>
             </>
           )}
         </p>
-        {a?.masuk_catatan&&<p className="mt-1 text-xs text-stone-600">Catatan Clock In: {a.masuk_catatan}</p>}
-        {a?.pulang_catatan&&<p className="mt-1 text-xs text-stone-600">Catatan Clock Out: {a.pulang_catatan}</p>}
-        {a?.masuk_lokasi_valid===false&&<p className="mt-1 text-xs text-amber-700">Koordinat masuk tercatat; titik/radius outlet belum diatur.</p>}
-        {a?.pulang_lokasi_valid===false&&<p className="mt-1 text-xs text-amber-700">Koordinat pulang tercatat; titik/radius outlet belum diatur.</p>}
-        {a?.catatan && !edit && <p className="mt-1 text-xs italic text-stone-600">Catatan: {a.catatan}</p>}
-        {edit && a && (
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <label className="text-xs">
-              Catatan
-              <input value={catatan} onChange={(e) => setCatatan(e.target.value)} className="mt-1 block w-full rounded-lg border border-matur-200 px-2 py-1 text-sm sm:w-56" />
-            </label>
-            {!a.pulang_at && (
-              <label className="text-xs">
-                Isi jam pulang (WIB)
-                <input type="time" value={pulang} onChange={(e) => setPulang(e.target.value)} className="mt-1 block rounded-lg border px-2 py-1 text-sm" />
-              </label>
-            )}
-            <button disabled={pending} onClick={simpan} className="rounded-lg bg-matur-500 px-3 py-1.5 text-xs font-bold text-white">
-              Simpan
-            </button>
-          </div>
-        )}
-        {msg?.error && <p className="mt-1 text-xs text-red-600">{msg.error}</p>}
+        {a?.catatan && <p className="mt-1 text-xs italic text-stone-600">Catatan: {a.catatan}</p>}
       </div>
-      {a && <EditAbsensi a={a} nama={nama} />}
-      {a && !edit && (
-        <button onClick={() => setEdit(true)} className="text-xs text-matur-700 underline">
-          Koreksi
-        </button>
+      {a && (
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => setLihat(true)} className={tombolAksi.lihat} title="Lihat foto, lokasi & catatan">
+            👁 Lihat
+          </button>
+          <button type="button" onClick={() => setEdit(true)} className={tombolAksi.edit}>
+            ✏️ Edit
+          </button>
+        </div>
       )}
+      {lihat && a && <PopupAbsen a={a} b={b} nama={nama} masuk={fotoMasuk} pulang={fotoPulang} onClose={() => setLihat(false)} onEdit={() => { setLihat(false); setEdit(true); }} />}
+      {edit && a && <EditAbsensi a={a} nama={nama} onClose={() => setEdit(false)} />}
     </div>
   );
 }
 
-function EditAbsensi({ a, nama }: { a: Absen; nama: string }) {
+const inisialNama = (n: string) =>
+  n.trim().split(/\s+/).slice(0, 2).map((x) => x[0]?.toUpperCase() ?? "").join("") || "?";
+
+function PopupAbsen({ a, b, nama, masuk, pulang, onClose, onEdit }: { a: Absen; b: BarisRekap; nama: string; masuk?: string; pulang?: string; onClose: () => void; onEdit: () => void }) {
+  const [besar, setBesar] = useState<string | null>(null);
+  const kartu = (judul: string, src: string | undefined, jam: string | null, lat: number | null, lng: number | null, catatan: string | null | undefined, valid: boolean | null | undefined) => (
+    <div className="overflow-hidden rounded-2xl border border-matur-100 bg-stone-50">
+      {src ? (
+        <button type="button" onClick={() => setBesar(src)} className="block w-full" aria-label={`Perbesar ${judul}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={judul} className="aspect-[3/4] w-full object-cover" />
+        </button>
+      ) : (
+        <div className="grid aspect-[3/4] place-items-center text-sm text-stone-400">{jam ? "Tanpa foto" : "Belum absen"}</div>
+      )}
+      <div className="space-y-0.5 p-2.5 text-xs">
+        <p className="font-bold text-kopi-900">
+          {judul} · <span className="tabular-nums">{jamWib(jam)}</span>
+        </p>
+        {peta(lat, lng) ? (
+          <a href={peta(lat, lng)!} target="_blank" rel="noreferrer" className="font-semibold text-sky-700 hover:underline">
+            📍 Buka lokasi di peta
+          </a>
+        ) : (
+          <p className="text-stone-400">📍 Lokasi tidak tersedia</p>
+        )}
+        {valid === false && <p className="text-amber-700">Titik/radius outlet belum diatur.</p>}
+        {catatan && <p className="text-stone-600">💬 {catatan}</p>}
+      </div>
+    </div>
+  );
+  return (
+    <Modal title={`Absen ${nama}`} onClose={onClose} scrollable>
+      <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-stone-600">
+        {tglPendek(b.tanggal)}
+        {b.shift && <span>· {b.shift.nama} {b.shift.jam_mulai}–{b.shift.jam_selesai}</span>}
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${WARNA_STATUS[b.status]}`}>
+          {LABEL_STATUS[b.status]}
+          {b.status === "telat" && ` ${a.telat_menit} mnt`}
+        </span>
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {kartu("Masuk", masuk, a.masuk_at, a.masuk_lat, a.masuk_lng, a.masuk_catatan, a.masuk_lokasi_valid)}
+        {kartu("Pulang", pulang, a.pulang_at, a.pulang_lat, a.pulang_lng, a.pulang_catatan, a.pulang_lokasi_valid)}
+      </div>
+      <p className="mt-3 text-xs text-stone-500">
+        Durasi kerja {formatDurasi(b.menitKerja)} · {a.perangkat === "outlet" ? "📟 perangkat outlet" : "📱 HP sendiri"}
+        {a.catatan && ` · Catatan HRD: ${a.catatan}`}
+      </p>
+      <div className="mt-4 flex justify-end gap-2">
+        <button type="button" onClick={onClose} className={tombolAksi.netral}>Tutup</button>
+        <button type="button" onClick={onEdit} className={tombolAksi.edit}>✏️ Edit absen</button>
+      </div>
+      {besar && (
+        <div role="dialog" aria-label="Foto diperbesar" onClick={() => setBesar(null)} className="fixed inset-0 z-[80] grid place-items-center bg-black/85 p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={besar} alt="" className="max-h-full max-w-full rounded-xl" />
+          <span className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-semibold">✕ Tutup</span>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function EditAbsensi({ a, nama, onClose }: { a: Absen; nama: string; onClose: () => void }) {
   const router = useRouter();
-  const lokal = (s: string | null) => s ? new Date(Date.parse(s) + 7 * 3600_000).toISOString().slice(0,16) : "";
-  const [open, setOpen] = useState(false);
+  const lokal = (s: string | null) => (s ? new Date(Date.parse(s) + 7 * 3600_000).toISOString().slice(0, 16) : "");
   const [masuk, setMasuk] = useState(lokal(a.masuk_at));
   const [pulang, setPulang] = useState(lokal(a.pulang_at));
   const [catatan, setCatatan] = useState(a.catatan ?? "");
   const [alasan, setAlasan] = useState("");
   const [msg, setMsg] = useState<Result>({});
   const [pending, start] = useTransition();
-  const jalankan = (hapus: boolean) => start(async () => {
-    const r = await editAbsensi(a.id, { masuk: hapus ? a.masuk_at : new Date(masuk + ":00+07:00").toISOString(), pulang: !hapus && pulang ? new Date(pulang + ":00+07:00").toISOString() : null, catatan, alasan, hapus });
-    setMsg(r); if (!r.error) { setOpen(false); router.refresh(); }
-  });
-  return <div className="w-full">
-    <button onClick={() => setOpen(!open)} className="mr-3 text-xs text-matur-700 underline">Edit / Hapus</button>
-    {open && <form className="mt-2 grid gap-2 rounded-xl bg-stone-50 p-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); jalankan(false); }}>
-      <p className="text-xs text-stone-600 sm:col-span-2">{nama} · Jam WIB. Status dan menit telat dihitung ulang. Gaji final mengunci perubahan; draft gaji perlu dihitung ulang.</p>
-      <label>Masuk<input required type="datetime-local" value={masuk} onChange={(e) => setMasuk(e.target.value)} className="block w-full rounded border p-2" /></label>
-      <label>Pulang<input type="datetime-local" value={pulang} onChange={(e) => setPulang(e.target.value)} className="block w-full rounded border p-2" /></label>
-      <label>Catatan<input maxLength={300} value={catatan} onChange={(e) => setCatatan(e.target.value)} className="block w-full rounded border p-2" /></label>
-      <label>Alasan perubahan / hapus<input required minLength={3} maxLength={300} value={alasan} onChange={(e) => setAlasan(e.target.value)} className="block w-full rounded border p-2" /></label>
-      <div className="flex flex-wrap gap-3 sm:col-span-2">
-        <button disabled={pending} className="rounded-lg bg-matur-500 px-3 py-2 font-semibold text-white">Simpan edit</button>
-        <button type="button" disabled={pending || alasan.trim().length < 3} onClick={() => { if (confirm(`Hapus absensi ${nama}? Kehadiran dan perhitungan gaji akan berubah.`) && prompt(`Ketik HAPUS untuk menghapus absensi ${nama}`) === "HAPUS") jalankan(true); }} className="rounded-lg border border-red-300 px-3 py-2 text-red-700 disabled:opacity-40">Hapus absensi</button>
-        <button type="button" onClick={() => setOpen(false)}>Batal</button>
-      </div>
-    </form>}
-    {(msg.error || msg.ok) && <p role="status" className={`mt-1 text-xs ${msg.error ? "text-red-700" : "text-green-700"}`}>{msg.error ?? msg.ok}</p>}
-  </div>;
+  const jalankan = (hapus: boolean) =>
+    start(async () => {
+      const r = await editAbsensi(a.id, {
+        masuk: hapus ? a.masuk_at : new Date(masuk + ":00+07:00").toISOString(),
+        pulang: !hapus && pulang ? new Date(pulang + ":00+07:00").toISOString() : null,
+        catatan,
+        alasan,
+        hapus,
+      });
+      setMsg(r);
+      if (!r.error) {
+        onClose();
+        router.refresh();
+      }
+    });
+  const label = "text-xs font-medium text-stone-500";
+  return (
+    <Modal title={`Edit absen · ${nama}`} onClose={onClose} scrollable>
+      <form
+        className="grid gap-3 sm:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          jalankan(false);
+        }}
+      >
+        <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900 sm:col-span-2">
+          Jam dalam WIB. Status dan menit telat dihitung ulang. Gaji final mengunci perubahan; draft gaji perlu dihitung ulang.
+        </p>
+        <label className={label}>
+          Jam masuk
+          <input required type="datetime-local" value={masuk} onChange={(e) => setMasuk(e.target.value)} className={`${isian} mt-0.5 block w-full`} />
+        </label>
+        <label className={label}>
+          Jam pulang
+          <input type="datetime-local" value={pulang} onChange={(e) => setPulang(e.target.value)} className={`${isian} mt-0.5 block w-full`} />
+        </label>
+        <label className={`${label} sm:col-span-2`}>
+          Catatan
+          <input maxLength={300} value={catatan} onChange={(e) => setCatatan(e.target.value)} className={`${isian} mt-0.5 block w-full`} />
+        </label>
+        <label className={`${label} sm:col-span-2`}>
+          Alasan perubahan / hapus (wajib)
+          <input required minLength={3} maxLength={300} value={alasan} onChange={(e) => setAlasan(e.target.value)} className={`${isian} mt-0.5 block w-full`} />
+        </label>
+        {msg.error && <p role="alert" className="rounded-xl bg-red-50 p-2 text-xs text-red-700 sm:col-span-2">{msg.error}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 sm:col-span-2">
+          <button
+            type="button"
+            disabled={pending || alasan.trim().length < 3}
+            onClick={() => {
+              if (confirm(`Hapus absensi ${nama}? Kehadiran dan perhitungan gaji akan berubah.`) && prompt(`Ketik HAPUS untuk menghapus absensi ${nama}`) === "HAPUS") jalankan(true);
+            }}
+            className={tombolAksi.hapus}
+          >
+            🗑 Hapus absensi
+          </button>
+          <span className="flex gap-2">
+            <button type="button" onClick={onClose} className={tombolAksi.netral}>Batal</button>
+            <button disabled={pending} className={tombolAksi.utama}>{pending ? "Menyimpan…" : "💾 Simpan"}</button>
+          </span>
+        </div>
+      </form>
+    </Modal>
+  );
 }

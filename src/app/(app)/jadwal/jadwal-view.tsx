@@ -1,6 +1,9 @@
 "use client";
 
 import { hariLibur, rekapLibur } from "@/lib/jadwal/hari-libur";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartCard } from "@/components/charts";
+import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -116,13 +119,15 @@ export function JadwalView(p: Props) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Jadwal Shift</h1>
-        <p className="text-sm text-stone-500">
-          Susun draft otomatis, periksa & ubah, lalu terbitkan agar terlihat
-          oleh kasir & barista.
-        </p>
-      </div>
+      <HeaderHalaman
+        judul="Jadwal Shift"
+        ikon="📅"
+        keterangan="Susun draft otomatis, periksa & ubah, lalu terbitkan agar terlihat oleh kasir & barista."
+      >
+        <ChipHeader>🏪 {p.outlet.nama}</ChipHeader>
+        <ChipHeader>👥 {p.staf.length} staf</ChipHeader>
+        <ChipHeader>🗓️ {p.jadwal.length} jadwal bulan ini</ChipHeader>
+      </HeaderHalaman>
       <div className="flex flex-wrap items-center gap-2">
         {p.outlets.length > 1 && (
           <select
@@ -498,6 +503,183 @@ function Kalender(p: Props & Aksi) {
     ...p.shifts.filter((s) => !s.induk_shift_id && shiftLama.has(s.id)),
   ];
 
+  const kartuHari = (d: string) => {
+    const izinD = izinHari.get(d) ?? [];
+    return (
+      <div
+        key={d}
+        className={`rounded-xl border bg-white p-2 text-xs ${d === today ? "border-matur-500 ring-2 ring-matur-200" : "border-matur-100"}`}
+      >
+        <button
+          type="button"
+          onClick={() => setJour(d)}
+          className="mb-2 flex w-full items-center justify-between rounded-lg bg-stone-50 p-2 text-left font-bold text-kopi-900"
+          aria-label={`Kelola jadwal ${d}`}
+        >
+          <span>
+            {WEEKDAY_LABELS[weekdayIndex(d)]} {Number(d.slice(8))}
+          </span>
+          <span className="text-[10px] font-medium text-matur-700">
+            Kelola ›
+          </span>
+        </button>
+        {tampilShift.map((s, si) => {
+          const w = warnaShift(si);
+          const isi = byCell.get(`${d}|${s.id}`) ?? [];
+          const kurang = s.aktif && isi.length < s.min_orang;
+          const k = `${d}|${s.id}`;
+          const calon = p.staf.filter(
+            (st) =>
+              !isi.some((j) => j.pengguna_id === st.id) &&
+              !izinD.some(
+                (i) =>
+                  i.pengguna_id === st.id && i.status === "disetujui",
+              ),
+          );
+          return (
+            <div
+              key={s.id}
+              className={`mb-1.5 rounded-lg border-l-4 p-1.5 ${w.garis} ${kurang ? "bg-red-50" : "bg-stone-50/60"}`}
+            >
+              <p className="mb-1 flex items-center justify-between gap-1 text-[11px] text-stone-500">
+                <span className="min-w-0">
+                  <span className="font-semibold text-kopi-900">{s.nama}</span>{" "}
+                  <span className="tabular-nums">
+                    {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)}
+                  </span>
+                  {!s.aktif && " (nonaktif)"}
+                </span>
+                <span className={kurang ? "font-bold text-red-600" : ""}>
+                  {isi.length}/{s.min_orang}
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {isi.map((j) => (
+                  <button
+                    key={j.id}
+                    disabled={p.pending}
+                    title={`${nama.get(j.pengguna_id) ?? "?"} · ${j.status} — ketuk untuk ubah`}
+                    onClick={() => editRow(j)}
+                    className={`inline-flex items-center gap-1 rounded-full border py-0.5 pl-0.5 pr-2 text-left hover:shadow-sm ${j.status === "terbit" ? "border-green-600/60 bg-white text-kopi-900" : "border-dashed border-matur-500 bg-matur-50"}`}
+                  >
+                    <span
+                      className={`grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold ${w.chip}`}
+                      aria-hidden
+                    >
+                      {inisial(nama.get(j.pengguna_id) ?? "?")}
+                    </span>
+                    {namaDepan(nama.get(j.pengguna_id) ?? "?")}
+                    {p.shifts.find((s) => s.id === j.shift_id)
+                      ?.induk_shift_id && (
+                      <span className="block text-[10px]">
+                        {
+                          p.shifts.find((s) => s.id === j.shift_id)
+                            ?.jam_mulai
+                        }
+                        –
+                        {
+                          p.shifts.find((s) => s.id === j.shift_id)
+                            ?.jam_selesai
+                        }{" "}
+                        · khusus
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {tambah === k ? (
+                  <select
+                    autoFocus
+                    defaultValue=""
+                    onBlur={() => setTambah(null)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setTambah(null);
+                      if (v)
+                        p.jalankan(() =>
+                          tambahJadwal(
+                            p.outlet.id,
+                            s.id,
+                            v,
+                            d,
+                            sudahTerbit,
+                          ),
+                        );
+                    }}
+                    className="max-w-full rounded border px-1 py-0.5"
+                  >
+                    <option value="">Pilih…</option>
+                    {calon.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nama}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  s.aktif &&
+                  !!calon.length && (
+                    <button
+                      onClick={() => setTambah(k)}
+                      className="grid size-6 place-items-center rounded-full border border-dashed border-stone-400 text-stone-500 hover:border-matur-500 hover:bg-matur-50 hover:text-matur-700"
+                      aria-label="Tambah orang"
+                    >
+                      +
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {!!libur.get(d)?.length && (
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
+            <span className="rounded bg-emerald-50 px-1 font-semibold text-emerald-800">
+              🌴 Libur
+            </span>
+            {libur.get(d)!.map((id) => (
+              <button
+                key={id}
+                disabled={p.pending}
+                title={`${nama.get(id) ?? "?"} libur — ketuk untuk ubah`}
+                onClick={() =>
+                  setLiburAksi({
+                    d,
+                    id,
+                    mode: "menu",
+                    shiftId: aktif[0]?.id ?? "",
+                  })
+                }
+                className="inline-flex items-center gap-0.5 rounded-full border border-emerald-300 bg-emerald-50 py-0.5 pl-1.5 pr-1 font-semibold text-emerald-900 hover:bg-emerald-100"
+              >
+                {namaDepan(nama.get(id) ?? "?")}
+                <span
+                  className="grid size-3.5 place-items-center rounded-full bg-emerald-200 text-[9px] leading-none text-emerald-900"
+                  aria-hidden
+                >
+                  ✕
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!!izinD.length && (
+          <p className="mt-1 text-[11px] text-stone-500">
+            {izinD.map((i) => (
+              <button
+                key={i.id}
+                onClick={() => setIzinAksi({ i, alasan: "" })}
+                className={`mr-1 mb-0.5 inline-block rounded px-1 ${i.status === "disetujui" ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800 ring-1 ring-amber-300"}`}
+              >
+                {JENIS_IZIN[i.jenis]}:{" "}
+                {namaDepan(nama.get(i.pengguna_id) ?? "?")}
+                {i.status === "menunggu" && " ?"}
+              </button>
+            ))}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   if (!p.shifts.length)
     return (
       <p className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -627,177 +809,23 @@ function Kalender(p: Props & Aksi) {
           {sudahTerbit ? " (langsung terbit)" : " (sebagai draft)"}.
         </span>
       </p>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
-        {Array.from({ length: weekdayIndex(dates[0]) }).map((_, i) => (
-          <div key={`k${i}`} className="hidden lg:block" />
-        ))}
-        {dates.map((d) => {
-          const izinD = izinHari.get(d) ?? [];
-          return (
-            <div
-              key={d}
-              className={`rounded-xl border bg-white p-2 text-xs ${d === today ? "border-matur-500 ring-2 ring-matur-200" : "border-matur-100"}`}
-            >
-              <button
-                type="button"
-                onClick={() => setJour(d)}
-                className="mb-2 flex w-full items-center justify-between rounded-lg bg-stone-50 p-2 text-left font-bold text-kopi-900"
-                aria-label={`Kelola jadwal ${d}`}
-              >
-                <span>
-                  {WEEKDAY_LABELS[weekdayIndex(d)]} {Number(d.slice(8))}
-                </span>
-                <span className="text-[10px] font-medium text-matur-700">
-                  Kelola ›
-                </span>
-              </button>
-              {tampilShift.map((s) => {
-                const isi = byCell.get(`${d}|${s.id}`) ?? [];
-                const kurang = s.aktif && isi.length < s.min_orang;
-                const k = `${d}|${s.id}`;
-                const calon = p.staf.filter(
-                  (st) =>
-                    !isi.some((j) => j.pengguna_id === st.id) &&
-                    !izinD.some(
-                      (i) =>
-                        i.pengguna_id === st.id && i.status === "disetujui",
-                    ),
-                );
-                return (
-                  <div
-                    key={s.id}
-                    className={`mb-1 rounded-lg p-1 ${kurang ? "bg-red-50" : ""}`}
-                  >
-                    <p className="flex items-center justify-between text-[11px] text-stone-500">
-                      <span>
-                        {s.nama} {s.jam_mulai}
-                        {!s.aktif && " (nonaktif)"}
-                      </span>
-                      <span className={kurang ? "font-bold text-red-600" : ""}>
-                        {isi.length}/{s.min_orang}
-                      </span>
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {isi.map((j) => (
-                        <button
-                          key={j.id}
-                          disabled={p.pending}
-                          title={`${nama.get(j.pengguna_id) ?? "?"} · ${j.status} — ketuk untuk ubah`}
-                          onClick={() => editRow(j)}
-                          className={`rounded-md border px-1.5 py-0.5 ${j.status === "terbit" ? "border-green-600 bg-green-50 text-green-900" : "border-dashed border-matur-500 bg-matur-50"}`}
-                        >
-                          {nama.get(j.pengguna_id) ?? "?"}
-                          {p.shifts.find((s) => s.id === j.shift_id)
-                            ?.induk_shift_id && (
-                            <span className="block text-[10px]">
-                              {
-                                p.shifts.find((s) => s.id === j.shift_id)
-                                  ?.jam_mulai
-                              }
-                              –
-                              {
-                                p.shifts.find((s) => s.id === j.shift_id)
-                                  ?.jam_selesai
-                              }{" "}
-                              · khusus
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                      {tambah === k ? (
-                        <select
-                          autoFocus
-                          defaultValue=""
-                          onBlur={() => setTambah(null)}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setTambah(null);
-                            if (v)
-                              p.jalankan(() =>
-                                tambahJadwal(
-                                  p.outlet.id,
-                                  s.id,
-                                  v,
-                                  d,
-                                  sudahTerbit,
-                                ),
-                              );
-                          }}
-                          className="max-w-full rounded border px-1 py-0.5"
-                        >
-                          <option value="">Pilih…</option>
-                          {calon.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.nama}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        s.aktif &&
-                        !!calon.length && (
-                          <button
-                            onClick={() => setTambah(k)}
-                            className="rounded-md border border-stone-300 px-1.5 py-0.5 text-stone-500"
-                            aria-label="Tambah orang"
-                          >
-                            +
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {!!libur.get(d)?.length && (
-                <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
-                  <span className="rounded bg-emerald-50 px-1 font-semibold text-emerald-800">
-                    🌴 Libur
-                  </span>
-                  {libur.get(d)!.map((id) => (
-                    <button
-                      key={id}
-                      disabled={p.pending}
-                      title={`${nama.get(id) ?? "?"} libur — ketuk untuk ubah`}
-                      onClick={() =>
-                        setLiburAksi({
-                          d,
-                          id,
-                          mode: "menu",
-                          shiftId: aktif[0]?.id ?? "",
-                        })
-                      }
-                      className="inline-flex items-center gap-0.5 rounded-full border border-emerald-300 bg-emerald-50 py-0.5 pl-1.5 pr-1 font-semibold text-emerald-900 hover:bg-emerald-100"
-                    >
-                      {namaDepan(nama.get(id) ?? "?")}
-                      <span
-                        className="grid size-3.5 place-items-center rounded-full bg-emerald-200 text-[9px] leading-none text-emerald-900"
-                        aria-hidden
-                      >
-                        ✕
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!!izinD.length && (
-                <p className="mt-1 text-[11px] text-stone-500">
-                  {izinD.map((i) => (
-                    <button
-                      key={i.id}
-                      onClick={() => setIzinAksi({ i, alasan: "" })}
-                      className={`mr-1 mb-0.5 inline-block rounded px-1 ${i.status === "disetujui" ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800 ring-1 ring-amber-300"}`}
-                    >
-                      {JENIS_IZIN[i.jenis]}:{" "}
-                      {namaDepan(nama.get(i.pengguna_id) ?? "?")}
-                      {i.status === "menunggu" && " ?"}
-                    </button>
-                  ))}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <TampilanJadwal
+        dates={dates}
+        bulan={p.bulan}
+        today={today}
+        shifts={tampilShift}
+        semuaShift={p.shifts}
+        jadwal={p.jadwal}
+        staf={p.staf}
+        libur={libur}
+        izinHari={izinHari}
+        pilih={tanggalPilih}
+        setPilih={setTanggalPilih}
+        kartuHari={kartuHari}
+      />
+      {p.jadwal.length > 0 && (
+        <GrafikShift shifts={tampilShift} semuaShift={p.shifts} jadwal={p.jadwal} staf={p.staf} rekapLibur={rekap} />
+      )}
       {p.jadwal.length > 0 && (
         <section className="rounded-2xl border border-matur-200 bg-white p-3">
           <h3 className="mb-1 font-bold">🌴 Jadwal libur bulan ini</h3>
@@ -1668,6 +1696,9 @@ function StafTab(p: Props & Aksi) {
           key={s.id}
           className="flex flex-wrap items-center gap-3 rounded-xl border border-matur-200 bg-white p-3 text-sm"
         >
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-matur-100 text-sm font-bold text-matur-800" aria-hidden>
+            {inisial(s.nama)}
+          </span>
           <div className="min-w-40 flex-1">
             <p className="font-semibold">{s.nama}</p>
             <p className="text-xs capitalize text-stone-500">
@@ -1784,5 +1815,260 @@ function AturanTab({
         Simpan aturan
       </button>
     </div>
+  );
+}
+
+
+// ---------- Tampilan kalender Bulanan / Mingguan ----------
+const WARNA_SHIFT = [
+  { chip: "bg-sky-100 text-sky-900", titik: "bg-sky-500", garis: "border-sky-400" },
+  { chip: "bg-amber-100 text-amber-900", titik: "bg-amber-500", garis: "border-amber-400" },
+  { chip: "bg-violet-100 text-violet-900", titik: "bg-violet-500", garis: "border-violet-400" },
+  { chip: "bg-emerald-100 text-emerald-900", titik: "bg-emerald-500", garis: "border-emerald-400" },
+  { chip: "bg-rose-100 text-rose-900", titik: "bg-rose-500", garis: "border-rose-400" },
+  { chip: "bg-teal-100 text-teal-900", titik: "bg-teal-500", garis: "border-teal-400" },
+];
+const warnaShift = (i: number) =>
+  WARNA_SHIFT[(i < 0 ? 0 : i) % WARNA_SHIFT.length];
+function inisial(n: string) {
+  const kata = n.trim().split(/\s+/).filter(Boolean);
+  if (!kata.length) return "?";
+  if (kata.length === 1) return kata[0].slice(0, 2).toUpperCase();
+  return (kata[0][0] + kata[1][0]).toUpperCase();
+}
+const labelPanjang = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+
+function TampilanJadwal(p: {
+  dates: string[];
+  bulan: string;
+  today: string;
+  shifts: Shift[];
+  semuaShift: Shift[];
+  jadwal: Jadwal[];
+  staf: Staf[];
+  libur: Map<string, string[]>;
+  izinHari: Map<string, Izin[]>;
+  pilih: string;
+  setPilih: (d: string) => void;
+  kartuHari: (d: string) => React.ReactNode;
+}) {
+  const [mode, setMode] = useState<"bulan" | "minggu">("bulan");
+  const weeks = monthWeeks(p.bulan);
+  const [mi, setMi] = useState(() =>
+    Math.max(
+      0,
+      weeks.findIndex((w) => p.pilih >= w.start && p.pilih <= w.end),
+    ),
+  );
+  const urut = new Map(p.shifts.map((s, i) => [s.id, i]));
+  const induk = new Map(
+    p.semuaShift.map((s) => [s.id, s.induk_shift_id ?? s.id]),
+  );
+  const nama = new Map(p.staf.map((s) => [s.id, s.nama]));
+  const perHari = new Map<string, { j: Jadwal; i: number }[]>();
+  for (const j of p.jadwal) {
+    const i = urut.get(induk.get(j.shift_id) ?? j.shift_id) ?? 0;
+    perHari.set(j.tanggal, [...(perHari.get(j.tanggal) ?? []), { j, i }]);
+  }
+  for (const xs of perHari.values()) xs.sort((a, b) => a.i - b.i);
+  const kurang = (d: string) =>
+    p.shifts.some(
+      (s) =>
+        s.aktif &&
+        (perHari.get(d) ?? []).filter((x) => p.shifts[x.i]?.id === s.id)
+          .length < s.min_orang,
+    );
+  const minggu = weeks[Math.min(mi, weeks.length - 1)];
+  const tombolMode = (m: "bulan" | "minggu", label: string) => (
+    <button
+      type="button"
+      aria-pressed={mode === m}
+      onClick={() => setMode(m)}
+      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${mode === m ? "bg-white text-kopi-900 shadow-sm" : "text-stone-500 hover:text-kopi-900"}`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl bg-stone-100 p-1" role="group" aria-label="Tampilan jadwal">
+          {tombolMode("bulan", "📅 Bulanan")}
+          {tombolMode("minggu", "🗓️ Mingguan")}
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px] text-stone-600">
+          {p.shifts.map((s, i) => (
+            <span key={s.id} className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5">
+              <span className={`size-2 rounded-full ${warnaShift(i).titik}`} />
+              {s.nama} {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {mode === "bulan" ? (
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="overflow-hidden rounded-2xl border border-matur-200 bg-white">
+            <div className="grid grid-cols-7 border-b border-matur-100 bg-stone-50 text-center text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+              {WEEKDAY_LABELS.map((h, i) => (
+                <div key={h} className={`py-2 ${i === 6 ? "text-red-500" : ""}`}>{h}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {Array.from({ length: weekdayIndex(p.dates[0]) }).map((_, i) => (
+                <div key={`k${i}`} className="min-h-20 border-b border-r border-stone-100 bg-stone-50/50 sm:min-h-28" />
+              ))}
+              {p.dates.map((d) => {
+                const isi = perHari.get(d) ?? [];
+                const lb = p.libur.get(d)?.length ?? 0;
+                const iz = p.izinHari.get(d)?.length ?? 0;
+                const krg = isi.length > 0 && kurang(d);
+                const dipilih = d === p.pilih;
+                return (
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => p.setPilih(d)}
+                    aria-pressed={dipilih}
+                    aria-label={`${labelPanjang(d)}, ${isi.length} jadwal`}
+                    className={`group relative min-h-20 border-b border-r border-stone-100 p-1 text-left align-top transition hover:bg-amber-50/60 sm:min-h-28 sm:p-1.5 ${dipilih ? "bg-amber-50 ring-2 ring-inset ring-matur-400" : ""}`}
+                  >
+                    <span className="flex items-center justify-between">
+                      <span
+                        className={`grid size-6 place-items-center rounded-full text-xs font-bold ${d === p.today ? "bg-matur-600 text-white" : weekdayIndex(d) === 6 ? "text-red-500" : "text-kopi-900"}`}
+                      >
+                        {Number(d.slice(8))}
+                      </span>
+                      {krg && <span className="size-2 rounded-full bg-red-500" title="Kurang orang" />}
+                    </span>
+                    <span className="mt-1 flex flex-wrap gap-0.5">
+                      {isi.slice(0, 8).map(({ j, i }) => (
+                        <span
+                          key={j.id}
+                          title={`${nama.get(j.pengguna_id) ?? "?"} · ${p.shifts[i]?.nama ?? ""}`}
+                          className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-bold sm:h-6 sm:min-w-6 sm:text-[10px] ${warnaShift(i).chip} ${j.status === "draft" ? "outline-1 outline-dashed outline-matur-500" : ""}`}
+                        >
+                          {inisial(nama.get(j.pengguna_id) ?? "?")}
+                        </span>
+                      ))}
+                      {isi.length > 8 && (
+                        <span className="grid h-5 place-items-center rounded-full bg-stone-200 px-1 text-[9px] font-bold text-stone-700 sm:h-6">
+                          +{isi.length - 8}
+                        </span>
+                      )}
+                    </span>
+                    {(lb > 0 || iz > 0) && (
+                      <span className="mt-0.5 hidden gap-1 text-[10px] text-stone-500 sm:flex">
+                        {lb > 0 && <span>🌴{lb}</span>}
+                        {iz > 0 && <span>📝{iz}</span>}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <aside className="space-y-2 lg:sticky lg:top-4 lg:self-start">
+            <div className="rounded-2xl bg-gradient-to-br from-kopi-900 to-kopi-700 p-3 text-white">
+              <p className="text-xs opacity-80">Jadwal tanggal</p>
+              <p className="text-lg font-bold capitalize">{labelPanjang(p.pilih)}</p>
+              <p className="text-xs opacity-80">
+                {(perHari.get(p.pilih) ?? []).length} orang bertugas · {p.libur.get(p.pilih)?.length ?? 0} libur
+              </p>
+            </div>
+            {p.dates.includes(p.pilih) ? (
+              p.kartuHari(p.pilih)
+            ) : (
+              <p className="rounded-xl border border-dashed p-4 text-center text-sm text-stone-500">Pilih tanggal di kalender.</p>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-2xl border border-matur-200 bg-white p-2">
+            <button
+              type="button"
+              disabled={mi <= 0}
+              onClick={() => setMi((x) => x - 1)}
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold hover:bg-matur-50 disabled:opacity-30"
+              aria-label="Minggu sebelumnya"
+            >
+              ‹ Sebelumnya
+            </button>
+            <p className="text-center text-sm font-bold text-kopi-900">
+              Minggu ke-{minggu.index}
+              <span className="block text-xs font-normal capitalize text-stone-500">
+                {labelPanjang(minggu.start)} – {labelPanjang(minggu.end)}
+              </span>
+            </p>
+            <button
+              type="button"
+              disabled={mi >= weeks.length - 1}
+              onClick={() => setMi((x) => x + 1)}
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold hover:bg-matur-50 disabled:opacity-30"
+              aria-label="Minggu berikutnya"
+            >
+              Berikutnya ›
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {p.dates.filter((d) => d >= minggu.start && d <= minggu.end).map((d) => p.kartuHari(d))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const HEX_SHIFT = ["#0ea5e9", "#f59e0b", "#8b5cf6", "#10b981", "#f43f5e", "#14b8a6"];
+
+/** Pembagian shift per staf dalam sebulan: membantu melihat beban yang adil/timpang. */
+function GrafikShift(p: { shifts: Shift[]; semuaShift: Shift[]; jadwal: Jadwal[]; staf: Staf[]; rekapLibur: Map<string, string[]> }) {
+  const induk = new Map(p.semuaShift.map((s) => [s.id, s.induk_shift_id ?? s.id]));
+  const data = p.staf
+    .map((st) => {
+      const r: Record<string, string | number> = { nama: namaDepan(st.nama), libur: p.rekapLibur.get(st.id)?.length ?? 0 };
+      let total = 0;
+      for (const s of p.shifts) {
+        const n = p.jadwal.filter((j) => j.pengguna_id === st.id && induk.get(j.shift_id) === s.id).length;
+        r[s.id] = n;
+        total += n;
+      }
+      r.total = total;
+      return r;
+    })
+    .filter((r) => Number(r.total) > 0 || Number(r.libur) > 0)
+    .sort((a, b) => Number(b.total) - Number(a.total));
+  if (!data.length) return null;
+  return (
+    <ChartCard
+      title="📊 Pembagian shift per staf"
+      sub="Jumlah shift bulan ini per jenis shift, ditambah hari libur"
+      rows={data.map((r) => ({ nama: String(r.nama), ...Object.fromEntries(p.shifts.map((s) => [s.nama, Number(r[s.id])])), libur: Number(r.libur), total: Number(r.total) }))}
+      cols={[{ key: "nama", label: "Staf" }, ...p.shifts.map((s) => ({ key: s.nama, label: s.nama })), { key: "libur", label: "Libur" }, { key: "total", label: "Total shift" }]}
+    >
+      <div style={{ height: Math.max(180, data.length * 34 + 60) }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart layout="vertical" data={data} margin={{ left: 0, right: 16 }} accessibilityLayer>
+            <CartesianGrid stroke="#ece9e2" horizontal={false} />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="nama" width={90} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+            <Tooltip cursor={{ fill: "#fafaf9" }} />
+            <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+            {p.shifts.map((s, i) => (
+              <Bar key={s.id} dataKey={s.id} name={s.nama} stackId="a" fill={HEX_SHIFT[i % HEX_SHIFT.length]} maxBarSize={20} isAnimationActive={false} />
+            ))}
+            <Bar dataKey="libur" name="Libur" stackId="a" fill="#d6d3d1" radius={[0, 4, 4, 0]} maxBarSize={20} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartCard>
   );
 }
