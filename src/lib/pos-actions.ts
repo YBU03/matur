@@ -174,6 +174,25 @@ export async function izinDiskonSpv(
 }
 
 /** Void transaksi: disetujui SPV (PIN) selama shift masih buka; stok resep dikembalikan. */
+/** Void langsung dari tablet POS tanpa PIN SPV (bila outlet tidak mewajibkan PIN): alasan & nama pembatal wajib. */
+export async function voidLangsung(id: string, kategori: string, catatan: string, nama: string): Promise<{ error?: string; ok?: string }> {
+  const o = await outlet();
+  if (!o) return { error: "Pilih outlet." };
+  const db = await supabaseServer();
+  const proof = await buktiTablet();
+  const { data, error } = await db.rpc("void_pos_langsung", {
+    p_outlet: o,
+    p_device: proof.device,
+    p_transaksi: id,
+    p_kategori: kategori,
+    p_catatan: catatan,
+    p_nama: nama,
+  });
+  if (error) return { error: error.message.replace(/^.*?ERROR:\s*/, "") };
+  revalidatePath("/kasir/riwayat");
+  return { ok: (data as { ok?: string })?.ok ?? "Transaksi dibatalkan." };
+}
+
 export async function voidTransaksi(
   id: string,
   alasan: string,

@@ -65,3 +65,5 @@ POS di HP 1 November: bar keranjang mengambang + lembar bawah (hanya tampilan, `
 Struk POS 2 November: format kasir Ruma + `/pengaturan/struk` (tabel `struk_outlet`, RPC `atur_struk_outlet`). Baca `docs/pos-struk-2026-11-02.md`.
 
 HRD kelola menu & laporan 2 November: HRD boleh kelola menu/harga/varian/resep/HPP + Laporan POS lengkap + kartu omzet. Baca `docs/hrd-menu-laporan-2026-11-02.md`.
+
+Void langsung POS 2 November: void tanpa PIN (alasan+nama wajib, switch per outlet `void_wajib_pin`), laporan void per orang, popup struk tutup otomatis. Baca `docs/pos-void-langsung-2026-11-02.md`.

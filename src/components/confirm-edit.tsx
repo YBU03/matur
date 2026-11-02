@@ -79,7 +79,10 @@ export function Modal({
   onClose,
   scrollable = false,
   mobileSheet = false,
+  tutupLuar = false,
 }: {
+  /** ketuk area gelap di luar jendela untuk menutup (butuh onClose) */
+  tutupLuar?: boolean;
   title: string;
   children: React.ReactNode;
   onClose?: () => void;
@@ -108,6 +111,7 @@ export function Modal({
   const content = (
     <div
       className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${mobileSheet ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}
+      onClick={tutupLuar && onClose ? (e) => e.target === e.currentTarget && onClose() : undefined}
     >
       <div
         ref={panel}

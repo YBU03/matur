@@ -26,10 +26,10 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
   const supabase = await supabaseServer();
   const seminggu = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  const [{ data }, { data: drafts }, { data: struk }] = await Promise.all([
+  const [{ data }, { data: drafts }, { data: struk }, { data: ol }] = await Promise.all([
     supabase
       .from("transaksi")
-      .select("id, nomor, kanal, subtotal, total, diskon, status, void_alasan, created_at, pelanggan, operator_nama, item_transaksi(nama, qty, harga), pembayaran(metode, nominal, diterima)")
+      .select("id, nomor, kanal, subtotal, total, diskon, status, void_alasan, void_nama, void_kategori, void_at, created_at, pelanggan, operator_nama, item_transaksi(nama, qty, harga), pembayaran(metode, nominal, diterima)")
       .eq("mode", "asli")
       .eq("outlet_id", outlet)
       .gte("created_at", mulai)
@@ -48,6 +48,7 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
       .select("judul, alamat, telepon, instagram, wifi, tagline, hashtag, catatan, tampil_logo")
       .eq("outlet_id", outlet)
       .maybeSingle(),
+    supabase.from("outlet").select("void_wajib_pin").eq("id", outlet).maybeSingle(),
   ]);
 
   // ringkasan seluruh periode (bukan hanya baris yang dimuat), diambil bertahap per 1000 baris
@@ -88,6 +89,7 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
       drafts={(drafts ?? []) as unknown as DraftRiwayat[]}
       outletNama={s.active!.outletNama}
       struk={(struk as StrukOutlet | null) ?? null}
+      voidPin={!!ol?.void_wajib_pin}
       awal={tab}
     />
   );

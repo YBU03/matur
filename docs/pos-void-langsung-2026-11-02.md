@@ -1,0 +1,6 @@
+# Void langsung di POS + popup struk otomatis — 2 November 2026
+
+- **Void langsung** (Riwayat POS → Void): tanpa PIN SPV bila `outlet.void_wajib_pin = false` (bawaan). Wajib pilih alasan (Salah input/Pelanggan batal/Pesanan dobel/Menu habis/Lainnya), catatan ≥3 huruf, dan nama pembatal (diingat per tablet `matoer_nama_void`). RPC `void_pos_langsung(p_outlet, p_device, p_transaksi, p_kategori, p_catatan, p_nama)`: cek tablet (`matur_internal.perangkat`), transaksi hari itu dengan kas shift belum ditutup, koreksi stok via `geser_stok` (sama dengan void lama), simpan `void_nama`/`void_kategori`/`void_alasan`, log `void_pos`, notifikasi info ke SPV outlet + Owner/Admin Pusat/HRD.
+- **Switch per outlet** "Void wajib PIN SPV": Pengaturan POS → tab Pembatalan (Void), RPC `atur_void_pin` (Owner/Admin Pusat/HRD/Admin Gudang). Aktif = alur PIN SPV lama (`otorisasi_pin_pos`).
+- **Track record**: Riwayat POS menampilkan siapa/jam/alasan; Laporan POS → "Penjualan yang Dibatalkan" (kolom Kategori, Alasan & catatan, Dibatalkan oleh) dan baru "Rekap Void per Orang" (`laporan_operasional` jenis `void_orang`).
+- **Popup Transaksi berhasil**: ketuk area gelap/Esc menutup; transaksi baru tertutup otomatis 8 detik (bisa dimatikan per tablet `matoer_tutup_struk`), hitung mundur berhenti bila jendela disentuh. Struk salinan Riwayat tidak tertutup otomatis.

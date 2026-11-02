@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { barisTeks } from "@/lib/struk-pdf";
 import { logoStruk } from "@/lib/struk-logo";
 import { bayarDariMetode, KOLOM_STRUK, STRUK_BAWAAN, susunBarisStruk, type BayarStruk, type StrukOutlet } from "@/lib/struk";
@@ -99,6 +99,39 @@ export function ReceiptDialog({
       ? "OFFLINE"
       : String(r.nomor);
   const [bt, setBt] = useState<string | null>(namaPrinter());
+  // tutup otomatis setelah transaksi baru (bukan salinan Riwayat); berhenti bila kasir menyentuh jendela
+  const otomatis = !salinan;
+  const [lamaTutup, setLamaTutup] = useState(() => {
+    try {
+      const v = localStorage.getItem("matoer_tutup_struk");
+      return v === null ? 8 : Math.max(0, Number(v) || 0);
+    } catch {
+      return 8;
+    }
+  });
+  const [sisa, setSisa] = useState(lamaTutup);
+  const [jeda, setJeda] = useState(false);
+  const jalanOtomatis = otomatis && lamaTutup > 0 && !jeda;
+  const tutupRef = useRef(onClose);
+  tutupRef.current = onClose;
+  useEffect(() => {
+    if (!jalanOtomatis) return;
+    if (sisa <= 0) {
+      tutupRef.current();
+      return;
+    }
+    const t = setTimeout(() => setSisa((x) => x - 1), 1000);
+    return () => clearTimeout(t);
+  }, [jalanOtomatis, sisa]);
+  const gantiTutup = () => {
+    const v = lamaTutup > 0 ? 0 : 8;
+    setLamaTutup(v);
+    setSisa(v);
+    setJeda(false);
+    try {
+      localStorage.setItem("matoer_tutup_struk", String(v));
+    } catch {}
+  };
   const [btErr, setBtErr] = useState("");
   const waktu = (waktuTransaksi ? new Date(waktuTransaksi) : new Date()).toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -174,6 +207,8 @@ export function ReceiptDialog({
   };
   return (
     <Modal
+      onClose={onClose}
+      tutupLuar
       title={
         salinan
           ? `🧾 Struk #${nomor}`
@@ -184,6 +219,7 @@ export function ReceiptDialog({
               : "Transaksi berhasil"
       }
     >
+      <div onPointerDownCapture={() => setJeda(true)} onKeyDownCapture={() => setJeda(true)}>
       {offline && (
         <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           📴 Internet terputus. Transaksi disimpan di perangkat ini dan terkirim
@@ -210,6 +246,20 @@ export function ReceiptDialog({
           ))}
         </div>
       </div>
+      {otomatis && (
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-stone-500">
+          {jalanOtomatis ? (
+            <span>
+              ⏱ Tertutup otomatis dalam <b className="tabular-nums text-kopi-900">{sisa}</b> detik · ketuk jendela untuk menahan
+            </span>
+          ) : (
+            <span>{lamaTutup > 0 ? "⏸ Tutup otomatis ditahan" : "Tutup otomatis mati"} · ketuk area gelap untuk menutup</span>
+          )}
+          <button type="button" onClick={gantiTutup} className="rounded-full border px-2 py-0.5 font-semibold text-kopi-700 hover:bg-stone-50">
+            {lamaTutup > 0 ? "Matikan" : "Nyalakan (8 dtk)"}
+          </button>
+        </div>
+      )}
       <div className="mt-3 flex items-center justify-center gap-2 text-sm">
         <span className="text-stone-500">Kertas:</span>
         {(["58", "80"] as const).map((k) => (
@@ -265,8 +315,9 @@ export function ReceiptDialog({
           onClick={onClose}
           className="rounded-lg bg-matur-500 px-4 py-2 text-sm font-semibold text-white"
         >
-          {salinan ? "Tutup" : "Pesanan baru"}
+          {salinan ? "Tutup" : jalanOtomatis ? `Pesanan baru (${sisa})` : "Pesanan baru"}
         </button>
+      </div>
       </div>
     </Modal>
   );

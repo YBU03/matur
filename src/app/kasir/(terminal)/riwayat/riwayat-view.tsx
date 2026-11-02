@@ -3,10 +3,10 @@
 import type { StrukOutlet } from "@/lib/struk";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { ReceiptDialog } from "@/components/pos-receipt";
 import { formatRupiah } from "@/lib/format";
-import { voidTransaksi } from "@/lib/pos-actions";
+import { voidLangsung, voidTransaksi } from "@/lib/pos-actions";
 import { PinSpv } from "../pos/pos-screen";
 
 export type Trx = {
@@ -17,6 +17,9 @@ export type Trx = {
   diskon: number;
   status: "lunas" | "void";
   void_alasan: string | null;
+  void_nama?: string | null;
+  void_kategori?: string | null;
+  void_at?: string | null;
   created_at: string;
   operator_nama?: string | null;
   pelanggan: string | null;
@@ -48,7 +51,7 @@ const hariIniWib = (t: string, hari: string) => new Date(Date.parse(t) + 7 * 360
 const LABEL_METODE: Record<string, string> = { tunai: "Tunai", qris: "QRIS", debit: "Debit/Kredit", transfer: "Transfer" };
 const isi = "mt-0.5 block w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500";
 
-export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n, ringkas, dari, sampai, hari, struk: isiStruk = null }: { struk?: StrukOutlet | null; trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string; awal?: "trx" | "draft"; adaLagi: boolean; n: number; ringkas: Ringkas; dari: string; sampai: string; hari: string }) {
+export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n, ringkas, dari, sampai, hari, struk: isiStruk = null, voidPin = false }: { voidPin?: boolean; struk?: StrukOutlet | null; trx: Trx[]; drafts: DraftRiwayat[]; outletNama: string; awal?: "trx" | "draft"; adaLagi: boolean; n: number; ringkas: Ringkas; dari: string; sampai: string; hari: string }) {
   const [tab, setTab] = useState<"trx" | "draft">(awal);
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -197,8 +200,14 @@ export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n,
                 <p className="truncate text-sm text-stone-600">{t.item_transaksi.map((i) => `${i.qty}× ${i.nama}`).join(", ")}</p>
                 <p className="text-xs text-stone-500">
                   {t.pembayaran.map((p) => `${LABEL_METODE[p.metode] ?? p.metode} ${formatRupiah(p.nominal)}`).join(" + ")}
-                  {t.void_alasan && ` · alasan void: ${t.void_alasan}`}
                 </p>
+                {t.status === "void" && (
+                  <p className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs text-red-800">
+                    🚫 Dibatalkan{t.void_nama ? <> oleh <b>{t.void_nama}</b></> : ""}
+                    {t.void_at ? ` · ${jam(t.void_at)}` : ""}
+                    {t.void_alasan ? ` · ${t.void_alasan}` : ""}
+                  </p>
+                )}
               </div>
               <div className="shrink-0 text-right">
                 <b className={`tabular-nums ${t.status === "void" ? "line-through" : ""}`}>{formatRupiah(t.total)}</b>
@@ -244,7 +253,18 @@ export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n,
           onClose={() => setStruk(null)}
         />
       )}
-      {batal && (
+      {batal && !voidPin && (
+        <VoidLangsung
+          t={batal}
+          onBatal={() => setBatal(null)}
+          onSelesai={(pesan) => {
+            setBatal(null);
+            setOk(pesan);
+            router.refresh();
+          }}
+        />
+      )}
+      {batal && voidPin && (
         <PinSpv
           judul={`Void struk #${batal.nomor} (${formatRupiah(batal.total)})`}
           keterangan={<input value={alasan} onChange={(e) => setAlasan(e.target.value)} placeholder="Alasan pembatalan (wajib), mis. salah input" className="mb-2 w-full rounded-lg border px-3 py-2" />}
@@ -260,6 +280,85 @@ export function RiwayatView({ trx, drafts, outletNama, awal = "trx", adaLagi, n,
           }}
         />
       )}
+    </div>
+  );
+}
+
+const ALASAN_VOID = ["Salah input", "Pelanggan batal", "Pesanan dobel", "Menu habis", "Lainnya"];
+
+/** Void langsung tanpa PIN: alasan + catatan + nama pembatal wajib; tercatat di riwayat & laporan. */
+function VoidLangsung({ t, onBatal, onSelesai }: { t: Trx; onBatal: () => void; onSelesai: (pesan: string) => void }) {
+  const [kategori, setKategori] = useState("");
+  const [catatan, setCatatan] = useState("");
+  const [nama, setNama] = useState(() => {
+    try {
+      return localStorage.getItem("matoer_nama_void") ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  const siap = !!kategori && catatan.trim().length >= 3 && nama.trim().length >= 2;
+  const kirim = () =>
+    start(async () => {
+      setErr("");
+      const r = await voidLangsung(t.id, kategori, catatan.trim(), nama.trim());
+      if (r.error) return setErr(r.error);
+      try {
+        localStorage.setItem("matoer_nama_void", nama.trim());
+      } catch {}
+      onSelesai(r.ok ?? "Transaksi dibatalkan.");
+    });
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onBatal}>
+      <div role="dialog" aria-modal="true" aria-label="Batalkan transaksi" onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <p className="text-lg font-bold text-kopi-900">🚫 Batalkan transaksi #{t.nomor}</p>
+            <p className="text-sm text-stone-500">
+              {formatRupiah(t.total)} · {t.item_transaksi.map((i) => `${i.qty}× ${i.nama}`).join(", ")}
+            </p>
+          </div>
+          <button type="button" onClick={onBatal} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100" aria-label="Tutup">
+            ✕
+          </button>
+        </div>
+        <p className="mb-1.5 text-xs font-semibold text-stone-500">Alasan pembatalan</p>
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {ALASAN_VOID.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setKategori(a)}
+              aria-pressed={kategori === a}
+              className={`rounded-xl border px-3 py-2 text-sm font-semibold ${kategori === a ? "border-red-500 bg-red-50 text-red-700" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+        <label className="mb-3 block text-xs font-semibold text-stone-500">
+          Catatan (wajib)
+          <textarea value={catatan} onChange={(e) => setCatatan(e.target.value)} maxLength={300} rows={2} placeholder="mis. pelanggan ganti menu jadi Matcha Latte" className="mt-1 block w-full rounded-xl border border-stone-200 px-3 py-2 text-sm font-normal text-kopi-900 outline-none focus:border-red-400" />
+        </label>
+        <label className="mb-3 block text-xs font-semibold text-stone-500">
+          Nama yang membatalkan (wajib)
+          <input value={nama} onChange={(e) => setNama(e.target.value)} maxLength={60} placeholder="Nama kasir / barista" className="mt-1 block w-full rounded-xl border border-stone-200 px-3 py-2 text-sm font-normal text-kopi-900 outline-none focus:border-red-400" />
+        </label>
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Stok & omzet otomatis dikoreksi. Pembatalan tercatat di riwayat dan dilaporkan ke SPV/HRD. Untuk transaksi tunai, kembalikan uang pelanggan.
+        </p>
+        {err && <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onBatal} className="flex-1 rounded-xl border border-stone-200 py-3 text-sm font-semibold text-stone-600">
+            Kembali
+          </button>
+          <button type="button" disabled={!siap || pending} onClick={kirim} className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-40">
+            {pending ? "Membatalkan…" : "Batalkan transaksi"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

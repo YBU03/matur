@@ -31,6 +31,10 @@ export default async function Page() {
   const {data: aturan, error: aturanError} = await db.rpc("panel_alur_shift_pos");
   if(aturanError) throw new Error(aturanError.message);
   const allowed = (akses ?? []) as AksesOutlet[];
+  const bisaVoid = ["owner", "admin_pusat", "hrd", "admin_gudang"].includes(s.active.role);
+  const { data: ov } = bisaVoid
+    ? await db.from("outlet").select("id, nama, void_wajib_pin").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai")
+    : { data: [] };
   const panel = data as PanelData;
   if (["hrd", "admin_gudang"].includes(s.active.role)) {
     const ids = new Set(allowed.map((x) => x.id));
@@ -93,7 +97,7 @@ export default async function Page() {
           nada={sesiBuka ? "hijau" : "netral"}
         />
       </BarisAngka>
-      <PanelPos aturan={(aturan??[]) as AturanShift[]} data={panel} role={s.active.role} akses={allowed} />
+      <PanelPos aturan={(aturan??[]) as AturanShift[]} data={panel} role={s.active.role} akses={allowed} voidOutlets={(ov ?? []) as { id: string; nama: string; void_wajib_pin: boolean }[]} />
     </div>
   );
 }
