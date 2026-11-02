@@ -1,6 +1,7 @@
 "use client";
 
 import type { StrukOutlet } from "@/lib/struk";
+import { tglOperasional } from "@/lib/hari-operasional";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -47,7 +48,7 @@ const jam = (t: string) => new Date(t).toLocaleString("id-ID", { timeZone: "Asia
 const geser = (iso: string, hari: number) => new Date(Date.parse(iso + "T00:00:00Z") + hari * 86400_000).toISOString().slice(0, 10);
 const akhirBulan = (ym: string) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)).toISOString().slice(0, 10);
 const tglPendek = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-const hariIniWib = (t: string, hari: string) => new Date(Date.parse(t) + 7 * 3600_000).toISOString().slice(0, 10) === hari;
+const hariIniWib = (t: string, hari: string) => tglOperasional(t) === hari;
 const LABEL_METODE: Record<string, string> = { tunai: "Tunai", qris: "QRIS", debit: "Debit/Kredit", transfer: "Transfer" };
 const isi = "mt-0.5 block w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500";
 

@@ -67,3 +67,5 @@ Struk POS 2 November: format kasir Ruma + `/pengaturan/struk` (tabel `struk_outl
 HRD kelola menu & laporan 2 November: HRD boleh kelola menu/harga/varian/resep/HPP + Laporan POS lengkap + kartu omzet. Baca `docs/hrd-menu-laporan-2026-11-02.md`.
 
 Void langsung POS 2 November: void tanpa PIN (alasan+nama wajib, switch per outlet `void_wajib_pin`), laporan void per orang, popup struk tutup otomatis. Baca `docs/pos-void-langsung-2026-11-02.md`.
+
+Hari operasional 3 November: tutup buku 03.00 WIB (`tgl_op`/`awal_op`, `src/lib/hari-operasional.ts`) untuk omzet & laporan penjualan. Baca `docs/hari-operasional-2026-11-03.md`.

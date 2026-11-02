@@ -1,3 +1,4 @@
+import { tglOperasional } from "./hari-operasional";
 // Katalog Pusat Laporan (ala Luna): penjualan, pembelian, persediaan (outlet & gudang pusat), pendapatan/pengeluaran lain.
 // Data dari RPC laporan_operasional(jenis, outlet|null=gudang, dari, sampai, mode, bahan).
 
@@ -68,7 +69,8 @@ export const LABEL: Record<string, string> = {
 };
 
 /** Tanggal (YYYY-MM-DD) zona WIB. */
-export const tglWib = (d = new Date()) => new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+/** tanggal operasional (tutup buku 03.00 WIB) untuk preset laporan */
+export const tglWib = (d = new Date()) => tglOperasional(d);
 const geser = (t: string, hari: number) => {
   const d = new Date(t + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + hari);

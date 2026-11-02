@@ -1,10 +1,11 @@
 import type { StrukOutlet } from "@/lib/struk";
+import { awalOperasional, tglOperasional } from "@/lib/hari-operasional";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { RiwayatView, type DraftRiwayat, type Ringkas, type Trx } from "./riwayat-view";
 
 const TGL = /^\d{4}-\d{2}-\d{2}$/;
-const hariWib = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+const hariWib = () => tglOperasional();
 const geser = (iso: string, hari: number) => new Date(Date.parse(iso + "T00:00:00Z") + hari * 86400_000).toISOString().slice(0, 10);
 const MAKS_HARI = 92;
 
@@ -21,8 +22,8 @@ export default async function Riwayat({ searchParams }: { searchParams: Promise<
   if (dari > sampai) dari = sampai;
   if (geser(dari, MAKS_HARI - 1) < sampai) dari = geser(sampai, -(MAKS_HARI - 1));
   const n = Math.min(Math.max(Number(sp.n) || 100, 100), 1000);
-  const mulai = `${dari}T00:00:00+07:00`;
-  const akhir = `${geser(sampai, 1)}T00:00:00+07:00`;
+  const mulai = awalOperasional(dari);
+  const akhir = awalOperasional(geser(sampai, 1));
   const supabase = await supabaseServer();
   const seminggu = new Date(Date.now() - 7 * 86400_000).toISOString();
 

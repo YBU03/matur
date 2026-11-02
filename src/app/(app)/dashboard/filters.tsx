@@ -1,5 +1,6 @@
 "use client";
 
+import { tglOperasional } from "@/lib/hari-operasional";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -38,7 +39,7 @@ export function Filters({ outlets, canSim, jenis = "tanggal", ringkasHp = false 
   const def = jenis === "bulan" ? "12bln" : "30";
   const periode = sp.get("periode") ?? def;
   const PERIODE = jenis === "bulan" ? PERIODE_BULANAN : PERIODE_HARIAN;
-  const hariIni = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const hariIni = tglOperasional();
   const batas = jenis === "bulan" ? hariIni.slice(0, 7) : hariIni;
   const pas = (v: string | null) => (v ? (jenis === "bulan" ? v.slice(0, 7) : v.length === 7 ? v + "-01" : v) : null);
   const [dari, setDari] = useState(pas(sp.get("dari")) ?? (jenis === "bulan" ? `${Number(batas.slice(0, 4)) - 1}${batas.slice(4)}` : hariIni.slice(0, 8) + "01"));
