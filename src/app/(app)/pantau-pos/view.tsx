@@ -11,7 +11,7 @@ export type Periode = { kode: string; label: string; dari: string; sampai: strin
 export type OutletP = { id: string; nama: string; jam_operasional: string | null };
 export type Ringkas = { hari_ini: string; outlet: OutletP[]; periode: Periode[] };
 export type Detail = {
-  kpi: { omzet: number; trx: number; diskon: number; void: number };
+  kpi: { impor_tanpa_rincian?: number; omzet: number; trx: number; diskon: number; void: number };
   harian: { tgl: string; outlet_id: string; omzet: number; trx: number }[];
   kanal: { kanal: string; omzet: number; trx: number }[];
   jam: { dow: number; jam: number; trx: number; omzet: number }[];
@@ -130,6 +130,7 @@ export function PantauView({ ringkas, d, kartu, outlets, outletId, rentang, dari
   return (
     <div className="space-y-5">
       <LiveRefresh pantau={[]} cadanganDetik={60} />
+      {!!k.impor_tanpa_rincian && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">Ada {k.impor_tanpa_rincian} transaksi dokumen historis. Omzet tercatat; rincian produk terlaris belum lengkap.</p>}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-extrabold text-kopi-900">📊 Pemantauan POS</h1>
