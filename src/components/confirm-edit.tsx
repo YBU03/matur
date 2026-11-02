@@ -79,6 +79,7 @@ export function Modal({
   onClose,
   scrollable = false,
   mobileSheet = false,
+  wide = false,
   tutupLuar = false,
 }: {
   /** ketuk area gelap di luar jendela untuk menutup (butuh onClose) */
@@ -88,6 +89,7 @@ export function Modal({
   onClose?: () => void;
   scrollable?: boolean;
   mobileSheet?: boolean;
+  wide?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -111,7 +113,11 @@ export function Modal({
   const content = (
     <div
       className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${mobileSheet ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}
-      onClick={tutupLuar && onClose ? (e) => e.target === e.currentTarget && onClose() : undefined}
+      onClick={
+        tutupLuar && onClose
+          ? (e) => e.target === e.currentTarget && onClose()
+          : undefined
+      }
     >
       <div
         ref={panel}
@@ -119,7 +125,7 @@ export function Modal({
         role="dialog"
         aria-label={title}
         aria-modal
-        className={`w-full max-w-lg bg-white p-5 shadow-xl ${mobileSheet ? "rounded-t-3xl sm:rounded-2xl" : "rounded-2xl"} ${scrollable ? "max-h-[90dvh] overflow-y-auto overscroll-contain" : ""}`}
+        className={`w-full ${wide ? "max-w-6xl" : "max-w-lg"} bg-white p-5 shadow-xl ${mobileSheet ? "rounded-t-3xl sm:rounded-2xl" : "rounded-2xl"} ${scrollable ? "max-h-[90dvh] overflow-y-auto overscroll-contain" : ""}`}
         onKeyDown={(e) => {
           if (!scrollable || e.key !== "Tab") return;
           const els = panel.current?.querySelectorAll<HTMLElement>(
