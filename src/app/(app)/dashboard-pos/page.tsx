@@ -17,7 +17,10 @@ export default async function DashboardPos({
   );
   return (
     <div className="space-y-5">
-      <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
+      <LiveRefresh
+        pantau={[{ table: "transaksi" }, { table: "outlet" }]}
+        cadanganDetik={60}
+      />
       <HeaderHalaman
         ikon="📊"
         judul="Dashboard POS"
@@ -34,9 +37,29 @@ export default async function DashboardPos({
         </p>
       ) : (
         <>
-          <Suspense fallback={<div className="h-48 animate-pulse rounded-3xl bg-kopi-900/20" aria-busy="true" />}>
-            <KartuOmzetHariIni outletId={outletId} outletNama={outlets.find((o) => o.id === outletId)?.nama} mode={mode} />
+          <Suspense
+            fallback={
+              <div
+                className="h-48 animate-pulse rounded-3xl bg-kopi-900/20"
+                aria-busy="true"
+              />
+            }
+          >
+            <KartuOmzetHariIni
+              outletId={outletId}
+              outletNama={outlets.find((o) => o.id === outletId)?.nama}
+              mode={mode}
+            />
           </Suspense>
+          {outlets.length === 0 && (
+            <p className="rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">
+              Belum ada outlet yang ditampilkan. Atur switch melalui{" "}
+              <Link href="/master/outlet" className="font-semibold underline">
+                menu Outlet
+              </Link>
+              .
+            </p>
+          )}
           <Filters outlets={outlets} canSim ringkasHp />
           <Suspense
             fallback={

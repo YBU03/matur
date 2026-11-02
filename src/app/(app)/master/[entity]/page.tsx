@@ -227,14 +227,29 @@ export default async function MasterPage({
   // Menu: kemasan (anak menu) tidak tampil sebagai baris sendiri; ringkasannya ditempel ke menu induk
   let tampil = (rows ?? []) as Record<string, unknown>[];
   if (key === "menu") {
-    const { data: vr } = await supabase.from("varian").select("menu_id").eq("mode", "asli").is("deleted_at", null);
+    const { data: vr } = await supabase
+      .from("varian")
+      .select("menu_id")
+      .eq("mode", "asli")
+      .is("deleted_at", null);
     const anak = new Map<string, number>();
-    for (const r of tampil) if (r.induk_id) anak.set(String(r.induk_id), (anak.get(String(r.induk_id)) ?? 0) + 1);
+    for (const r of tampil)
+      if (r.induk_id)
+        anak.set(String(r.induk_id), (anak.get(String(r.induk_id)) ?? 0) + 1);
     const opsi = new Map<string, number>();
-    for (const v of vr ?? []) opsi.set(v.menu_id, (opsi.get(v.menu_id) ?? 0) + 1);
+    for (const v of vr ?? [])
+      opsi.set(v.menu_id, (opsi.get(v.menu_id) ?? 0) + 1);
     tampil = tampil
       .filter((r) => !r.induk_id)
-      .map((r) => ({ ...r, _varian: [anak.get(String(r.id)) && `${anak.get(String(r.id))} kemasan`, opsi.get(String(r.id)) && `${opsi.get(String(r.id))} pilihan`].filter(Boolean).join(" · ") }));
+      .map((r) => ({
+        ...r,
+        _varian: [
+          anak.get(String(r.id)) && `${anak.get(String(r.id))} kemasan`,
+          opsi.get(String(r.id)) && `${opsi.get(String(r.id))} pilihan`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      }));
   }
 
   return (
@@ -242,17 +257,20 @@ export default async function MasterPage({
       {akun && <AkunKaryawan data={akun.data} bebas={akun.bebas} />}
       {key === "menu" && (
         <p className="mb-4 rounded-xl bg-matur-50 p-4 text-sm text-kopi-800">
-          🧋 Kemasan (Cup/Hot/Can dengan harga sendiri) dan pilihan Gula/Extra kini diatur langsung per menu: klik <b>Varian &amp; Kemasan</b> pada baris menu.
+          🧋 Kemasan (Cup/Hot/Can dengan harga sendiri) dan pilihan Gula/Extra
+          kini diatur langsung per menu: klik <b>Varian &amp; Kemasan</b> pada
+          baris menu.
         </p>
       )}
       {key === "varian" && (
         <p className="mb-4 rounded-xl bg-amber-50 p-4 text-sm">
-          ⚠️ Halaman ini sekarang lebih mudah lewat <b>Menu → Varian &amp; Kemasan</b> (atur sekaligus per menu, termasuk kemasan dengan harga sendiri).{" "}
-          Atur pilihan per menu: grup Gula untuk Normal Sugar, Less Sugar, atau
-          No Sugar; grup Extra untuk topping yang dapat dipilih bersamaan. Isi
-          harga tambahan 0 jika gratis. Harga tambahan dijumlahkan ke harga menu
-          di POS. Perangkat offline memakai katalog tersimpan sampai kembali
-          online.
+          ⚠️ Halaman ini sekarang lebih mudah lewat{" "}
+          <b>Menu → Varian &amp; Kemasan</b> (atur sekaligus per menu, termasuk
+          kemasan dengan harga sendiri). Atur pilihan per menu: grup Gula untuk
+          Normal Sugar, Less Sugar, atau No Sugar; grup Extra untuk topping yang
+          dapat dipilih bersamaan. Isi harga tambahan 0 jika gratis. Harga
+          tambahan dijumlahkan ke harga menu di POS. Perangkat offline memakai
+          katalog tersimpan sampai kembali online.
         </p>
       )}
       <MasterTable
@@ -270,6 +288,9 @@ export default async function MasterPage({
               ? `/proyek/${filter.proyek_id}/rab`
               : `/proyek/${filter.proyek_id}`
             : undefined
+        }
+        canDashboard={
+          key === "outlet" && ["owner", "admin_pusat"].includes(s.active.role)
         }
         canEdit={entity.editors.includes(s.active.role)}
       />
