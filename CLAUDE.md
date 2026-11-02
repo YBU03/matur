@@ -67,3 +67,5 @@ Struk POS 2 November: format kasir Ruma + `/pengaturan/struk` (tabel `struk_outl
 HRD kelola menu & laporan 2 November: HRD boleh kelola menu/harga/varian/resep/HPP + Laporan POS lengkap + kartu omzet. Baca `docs/hrd-menu-laporan-2026-11-02.md`.
 
 Void langsung POS 2 November: void tanpa PIN (alasan+nama wajib, switch per outlet `void_wajib_pin`), laporan void per orang, popup struk tutup otomatis. Baca `docs/pos-void-langsung-2026-11-02.md`.
+
+Visibilitas Dashboard POS 2 November: switch Owner/Admin Pusat pada `/master/outlet`, kolom `tampil_dashboard_pos`; Demo OFF, Kominot/UHB ON. Hanya tampilan/agregat dashboard, bukan status/login/penghapusan transaksi. Riwayat eksplisit tetap tersedia; Laporan POS memiliki checkbox sertakan outlet tersembunyi. Baca `docs/outlet-dashboard-pos-2026-11-02.md` sebelum mengubah agregat/filter.

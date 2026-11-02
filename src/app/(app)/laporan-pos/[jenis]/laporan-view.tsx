@@ -83,6 +83,7 @@ const nilaiUrut = (v: unknown) =>
       : String(v ?? "");
 
 export function LaporanView(p: {
+  sertakanTersembunyi?: boolean;
   imporTanpaRincian?: number;
   jenis: string;
   outlets: { id: string; nama: string }[];
@@ -121,6 +122,7 @@ export function LaporanView(p: {
   const buka = (q: Record<string, string | null>) => {
     const u = new URLSearchParams({
       outlet: p.pilihan,
+      ...(p.sertakanTersembunyi ? { sertakan: "1" } : {}),
       dari: p.dari,
       sampai: p.sampai,
       ...(p.bahanId ? { bahan: p.bahanId } : {}),
@@ -421,6 +423,19 @@ export function LaporanView(p: {
       )}
       <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-3 print:hidden">
         <div className="flex flex-wrap items-end gap-2">
+          {lap.lingkup !== "gudang" && (
+            <label className="flex min-h-10 items-center gap-2 text-xs text-stone-600">
+              <input
+                type="checkbox"
+                checked={!!p.sertakanTersembunyi}
+                onChange={(e) =>
+                  buka({ sertakan: e.target.checked ? "1" : null })
+                }
+                className="size-4 accent-orange-600"
+              />
+              Sertakan outlet yang disembunyikan
+            </label>
+          )}
           {(p.outlets.length > 0 || p.bisaGudang) && (
             <label className="text-xs font-semibold text-stone-600">
               {lap.lingkup === "outlet" ? "Outlet" : "Lokasi"}

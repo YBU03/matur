@@ -42,16 +42,20 @@ export default async function LaporanPos({
   const bisaGudang = PERAN_GUDANG.includes(peran) && lap.lingkup !== "outlet";
   const { data: semua } = await supabase
     .from("outlet")
-    .select("id, nama")
+    .select("id, nama, tampil_dashboard_pos")
     .eq("mode", "asli")
     .is("deleted_at", null)
     .order("tgl_mulai");
+  const sertakanTersembunyi = sp.sertakan === "1";
+  const terlihat = (semua ?? []).filter(
+    (o) => sertakanTersembunyi || o.tampil_dashboard_pos,
+  );
   const outlets =
     lap.lingkup === "gudang"
       ? []
       : peran === "spv"
-        ? (semua ?? []).filter((o) => o.id === s.active!.outletId)
-        : (semua ?? []);
+        ? terlihat.filter((o) => o.id === s.active!.outletId)
+        : terlihat;
   // pilihan: id outlet atau "gudang"
   const pilihan =
     sp.outlet === "gudang" && bisaGudang
@@ -117,6 +121,7 @@ export default async function LaporanPos({
   return (
     <LaporanView
       key={`${jenis}-${pilihan}-${dari}-${sampai}-${bahanId}-${sim}`}
+      sertakanTersembunyi={sertakanTersembunyi}
       jenis={jenis}
       outlets={outlets}
       bisaGudang={bisaGudang}

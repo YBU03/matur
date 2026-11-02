@@ -23,7 +23,7 @@ describe("Dashboard POS server access", () => {
       const order = vi.fn().mockResolvedValue({ data: rows, error: null });
       const chain = {
         select: () => chain,
-        eq: () => chain,
+        eq: vi.fn(() => chain),
         is: () => chain,
         order,
       };
@@ -36,7 +36,10 @@ describe("Dashboard POS server access", () => {
         mode: "simulasi",
         error: null,
       });
-      expect(await loadDashboardPos({ outlet: "unknown" })).toMatchObject({
+      expect(chain.eq).toHaveBeenCalledWith("tampil_dashboard_pos", true);
+      expect(
+        await loadDashboardPos({ outlet: "hidden-or-unknown" }),
+      ).toMatchObject({
         outletId: null,
         mode: "asli",
       });

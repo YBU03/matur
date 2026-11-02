@@ -38,7 +38,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   let outlets: { id: string; nama: string; jam_operasional: string | null }[] = [];
   if (lihatPenjualan) {
     const supabase = await supabaseServer();
-    const { data } = await supabase.from("outlet").select("id, nama, jam_operasional").eq("mode", "asli").is("deleted_at", null).order("nama");
+    const { data } = await supabase.from("outlet").select("id, nama, jam_operasional").eq("mode", "asli").eq("tampil_dashboard_pos", true).is("deleted_at", null).order("nama");
     outlets = data ?? [];
   }
   let pendaftar = 0;
