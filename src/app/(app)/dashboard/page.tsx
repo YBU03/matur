@@ -71,7 +71,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const tabHref = (t: string) => `/dashboard?${new URLSearchParams({ ...Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && !["tab", "periode", "dari", "sampai"].includes(k))) as Record<string, string>, ...(t === "bulanan" ? { tab: t } : {}) })}`;
   return (
     <div className="space-y-6">
-      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }, ...(adminHome ? [{ table: "transaksi" }] : []), ...(active.role === "hrd" ? [{ table: "absensi" }, { table: "jadwal_shift" }, { table: "pengajuan_izin" }] : [])]} cadanganDetik={120} />}
+      {(canSim || staf) && <LiveRefresh pantau={[{ table: "pengguna" }, ...(adminHome ? [{ table: "transaksi" }] : []), ...(active.role === "hrd" ? [{ table: "absensi" }, { table: "jadwal_shift" }, { table: "pengajuan_izin" }, { table: "transaksi" }] : [])]} cadanganDetik={120} />}
       <section className="flex items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-matur-400 to-matur-600 p-5 text-white">
         <Image src={`/mascot/${r.mascot}.png`} alt="" width={96} height={96} priority className="hidden rounded-2xl sm:block" />
         <div>
@@ -105,6 +105,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Suspense>
       )}
 
+      {active.role === "hrd" && (
+        <Suspense fallback={<Skeleton h="h-48" />}>
+          <KartuOmzetHariIni tautan={{ href: "/laporan-pos", teks: "Buka Laporan POS & Stok" }} />
+        </Suspense>
+      )}
       {["owner", "hrd", "spv"].includes(active.role) && (
         <Suspense fallback={<Skeleton h="h-32" />}>
           {active.role === "hrd" ? <HrdOverview s={s} outletId={sp.hrd_outlet} periode={sp.hrd_periode} /> : <RingkasSdm s={s} />}

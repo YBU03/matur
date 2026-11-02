@@ -90,7 +90,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "kategori_menu",
     title: "Kategori Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat", "admin_gudang"],
+    editors: ["owner", "admin_pusat", "admin_gudang", "hrd"],
     fields: [
       { key: "nama", label: "Nama Kategori", type: "text", required: true },
       { key: "urutan", label: "Urutan", type: "number" },
@@ -100,7 +100,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "menu",
     title: "Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat", "admin_gudang"],
+    editors: ["owner", "admin_pusat", "admin_gudang", "hrd"],
     fields: [
       { key: "foto_url", label: "Foto", type: "image" },
       { key: "nama", label: "Nama Menu", type: "text", required: true },
@@ -118,7 +118,7 @@ export const ENTITIES: Record<string, Entity> = {
     table: "varian",
     title: "Additional & Varian Menu",
     nameKey: "nama",
-    editors: ["owner", "admin_pusat", "admin_gudang"],
+    editors: ["owner", "admin_pusat", "admin_gudang", "hrd"],
     fields: [
       { key: "menu_id", label: "Menu", type: "select", ref: { table: "menu", label: "nama" }, required: true },
       { key: "grup", label: "Grup", type: "enum", options: ["Ukuran", "Suhu", "Gula", "Extra"], required: true },

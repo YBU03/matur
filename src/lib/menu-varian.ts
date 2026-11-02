@@ -1,7 +1,7 @@
 import type { Role } from "./roles";
 
 // Varian menu: Kemasan = anak menu (harga sendiri), Gula/Extra/dll = varian yang disinkronkan ke semua kemasan.
-export const PENGELOLA_MENU: Role[] = ["owner", "admin_pusat", "admin_gudang"];
+export const PENGELOLA_MENU: Role[] = ["owner", "admin_pusat", "admin_gudang", "hrd"];
 export const GRUP_OPSI = ["Gula", "Extra", "Suhu", "Ukuran"] as const;
 export type GrupOpsi = (typeof GRUP_OPSI)[number];
 export const MULTI_OPSI = new Set<string>(["Extra"]);

@@ -113,5 +113,5 @@ export function tabBoleh(peran: string): Tab[] {
   if (peran === "admin_gudang") return ["pembelian", "produk"];
   return TABS.map(([k]) => k);
 }
-export const PERAN_LAPORAN = ["owner", "admin_pusat", "finance", "spv", "admin_gudang", "manajer_area"];
-export const PERAN_GUDANG = ["owner", "admin_pusat", "finance", "admin_gudang"];
+export const PERAN_LAPORAN = ["owner", "admin_pusat", "finance", "spv", "admin_gudang", "manajer_area", "hrd"];
+export const PERAN_GUDANG = ["owner", "admin_pusat", "finance", "admin_gudang", "hrd"];

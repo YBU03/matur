@@ -12,7 +12,7 @@ import { hppResep, marginPersen, type BahanHpp, type BarisResep } from "@/lib/hp
 // HPP per menu: dihitung live dari resep POS × HPP bahan; data file HPP RUMA tetap sebagai referensi
 export default async function HppMenu() {
   const s = await getSession();
-  if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance"].includes(s.active.role)) notFound();
+  if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance", "hrd"].includes(s.active.role)) notFound();
   const bisaUbah = s.active.role !== "finance";
   const supabase = await supabaseServer();
   const [{ data: h }, { data: m }, { data: bahan }, { data: kategori }, { data: resep }] = await Promise.all([

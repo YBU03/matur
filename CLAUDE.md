@@ -63,3 +63,5 @@ Tampilan HRD 1 November: Jadwal Bulanan/Mingguan, popup foto absen, grafik Absen
 POS di HP 1 November: bar keranjang mengambang + lembar bawah (hanya tampilan, `aside` keranjang sama). Baca `docs/pos-hp-keranjang-2026-11-01.md`.
 
 Struk POS 2 November: format kasir Ruma + `/pengaturan/struk` (tabel `struk_outlet`, RPC `atur_struk_outlet`). Baca `docs/pos-struk-2026-11-02.md`.
+
+HRD kelola menu & laporan 2 November: HRD boleh kelola menu/harga/varian/resep/HPP + Laporan POS lengkap + kartu omzet. Baca `docs/hrd-menu-laporan-2026-11-02.md`.
