@@ -5,7 +5,7 @@ import { stokMenipis, type Menipis } from "@/lib/stok-menipis";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export type Ringkasan = {
-  kpi: { omzet: number; trx: number; hpp: number; diskon: number };
+  kpi: { impor_tanpa_rincian?: number; omzet: number; trx: number; hpp: number; diskon: number };
   harian: { tgl: string; outlet_id: string; omzet: number; trx: number }[];
   kanal: { kanal: string; omzet: number; trx: number }[];
   jam: { dow: number; jam: number; trx: number }[];
@@ -164,6 +164,7 @@ export function SalesView({
 
   return (
     <section className={`lg:space-y-4 ${lipat ? "space-y-2" : "space-y-4"}`}>
+      {!!d?.kpi.impor_tanpa_rincian && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">Ada {d.kpi.impor_tanpa_rincian} transaksi dokumen historis. Omzet tercatat; rincian produk, HPP dan laba belum lengkap.</p>}
       {mode === "simulasi" && (
         <div className="rounded-xl bg-[repeating-linear-gradient(45deg,#fde68a_0_12px,#fef3c7_12px_24px)] px-4 py-2 text-center text-sm font-bold tracking-wide text-amber-900">
           MODE SIMULASI — data latihan, bukan data asli

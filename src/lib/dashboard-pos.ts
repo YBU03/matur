@@ -13,6 +13,7 @@ export async function loadDashboardPos(sp: Record<string, string | undefined>) {
     .from("outlet")
     .select("id, nama, jam_operasional")
     .eq("mode", "asli")
+    .eq("tampil_dashboard_pos", true)
     .is("deleted_at", null)
     .order("nama");
   const outlets = data ?? [];

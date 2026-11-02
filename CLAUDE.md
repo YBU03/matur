@@ -68,4 +68,6 @@ HRD kelola menu & laporan 2 November: HRD boleh kelola menu/harga/varian/resep/H
 
 Void langsung POS 2 November: void tanpa PIN (alasan+nama wajib, switch per outlet `void_wajib_pin`), laporan void per orang, popup struk tutup otomatis. Baca `docs/pos-void-langsung-2026-11-02.md`.
 
+Visibilitas Dashboard POS 2 November: switch Owner/Admin Pusat pada `/master/outlet`, kolom `tampil_dashboard_pos`; Demo OFF, Kominot/UHB ON. Hanya tampilan/agregat dashboard, bukan status/login/penghapusan transaksi. Riwayat eksplisit tetap tersedia; Laporan POS memiliki checkbox sertakan outlet tersembunyi. Baca `docs/outlet-dashboard-pos-2026-11-02.md` sebelum mengubah agregat/filter.
+
 Hari operasional 3 November: tutup buku 03.00 WIB (`tgl_op`/`awal_op`, `src/lib/hari-operasional.ts`) untuk omzet & laporan penjualan. Baca `docs/hari-operasional-2026-11-03.md`.
