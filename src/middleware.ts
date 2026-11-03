@@ -32,6 +32,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|brand|mascot|manifest.webmanifest|kasir.webmanifest|sw.js|offline.html|menu/|icon.png|apple-icon.png).*)",
+    "/((?!api/integrasi/bni/|_next/static|_next/image|brand|mascot|manifest.webmanifest|kasir.webmanifest|sw.js|offline.html|menu/|icon.png|apple-icon.png).*)",
   ],
 };
