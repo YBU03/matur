@@ -5,18 +5,20 @@ import { namaBulan, type Laporan, type Perusahaan } from "@/lib/laporan";
 import { isiSheetLaporan } from "@/lib/laporan-excel";
 
 /** Unduh laporan resmi sebagai Excel format Ruma (sheet "Laporan Keuangan"), bisa diimpor kembali. */
-export function UnduhExcel({ l, pt }: { l: Laporan; pt: Perusahaan }) {
+export function UnduhExcel({ l, pt, internal = false }: { l: Laporan; pt: Perusahaan; internal?: boolean }) {
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
     try {
       const { Workbook } = (await import("exceljs")).default;
       const wb = new Workbook();
-      isiSheetLaporan(wb.addWorksheet("Laporan Keuangan"), l, pt);
+      const ws = wb.addWorksheet("Laporan Keuangan");
+      isiSheetLaporan(ws,l,pt);
+      if(internal){ws.getCell("A10").value="DRAFT INTERNAL — BELUM DITERBITKAN KE MITRA";ws.getCell("A10").font={bold:true,color:{argb:"FFC75400"}};}
       const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `Laporan Keuangan ${l.nama_outlet} ${namaBulan(l.periode)}.xlsx`;
+      a.download = `${internal ? "Draft Internal - " : ""}Laporan Keuangan ${l.nama_outlet} ${namaBulan(l.periode)}.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } finally {

@@ -81,7 +81,7 @@ export function ImporRuma({ outlets, outletId, label = "⬆ Impor Excel" }: { ou
       {buka && (
         <Modal title="Impor file Excel Ruma">
           <div className="max-h-[70vh] space-y-3 overflow-y-auto text-sm">
-            <p className="text-xs text-stone-500">File laporan Ruma berisi sheet <b>Transaksi</b> (catatan harian) dan <b>Laporan Keuangan</b>. Keduanya bisa diimpor sekaligus, mis. data bulan Oktober sebelum memakai POS Matoer.</p>
+            <p className="text-xs text-stone-500">File laporan Ruma berisi sheet <b>Transaksi</b> (catatan harian) dan <b>Laporan Keuangan</b>. Impor laporan disimpan internal; tidak langsung dibuka ke Mitra. Keduanya bisa diimpor sekaligus, mis. data bulan Oktober sebelum memakai POS Matoer.</p>
             <label className="block font-semibold">
               Outlet
               <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2 font-normal">
