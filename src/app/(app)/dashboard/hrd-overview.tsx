@@ -18,7 +18,7 @@ async function semua<T>(page: (from: number, to: number) => PromiseLike<{ data: 
   }
 }
 
-export async function HrdOverview({ s, outletId, periode }: { s: Session; outletId?: string; periode?: string }) {
+export async function HrdOverview({ s, outletId, periode, tanggal }: { s: Session; outletId?: string; periode?: string; tanggal?: string }) {
   const outlets = await outletSdm(s);
   const selected = outlets.some((o) => o.id === outletId) ? outletId! : "";
   const cakupan = selected ? outlets.filter((o) => o.id === selected) : outlets;
@@ -26,6 +26,9 @@ export async function HrdOverview({ s, outletId, periode }: { s: Session; outlet
   const days = periode === "30" ? 30 : 7;
   const today = hariIni();
   const dari = addDays(today, 1 - days);
+  // tanggal untuk daftar "Jadwal & staf" (panah ‹ › / pilih tanggal); bawaan hari ini
+  const tgl = tanggal && /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && tanggal <= today ? tanggal : today;
+  const muat = tgl < dari ? tgl : dari;
   const ids = cakupan.map((o) => o.id);
   const db = await supabaseServer();
   const [{ count: izin, error: ei }, { count: tukar, error: et }, { count: draft, error: ed }, ...data] = await Promise.all([
@@ -35,9 +38,9 @@ export async function HrdOverview({ s, outletId, periode }: { s: Session; outlet
     ...cakupan.map(async (o) => {
       const [shifts, staf, jadwal, absensi, izin] = await Promise.all([
         muatShift(o.id), muatStaf(o.id),
-        semua<Jadwal>((a, b) => db.from("jadwal_shift").select("id, shift_id, pengguna_id, tanggal, status").eq("outlet_id", o.id).eq("status", "terbit").gte("tanggal", dari).lte("tanggal", today).order("id").range(a, b)),
-        semua<Absen>((a, b) => db.from("absensi").select("id, pengguna_id, jadwal_id, tanggal, masuk_at, pulang_at, status, telat_menit").eq("outlet_id", o.id).gte("tanggal", dari).lte("tanggal", today).order("id").range(a, b)),
-        semua<Izin>((a, b) => db.from("pengajuan_izin").select("id, pengguna_id, tanggal, jenis").eq("outlet_id", o.id).eq("status", "disetujui").gte("tanggal", dari).lte("tanggal", today).order("id").range(a, b)),
+        semua<Jadwal>((a, b) => db.from("jadwal_shift").select("id, shift_id, pengguna_id, tanggal, status").eq("outlet_id", o.id).eq("status", "terbit").gte("tanggal", muat).lte("tanggal", today).order("id").range(a, b)),
+        semua<Absen>((a, b) => db.from("absensi").select("id, pengguna_id, jadwal_id, tanggal, masuk_at, pulang_at, status, telat_menit").eq("outlet_id", o.id).gte("tanggal", muat).lte("tanggal", today).order("id").range(a, b)),
+        semua<Izin>((a, b) => db.from("pengajuan_izin").select("id, pengguna_id, tanggal, jenis").eq("outlet_id", o.id).eq("status", "disetujui").gte("tanggal", muat).lte("tanggal", today).order("id").range(a, b)),
       ]);
       const { baris } = hitungRekap({ shifts, jadwal, absensi, izin });
       const nama = Object.fromEntries(staf.map((x) => [x.id, x.nama]));
@@ -57,9 +60,9 @@ export async function HrdOverview({ s, outletId, periode }: { s: Session; outlet
     return { tanggal, ...ringkasHrd(rows.filter((r) => r.tanggal === tanggal)) };
   });
   const now = rows.filter((r) => r.tanggal === today);
-  const staff = data.flatMap((x) => x.baris.filter((r) => r.tanggal === today).map((r, i) => ({ key: `${x.o.id}-${r.pengguna_id}-${i}`, nama: x.nama[r.pengguna_id] ?? "Staf", outlet: x.o.nama, shift: r.shift?.nama ?? "Tanpa shift", mulai: r.shift?.jam_mulai ?? "", selesai: r.shift?.jam_selesai ?? "", status: r.status, masuk: r.absen?.masuk_at ?? null, pulang: r.absen?.pulang_at ?? null, telat: r.absen?.telat_menit ?? 0 })));
+  const staff = data.flatMap((x) => x.baris.filter((r) => r.tanggal === tgl).map((r, i) => ({ key: `${x.o.id}-${r.pengguna_id}-${i}`, nama: x.nama[r.pengguna_id] ?? "Staf", outlet: x.o.nama, shift: r.shift?.nama ?? "Tanpa shift", mulai: r.shift?.jam_mulai ?? "", selesai: r.shift?.jam_selesai ?? "", status: r.status, masuk: r.absen?.masuk_at ?? null, pulang: r.absen?.pulang_at ?? null, telat: r.absen?.telat_menit ?? 0 })));
   return <>
     <LiveRefresh pantau={ids.flatMap((id) => ["absensi", "jadwal_shift", "pengajuan_izin", "tukar_shift"].map((table) => ({ table, filter: `outlet_id=eq.${id}` })))} cadanganDetik={60} />
-    <HrdVisual outlets={outlets} selected={selected} days={days} today={today} summary={ringkasHrd(now)} trend={harian} comparison={data.map((x) => ({ nama: x.o.nama, ...ringkasHrd(x.baris.filter((r) => r.tanggal === today)) }))} staff={staff} actions={{ izin: izin ?? 0, tukar: tukar ?? 0, draft: draft ?? 0 }} />
+    <HrdVisual outlets={outlets} selected={selected} days={days} today={today} summary={ringkasHrd(now)} trend={harian} comparison={data.map((x) => ({ nama: x.o.nama, ...ringkasHrd(x.baris.filter((r) => r.tanggal === today)) }))} staff={staff} tanggalStaf={tgl} actions={{ izin: izin ?? 0, tukar: tukar ?? 0, draft: draft ?? 0 }} />
   </>;
 }

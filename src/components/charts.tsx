@@ -176,15 +176,18 @@ export function GroupedBars({ data, series }: { data: Record<string, string | nu
   );
 }
 
-const HARI = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+/** urutan baris heatmap: Minggu dulu (isodow 7), lalu Senin–Sabtu */
+const URUT_HARI: [number, string][] = [[7, "Min"], [1, "Sen"], [2, "Sel"], [3, "Rab"], [4, "Kam"], [5, "Jum"], [6, "Sab"]];
 
-/** Heatmap jam ramai: hari × jam, gradasi kuning→ungu (terang = sepi, gelap = ramai). */
-export function Heatmap({ cells, buka = 7, tutup = 23 }: { cells: { dow: number; jam: number; trx: number }[]; buka?: number; tutup?: number }) {
+/** Heatmap jam ramai: hari (Minggu–Sabtu) × jam operasional 06.00–02.00 (lewat tengah malam), gradasi kuning→ungu.
+ *  Jam 00–02 masuk baris hari operasional sebelumnya (dow dihitung di DB dengan tutup buku 03.00). */
+export function Heatmap({ cells, buka = 6, tutup = 2 }: { cells: { dow: number; jam: number; trx: number }[]; buka?: number; tutup?: number }) {
   const [hover, setHover] = useState<string>("");
-  // kolom dari jam buka sampai jam tutup outlet; diperlebar bila ada transaksi di luar jam itu
-  const dari = Math.min(buka, ...cells.map((c) => c.jam));
-  const sampai = Math.max(tutup, ...cells.map((c) => c.jam + 1));
-  const jamList = Array.from({ length: Math.max(sampai - dari, 1) }, (_, i) => i + dari);
+  const panjang = ((tutup - buka + 24) % 24) + 1;
+  const utama = Array.from({ length: panjang }, (_, i) => (buka + i) % 24);
+  // jam di luar jam operasional tetap ditampilkan bila ada transaksi
+  const luar = [...new Set(cells.filter((c) => c.trx > 0 && !utama.includes(c.jam)).map((c) => c.jam))].sort((a, b) => ((a - buka + 24) % 24) - ((b - buka + 24) % 24));
+  const jamList = [...utama, ...luar].sort((a, b) => ((a - buka + 24) % 24) - ((b - buka + 24) % 24));
   const map = new Map(cells.map((c) => [`${c.dow}-${c.jam}`, c.trx]));
   const max = Math.max(1, ...cells.map((c) => c.trx));
   const color = (v: number) => (v ? HEAT[Math.min(HEAT.length - 1, Math.floor((v / max) * HEAT.length))] : "#f5f5f4");
@@ -194,16 +197,16 @@ export function Heatmap({ cells, buka = 7, tutup = 23 }: { cells: { dow: number;
         <div className="grid min-w-[520px] gap-[2px]" style={{ gridTemplateColumns: `36px repeat(${jamList.length}, 1fr)` }}>
           <span />
           {jamList.map((j) => (
-            <span key={j} className="text-center text-[10px] text-stone-500">{j % 2 ? "" : String(j).padStart(2, "0")}</span>
+            <span key={j} className="text-center text-[10px] text-stone-500">{String(j).padStart(2, "0")}</span>
           ))}
-          {HARI.map((h, di) => (
+          {URUT_HARI.map(([dow, h]) => (
             <Row key={h} label={h}>
               {jamList.map((j) => {
-                const v = map.get(`${di + 1}-${j}`) ?? 0;
+                const v = map.get(`${dow}-${j}`) ?? 0;
                 return (
                   <span
                     key={j}
-                    onMouseEnter={() => setHover(`${h} ${String(j).padStart(2, "0")}.00–${String(j + 1).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
+                    onMouseEnter={() => setHover(`${h}${j < 3 ? " (malam)" : ""} ${String(j).padStart(2, "0")}.00–${String((j + 1) % 24).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
                     onMouseLeave={() => setHover("")}
                     title={`${h} ${j}.00 · ${v} transaksi`}
                     className="h-6 rounded-[3px] hover:outline hover:outline-2 hover:outline-stone-800"

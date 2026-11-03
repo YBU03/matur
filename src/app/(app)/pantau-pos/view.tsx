@@ -335,7 +335,7 @@ export function PantauView({ ringkas, d, kartu, outlets, outletId, rentang, dari
             <details className="mt-4">
               <summary className="cursor-pointer text-sm font-semibold text-matur-700">Lihat peta ramai per hari & jam</summary>
               <div className="mt-3">
-                <Heatmap cells={d.jam} buka={buka?.[0]} tutup={buka?.[1]} />
+                <Heatmap cells={d.jam} />
               </div>
             </details>
           </Kartu>

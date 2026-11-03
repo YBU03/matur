@@ -285,7 +285,7 @@ export function SalesView({
             rows={(d?.jam ?? []).map((c) => ({ Hari: ["", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"][c.dow], Jam: `${c.jam}.00`, Transaksi: c.trx }))}
             cols={[{ key: "Hari", label: "Hari" }, { key: "Jam", label: "Jam" }, { key: "Transaksi", label: "Transaksi" }]}
           >
-            <Heatmap cells={d?.jam ?? []} buka={jam?.[0]} tutup={jam?.[1]} />
+            <Heatmap cells={d?.jam ?? []} />
           </ChartCard>
           </LipatHp>
         </>

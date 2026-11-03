@@ -10,3 +10,8 @@ Hanya perubahan tampilan; tidak ada perubahan database, aturan jadwal, absensi, 
 ## Kartu hari gaya baris (1 November, lanjutan)
 - Tiap shift: kotak dengan nama, jam, badge "x/min orang"; per orang satu baris (nama, Terbit/Draft, ✏️ `editRow`, 👤− hapus via `kelolaJadwalHarian` aksi `hapus`); bawah: pilih staf + 👤+ (`tambahJadwal`).
 - Kotak hijau **Libur hari ini**: libur otomatis (tanpa shift) & libur disetujui → ✏️ `ModalLibur` (ganti/pindah), 👤− jadikan masuk (`ModalLibur` mode `masuk`) atau `batalIzinAtasan` untuk libur pengajuan; izin/sakit/libur menunggu → ✏️ modal izin. Tambah: pilih staf + jenis (Libur mingguan/Izin/Sakit) + ＋ (`catatIzinStaf`, konfirmasi bila staf punya shift).
+
+## Riwayat harian & Jam Ramai (3 November)
+- Rekap Absensi: bagian Detail per hari (`DetailHarian`): panah ‹ ›, pilih tanggal (`?tgl=`), tombol Hari ini, ringkasan hadir/telat/tidak absen/izin. Tanggal di luar periode memperluas periode filter otomatis.
+- Beranda HRD "Jadwal & staf": panah ‹ › + pilih tanggal (`?hrd_tgl=`); kartu ringkasan atas tetap hari ini.
+- Grafik Jam Ramai (`Heatmap` di `src/components/charts.tsx`, dipakai Dashboard POS & Pantau POS): kolom tetap 06.00–02.00 lewat tengah malam (jam di luar itu ikut tampil bila ada transaksi), baris Minggu → Sabtu. Jam 00–02 berada di baris hari operasional sebelumnya (tutup buku 03.00).

@@ -10,7 +10,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { RekapView } from "./rekap-view";
 
 // Rekap absensi: status hari ini, ringkasan per staf, dan detail (selfie, lokasi, jam kerja) + ekspor Excel.
-export default async function AbsensiPage({ searchParams }: { searchParams: Promise<{ outlet?: string; dari?: string; sampai?: string; staf?: string }> }) {
+export default async function AbsensiPage({ searchParams }: { searchParams: Promise<{ outlet?: string; dari?: string; sampai?: string; staf?: string; tgl?: string }> }) {
   const s = await getSession();
   if (!s?.active) notFound();
   const sp = await searchParams;
@@ -57,6 +57,7 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
         outlets={outlets.map((o) => ({ id: o.id, nama: o.nama }))}
         outlet={{ id: outlet.id, nama: outlet.nama }}
         dari={dari}
+        tgl={/^\d{4}-\d{2}-\d{2}$/.test(sp.tgl ?? "") ? sp.tgl : undefined}
         sampai={sampai}
         staf={staf ?? ""}
         daftarStaf={daftarStaf.map((x) => ({ id: x.id, nama: x.nama }))}

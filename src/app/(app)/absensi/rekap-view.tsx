@@ -37,13 +37,15 @@ type Props = {
   hariIni: BarisRekap[];
   absensi: Record<string, Absen>;
   foto: Record<string, string>;
+  /** tanggal awal riwayat harian (opsional, dari ?tgl=) */
+  tgl?: string;
 };
 
 export function RekapView(p: Props) {
   const router = useRouter();
   const [f, setF] = useState({ outlet: p.outlet.id, dari: p.dari, sampai: p.sampai, staf: p.staf });
   const [busy, setBusy] = useState(false);
-  const terapkan = (v = f) => router.push(`/absensi?${new URLSearchParams(Object.entries(v).filter(([, x]) => x) as [string, string][])}`);
+  const terapkan = (v: Record<string, string> = f) => router.push(`/absensi?${new URLSearchParams(Object.entries(v).filter(([, x]) => x) as [string, string][])}`);
   const n = (id: string) => p.nama[id] ?? "Staf";
 
   const ekspor = async () => {
@@ -224,20 +226,14 @@ export function RekapView(p: Props) {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2 font-bold text-kopi-900">
-          Detail <span className="text-sm font-normal text-stone-500">({detail.length})</span>
-        </h2>
-        {detail.length ? (
-          <div className="space-y-2">
-            {detail.map((b, i) => (
-              <Detail key={i} b={b} nama={n(b.pengguna_id)} a={b.absen ? p.absensi[b.absen.id] : undefined} foto={p.foto} />
-            ))}
-          </div>
-        ) : (
-          <Kosong ikon="🕘" judul="Belum ada absensi di periode ini." />
-        )}
-      </section>
+      <DetailHarian
+        baris={detail}
+        dari={p.dari}
+        sampai={p.sampai}
+        tglAwal={p.tgl}
+        render={(b, i) => <Detail key={`${b.tanggal}-${b.pengguna_id}-${i}`} b={b} nama={n(b.pengguna_id)} a={b.absen ? p.absensi[b.absen.id] : undefined} foto={p.foto} />}
+        pindahPeriode={(t) => terapkan({ ...f, dari: t < f.dari ? t : f.dari, sampai: t > f.sampai ? t : f.sampai, tgl: t })}
+      />
     </div>
   );
 }
@@ -453,5 +449,55 @@ function EditAbsensi({ a, nama, onClose }: { a: Absen; nama: string; onClose: ()
         </div>
       </form>
     </Modal>
+  );
+}
+
+const geserTgl = (t: string, n: number) => new Date(Date.parse(t + "T00:00:00Z") + n * 86400_000).toISOString().slice(0, 10);
+const labelHari = (t: string) => new Date(t + "T00:00:00Z").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+/** Riwayat absensi per hari: panah ‹ › ke hari sebelum/sesudah atau pilih tanggal. */
+function DetailHarian({ baris, dari, sampai, render, pindahPeriode, tglAwal }: { tglAwal?: string; baris: BarisRekap[]; dari: string; sampai: string; render: (b: BarisRekap, i: number) => React.ReactNode; pindahPeriode: (tgl: string) => void }) {
+  const hari = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const awal = tglAwal && tglAwal >= dari && tglAwal <= sampai ? tglAwal : hari >= dari && hari <= sampai ? hari : sampai;
+  const [tgl, setTgl] = useState(awal);
+  const pilih = (t: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return;
+    if (t < dari || t > sampai) return pindahPeriode(t);
+    setTgl(t);
+  };
+  const isi = baris.filter((b) => b.tanggal === tgl);
+  const hitung = (st: string[]) => isi.filter((b) => st.includes(b.status)).length;
+  const btn = "grid size-10 place-items-center rounded-xl border border-matur-200 bg-white text-lg font-bold text-kopi-900 hover:bg-matur-50 disabled:opacity-30";
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-matur-100 bg-white p-3 shadow-sm">
+        <button type="button" className={btn} onClick={() => pilih(geserTgl(tgl, -1))} aria-label="Hari sebelumnya">‹</button>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Riwayat absensi</p>
+          <p className="truncate text-base font-bold capitalize text-kopi-900">{labelHari(tgl)}</p>
+        </div>
+        <button type="button" className={btn} onClick={() => pilih(geserTgl(tgl, 1))} disabled={tgl >= hari} aria-label="Hari berikutnya">›</button>
+        <label className="w-full text-xs font-medium text-stone-500 sm:w-auto">
+          Pilih tanggal
+          <input type="date" value={tgl} max={hari} onChange={(e) => pilih(e.target.value)} className={`${isian} mt-0.5 block w-full sm:w-44`} />
+        </label>
+        {tgl !== hari && (
+          <button type="button" onClick={() => pilih(hari)} className={tombolAksi.netral}>
+            Hari ini
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
+        <Kotak label="Hadir" nilai={hitung(["tepat", "telat", "tanpa_jadwal"])} warna="text-emerald-700" latar="bg-emerald-50" />
+        <Kotak label="Telat" nilai={hitung(["telat"])} warna="text-amber-700" latar="bg-amber-50" />
+        <Kotak label="Tidak absen" nilai={hitung(["tidak_absen"])} warna="text-red-600" latar="bg-red-50" />
+        <Kotak label="Izin/sakit/libur" nilai={hitung(["izin", "sakit", "libur"])} warna="text-violet-700" latar="bg-violet-50" />
+      </div>
+      {isi.length ? (
+        <div className="space-y-2">{isi.map((b, i) => render(b, i))}</div>
+      ) : (
+        <Kosong ikon="🕘" judul="Tidak ada absensi di tanggal ini." />
+      )}
+    </section>
   );
 }
