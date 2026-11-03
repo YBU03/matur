@@ -1,0 +1,273 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Matoer BNI Integration Gateway",
+    "version": "1.0.0",
+    "description": "Matoer-owned gateway contract for BNI onboarding. Not a claim of BNI SNAP certification or confirmed interoperability. A received notification is not a reconciled/paid POS transaction. Initial outlets: Ruma Kopi Kominot and Ruma Kopi UHB."
+  },
+  "servers": [
+    {
+      "url": "https://www.matoer.id"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "clientCredentials": {
+        "type": "http",
+        "scheme": "basic"
+      },
+      "callbackToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT RS256"
+      },
+      "callbackSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Matoer-Signature",
+        "description": "Lowercase hex HMAC-SHA256(client_secret, X-Matoer-Timestamp + \".\" + exact raw request body)."
+      },
+      "callbackTimestamp": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Matoer-Timestamp",
+        "description": "ISO8601 with timezone. Maximum 300-second clock skew."
+      }
+    },
+    "schemas": {
+      "Notification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "outletCode",
+          "merchantId",
+          "referenceNo",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Unique across this integration; prefix with outlet code if upstream IDs are only unique per merchant."
+          },
+          "outletCode": {
+            "type": "string",
+            "enum": [
+              "KOMINOT",
+              "UHB"
+            ]
+          },
+          "merchantId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "referenceNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "amount": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "value",
+              "currency"
+            ],
+            "properties": {
+              "value": {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Positive amount, exactly 2 decimal places."
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "IDR"
+                ]
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PAID",
+              "PENDING",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Required when status is PAID."
+          },
+          "test": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/integrasi/bni/public-key": {
+      "get": {
+        "summary": "Matoer RSA 2048 public key (SPKI PEM)",
+        "responses": {
+          "200": {
+            "description": "PEM public key used to verify Matoer-issued RS256 access tokens.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrasi/bni/get-token": {
+      "post": {
+        "summary": "Obtain a 300-second callback access token",
+        "security": [
+          {
+            "clientCredentials": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "grant_type"
+                ],
+                "properties": {
+                  "grant_type": {
+                    "type": "string",
+                    "enum": [
+                      "client_credentials"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token; never cache publicly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "enum": [
+                        "Bearer"
+                      ]
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "enum": [
+                        300
+                      ]
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "qris:notify"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON/unsupported grant"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "413": {
+            "description": "Maximum token request body size 2048 bytes"
+          },
+          "415": {
+            "description": "Content-Type must be application/json"
+          },
+          "429": {
+            "description": "Rate limited; retry after 60 seconds"
+          },
+          "503": {
+            "description": "Temporarily unavailable; retry"
+          }
+        }
+      }
+    },
+    "/api/integrasi/bni/callback": {
+      "post": {
+        "summary": "Receive and deduplicate payment notifications; no ledger/POS settlement",
+        "security": [
+          {
+            "callbackToken": [],
+            "callbackSignature": [],
+            "callbackTimestamp": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Notification"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "New notification stored; processingStatus RECEIVED_NOT_RECONCILED"
+          },
+          "200": {
+            "description": "Identical duplicate acknowledged"
+          },
+          "400": {
+            "description": "Malformed JSON"
+          },
+          "401": {
+            "description": "Invalid/expired token or invalid/stale signature"
+          },
+          "409": {
+            "description": "Event ID reused with different payload"
+          },
+          "413": {
+            "description": "Maximum body size 16384 bytes"
+          },
+          "415": {
+            "description": "Content-Type must be application/json"
+          },
+          "422": {
+            "description": "Notification does not match schema"
+          },
+          "429": {
+            "description": "Rate limited; retry after 60 seconds"
+          },
+          "503": {
+            "description": "Storage temporarily unavailable; retry"
+          }
+        }
+      }
+    }
+  }
+}

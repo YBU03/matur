@@ -8,7 +8,7 @@ import { batang, bertumpuk, judul, kaki, kolom, kpi, WARNA } from "@/lib/pdf-gra
 import { barisBanding, type Visual } from "./visual";
 
 // Unduh laporan resmi sebagai PDF (A4), urutan bagian sama dengan laporan manual
-export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; visual: Visual }) {
+export function UnduhPdf({ l, pt, visual: v, internal = false }: { l: Laporan; pt: Perusahaan; visual: Visual; internal?: boolean }) {
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
@@ -168,13 +168,14 @@ export function UnduhPdf({ l, pt, visual: v }: { l: Laporan; pt: Perusahaan; vis
       doc.setFont("helvetica", "normal").setFontSize(9);
       doc.text(`${l.kota_terbit ?? ""}, ${l.tgl_terbit ? formatTanggal(l.tgl_terbit) : ""}`, W - 50, fy, { align: "center" });
       const th = 20, tw = (th * ttd.w) / ttd.h;
-      doc.addImage(ttd.url, "PNG", W - 50 - tw / 2, fy + 2, tw, th);
+      if(!internal) doc.addImage(ttd.url, "PNG", W - 50 - tw / 2, fy + 2, tw, th);
       doc.setFont("helvetica", "bold").text(l.penandatangan ?? "", W - 50, fy + 27, { align: "center" });
       doc.setFont("helvetica", "normal").text(l.jabatan_penandatangan ?? "", W - 50, fy + 32, { align: "center" });
       kaki(doc, `${pt.nama} · Laporan Keuangan ${l.nama_outlet} ${bulan} · dibuat dengan Matoer`);
+      if(internal) for(let i=1;i<=doc.getNumberOfPages();i++){doc.setPage(i);doc.setFontSize(7).setTextColor(150,65,0).text("DRAFT INTERNAL - BELUM DITERBITKAN KE MITRA",W/2,5,{align:"center"});}
       const a = document.createElement("a");
       a.href = URL.createObjectURL(doc.output("blob"));
-      a.download = `Laporan Keuangan ${l.nama_outlet} ${bulan}.pdf`;
+      a.download = `${internal ? "Draft Internal - " : ""}Laporan Keuangan ${l.nama_outlet} ${bulan}.pdf`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } finally {
