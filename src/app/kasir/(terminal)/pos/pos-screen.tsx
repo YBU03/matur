@@ -1,4 +1,5 @@
 "use client";
+import { minta } from "@/components/dialog-tanya";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -454,7 +455,7 @@ export function PosScreen({
       const label =
         pelanggan ||
         (meja ? `Meja ${meja}` : "") ||
-        prompt("Nama/penanda draft (mis. nama pelanggan):") ||
+        (await minta("Beri nama atau penanda supaya mudah dicari, mis. nama pelanggan atau nomor meja. Boleh dikosongkan.", { judul: "Simpan sebagai draft", ya: "Simpan draft", placeholder: "Nama pelanggan / meja", wajib: false })) ||
         "";
       try {
         const r = await simpanDraft({
@@ -515,10 +516,10 @@ export function PosScreen({
         : `Melanjutkan draft “${d.label ?? "tanpa nama"}”.`,
     );
   };
-  const batalkanDraft = (d: Draft) => {
-    const alasan = prompt(
+  const batalkanDraft = async (d: Draft) => {
+    const alasan = (await minta(
       `Batalkan draft “${d.label ?? "tanpa nama"}”? Tulis alasannya:`,
-    );
+    ));
     if (!alasan?.trim()) return;
     start(async () => {
       const r = await batalDraft(d.id, alasan);

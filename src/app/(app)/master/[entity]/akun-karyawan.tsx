@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -68,7 +69,7 @@ export function AkunKaryawan({ data, bebas }: { data: KaryawanAkun[]; bebas: Aku
                     Reset password
                   </button>
                 )}
-                <button disabled={pending} onClick={() => confirm(`Lepas akun dari ${k.nama}? Akunnya tidak dihapus.`) && run(() => hubungkanAkun(k.id, null))} className="rounded-lg px-2 py-1 text-xs text-stone-500">
+                <button disabled={pending} onClick={async () => (await tanya(`Lepas akun dari ${k.nama}? Akunnya tidak dihapus.`)) && run(() => hubungkanAkun(k.id, null))} className="rounded-lg px-2 py-1 text-xs text-stone-500">
                   Lepas
                 </button>
               </>

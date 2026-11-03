@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import {
   PreviewDokumen,
   usePreviewDokumen,
@@ -413,12 +414,12 @@ export function KirimanOperasionalView({
         k.status === "dikirim" &&
         k.pemeriksaan_status === "selisih" && (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (
-                confirm(
+                (await tanya(
                   "Selesaikan selisih? Jumlah retur hanya yang sudah tiba fisik di gudang.",
-                )
+                ))
               )
                 call(() =>
                   selesaikanKiriman(

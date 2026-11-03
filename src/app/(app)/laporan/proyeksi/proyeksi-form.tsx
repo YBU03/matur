@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -494,10 +495,10 @@ export function ProyeksiForm(p: Props) {
       </section>
       <button
         type="button"
-        onClick={() =>
-          confirm(
+        onClick={async () =>
+          (await tanya(
             "Muat ulang data operasional terbaru? Simpan perubahan lebih dahulu.",
-          ) && router.refresh()
+          )) && router.refresh()
         }
         className="text-sm font-semibold text-matur-700 underline"
       >
@@ -527,10 +528,10 @@ export function ProyeksiForm(p: Props) {
           <select
             aria-label="Sumber laporan"
             value={manual ? "manual" : "otomatis"}
-            onChange={(e) =>
-              confirm(
+            onChange={async (e) =>
+              (await tanya(
                 "Ganti sumber? Perubahan yang belum disimpan akan dilepas.",
-              ) && pindah({ sumber: e.target.value })
+              )) && pindah({ sumber: e.target.value })
             }
             className="mt-1 w-full rounded-lg border bg-white p-2"
           >
@@ -548,10 +549,10 @@ export function ProyeksiForm(p: Props) {
         <button
           type="button"
           className="text-sm font-semibold text-matur-700 underline"
-          onClick={() =>
-            confirm(
+          onClick={async () =>
+            (await tanya(
               "Kembali ke angka otomatis terbaru? Simpan untuk mengganti koreksi draft; versi resmi tetap aman.",
-            ) && pindah({ sumber: "otomatis", reset: "1" })
+            )) && pindah({ sumber: "otomatis", reset: "1" })
           }
         >
           Gunakan ulang data otomatis
@@ -1190,10 +1191,10 @@ export function ProyeksiForm(p: Props) {
               (!p.skema && !manual) ||
               (!!p.sudahTerbit && !ganti)
             }
-            onClick={() =>
-              confirm(
+            onClick={async () =>
+              (await tanya(
                 `Setujui laporan ${info.nama_outlet} ${namaBulan(periode)} untuk Mitra sesuai jadwal buka? Pastikan angka sudah diperiksa.`,
-              ) && terbit()
+              )) && terbit()
             }
             className="rounded-xl bg-matur-700 p-3 font-semibold text-white disabled:opacity-50"
           >

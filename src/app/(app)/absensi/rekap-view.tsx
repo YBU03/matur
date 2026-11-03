@@ -1,4 +1,5 @@
 "use client";
+import { minta, tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -435,8 +436,8 @@ function EditAbsensi({ a, nama, onClose }: { a: Absen; nama: string; onClose: ()
           <button
             type="button"
             disabled={pending || alasan.trim().length < 3}
-            onClick={() => {
-              if (confirm(`Hapus absensi ${nama}? Kehadiran dan perhitungan gaji akan berubah.`) && prompt(`Ketik HAPUS untuk menghapus absensi ${nama}`) === "HAPUS") jalankan(true);
+            onClick={async () => {
+              if ((await tanya(`Hapus absensi ${nama}? Kehadiran dan perhitungan gaji akan berubah.`)) && (await minta(`Ketik HAPUS untuk menghapus absensi ${nama}`)) === "HAPUS") jalankan(true);
             }}
             className={tombolAksi.hapus}
           >

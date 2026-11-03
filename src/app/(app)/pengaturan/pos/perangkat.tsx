@@ -1,4 +1,5 @@
 "use client";
+import { minta, tanya } from "@/components/dialog-tanya";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -103,13 +104,13 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
       )}
       <form
         className="space-y-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm sm:p-5"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           if (
-            confirm(
+            (await tanya(
               "Reset ikatan perangkat? Transaksi, modal dan sesi tim tetap ada. Perangkat pertama yang login dengan PIN valid akan mengambil sesi tersebut.",
-            )
+            ))
           )
             run(() =>
               resetAksesPos(
@@ -212,13 +213,13 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
             </p>
             <form
               className="flex flex-wrap gap-2"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 if (
-                  confirm(
+                  (await tanya(
                     `${v.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} akses ${v.nama}? Riwayat dan data kas tetap disimpan.`,
-                  )
+                  ))
                 )
                   run(() =>
                     aturTablet(
@@ -310,13 +311,13 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
                   </p>
                   <form
                     className="space-y-3"
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
                       const f = new FormData(e.currentTarget);
                       if (
-                        confirm(
+                        (await tanya(
                           "Lanjutkan sesi kas yang sama pada perangkat ini? Akses transaksi baru dari perangkat lama akan dicabut.",
-                        )
+                        ))
                       )
                         run(() =>
                           selesaikanPindahPos(
@@ -354,10 +355,10 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
                   </form>
                   <button
                     disabled={busy}
-                    onClick={() => {
-                      const alasan = prompt(
+                    onClick={async () => {
+                      const alasan = (await minta(
                         "Alasan membatalkan perpindahan (minimal 5 karakter):",
-                      );
+                      ));
                       if (alasan && alasan.trim().length >= 5)
                         run(() => batalPindahPos(pending.id, alasan));
                     }}
@@ -369,13 +370,13 @@ export function PerangkatPanel({ data: d }: { data: PanelData }) {
               ) : (
                 <form
                   className="grid gap-3 sm:grid-cols-2"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
                     if (
-                      confirm(
+                      (await tanya(
                         "Kunci POS lama untuk proses pindah? Shift tidak ditutup. Setelah siap, selesaikan perpindahan dari browser ini.",
-                      )
+                      ))
                     )
                       run(() =>
                         mintaPindahPos(

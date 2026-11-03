@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/format";
@@ -110,13 +111,13 @@ function Kartu({ k }: { k: KasTertinggal }) {
       </p>
       <form
         className="grid gap-2 sm:grid-cols-[180px_1fr_auto]"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           if (
             selisih !== 0 &&
-            !confirm(
+            !(await tanya(
               `Uang fisik berbeda ${formatRupiah(selisih)} dari seharusnya. Lanjut tutup?`,
-            )
+            ))
           )
             return;
           start(async () => {

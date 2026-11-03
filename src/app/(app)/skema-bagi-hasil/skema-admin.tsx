@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -119,7 +120,7 @@ export function SkemaAdmin({ skema, outlets }: { skema: Skema[]; outlets: Outlet
                 <button onClick={() => ubah(s, true)} className="rounded-lg border border-stone-300 py-1.5">Salin</button>
                 <button
                   disabled={pending}
-                  onClick={() => confirm(`Hapus skema "${s.nama}"?`) && run(() => hapusSkema(s.id))}
+                  onClick={async () => (await tanya(`Hapus skema "${s.nama}"?`)) && run(() => hapusSkema(s.id))}
                   className="rounded-lg border border-red-200 py-1.5 text-red-600"
                 >
                   Hapus

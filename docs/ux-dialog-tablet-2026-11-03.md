@@ -1,0 +1,4 @@
+# UX tahap 1–2 — 3 November 2026
+
+1. **Popup bawaan diganti**: semua `confirm()/prompt()/alert()` (61 tempat) memakai `src/components/dialog-tanya.tsx` → `await tanya(pesan, {judul, ya, bahaya})`, `await minta(pesan, {placeholder, wajib})` (null bila batal), `await kabar(pesan)`. Host `<DialogTanya />` dipasang di `src/app/layout.tsx`. Lembar bawah di HP, kotak di tengah di layar lebar; tombol merah otomatis untuk kata hapus/batalkan/tolak/void. Jangan pakai `confirm/prompt/alert` lagi. Kasus link opname: preventDefault dulu lalu navigasi setelah konfirmasi.
+2. **Menu tablet POS**: Kas & Pengeluaran (header, kartu angka laci/pusat/transaksi, tombol Ubah/Hapus, kotak Tunai seharusnya), Stok (header live di `stok-realtime-view`, dipakai juga admin), Slip Gaji (header + kosong), Penerimaan belanja. Ruang Karyawan HP sudah memakai kit `components/staf/ui` (tetap).

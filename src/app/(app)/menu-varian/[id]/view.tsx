@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -67,12 +68,12 @@ export function VarianMenuView({ menu, kemasan: awalK, opsi: awalO, bahan, resep
   const ubahO = (o: OpsiInput, v: Partial<OpsiInput>) => (ubah(), setOpsi(opsi.map((x) => (x === o ? { ...x, ...v } : x))));
   const tambahO = (grup: GrupOpsi, nama = "") => (ubah(), setOpsi([...opsi, { grup, nama, tambahan_harga: 0 }]));
 
-  const simpan = () => {
+  const simpan = async () => {
     const p = { menu_id: menu.id, kemasan: kemasan.map((k) => ({ ...k, nama: k.nama.trim() })), opsi: opsi.map((o) => ({ ...o, nama: o.nama.trim() })) };
     const salah = cekVarian(p);
     if (salah) return setPesan({ error: salah });
     const hilang = awalK.filter((a) => !kemasan.some((k) => k.id === a.id)).map((a) => a.nama);
-    if (hilang.length && !window.confirm(`Kemasan ${hilang.join(", ")} akan dihapus dari POS. Riwayat penjualan tetap tersimpan. Lanjutkan?`)) return;
+    if (hilang.length && !(await tanya(`Kemasan ${hilang.join(", ")} akan dihapus dari POS. Riwayat penjualan tetap tersimpan. Lanjutkan?`))) return;
     start(async () => {
       try {
         const r = await simpanVarianMenu(p);

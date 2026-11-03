@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { selesaikanProyek } from "@/lib/proyek-actions";
@@ -32,10 +33,10 @@ export function SelesaiProyek({
     return (
       <button
         disabled={busy}
-        onClick={() =>
-          confirm(
+        onClick={async () =>
+          (await tanya(
             "Buka kembali proyek ini? Status kembali menjadi sedang berjalan.",
-          ) && jalan(false)
+          )) && jalan(false)
         }
         className={`${btn} bg-white/20 text-white hover:bg-white/30`}
       >

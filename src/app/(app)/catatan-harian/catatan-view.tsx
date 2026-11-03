@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import {
   RevisiAktualKas,
@@ -384,10 +385,10 @@ export function CatatanHarian({
           <span className="flex gap-1">
             <button
               disabled={pending}
-              onClick={() =>
-                confirm(
+              onClick={async () =>
+                (await tanya(
                   "Isi ulang data simulasi bulan ini untuk outlet ini? Data simulasi lama outlet ini diganti.",
-                ) && run(() => isiDataSimulasi(outletId), undefined, true)
+                )) && run(() => isiDataSimulasi(outletId), undefined, true)
               }
               className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
             >
@@ -395,8 +396,8 @@ export function CatatanHarian({
             </button>
             <button
               disabled={pending}
-              onClick={() =>
-                confirm("Hapus semua data simulasi outlet ini?") &&
+              onClick={async () =>
+                (await tanya("Hapus semua data simulasi outlet ini?")) &&
                 run(() => hapusDataSimulasi(outletId), undefined, true)
               }
               className="rounded-lg border border-violet-300 px-3 py-2 text-xs font-semibold text-violet-700 disabled:opacity-50"
@@ -633,8 +634,8 @@ export function CatatanHarian({
                             )}
                             <button
                               disabled={pending}
-                              onClick={() =>
-                                confirm("Hapus input manual ini?") &&
+                              onClick={async () =>
+                                (await tanya("Hapus input manual ini?")) &&
                                 run(() => hapusManual(m.id))
                               }
                               className="text-red-600"
@@ -705,8 +706,8 @@ export function CatatanHarian({
                           </button>
                           <button
                             disabled={pending}
-                            onClick={() =>
-                              confirm("Hapus pengeluaran ini?") &&
+                            onClick={async () =>
+                              (await tanya("Hapus pengeluaran ini?")) &&
                               run(() => hapusPengeluaran(b.id))
                             }
                             className="rounded px-1.5 text-red-600"
@@ -772,10 +773,10 @@ export function CatatanHarian({
                           </span>
                           <button
                             disabled={pending}
-                            onClick={() =>
-                              confirm(
+                            onClick={async () =>
+                              (await tanya(
                                 "Batalkan catatan produk marketing ini? Stok dikembalikan.",
-                              ) && run(() => hapusProdukKeluar(p.id))
+                              )) && run(() => hapusProdukKeluar(p.id))
                             }
                             className="rounded px-1.5 text-red-600"
                           >

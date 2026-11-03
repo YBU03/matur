@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -178,8 +179,8 @@ export function MutasiView({
           <input value={tCat} onChange={(e) => setTCat(e.target.value)} placeholder="Catatan (opsional), mis. stok UHB habis untuk event" className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" />
           <button
             disabled={pending || !dari || !ke || !items.length || items.some((i) => angka(i.jumlah) <= 0)}
-            onClick={() =>
-              confirm(`Pindahkan ${items.length} bahan dari ${nama(dari)} ke ${nama(ke)}?`) &&
+            onClick={async () =>
+              (await tanya(`Pindahkan ${items.length} bahan dari ${nama(dari)} ke ${nama(ke)}?`)) &&
               jalankan(
                 () => transferStok(dari, ke, items.map((i) => ({ bahan_id: i.bahan_id, nama: bmap.get(i.bahan_id)!.nama, satuan: bmap.get(i.bahan_id)!.satuan_pakai, jumlah: angka(i.jumlah) })), tCat),
                 () => (setItems([]), setTCat("")),

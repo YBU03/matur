@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -242,8 +243,8 @@ export function ProdukMarketing({
             {spv && (
               <button
                 disabled={pending}
-                onClick={() =>
-                  confirm("Batalkan? Stok dikembalikan.") &&
+                onClick={async () =>
+                  (await tanya("Batalkan? Stok dikembalikan.")) &&
                   run(() => hapusProdukKeluar(p.id))
                 }
                 className="rounded px-1.5 text-red-600"

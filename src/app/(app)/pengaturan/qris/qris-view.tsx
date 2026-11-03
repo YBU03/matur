@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -125,7 +126,7 @@ function Kartu({ o }: { o: OutletQris }) {
               Simpan
             </button>
             {(o.qris_url || o.qris_payload) && (
-              <button disabled={pending} onClick={() => confirm(`Hapus QRIS ${o.nama}?`) && start(async () => { const r = await hapusQris(o.id); setMsg(r); if (!r.error) { setUrl(null); setPayload(""); setDinamis(false); router.refresh(); } })} className="rounded-xl border border-red-300 px-4 py-2 font-semibold text-red-600">
+              <button disabled={pending} onClick={async () => (await tanya(`Hapus QRIS ${o.nama}?`)) && start(async () => { const r = await hapusQris(o.id); setMsg(r); if (!r.error) { setUrl(null); setPayload(""); setDinamis(false); router.refresh(); } })} className="rounded-xl border border-red-300 px-4 py-2 font-semibold text-red-600">
                 Hapus
               </button>
             )}

@@ -1,4 +1,6 @@
 "use client";
+import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, tombolAksi } from "@/components/ui-halaman";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -95,16 +97,22 @@ export function KasView({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Kas & Pengeluaran</h1>
-        <p className="text-sm text-stone-500">
-          {outletNama} · {formatTanggal(new Date().toISOString())}
-        </p>
-      </div>
+      <HeaderHalaman judul="Kas & Pengeluaran" ikon="💰" keterangan="Catat uang keluar dari laci atau yang dibayar pusat, lalu tutup shift dengan hitungan uang fisik.">
+        <ChipHeader>🏪 {outletNama}</ChipHeader>
+        <ChipHeader>📅 {formatTanggal(new Date().toISOString())}</ChipHeader>
+      </HeaderHalaman>
+      <BarisAngka>
+        <KartuAngka label="Pengeluaran hari ini" nilai={catatan.length} ikon="🧾" sub="catatan" />
+        <KartuAngka label="Dari laci" nilai={formatRupiah(totalLaci)} ikon="🗄️" nada="kuning" sub="mengurangi uang laci" />
+        <KartuAngka label="Dibayar pusat" nilai={formatRupiah(totalPusat)} ikon="🏢" nada="biru" sub="tidak dari laci" />
+        <KartuAngka label="Transaksi shift" nilai={ringkas?.transaksi ?? 0} ikon="☕" nada="hijau" sub={ringkas ? `tunai ${formatRupiah(ringkas.tunai)}` : "kas belum dibuka"} />
+      </BarisAngka>
       {msg && (
         <p
-          className={`rounded-lg px-3 py-2 text-sm ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+          role="status"
+          className={`rounded-2xl px-4 py-3 text-sm font-medium ${msg.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
         >
+          {msg.error ? "⚠️ " : "✅ "}
           {msg.error ?? msg.ok}
         </p>
       )}
@@ -126,10 +134,10 @@ export function KasView({
         onSimpan={(d, reset) => run(() => catatPengeluaran(d), reset)}
       />
 
-      <section className="rounded-2xl border border-matur-200 bg-white p-4">
+      <section className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
-          <h2 className="mr-auto font-bold">
-            Pengeluaran hari ini ({catatan.length})
+          <h2 className="mr-auto text-base font-bold text-kopi-900">
+            🧾 Pengeluaran hari ini ({catatan.length})
           </h2>
           <span className="text-xs text-stone-500">
             dari laci <b>{formatRupiah(totalLaci)}</b> · dibayar pusat{" "}
@@ -137,7 +145,9 @@ export function KasView({
           </span>
         </div>
         {catatan.length === 0 && (
-          <p className="py-3 text-sm text-stone-400">Belum ada pengeluaran.</p>
+          <p className="my-2 rounded-2xl border-2 border-dashed border-matur-200 py-6 text-center text-sm text-stone-500">
+            Belum ada pengeluaran hari ini.
+          </p>
         )}
         <ul className="divide-y">
           {catatan.map((c) => {
@@ -172,21 +182,21 @@ export function KasView({
                   <span className="flex shrink-0">
                     <button
                       onClick={() => (setMsg(null), setUbah(c))}
-                      className="rounded-lg px-2 py-1 text-matur-700 hover:bg-matur-50"
+                      className={tombolAksi.edit}
                       title="Ubah"
                     >
-                      ✏️
+                      ✏️ Ubah
                     </button>
                     <button
                       disabled={pending}
-                      onClick={() =>
-                        confirm("Hapus pengeluaran ini?") &&
+                      onClick={async () =>
+                        (await tanya("Hapus pengeluaran ini?")) &&
                         run(() => hapusPengeluaran(c.id))
                       }
-                      className="rounded-lg px-2 py-1 text-red-600 hover:bg-red-50"
+                      className={`${tombolAksi.hapus} ml-1.5`}
                       title="Hapus"
                     >
-                      🗑
+                      🗑 Hapus
                     </button>
                   </span>
                 )}
@@ -249,8 +259,8 @@ function TutupShift({
   const seharusnya = ringkas.tunai - ringkas.laci;
   const selisih = aktual ? angka(aktual) - seharusnya : null;
   return (
-    <section className="space-y-3 rounded-2xl border-2 border-kopi-700 bg-white p-4">
-      <h2 className="font-bold">
+    <section className="space-y-3 rounded-2xl border-2 border-kopi-700 bg-white p-4 shadow-sm sm:p-5">
+      <h2 className="text-base font-bold text-kopi-900">🔒 
         Shift {sesi.nama} · buka{" "}
         {new Date(sesi.dibuka).toLocaleTimeString("id-ID", {
           hour: "2-digit",
@@ -266,8 +276,8 @@ function TutupShift({
           ["Pengeluaran dari laci", formatRupiah(-ringkas.laci)],
           ["Tunai seharusnya", formatRupiah(seharusnya)],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-stone-50 px-3 py-2">
-            <dt className="text-xs text-stone-500">{k}</dt>
+          <div key={k} className={`rounded-xl px-3 py-2 ${k === "Tunai seharusnya" ? "bg-kopi-900 text-white" : "bg-stone-50"}`}>
+            <dt className={`text-xs ${k === "Tunai seharusnya" ? "text-white/70" : "text-stone-500"}`}>{k}</dt>
             <dd className="font-bold tabular-nums">{v}</dd>
           </div>
         ))}
@@ -307,12 +317,12 @@ function TutupShift({
       )}
       <button
         disabled={pending || !aktual || (perluPin && pin.length < 4)}
-        onClick={() =>
-          confirm(
+        onClick={async () =>
+          (await tanya(
             `Tutup shift ${sesi.nama} dengan setoran ${formatRupiah(angka(aktual))}?`,
-          ) && onTutup(angka(aktual), pin)
+          )) && onTutup(angka(aktual), pin)
         }
-        className="w-full rounded-xl bg-kopi-900 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-xl bg-kopi-900 py-3.5 text-base font-bold text-white shadow-sm hover:bg-kopi-700 disabled:opacity-50"
       >
         🔒 Tutup shift & serah terima
       </button>

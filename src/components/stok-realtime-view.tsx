@@ -1,4 +1,5 @@
 "use client";
+import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -87,18 +88,15 @@ export function StokRealtimeView({
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <LiveRefresh pantau={pantau} cadanganDetik={45} />
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="mr-auto">
-          <h1 className="text-2xl font-bold">{judul}</h1>
-          <p className="flex items-center gap-1.5 text-sm text-stone-500">
-            <span className="relative flex size-2.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex size-2.5 rounded-full bg-green-500" />
-            </span>
-            Langsung — berkurang otomatis tiap transaksi kasir {waktu && `· diperbarui ${waktu}`}
-          </p>
-        </div>
-      </div>
+      <HeaderHalaman judul={judul} ikon="📦" keterangan="Langsung berkurang otomatis setiap transaksi kasir. Merah = habis/kritis, kuning = menipis.">
+        <ChipHeader>
+          <span className="relative mr-1 inline-flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-300 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-green-400" />
+          </span>
+          Live{waktu ? ` · diperbarui ${waktu}` : ""}
+        </ChipHeader>
+      </HeaderHalaman>
 
       {lokasi.length > 1 && (
         <div className="-mx-4 overflow-x-auto px-4">

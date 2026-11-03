@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -272,7 +273,7 @@ export function OpnameGudang({
           {edit && (
             <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-2 rounded-2xl border border-matur-200 bg-white/95 p-3 shadow-lg backdrop-blur print:hidden">
               <p className="w-full text-xs text-stone-600 sm:mr-auto sm:w-auto">{dirty ? <b className="text-amber-700">● Ada perubahan belum disimpan</b> : "✓ Draft tersimpan · stok gudang belum berubah"}</p>
-              <button type="button" disabled={busy} onClick={() => window.confirm("Batalkan draft opname ini? Stok tidak berubah.") && run("batal")} className="rounded-xl px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">
+              <button type="button" disabled={busy} onClick={async () => (await tanya("Batalkan draft opname ini? Stok tidak berubah.")) && run("batal")} className="rounded-xl px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">
                 Batalkan
               </button>
               <button type="button" disabled={busy || !dirty} onClick={() => run("simpan")} className="flex-1 whitespace-nowrap rounded-xl border border-matur-300 px-3 py-2 text-sm font-semibold text-kopi-800 disabled:opacity-50 sm:flex-none">
@@ -323,8 +324,10 @@ export function OpnameGudang({
               <Link
                 key={x.id}
                 href={"/gudang/opname?id=" + x.id}
-                onClick={(e) => {
-                  if (dirty && !window.confirm("Tinggalkan isian yang belum disimpan?")) e.preventDefault();
+                onClick={async (e) => {
+                  if (!dirty) return;
+                  e.preventDefault();
+                  if (await tanya("Tinggalkan isian yang belum disimpan?", { ya: "Tinggalkan" })) window.location.assign("/gudang/opname?id=" + x.id);
                 }}
                 className={`flex items-center gap-3 rounded-2xl border bg-white p-3 shadow-sm hover:border-matur-300 ${aktif ? "border-matur-400 ring-2 ring-matur-100" : "border-matur-100"}`}
               >

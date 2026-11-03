@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -296,10 +297,10 @@ export function PenggajianView({
               {bisaUbah && penggajian && !final && slips.length > 0 && (
                 <button
                   disabled={pending}
-                  onClick={() =>
-                    confirm(
+                  onClick={async () =>
+                    (await tanya(
                       `Finalkan gaji ${namaBulan(bulan)} sebesar ${formatRupiah(total)}? Slip terkunci, staf bisa melihat slipnya, dan total masuk ke Biaya Gaji laporan.`,
-                    ) && jalankan(() => finalkanPenggajian(penggajian.id))
+                    )) && jalankan(() => finalkanPenggajian(penggajian.id))
                   }
                   className="flex-1 rounded-xl bg-kopi-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-kopi-700 disabled:opacity-50 sm:flex-none"
                 >
@@ -309,10 +310,10 @@ export function PenggajianView({
               {bisaUbah && final && (
                 <button
                   disabled={pending}
-                  onClick={() =>
-                    confirm(
+                  onClick={async () =>
+                    (await tanya(
                       "Buka kembali penggajian ini? Biaya gaji di laporan ditarik sampai difinalkan lagi.",
-                    ) && jalankan(() => bukaPenggajian(penggajian!.id))
+                    )) && jalankan(() => bukaPenggajian(penggajian!.id))
                   }
                   className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 sm:flex-none"
                 >

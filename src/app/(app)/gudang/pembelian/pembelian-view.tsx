@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -144,7 +145,7 @@ export function PembelianView({
 
       {draft && (
         <div className="flex flex-wrap justify-end gap-2">
-          <button disabled={pending} onClick={() => confirm("Batalkan pembelian ini?") && jalankan(() => batalPembelian(g.id))} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+          <button disabled={pending} onClick={async () => (await tanya("Batalkan pembelian ini?")) && jalankan(() => batalPembelian(g.id))} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
             Batalkan
           </button>
           <button disabled={pending} onClick={() => jalankan(simpan)} className="rounded-xl border border-matur-300 bg-white px-4 py-2 text-sm font-semibold text-matur-700 hover:bg-matur-50">
@@ -152,8 +153,8 @@ export function PembelianView({
           </button>
           <button
             disabled={pending || !rows.length}
-            onClick={() =>
-              confirm(`Tandai barang sudah diterima? Stok gudang bertambah ${rows.length} bahan, total ${formatRupiah(total)}.`) &&
+            onClick={async () =>
+              (await tanya(`Tandai barang sudah diterima? Stok gudang bertambah ${rows.length} bahan, total ${formatRupiah(total)}.`)) &&
               jalankan(async () => {
                 const r = await simpan();
                 return r.error ? r : terimaPembelian(g.id);

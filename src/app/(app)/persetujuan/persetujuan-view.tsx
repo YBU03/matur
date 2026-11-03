@@ -1,4 +1,5 @@
 "use client";
+import { minta } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -56,8 +57,8 @@ export function PersetujuanView({ outlets, nama, stafOutlet, izin, tukar }: { ou
       setMsg(await f());
       router.refresh();
     });
-  const tolak = (f: (alasan: string) => Promise<Result>) => {
-    const alasan = prompt("Alasan penolakan (wajib, terlihat oleh staf):");
+  const tolak = async (f: (alasan: string) => Promise<Result>) => {
+    const alasan = (await minta("Alasan penolakan (wajib, terlihat oleh staf):"));
     if (alasan?.trim()) jalankan(() => f(alasan));
   };
 

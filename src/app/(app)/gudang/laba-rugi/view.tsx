@@ -1,4 +1,5 @@
 "use client";
+import { minta } from "@/components/dialog-tanya";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -591,10 +592,10 @@ export function LabaGudang({
                       disabled={busy}
                       aria-label={"Batalkan biaya " + b.keterangan}
                       className="rounded-lg px-2 py-1 text-xs font-semibold text-stone-500 hover:bg-red-50 hover:text-red-700 print:hidden"
-                      onClick={() => {
-                        const alasan = window.prompt(
+                      onClick={async () => {
+                        const alasan = (await minta(
                           "Alasan membatalkan biaya ini (riwayat tetap disimpan):",
-                        );
+                        ));
                         if (!alasan) return;
                         start(async () => {
                           try {

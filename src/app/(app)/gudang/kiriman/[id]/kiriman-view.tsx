@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 import {
   PreviewDokumen,
   usePreviewDokumen,
@@ -233,8 +234,8 @@ export function KirimanView({
         <div className="grid grid-cols-2 gap-2">
           <button
             disabled={pending}
-            onClick={() =>
-              confirm("Batalkan kiriman draft ini?") && run(() => batal(k.id))
+            onClick={async () =>
+              (await tanya("Batalkan kiriman draft ini?")) && run(() => batal(k.id))
             }
             className="rounded-xl border border-red-200 bg-white py-3 text-sm font-semibold text-red-600"
           >
@@ -242,10 +243,10 @@ export function KirimanView({
           </button>
           <button
             disabled={pending || !items.length}
-            onClick={() =>
-              confirm(
+            onClick={async () =>
+              (await tanya(
                 `Kirim ${items.length} barang ke ${k.outlet?.nama}? Stok gudang akan dikurangi.`,
-              ) && run(() => kirim(k.id))
+              )) && run(() => kirim(k.id))
             }
             className="rounded-xl bg-matur-500 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
@@ -266,8 +267,8 @@ export function KirimanView({
       {gudang && k.status === "dikirim" && (
         <button
           disabled={pending}
-          onClick={() =>
-            confirm("Batalkan kiriman ini? Stok dikembalikan ke gudang.") &&
+          onClick={async () =>
+            (await tanya("Batalkan kiriman ini? Stok dikembalikan ke gudang.")) &&
             run(() => batal(k.id))
           }
           className="w-full rounded-xl border border-red-200 bg-white py-2.5 text-sm text-red-600"
@@ -509,8 +510,8 @@ function TerimaForm({
       )}
       <button
         disabled={pending || items.some((i) => !(angka(qty[i.id] ?? "") >= 0))}
-        onClick={() =>
-          confirm(`Konfirmasi kiriman ${k.nomor} sudah diterima?`) &&
+        onClick={async () =>
+          (await tanya(`Konfirmasi kiriman ${k.nomor} sudah diterima?`)) &&
           onTerima(
             items.map((i) => ({ id: i.id, qty_diterima: angka(qty[i.id]) })),
             nama,

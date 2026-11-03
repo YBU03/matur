@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import Image from "next/image";
 import { useState, useTransition } from "react";
@@ -9,8 +10,8 @@ export function MaintenanceToggle({ aktif, pesan }: { aktif: boolean; pesan: str
   const [teks, setTeks] = useState(pesan ?? "");
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  const ubah = (v: boolean) =>
-    (!v || confirm("Nyalakan maintenance? Semua pengguna selain owner & admin pusat akan melihat layar maintenance.")) &&
+  const ubah = async (v: boolean) =>
+    (!v || (await tanya("Nyalakan maintenance? Semua pengguna selain owner & admin pusat akan melihat layar maintenance."))) &&
     start(async () => {
       const r = await aturMaintenance(v, teks);
       setErr(r.error ?? "");

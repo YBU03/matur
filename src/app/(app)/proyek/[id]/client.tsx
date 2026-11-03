@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -206,8 +207,8 @@ export function DesainGallery({ proyekId, admin, items }: { proyekId: string; ad
             )}
             {admin && (
               <button
-                onClick={() =>
-                  confirm("Hapus gambar desain ini?") &&
+                onClick={async () =>
+                  (await tanya("Hapus gambar desain ini?")) &&
                   start(async () => {
                     const r = await hapusDesain(proyekId, open.id);
                     setMsg(r);

@@ -1,4 +1,5 @@
 "use client";
+import { HeaderHalaman, Kosong } from "@/components/ui-halaman";
 
 import { useState } from "react";
 import { namaBulan, type SlipPdf } from "@/app/(app)/penggajian/slip-pdf";
@@ -15,10 +16,10 @@ export function SlipSaya({ slips, perusahaan }: { slips: SlipStaf[]; perusahaan:
   };
   return (
     <div className="mx-auto max-w-lg space-y-3">
-      <h1 className="text-xl font-bold">Slip Gaji Saya</h1>
-      {slips.length === 0 && <p className="rounded-2xl border border-matur-200 bg-white p-6 text-center text-sm text-stone-500">Belum ada slip gaji. Slip muncul setelah HRD memfinalkan gaji bulanan.</p>}
+      <HeaderHalaman judul="Slip Gaji Saya" ikon="🧾" keterangan="Slip muncul setelah HRD memfinalkan gaji bulanan. Ketuk bulan untuk melihat rincian." />
+      {slips.length === 0 && <Kosong ikon="🧾" judul="Belum ada slip gaji">Slip muncul setelah HRD memfinalkan gaji bulanan.</Kosong>}
       {slips.map((x) => (
-        <div key={x.id} className="rounded-2xl border border-matur-200 bg-white p-4">
+        <div key={x.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${buka === x.id ? "border-matur-300" : "border-matur-100"}`}>
           <button onClick={() => setBuka(buka === x.id ? "" : x.id)} className="flex w-full items-center justify-between text-left">
             <span className="font-semibold">{namaBulan(x.bulan)}</span>
             <b className="tabular-nums">{formatRupiah(x.total)}</b>

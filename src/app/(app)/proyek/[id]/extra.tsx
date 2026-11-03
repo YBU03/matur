@@ -1,4 +1,5 @@
 "use client";
+import { kabar, tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -18,11 +19,11 @@ export function PakaiTanggal({ proyekId, jenis, tanggal }: { proyekId: string; j
   return (
     <button
       disabled={pending}
-      onClick={() =>
-        confirm(`Tetapkan ${jenis} pada ${formatTanggal(tanggal)}?`) &&
+      onClick={async () =>
+        (await tanya(`Tetapkan ${jenis} pada ${formatTanggal(tanggal)}?`)) &&
         start(async () => {
           const r = await tetapkanOpening(proyekId, jenis, tanggal);
-          if (r.error) alert(r.error);
+          if (r.error) (await kabar(r.error));
           router.refresh();
         })
       }
@@ -51,7 +52,7 @@ export function CentangChecklist({ proyekId, item, admin }: { proyekId: string; 
       });
       if (r.error) {
         setVal(!next);
-        alert(r.error);
+        (await kabar(r.error));
       }
       router.refresh();
     });
@@ -145,8 +146,8 @@ export function DokumenPanel({ proyekId, admin, items }: { proyekId: string; adm
               {admin && (
                 <button
                   disabled={pending}
-                  onClick={() =>
-                    confirm(`Hapus dokumen "${d.judul}"?`) &&
+                  onClick={async () =>
+                    (await tanya(`Hapus dokumen "${d.judul}"?`)) &&
                     start(async () => {
                       setMsg(await hapusDokumen(proyekId, d.id));
                       router.refresh();
@@ -201,8 +202,8 @@ export function Diskusi({ proyekId, userId, admin, items }: { proyekId: string; 
                   {formatTanggal(k.created_at, true)}
                   {(mine || admin) && (
                     <button
-                      onClick={() =>
-                        confirm("Hapus pesan ini?") &&
+                      onClick={async () =>
+                        (await tanya("Hapus pesan ini?")) &&
                         start(async () => {
                           setMsg(await hapusKomentar(proyekId, k.id));
                           router.refresh();

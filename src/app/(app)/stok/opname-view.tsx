@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -364,10 +365,10 @@ export function OpnameView({
         )}
         <button
           disabled={pending || invalid || !terisi.length}
-          onClick={() =>
-            confirm(
+          onClick={async () =>
+            (await tanya(
               `Simpan ${jenis === "awal" ? "stok awal" : "opname"} ${terisi.length} bahan di ${outletNama}? Stok outlet akan disesuaikan dengan hasil hitung.`,
-            ) &&
+            )) &&
             start(async () => {
               const ket =
                 `${jenis === "awal" ? "[Stok awal]" : "[Opname]"} ${catatan}`.trim();

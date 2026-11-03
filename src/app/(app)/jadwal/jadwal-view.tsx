@@ -1,4 +1,5 @@
 "use client";
+import { tanya } from "@/components/dialog-tanya";
 
 import { hariLibur, rekapLibur } from "@/lib/jadwal/hari-libur";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -511,11 +512,11 @@ function Kalender(p: Props & Aksi) {
     "min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2.5 py-2 text-xs text-kopi-900 outline-none focus:border-matur-400";
   const tambahBtn =
     "grid size-9 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 hover:bg-violet-200 disabled:opacity-40";
-  const hapusDariShift = (j: Jadwal) => {
+  const hapusDariShift = async (j: Jadwal) => {
     if (
-      !confirm(
+      !(await tanya(
         `Lepas ${nama.get(j.pengguna_id) ?? "staf"} dari ${namaShift.get(j.shift_id) ?? "shift"} ${j.tanggal}?`,
-      )
+      ))
     )
       return;
     p.jalankan(() =>
@@ -730,9 +731,9 @@ function Kalender(p: Props & Aksi) {
                   <button
                     type="button"
                     disabled={p.pending}
-                    onClick={() => {
+                    onClick={async () => {
                       if (iz) {
-                        if (confirm(`Batalkan libur ${nama.get(id) ?? ""} pada ${d}?`)) p.jalankan(() => batalIzinAtasan(iz.id));
+                        if ((await tanya(`Batalkan libur ${nama.get(id) ?? ""} pada ${d}?`))) p.jalankan(() => batalIzinAtasan(iz.id));
                       } else setLiburAksi({ d, id, mode: "masuk", shiftId: aktif[0]?.id ?? "" });
                     }}
                     className={`${ikonBtn} hover:text-red-600`}
@@ -769,7 +770,7 @@ function Kalender(p: Props & Aksi) {
                   <button
                     type="button"
                     disabled={p.pending}
-                    onClick={() => confirm(`Batalkan ${JENIS_IZIN[i.jenis].toLowerCase()} ${nama.get(i.pengguna_id) ?? ""} pada ${d}?`) && p.jalankan(() => batalIzinAtasan(i.id))}
+                    onClick={async () => (await tanya(`Batalkan ${JENIS_IZIN[i.jenis].toLowerCase()} ${nama.get(i.pengguna_id) ?? ""} pada ${d}?`)) && p.jalankan(() => batalIzinAtasan(i.id))}
                     className={`${ikonBtn} hover:text-red-600`}
                     title="Batalkan"
                     aria-label={`Batalkan ${JENIS_IZIN[i.jenis]} ${nama.get(i.pengguna_id) ?? ""}`}
@@ -809,11 +810,11 @@ function Kalender(p: Props & Aksi) {
                 <button
                   type="button"
                   disabled={p.pending || !fl.id}
-                  onClick={() => {
+                  onClick={async () => {
                     const n = nama.get(fl.id) ?? "staf";
                     if (
                       punyaShift(fl.id) &&
-                      !confirm(`${n} punya shift pada ${d}. Tandai ${JENIS_IZIN[fl.jenis].toLowerCase()}? Shift orang itu di tanggal tsb dilepas.`)
+                      !(await tanya(`${n} punya shift pada ${d}. Tandai ${JENIS_IZIN[fl.jenis].toLowerCase()}? Shift orang itu di tanggal tsb dilepas.`))
                     )
                       return;
                     p.jalankan(
@@ -902,12 +903,12 @@ function Kalender(p: Props & Aksi) {
         )}
         <button
           disabled={p.pending || !range}
-          onClick={() =>
+          onClick={async () =>
             range &&
             (!draft ||
-              confirm(
+              (await tanya(
                 "Draft di rentang pilihan akan disusun ulang, termasuk perubahan manual. Jadwal terbit tetap dipertahankan. Lanjutkan?",
-              )) &&
+              ))) &&
             p.jalankan(() =>
               generateJadwal(p.outlet.id, range.start, range.end),
             )
@@ -918,10 +919,10 @@ function Kalender(p: Props & Aksi) {
         </button>
         <button
           disabled={p.pending || !draft}
-          onClick={() =>
-            confirm(
+          onClick={async () =>
+            (await tanya(
               `Terbitkan ${draft} jadwal draft bulan ini? Staf akan melihatnya.`,
-            ) && p.jalankan(() => terbitkanJadwal(p.outlet.id, start, end))
+            )) && p.jalankan(() => terbitkanJadwal(p.outlet.id, start, end))
           }
           className="rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
         >
@@ -930,8 +931,8 @@ function Kalender(p: Props & Aksi) {
         {!!draft && (
           <button
             disabled={p.pending}
-            onClick={() =>
-              confirm("Hapus semua draft bulan ini?") &&
+            onClick={async () =>
+              (await tanya("Hapus semua draft bulan ini?")) &&
               p.jalankan(() => hapusDraft(p.outlet.id, start, end))
             }
             className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-700"
@@ -1258,12 +1259,12 @@ function Kalender(p: Props & Aksi) {
                   <button
                     key={jn}
                     disabled={p.pending}
-                    onClick={() => {
+                    onClick={async () => {
                       const e = edit;
                       if (
-                        !confirm(
+                        !(await tanya(
                           `Tandai ${nama.get(e.j.pengguna_id)} ${JENIS_IZIN[jn].toLowerCase()} pada ${e.j.tanggal}? Semua shift orang itu di tanggal tsb dilepas.`,
-                        )
+                        ))
                       )
                         return;
                       p.jalankan(
@@ -1285,12 +1286,12 @@ function Kalender(p: Props & Aksi) {
                 ))}
                 <button
                   disabled={p.pending}
-                  onClick={() => {
+                  onClick={async () => {
                     const e = edit;
                     if (
-                      !confirm(
+                      !(await tanya(
                         `Hapus ${nama.get(e.j.pengguna_id)} dari ${namaShift.get(e.j.shift_id)} ${e.j.tanggal}?`,
-                      )
+                      ))
                     )
                       return;
                     p.jalankan(
@@ -1404,12 +1405,12 @@ function Kalender(p: Props & Aksi) {
               ) : (
                 <button
                   disabled={p.pending}
-                  onClick={() => {
+                  onClick={async () => {
                     const x = izinAksi;
                     if (
-                      !confirm(
+                      !(await tanya(
                         "Batalkan izin/libur ini? Jadwalnya perlu ditambahkan lagi bila orang itu jadi masuk.",
-                      )
+                      ))
                     )
                       return;
                     p.jalankan(

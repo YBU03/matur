@@ -1,4 +1,5 @@
 "use client";
+import { kabar } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -14,7 +15,7 @@ export function PilihMenu({ id, value, opsi }: { id: string; value: string | nul
       onChange={(e) =>
         start(async () => {
           const r = await hubungkanHpp(id, e.target.value || null);
-          if (r.error) alert(r.error);
+          if (r.error) (await kabar(r.error));
           router.refresh();
         })
       }
