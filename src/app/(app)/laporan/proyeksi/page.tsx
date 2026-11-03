@@ -1,3 +1,4 @@
+import { tglOperasional } from "@/lib/hari-operasional";
 import { notFound } from "next/navigation";
 import { totalBulan, type Manual, type PosHari } from "@/lib/harian";
 import { LAPORAN_COLS, type Laporan, type Proyeksi } from "@/lib/laporan";
@@ -7,38 +8,161 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { ProyeksiForm } from "./proyeksi-form";
 
 // Proyeksi laporan bulanan otomatis dari POS (penjualan), gudang (kiriman diterima) dan biaya operasional harian
-export default async function ProyeksiLaporan({ searchParams }: { searchParams: Promise<{ outlet?: string; bulan?: string; sim?: string }> }) {
+export default async function ProyeksiLaporan({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    outlet?: string;
+    bulan?: string;
+    sim?: string;
+    sumber?: string;
+    reset?: string;
+  }>;
+}) {
   const s = await getSession();
-  if (!s?.active || !["owner", "admin_pusat", "finance"].includes(s.active.role)) notFound();
+  if (
+    !s?.active ||
+    !["owner", "admin_pusat", "finance"].includes(s.active.role)
+  )
+    notFound();
   const sp = await searchParams;
   const supabase = await supabaseServer();
-  const { data: outlets } = await supabase.from("outlet").select("id, nama, tgl_mulai, jam_operasional, skema:skema_bagi_hasil(nama, persen_sedekah, rincian)").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
-  const daftar = (outlets ?? []) as unknown as { id: string; nama: string; skema: { nama: string; persen_sedekah: number; rincian: Rincian[] } | null }[];
+  const { data: outlets } = await supabase
+    .from("outlet")
+    .select(
+      "id, nama, tgl_mulai, jam_operasional, skema:skema_bagi_hasil(nama, persen_sedekah, rincian)",
+    )
+    .eq("mode", "asli")
+    .is("deleted_at", null)
+    .order("tgl_mulai");
+  const daftar = (outlets ?? []) as unknown as {
+    id: string;
+    nama: string;
+    skema: { nama: string; persen_sedekah: number; rincian: Rincian[] } | null;
+  }[];
   const outlet = daftar.find((o) => o.id === sp.outlet) ?? daftar[0];
   if (!outlet) notFound();
-  const kini = new Date(Date.now() + 7 * 3600_000);
-  const bulan = /^\d{4}-\d{2}$/.test(sp.bulan ?? "") ? sp.bulan! : kini.toISOString().slice(0, 7);
+  const bulanKini = tglOperasional(new Date().toISOString()).slice(0, 7);
+  const bulan = /^\d{4}-\d{2}$/.test(sp.bulan ?? "") ? sp.bulan! : bulanKini;
   const periode = `${bulan}-01`;
+  const prevPeriode = new Date(
+    Date.UTC(Number(bulan.slice(0, 4)), Number(bulan.slice(5, 7)) - 2, 1),
+  )
+    .toISOString()
+    .slice(0, 10);
   const sim = sp.sim === "1" && s.active.role === "owner";
 
-  const [{ data: proy }, { data: prev }, { data: sekarang }, { data: kb }, { data: pj }, { data: kar }, { data: pt }, { data: tutup }] = await Promise.all([
-    supabase.rpc("proyeksi_laporan", { p_outlet: outlet.id, p_periode: periode, p_mode: sim ? "simulasi" : "asli" }),
-    supabase.from("laporan_bulanan").select(LAPORAN_COLS).eq("outlet_id", outlet.id).eq("mode", "asli").lt("periode", periode).is("deleted_at", null).order("periode", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("laporan_bulanan").select("id").eq("outlet_id", outlet.id).eq("mode", "asli").eq("periode", periode).is("deleted_at", null).maybeSingle(),
-    supabase.from("kategori_biaya").select("nama, urutan").eq("grup", "beban").order("urutan"),
-    supabase.from("perjanjian").select("modal_outlet, sewa_bulanan, bank, no_rekening, atas_nama, mitra(nama)").eq("outlet_id", outlet.id).eq("mode", "asli").is("deleted_at", null).limit(1).maybeSingle(),
-    supabase.from("karyawan").select("nama, jabatan, is_spv").eq("outlet_id", outlet.id).eq("mode", "asli").eq("status", "aktif").is("deleted_at", null).order("nama"),
-    supabase.from("perusahaan").select("nama, penandatangan_nama, penandatangan_jabatan, kota_terbit").limit(1).maybeSingle(),
-    supabase.from("penutupan_bulan").select("ojol, koreksi_lain, persediaan_akhir, catatan").eq("outlet_id", outlet.id).eq("periode", periode).eq("mode", "asli").maybeSingle(),
+  const [
+    { data: proy, error: proyError },
+    { data: prev },
+    { data: sekarang },
+    { data: kb },
+    { data: pj },
+    { data: kar },
+    { data: pt },
+    { data: tutup },
+    { data: draft, error: draftError },
+    { data: draftPrev },
+  ] = await Promise.all([
+    supabase.rpc("proyeksi_laporan", {
+      p_outlet: outlet.id,
+      p_periode: periode,
+      p_mode: sim ? "simulasi" : "asli",
+    }),
+    supabase
+      .from("laporan_bulanan")
+      .select(LAPORAN_COLS)
+      .eq("outlet_id", outlet.id)
+      .eq("mode", "asli")
+      .eq("periode", prevPeriode)
+      .is("deleted_at", null)
+      .order("periode", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("laporan_bulanan")
+      .select("id")
+      .eq("outlet_id", outlet.id)
+      .eq("mode", "asli")
+      .eq("periode", periode)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("kategori_biaya")
+      .select("nama, urutan")
+      .eq("grup", "beban")
+      .order("urutan"),
+    supabase
+      .from("perjanjian")
+      .select(
+        "modal_outlet, sewa_bulanan, bank, no_rekening, atas_nama, mitra(nama)",
+      )
+      .eq("outlet_id", outlet.id)
+      .eq("mode", "asli")
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle(),
+    supabase.rpc("karyawan_laporan", {
+      p_outlet: outlet.id,
+      p_periode: periode,
+    }),
+    supabase
+      .from("perusahaan")
+      .select("nama, penandatangan_nama, penandatangan_jabatan, kota_terbit")
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("penutupan_bulan")
+      .select("ojol, koreksi_lain, persediaan_akhir, catatan")
+      .eq("outlet_id", outlet.id)
+      .eq("periode", periode)
+      .eq("mode", "asli")
+      .maybeSingle(),
+    supabase
+      .from("laporan_internal")
+      .select("*")
+      .eq("outlet_id", outlet.id)
+      .eq("periode", periode)
+      .maybeSingle(),
+    supabase
+      .from("laporan_internal")
+      .select("snapshot")
+      .eq("outlet_id", outlet.id)
+      .eq("periode", prevPeriode)
+      .maybeSingle(),
   ]);
-  const sebelum = prev as unknown as Laporan | null;
-  const akhirBulan = new Date(Date.UTC(Number(bulan.slice(0, 4)), Number(bulan.slice(5, 7)), 1)).toISOString().slice(0, 10);
+  if (proyError || draftError)
+    throw new Error("Gagal membaca laporan. Muat ulang atau hubungi admin.");
+  const sebelum = (draftPrev?.snapshot ?? prev) as unknown as Laporan | null;
+  const akhirBulan = new Date(
+    Date.UTC(Number(bulan.slice(0, 4)), Number(bulan.slice(5, 7)), 1),
+  )
+    .toISOString()
+    .slice(0, 10);
   const mode = sim ? "simulasi" : "asli";
   // titipan (cheesecake & dessert): yang dibebankan hanya yang terjual × harga produsen
-  const [{ data: rekapTitip }, { data: harian }, { data: manual }, { data: rumus }] = await Promise.all([
+  const [
+    { data: rekapTitip },
+    { data: harian },
+    { data: manual },
+    { data: rumus },
+  ] = await Promise.all([
     supabase.rpc("rekap_titipan", { p_outlet: outlet.id, p_periode: periode }),
-    supabase.rpc("rekap_harian", { p_outlet: outlet.id, p_periode: periode, p_mode: mode }),
-    supabase.from("penjualan_manual").select("id, tanggal, kanal, jenis, jumlah, keterangan, nama_pembuat, created_at").eq("mode", mode).eq("outlet_id", outlet.id).gte("tanggal", periode).lt("tanggal", akhirBulan).is("deleted_at", null),
+    supabase.rpc("rekap_harian", {
+      p_outlet: outlet.id,
+      p_periode: periode,
+      p_mode: mode,
+    }),
+    supabase
+      .from("penjualan_manual")
+      .select(
+        "id, tanggal, kanal, jenis, jumlah, keterangan, nama_pembuat, created_at",
+      )
+      .eq("mode", mode)
+      .eq("outlet_id", outlet.id)
+      .gte("tanggal", periode)
+      .lt("tanggal", akhirBulan)
+      .is("deleted_at", null),
     supabase.from("perusahaan").select("rumus_hpp").limit(1).maybeSingle(),
   ]);
   // angka catatan harian (dashboard platform & koreksi) ikut ke pendapatan awal proyeksi
@@ -47,15 +171,37 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
   const sesudah = totalBulan(pos, (manual ?? []) as Manual[]);
   const tanpa = totalBulan(pos, []);
   const pendapatan = { ...(p0?.pendapatan ?? {}) };
-  for (const k of Object.keys(sesudah) as (keyof typeof sesudah)[]) if (k !== "diskon" && sesudah[k] !== tanpa[k]) pendapatan[k] = (pendapatan[k] ?? 0) + sesudah[k] - tanpa[k];
-  const r = (rumus?.rumus_hpp ?? {}) as { kiriman_gudang?: boolean; titipan?: boolean };
-  const pembelianTanpaKiriman = Object.values(p0?.pembelian_rincian ?? {}).reduce((t, v) => t + Number(v), 0);
+  for (const k of Object.keys(sesudah) as (keyof typeof sesudah)[])
+    if (k !== "diskon" && sesudah[k] !== tanpa[k])
+      pendapatan[k] = (pendapatan[k] ?? 0) + sesudah[k] - tanpa[k];
+  const r = (rumus?.rumus_hpp ?? {}) as {
+    kiriman_gudang?: boolean;
+    titipan?: boolean;
+  };
+  const pembelianTanpaKiriman = Object.values(
+    p0?.pembelian_rincian ?? {},
+  ).reduce((t, v) => t + Number(v), 0);
   const proyFinal: Proyeksi | null = p0
-    ? { ...p0, pendapatan, diskon: p0.diskon + sesudah.diskon - tanpa.diskon, pembelian: r.kiriman_gudang === false ? pembelianTanpaKiriman : p0.pembelian }
+    ? {
+        ...p0,
+        pendapatan,
+        diskon: p0.diskon + sesudah.diskon - tanpa.diskon,
+        pembelian:
+          r.kiriman_gudang === false ? pembelianTanpaKiriman : p0.pembelian,
+      }
     : null;
   return (
     <ProyeksiForm
-      key={`${outlet.id}-${bulan}-${sim}`}
+      key={`${outlet.id}-${bulan}-${sim}-${sp.sumber ?? ""}-${sp.reset ?? ""}`}
+      draft={draft as import("@/lib/laporan-internal").DraftInternal | null}
+      sumberPilih={
+        sp.sumber === "manual"
+          ? "manual"
+          : sp.sumber === "otomatis"
+            ? "otomatis"
+            : undefined
+      }
+      abaikanDraft={sp.reset === "1"}
       outlets={daftar.map((o) => ({ id: o.id, nama: o.nama }))}
       outletId={outlet.id}
       bulan={bulan}
@@ -68,14 +214,46 @@ export default async function ProyeksiLaporan({ searchParams }: { searchParams: 
       skema={outlet.skema}
       perjanjian={
         pj
-          ? { modal: Number(pj.modal_outlet ?? 0), sewa: Number(pj.sewa_bulanan ?? 0), mitra: (pj.mitra as unknown as { nama: string } | null)?.nama ?? null, bank: pj.bank, no_rekening: pj.no_rekening, atas_nama: pj.atas_nama }
+          ? {
+              modal: Number(pj.modal_outlet ?? 0),
+              sewa: Number(pj.sewa_bulanan ?? 0),
+              mitra:
+                (pj.mitra as unknown as { nama: string } | null)?.nama ?? null,
+              bank: pj.bank,
+              no_rekening: pj.no_rekening,
+              atas_nama: pj.atas_nama,
+            }
           : null
       }
-      penutupan={sim ? null : (tutup as { ojol: Record<string, number>; koreksi_lain: number | null; persediaan_akhir: number | null; catatan: string | null } | null)}
-      karyawan={(kar ?? []).map((k) => (k.is_spv ? `${k.nama} (SPV)` : k.nama))}
-      penandatangan={{ nama: pt?.penandatangan_nama ?? null, jabatan: pt?.penandatangan_jabatan ?? null }}
+      penutupan={
+        sim
+          ? null
+          : (tutup as {
+              ojol: Record<string, number>;
+              koreksi_lain: number | null;
+              persediaan_akhir: number | null;
+              catatan: string | null;
+            } | null)
+      }
+      karyawan={(kar ?? []).map((k: { nama: string }) => k.nama)}
+      penandatangan={{
+        nama: pt?.penandatangan_nama ?? null,
+        jabatan: pt?.penandatangan_jabatan ?? null,
+      }}
       namaOutlet={sebelum?.nama_outlet ?? outlet.nama}
-      titipan={r.titipan === false ? [] : ((rekapTitip ?? []) as { nama: string; produsen: string; terjual: number; harga: number; tagihan: number }[]).filter((x) => x.terjual)}
+      titipan={
+        r.titipan === false
+          ? []
+          : (
+              (rekapTitip ?? []) as {
+                nama: string;
+                produsen: string;
+                terjual: number;
+                harga: number;
+                tagihan: number;
+              }[]
+            ).filter((x) => x.terjual)
+      }
     />
   );
 }

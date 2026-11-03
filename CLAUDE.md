@@ -71,3 +71,5 @@ Void langsung POS 2 November: void tanpa PIN (alasan+nama wajib, switch per outl
 Visibilitas Dashboard POS 2 November: switch Owner/Admin Pusat pada `/master/outlet`, kolom `tampil_dashboard_pos`; Demo OFF, Kominot/UHB ON. Hanya tampilan/agregat dashboard, bukan status/login/penghapusan transaksi. Riwayat eksplisit tetap tersedia; Laporan POS memiliki checkbox sertakan outlet tersembunyi. Baca `docs/outlet-dashboard-pos-2026-11-02.md` sebelum mengubah agregat/filter.
 
 Hari operasional 3 November: tutup buku 03.00 WIB (`tgl_op`/`awal_op`, `src/lib/hari-operasional.ts`) untuk omzet & laporan penjualan. Baca `docs/hari-operasional-2026-11-03.md`.
+
+Laporan internal & jadwal Mitra 3 November: baca `docs/laporan-internal-jadwal-mitra-2026-11-03.md`. Draft di `laporan_internal`, angka resmi tetap `laporan_bulanan`; akses Mitra wajib persetujuan + waktu buka. Jangan menyimpan draft di tabel resmi atau menerbitkan impor otomatis.

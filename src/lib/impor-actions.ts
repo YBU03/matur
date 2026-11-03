@@ -3,7 +3,7 @@
 // Impor file Excel Ruma: sheet "Transaksi" → Catatan Harian, sheet "Laporan Keuangan" → Laporan Keuangan bulanan.
 import { revalidatePath } from "next/cache";
 import { KANAL_HARIAN, type KanalHarian } from "./harian";
-import { terbitkanLaporan } from "./laporan-actions";
+import { imporLaporanInternal } from "./laporan-actions";
 import { kategoriUntuk, type HariImpor, type LaporanImpor } from "./ruma-excel";
 import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
@@ -65,7 +65,7 @@ export async function imporHarian(outletId: string, bulan: string, hari: HariImp
 export async function imporLaporan(outletId: string, l: LaporanImpor, ganti: boolean): Promise<Result & { id?: string }> {
   if (!(await bolehAkunting())) return { error: "Hanya Owner / Admin Pusat / Akunting." };
   if (!l.periode) return { error: 'Periode laporan tidak terbaca (baris "Periode Laporan : Per <Bulan> <Tahun>").' };
-  const r = await terbitkanLaporan(
+  const r = await imporLaporanInternal(
     {
       outlet_id: outletId,
       periode: `${l.periode}-01`,
@@ -95,5 +95,5 @@ export async function imporLaporan(outletId: string, l: LaporanImpor, ganti: boo
   if (r.error) return { error: r.error };
   revalidatePath("/laporan");
   revalidatePath("/dashboard");
-  return { ok: "Laporan keuangan diimpor.", id: r.id };
+  return { ok: "Laporan keuangan diimpor sebagai draft internal. Periksa dan jadwalkan sebelum dibagikan ke Mitra.", id: r.id };
 }
