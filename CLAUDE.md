@@ -73,3 +73,5 @@ Visibilitas Dashboard POS 2 November: switch Owner/Admin Pusat pada `/master/out
 Hari operasional 3 November: tutup buku 03.00 WIB (`tgl_op`/`awal_op`, `src/lib/hari-operasional.ts`) untuk omzet & laporan penjualan. Baca `docs/hari-operasional-2026-11-03.md`.
 
 Laporan internal & jadwal Mitra 3 November: baca `docs/laporan-internal-jadwal-mitra-2026-11-03.md`. Draft di `laporan_internal`, angka resmi tetap `laporan_bulanan`; akses Mitra wajib persetujuan + waktu buka. Jangan menyimpan draft di tabel resmi atau menerbitkan impor otomatis.
+
+Gateway BNI 3 November: baca `docs/bni-gateway-matoer-2026-11-03.md`. Get Token/public key/callback di `/api/integrasi/bni/`, Edge `matoer-bni` dengan autentikasi mandiri. Inbox privat, belum rekonsiliasi/lunas POS; jangan menandai transaksi dibayar hanya dari penerimaan callback. Rahasia hanya Vault, tidak di Git.
