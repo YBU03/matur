@@ -2,7 +2,7 @@ import {
   PenerimaanBelanja,
   type BelanjaBahan,
 } from "@/components/penerimaan-belanja";
-import Link from "next/link";
+import { MulaiSoOutlet } from "@/components/mulai-so-outlet";
 import { notFound } from "next/navigation";
 import { StokRealtimeView } from "@/components/stok-realtime-view";
 import { POS_ROLES } from "@/lib/roles";
@@ -34,16 +34,13 @@ export default async function StokKasir() {
     );
   return (
     <div className="space-y-4">
-      <Link
+      <MulaiSoOutlet
         href={
           s.active.role === "tablet"
             ? "/kasir/stok/opname"
             : "/karyawan/stok/opname"
         }
-        className="inline-flex rounded-xl bg-kopi-900 px-4 py-3 font-semibold text-white"
-      >
-        Hitung stok / SO Outlet
-      </Link>
+      />
       <PenerimaanBelanja data={(belanja ?? []) as BelanjaBahan[]} />
       <StokRealtimeView
         judul="Stok Outlet"
