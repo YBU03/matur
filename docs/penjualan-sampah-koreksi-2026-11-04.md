@@ -1,0 +1,7 @@
+# Tong sampah & koreksi penjualan, rekap kas per tanggal shift — 4 November 2026
+
+- **Tong sampah** (Owner/Admin Pusat/Finance, Laporan POS → Penjualan): ikon 🗑 → `hapus_transaksi(p_id, p_alasan)`: status `dihapus` (simpan `status_sebelum`, `dihapus_*`), stok dikembalikan (net mutasi ref, jenis `void`), kas sesi tertutup `seharusnya/kas_seharusnya/selisih` digeser sebesar pembayaran tunai (`koreksi_internal.geser_kas`). Tombol 🗑 Tempat sampah menampilkan isinya; ♻️ Pulihkan → `pulihkan_transaksi` (stok diterapkan ulang jenis `koreksi`, kas dikembalikan). Semua fungsi `status='lunas'` otomatis tidak menghitung `dihapus`; Riwayat tablet menyembunyikannya.
+- **Koreksi** ✏️ → `koreksi_transaksi(p_id, p_kanal, p_metode, p_alasan)` untuk salah klik kanal/metode (metode hanya transaksi satu pembayaran; kas tunai ikut digeser). Tercatat di `log_aktivitas`.
+- **Filter** metode bayar & kategori menu di laporan Penjualan; kolom Kategori; total hanya transaksi lunas.
+- **Rekap kas harian** (`rekap_harian`): kas dikelompokkan per `tanggal_shift` (bukan tanggal tutup), sehingga kas lama 30 Okt–2 Nov tidak masuk 2 Nov.
+- Koreksi data 2 Nov (temuan Akunting): #1 tes print 23.000 ke tempat sampah; #21 GrabFood tunai → grabfood; #38/#39 Ruma App → Langsung; koreksi non tunai +17.000 (mutasi QRIS merchant 744.000). Hasil: tunai 574.000, non tunai 744.000, GoFood 168.000, GrabFood 107.000, TikTok 28.000 (total 1.621.000), setoran 417.000, selisih 0.

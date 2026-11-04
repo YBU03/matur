@@ -77,3 +77,5 @@ Laporan internal & jadwal Mitra 3 November: baca `docs/laporan-internal-jadwal-m
 Gateway BNI 3 November: baca `docs/bni-gateway-matoer-2026-11-03.md`. Get Token/public key/callback di `/api/integrasi/bni/`, Edge `matoer-bni` dengan autentikasi mandiri. Inbox privat, belum rekonsiliasi/lunas POS; jangan menandai transaksi dibayar hanya dari penerimaan callback. Rahasia hanya Vault, tidak di Git.
 
 UX dialog & tablet 3 November: pakai `tanya/minta/kabar` dari `src/components/dialog-tanya.tsx`, bukan confirm/prompt/alert. Baca `docs/ux-dialog-tablet-2026-11-03.md`.
+
+Tong sampah & koreksi penjualan 4 November: `hapus_transaksi`/`pulihkan_transaksi`/`koreksi_transaksi`, status `dihapus`, rekap kas per tanggal shift. Baca `docs/penjualan-sampah-koreksi-2026-11-04.md`.

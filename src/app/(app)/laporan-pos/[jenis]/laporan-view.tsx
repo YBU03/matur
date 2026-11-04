@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { minta, tanya } from "@/components/dialog-tanya";
+import { hapusTransaksi, koreksiTransaksi, pulihkanTransaksi } from "@/lib/transaksi-admin-actions";
 import {
   Bar,
   BarChart,
@@ -99,12 +101,40 @@ export function LaporanView(p: {
   err: string | null;
   sim: boolean;
   bolehSim: boolean;
+  /** Owner/Admin Pusat/Finance: tong sampah & koreksi transaksi */
+  bisaKoreksi?: boolean;
 }) {
   const lap = LAPORAN[p.jenis];
   const router = useRouter();
   const [dari, setDari] = useState(p.dari);
   const [sampai, setSampai] = useState(p.sampai);
   const [cari, setCari] = useState("");
+  const isTrx = p.jenis === "transaksi";
+  const [fMetode, setFMetode] = useState("");
+  const [fKategori, setFKategori] = useState("");
+  const [sampah, setSampah] = useState(false);
+  const [koreksi, setKoreksi] = useState<Row | null>(null);
+  const [pesanAksi, setPesanAksi] = useState<{ error?: string; ok?: string } | null>(null);
+  const [aksiBusy, setAksiBusy] = useState(false);
+  const pilihanMetode = useMemo(() => [...new Set(p.rows.flatMap((r) => String(r.metode ?? "").split(" + ").filter(Boolean)))].sort(), [p.rows]);
+  const pilihanKategori = useMemo(() => [...new Set(p.rows.flatMap((r) => String(r.kategori ?? "").split(", ").filter(Boolean)))].sort(), [p.rows]);
+  const jumlahSampah = useMemo(() => p.rows.filter((r) => r.status === "dihapus").length, [p.rows]);
+  const jalankanAksi = async (f: () => Promise<{ error?: string; ok?: string }>) => {
+    setAksiBusy(true);
+    setPesanAksi(null);
+    try {
+      const r = await f();
+      setPesanAksi(r);
+      if (!r.error) {
+        setKoreksi(null);
+        router.refresh();
+      }
+    } catch {
+      setPesanAksi({ error: "Belum berhasil. Periksa koneksi lalu coba lagi." });
+    } finally {
+      setAksiBusy(false);
+    }
+  };
   const [urut, setUrut] = useState<{ k: string; naik: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -147,11 +177,17 @@ export function LaporanView(p: {
 
   const baris = useMemo(() => {
     const q = cari.trim().toLowerCase();
+    let sumber = p.rows;
+    if (isTrx) {
+      sumber = sumber.filter((x) => (sampah ? x.status === "dihapus" : x.status !== "dihapus"));
+      if (fMetode) sumber = sumber.filter((x) => String(x.metode ?? "").split(" + ").includes(fMetode));
+      if (fKategori) sumber = sumber.filter((x) => String(x.kategori ?? "").split(", ").includes(fKategori));
+    }
     let r = q
-      ? p.rows.filter((x) =>
+      ? sumber.filter((x) =>
           lap.kolom.some((k) => tampil(x[k.k], k).toLowerCase().includes(q)),
         )
-      : p.rows;
+      : sumber;
     if (urut)
       r = [...r].sort((a, b) => {
         const x = nilaiUrut(a[urut.k]),
@@ -159,9 +195,10 @@ export function LaporanView(p: {
         return (x < y ? -1 : x > y ? 1 : 0) * (urut.naik ? 1 : -1);
       });
     return r;
-  }, [p.rows, cari, urut, lap.kolom]);
+  }, [p.rows, cari, urut, lap.kolom, isTrx, sampah, fMetode, fKategori]);
+  // total transaksi hanya menghitung yang lunas (void & tempat sampah tidak dijumlah)
   const total = (k: Kolom) =>
-    baris.reduce((s, x) => s + (Number(x[k.k]) || 0), 0);
+    baris.reduce((s, x) => s + (isTrx && x.status !== "lunas" && x.status !== undefined ? 0 : Number(x[k.k]) || 0), 0);
   const adaTotal =
     !lap.kartu &&
     lap.kolom.some((k) => k.total && (k.tipe === "rp" || k.tipe === "angka"));
@@ -629,8 +666,48 @@ export function LaporanView(p: {
               placeholder="🔍 Cari di laporan…"
               className="min-w-48 flex-1 rounded-lg border px-3 py-2 text-sm"
             />
+            {isTrx && (
+              <>
+                <select value={fMetode} onChange={(e) => setFMetode(e.target.value)} aria-label="Filter metode bayar" className="rounded-lg border px-2 py-2 text-sm">
+                  <option value="">Semua metode bayar</option>
+                  {pilihanMetode.map((m) => (
+                    <option key={m} value={m}>
+                      {LABEL[m] ?? m}
+                    </option>
+                  ))}
+                </select>
+                <select value={fKategori} onChange={(e) => setFKategori(e.target.value)} aria-label="Filter kategori menu" className="rounded-lg border px-2 py-2 text-sm">
+                  <option value="">Semua kategori menu</option>
+                  {pilihanKategori.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                {p.bisaKoreksi && (
+                  <button
+                    type="button"
+                    onClick={() => setSampah(!sampah)}
+                    aria-pressed={sampah}
+                    className={`rounded-lg border px-3 py-2 text-sm font-semibold ${sampah ? "border-red-300 bg-red-50 text-red-700" : "text-stone-600 hover:bg-stone-50"}`}
+                  >
+                    🗑 Tempat sampah{jumlahSampah ? ` (${jumlahSampah})` : ""}
+                  </button>
+                )}
+              </>
+            )}
             <span className="text-xs text-stone-500">{baris.length} baris</span>
           </div>
+          {pesanAksi && (
+            <p role="status" className={`mb-2 rounded-lg px-3 py-2 text-sm ${pesanAksi.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}>
+              {pesanAksi.error ?? pesanAksi.ok}
+            </p>
+          )}
+          {isTrx && sampah && (
+            <p className="mb-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600">
+              Transaksi di tempat sampah tidak dihitung di omzet, kas, dan laporan. Tekan ♻️ Pulihkan untuk mengembalikan.
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-[#C5E0B3]/40 text-left text-xs text-stone-600">
@@ -654,6 +731,7 @@ export function LaporanView(p: {
                       {urut?.k === k.k ? (urut.naik ? " ▲" : " ▼") : ""}
                     </th>
                   ))}
+                  {isTrx && p.bisaKoreksi && <th className="px-2 py-2 text-right font-semibold print:hidden">Aksi</th>}
                 </tr>
               </thead>
               <tbody>
@@ -670,12 +748,45 @@ export function LaporanView(p: {
                         {tampil(r[k.k], k)}
                       </td>
                     ))}
+                    {isTrx && p.bisaKoreksi && (
+                      <td className="whitespace-nowrap px-2 py-1 text-right print:hidden">
+                        {r.status === "dihapus" ? (
+                          <button
+                            type="button"
+                            disabled={aksiBusy || !r.id}
+                            onClick={async () => (await tanya(`Pulihkan transaksi #${r.nomor}? Transaksi kembali dihitung di omzet, kas, dan stok.`, { ya: "Ya, pulihkan", bahaya: false })) && jalankanAksi(() => pulihkanTransaksi(String(r.id)))}
+                            className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
+                          >
+                            ♻️ Pulihkan
+                          </button>
+                        ) : r.status === "lunas" && !r.nomor_sumber ? (
+                          <span className="inline-flex gap-1">
+                            <button type="button" disabled={aksiBusy || !r.id} onClick={() => (setPesanAksi(null), setKoreksi(r))} title="Koreksi kanal / metode bayar" aria-label={`Koreksi transaksi ${r.nomor}`} className="grid size-8 place-items-center rounded-lg text-stone-500 hover:bg-matur-50 hover:text-kopi-900 disabled:opacity-40">
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              disabled={aksiBusy || !r.id}
+                              title="Hapus (pindah ke tempat sampah)"
+                              aria-label={`Hapus transaksi ${r.nomor}`}
+                              onClick={async () => {
+                                const alasan = await minta(`Hapus transaksi #${r.nomor} (${formatRupiah(Number(r.total))})? Transaksi pindah ke tempat sampah dan bisa dipulihkan. Tulis alasannya:`, { judul: "Hapus transaksi", ya: "Ya, hapus", bahaya: true, placeholder: "mis. tes print / input dobel" });
+                                if (alasan) jalankanAksi(() => hapusTransaksi(String(r.id), alasan));
+                              }}
+                              className="grid size-8 place-items-center rounded-lg text-stone-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                            >
+                              🗑
+                            </button>
+                          </span>
+                        ) : null}
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {baris.length === 0 && (
                   <tr>
                     <td
-                      colSpan={lap.kolom.length}
+                      colSpan={lap.kolom.length + (isTrx && p.bisaKoreksi ? 1 : 0)}
                       className="py-8 text-center text-stone-500"
                     >
                       Tidak ada data pada periode ini.
@@ -705,6 +816,79 @@ export function LaporanView(p: {
           </div>
         </section>
       )}
+      {koreksi && (
+        <KoreksiTrx
+          r={koreksi}
+          busy={aksiBusy}
+          pesan={pesanAksi}
+          onBatal={() => setKoreksi(null)}
+          onSimpan={(d) => jalankanAksi(() => koreksiTransaksi(String(koreksi.id), d))}
+        />
+      )}
+    </div>
+  );
+}
+
+const KANAL_KOREKSI = ["langsung", "gofood", "grabfood", "shopeefood", "tiktok", "ruma_app", "tumbler"];
+const METODE_KOREKSI = ["tunai", "qris", "debit", "transfer", "gofood", "grabfood", "shopeefood", "shopeepay", "tiktok"];
+
+function KoreksiTrx({ r, busy, pesan, onBatal, onSimpan }: { r: Row; busy: boolean; pesan: { error?: string } | null; onBatal: () => void; onSimpan: (d: { kanal: string | null; metode: string | null; alasan: string }) => void }) {
+  const kanalAwal = String(r.kanal ?? "");
+  const metodeAwal = String(r.metode ?? "");
+  const satuBayar = !!metodeAwal && !metodeAwal.includes(" + ");
+  const [kanal, setKanal] = useState(kanalAwal);
+  const [metode, setMetode] = useState(metodeAwal);
+  const [alasan, setAlasan] = useState("");
+  const berubah = kanal !== kanalAwal || (satuBayar && metode !== metodeAwal);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onBatal()}>
+      <div role="dialog" aria-modal="true" aria-label="Koreksi transaksi" className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+        <p className="text-lg font-bold text-kopi-900">✏️ Koreksi transaksi #{String(r.nomor)}</p>
+        <p className="mb-4 text-sm text-stone-500">
+          {formatRupiah(Number(r.total))} · {String(r.item ?? "")}
+        </p>
+        <label className="mb-3 block text-xs font-semibold text-stone-500">
+          Kanal penjualan
+          <select value={kanal} onChange={(e) => setKanal(e.target.value)} className="mt-1 block w-full rounded-xl border px-3 py-2.5 text-sm text-kopi-900">
+            {KANAL_KOREKSI.map((k) => (
+              <option key={k} value={k}>
+                {LABEL[k] ?? k}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mb-3 block text-xs font-semibold text-stone-500">
+          Metode bayar
+          <select value={metode} disabled={!satuBayar} onChange={(e) => setMetode(e.target.value)} className="mt-1 block w-full rounded-xl border px-3 py-2.5 text-sm text-kopi-900 disabled:bg-stone-50">
+            {!satuBayar && <option value={metodeAwal}>{metodeAwal || "-"} (split, tidak bisa diubah)</option>}
+            {satuBayar &&
+              METODE_KOREKSI.map((k) => (
+                <option key={k} value={k}>
+                  {LABEL[k] ?? k}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="mb-3 block text-xs font-semibold text-stone-500">
+          Alasan koreksi (wajib)
+          <input value={alasan} onChange={(e) => setAlasan(e.target.value)} maxLength={300} placeholder="mis. salah pilih kanal Ruma App" className="mt-1 block w-full rounded-xl border px-3 py-2.5 text-sm text-kopi-900" />
+        </label>
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">Kas shift (tunai seharusnya) ikut menyesuaikan bila metode tunai diubah. Riwayat koreksi tercatat di log.</p>
+        {pesan?.error && <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{pesan.error}</p>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onBatal} className="flex-1 rounded-xl border py-3 text-sm font-semibold text-stone-600">
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={busy || !berubah || alasan.trim().length < 3}
+            onClick={() => onSimpan({ kanal: kanal !== kanalAwal ? kanal : null, metode: satuBayar && metode !== metodeAwal ? metode : null, alasan: alasan.trim() })}
+            className="flex-1 rounded-xl bg-matur-500 py-3 text-sm font-bold text-white disabled:opacity-40"
+          >
+            {busy ? "Menyimpan…" : "💾 Simpan koreksi"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

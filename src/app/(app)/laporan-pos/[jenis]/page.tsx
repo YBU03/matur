@@ -137,6 +137,7 @@ export default async function LaporanPos({
       err={err}
       sim={sim}
       bolehSim={peran === "owner"}
+      bisaKoreksi={["owner", "admin_pusat", "finance"].includes(peran)}
     />
   );
 }
