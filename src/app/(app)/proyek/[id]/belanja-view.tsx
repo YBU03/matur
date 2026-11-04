@@ -1,6 +1,7 @@
 "use client";
+import { useProyekTransition } from "@/components/proyek/activity";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TanggalBelanja } from "./tanggal-belanja";
 import { Modal } from "@/components/confirm-edit";
@@ -52,7 +53,7 @@ function FormNota({ proyekId, rab, nota, onClose }: { proyekId: string; rab: Ite
   const [metode, setMetode] = useState("tunai");
   const [cek, setCek] = useState(false);
   const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   const total = items.reduce((s,i) => s + (jumlahBarang(i.qty,i.harga_satuan) || 0), 0);
   const bayar = modeBayar !== "belum";
   const nominalBayar = modeBayar === "lunas" ? total : Number(nominal) || 0;
@@ -148,7 +149,7 @@ function FormBayar({ proyekId, nota, onClose }: { proyekId: string; nota: Belanj
   const router=useRouter(); const [id]=useState(() => crypto.randomUUID());
   const [jumlah,setJumlah]=useState(String(nota.total-terbayar(nota))); const [tanggal,setTanggal]=useState(hariIni());
   const [sumber,setSumber]=useState<SumberBelanja>("dana_proyek"); const [metode,setMetode]=useState("transfer");const [catatan,setCatatan]=useState(nota.nota_dp ? "DP sudah dibayar" : "");
-  const [err,setErr]=useState("");const [pending,start]=useTransition();
+  const [err,setErr]=useState("");const [pending,start]=useProyekTransition();
   return <Modal title={`Sudah Dibayar · ${nota.toko}`}><form onSubmit={(e) => {e.preventDefault(); if(tanggal<nota.tanggal){setErr("Tanggal pembayaran sebelum tanggal nota. Edit tanggal nota terlebih dahulu jika belanja sebenarnya terjadi pada bulan sebelumnya.");return;} setErr(""); start(async()=>{try {const r=await catatBayarBelanja(proyekId,nota.id,nota.updated_at,{id,jumlah,tanggal,sumber,metode,catatan});if(r.error)setErr(r.error);else{onClose();router.refresh();}}catch{setErr("Pembayaran belum tersimpan. Coba lagi.");}});}}>
     <p className="mb-3 text-sm">Konfirmasi uang yang sudah keluar. Nominal nota yang belum dibayar <b>{rp(nota.total-terbayar(nota))}</b>. Untuk DP, isi hanya nominal DP.</p>
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2"><TanggalBelanja label="Tanggal pembayaran" value={tanggal} onChange={nilai=>{setTanggal(nilai);setErr("");}} /><p className="mt-1 text-xs text-stone-500">Bisa memilih bulan sebelumnya. Tanggal pembayaran paling awal mengikuti tanggal nota: {formatTanggal(nota.tanggal)}.</p></div><label className="text-sm">Nominal sudah dibayar<input required type="number" min="1" max={nota.total-terbayar(nota)} step="1" className={input} value={jumlah} onChange={(e)=>setJumlah(e.target.value)}/></label><Sumber value={sumber} onChange={setSumber}/><label className="text-sm">Metode<select className={input} value={metode} onChange={(e)=>setMetode(e.target.value)}><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select></label><label className="text-sm sm:col-span-2">Catatan / referensi transfer<input maxLength={1000} className={input} value={catatan} onChange={(e)=>setCatatan(e.target.value)}/></label></fieldset>
@@ -158,7 +159,7 @@ function FormBayar({ proyekId, nota, onClose }: { proyekId: string; nota: Belanj
   </form></Modal>;
 }
 function KoreksiBayar({ proyekId, nota, pembayaranId, onClose }: { proyekId: string; nota: Belanja; pembayaranId: string | null; onClose: () => void }) {
-  const router=useRouter();const [alasan,setAlasan]=useState("");const [err,setErr]=useState("");const [pending,start]=useTransition();
+  const router=useRouter();const [alasan,setAlasan]=useState("");const [err,setErr]=useState("");const [pending,start]=useProyekTransition();
   const jumlah=pembayaranId ? Number(nota.pembayaran.find(p=>p.id===pembayaranId)?.jumlah??0) : terbayar(nota);
   return <Modal title={pembayaranId ? "Koreksi pembayaran" : "Ubah ke Belum Dibayar"}><form onSubmit={e=>{e.preventDefault();start(async()=>{try{const r=await koreksiBayarBelanja(proyekId,nota.id,pembayaranId,nota.updated_at,alasan);if(r.error)setErr(r.error);else{onClose();router.refresh();}}catch{setErr("Koreksi belum tersimpan. Coba lagi.");}});}}>
     <p className="text-sm">Koreksi pencatatan {rp(jumlah)} pada nota <b>{nota.toko}</b>. {pembayaranId ? "Pembayaran ini" : "Seluruh pembayaran aktif"} tidak lagi dihitung; saldo dan tagihan akan dihitung ulang. Ini bukan pengembalian uang. Gunakan hanya jika pencatatannya keliru.</p>
@@ -170,7 +171,7 @@ function KoreksiBayar({ proyekId, nota, pembayaranId, onClose }: { proyekId: str
 }
 export function BelanjaProyekView({ proyekId, namaProyek, rab, belanja, danaMasuk, setoran, admin }: { proyekId: string; namaProyek: string; rab: ItemRab[]; belanja: Belanja[]; danaMasuk: number; setoran: Setoran[]; admin: boolean }) {
   const router=useRouter(); const [form,setForm]=useState<Belanja | "baru" | null>(null);const [bayar,setBayar]=useState<Belanja|null>(null);const [batal,setBatal]=useState<Belanja|null>(null);
-  const [err,setErr]=useState("");const [pending,start]=useTransition();
+  const [err,setErr]=useState("");const [pending,start]=useProyekTransition();
   const [koreksi,setKoreksi]=useState<{nota:Belanja;pembayaranId:string|null}|null>(null);
   const [q,setQ]=useState("");const [status,setStatus]=useState("");const [dari,setDari]=useState("");const [sampai,setSampai]=useState("");
   const lama=rab.reduce((s,r)=>s+Number(r.harga_realisasi??0),0);const ringkas=ringkasanBelanja(belanja,lama,danaMasuk);

@@ -1,8 +1,10 @@
 "use client";
+import { useProyekBusy } from "@/components/proyek/activity";
+import { useProyekTransition } from "@/components/proyek/activity";
 import { kabar, tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { saveMaster } from "@/lib/master-actions";
 import type { Checklist, Dokumen, Jadwal, Komentar, Setoran } from "@/lib/proyek";
@@ -15,7 +17,7 @@ const Msg = ({ r }: { r: Result | null }) =>
 // Admin memakai salah satu usulan sebagai tanggal resmi
 export function PakaiTanggal({ proyekId, jenis, tanggal }: { proyekId: string; jenis: "Soft Opening" | "Grand Opening"; tanggal: string }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   return (
     <button
       disabled={pending}
@@ -38,7 +40,7 @@ export function PakaiTanggal({ proyekId, jenis, tanggal }: { proyekId: string; j
 export function CentangChecklist({ proyekId, item, admin }: { proyekId: string; item: Checklist; admin: boolean }) {
   const router = useRouter();
   const [val, setVal] = useState(item.selesai);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   const toggle = () =>
     start(async () => {
       const next = !val;
@@ -75,7 +77,7 @@ export function DokumenPanel({ proyekId, admin, items }: { proyekId: string; adm
   const router = useRouter();
   const [jenis, setJenis] = useState("Lainnya");
   const [msg, setMsg] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
 
   const upload = (files: FileList | null) =>
     files?.length &&
@@ -171,7 +173,7 @@ export function Diskusi({ proyekId, userId, admin, items }: { proyekId: string; 
   const router = useRouter();
   const [isi, setIsi] = useState("");
   const [msg, setMsg] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   const ref = useRef<HTMLTextAreaElement>(null);
   const kirim = () =>
     isi.trim() &&
@@ -262,6 +264,7 @@ export type LaporanData = {
 // Laporan PDF ringkas untuk dikirim ke mitra
 export function LaporanPdf({ data, className = "" }: { data: LaporanData; className?: string }) {
   const [busy, setBusy] = useState(false);
+  useProyekBusy(!!busy, "Sedang menyiapkan PDF…");
   const run = async () => {
     setBusy(true);
     try {

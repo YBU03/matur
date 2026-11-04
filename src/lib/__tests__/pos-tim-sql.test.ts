@@ -1446,3 +1446,34 @@ it('early PIN check for the start-shift wizard uses the device-bound verifier an
   expect((await q("select has_function_privilege('anon','public.cek_pin_alur_shift(uuid,text,text)','execute') ok"))[0].ok).toBe(false);
  }finally{await db.exec('rollback');}
 });
+
+it("platform checkout records one sale, splits cash correctly, and excludes platform funds from drawer", async () => {
+  await db.exec("alter type metode_bayar add value if not exists 'grabfood'; alter type metode_bayar add value if not exists 'shopeepay';");
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261104012640_pos_pembayaran_platform.sql", import.meta.url), "utf8"));
+  await db.exec("begin");
+  try {
+    await as(andi);
+    const outlet = id(99201), kas = id(99202), produk = id(99203);
+    await q("update pengguna set status='aktif' where id=$1", [andi]);
+    await q("insert into outlet(id,nama) values($1,'Platform Uji Lokal')", [outlet]);
+    await q("insert into penugasan(pengguna_id,peran,outlet_id) values($1,'kasir',$2)", [andi,outlet]);
+    await q("insert into sesi_kas(id,outlet_id,kasir_id,modal_laci) values($1,$2,$3,200000)", [kas,outlet,andi]);
+    await q("insert into menu(id,nama,harga_langsung,harga_ojol) values($1,'Menu Platform',10000,12000)", [produk]);
+    let omzet = 0;
+    const ids: string[] = [];
+    for (const [i, metode] of ["grabfood","gofood","shopeefood","tiktok","ruma_app"].entries()) {
+      const payload = {client_id:id(99300+i),outlet_id:outlet,sesi_id:kas,kanal:metode,metode,items:[{menu_id:produk,qty:1,varian_ids:[]}]};
+      const r = await call<{id:string;total:number}>("matur_internal.buat_transaksi", [payload]);
+      ids.push(r.id);omzet+=r.total;
+      expect((await q("select metode,nominal,diterima from pembayaran where transaksi_id=$1",[r.id]))[0]).toEqual({metode,nominal:r.total,diterima:null});
+      expect((await call<{id:string}>("matur_internal.buat_transaksi", [payload])).id).toBe(r.id);
+    }
+    const ringkas = await call<{tunai:number;non_tunai:number;seharusnya:number;transaksi:number}>("matur_internal.kas_ringkas",[kas]);
+    expect(ringkas).toMatchObject({tunai:0,non_tunai:omzet,seharusnya:200000,transaksi:5});
+    await call("matur_internal.buat_transaksi", [{client_id:id(99400),outlet_id:outlet,sesi_id:kas,kanal:"gofood",metode:"split",pembayaran:[{metode:"tunai",nominal:4000,diterima:5000},{metode:"gofood",nominal:8000}],items:[{menu_id:produk,qty:1,varian_ids:[]}]}]);
+    expect(await call("matur_internal.kas_ringkas",[kas])).toMatchObject({tunai:4000,non_tunai:omzet+8000,seharusnya:204000,transaksi:6});
+    await q("update transaksi set status='void' where id=$1",[ids[0]]);
+    expect(await call("matur_internal.kas_ringkas",[kas])).toMatchObject({tunai:4000,non_tunai:omzet+8000-12000,seharusnya:204000,transaksi:5});
+    expect((await q("select sum(total)::int total from transaksi where sesi_kas_id=$1 and status='lunas'",[kas]))[0].total).toBe(omzet);
+  } finally { await db.exec("rollback"); }
+});

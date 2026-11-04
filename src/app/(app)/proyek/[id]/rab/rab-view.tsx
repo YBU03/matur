@@ -1,9 +1,10 @@
 "use client";
+import { useProyekBusy, useProyekTransition } from "@/components/proyek/activity";
 
 import { totalEstimasiRab } from "@/lib/rab-total";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah } from "@/lib/format";
 import { saveMaster } from "@/lib/master-actions";
@@ -22,7 +23,7 @@ const STATUS: Record<string, string> = {
 // mode normal: tanpa penandaan pembeli; mode split: tiap barang ditandai dibeli pusat / mitra (dropdown)
 export function RabView({ proyek, items: semua, admin, luarRab = 0 }: { proyek: { id: string; nama: string; outlet: string; split: boolean }; items: Item[]; admin: boolean; luarRab?: number }) {
   const router = useRouter();
-  const [pendingMode, startMode] = useTransition();
+  const [pendingMode, startMode] = useProyekTransition();
   const split = proyek.split;
   const fields = split ? RAB_FIELDS : RAB_FIELDS.filter((f) => f !== "dibeli_oleh");
   const [q, setQ] = useState("");
@@ -46,6 +47,7 @@ export function RabView({ proyek, items: semua, admin, luarRab = 0 }: { proyek: 
       router.refresh();
     });
   const [busy, setBusy] = useState("");
+  useProyekBusy(!!busy, "Sedang menyiapkan dokumen RAB…");
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -188,7 +190,7 @@ export function RabView({ proyek, items: semua, admin, luarRab = 0 }: { proyek: 
 
 function Dibeli({ item, admin }: { item: Item; admin: boolean }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   const v = item.dibeli_oleh ?? "kantor";
   if (!admin) return <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${v === "mitra" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"}`}>{v === "mitra" ? "Mitra" : "Pusat"}</span>;
   return (
@@ -249,7 +251,7 @@ function ImportButton({ proyekId, adaData }: { proyekId: string; adaData: boolea
   const [preview, setPreview] = useState<{ rows: RabRow[]; notes: string[]; file: string } | null>(null);
   const [ganti, setGanti] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
 
   const pick = async (f: File | undefined) => {
     if (!f) return;

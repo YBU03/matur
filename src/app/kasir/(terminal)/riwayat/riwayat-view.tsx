@@ -1,4 +1,5 @@
 "use client";
+import { LABEL_METODE_BAYAR } from "@/lib/metode-bayar";
 
 import { Modal } from "@/components/confirm-edit";
 import type { StrukOutlet } from "@/lib/struk";
@@ -81,14 +82,7 @@ const tglPendek = (iso: string) =>
     year: "numeric",
   });
 const hariIniWib = (t: string, hari: string) => tglOperasional(t) === hari;
-const LABEL_METODE: Record<string, string> = {
-  tunai: "Tunai",
-  qris: "QRIS",
-  debit: "Debit/Kredit",
-  transfer: "Transfer",
-  grabfood: "Grab-Food",
-  shopeepay: "Shopee-Pay",
-};
+const LABEL_METODE = LABEL_METODE_BAYAR;
 const isi =
   "mt-0.5 block w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500";
 
