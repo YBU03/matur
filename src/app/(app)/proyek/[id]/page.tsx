@@ -1,3 +1,4 @@
+import { ProyekTabs } from "./tabs";
 import { RingkasanDana } from "./ringkasan-dana";
 import { BelanjaPdf } from "./belanja-pdf";
 import { BelanjaProyekView } from "./belanja-view";
@@ -145,22 +146,8 @@ export default async function DetailProyek({ params, searchParams }: { params: P
         </div>
       </section>
 
-      <nav className="sticky top-14 z-20 -mx-4 overflow-x-auto bg-matur-50/95 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur lg:top-0">
-        <div className="flex w-max gap-1.5">
-          {TABS.map((t) => (
-            <Link
-              key={t.key}
-              href={`/proyek/${p.id}?tab=${t.key}`}
-              scroll={false}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${t.key === tab ? "bg-kopi-900 text-white" : "border border-matur-200 bg-white text-kopi-700"}`}
-            >
-              {t.label}
-              {t.key === "diskusi" && komentar.length > 0 && <span className="ml-1 opacity-70">{komentar.length}</span>}
-              {t.key === "desain" && menunggu.length > 0 && <span className="ml-1 rounded-full bg-amber-400 px-1.5 text-xs text-kopi-900">{menunggu.length}</span>}
-            </Link>
-          ))}
-        </div>
-      </nav>
+      <ProyekTabs proyekId={p.id} active={tab} tabs={TABS.map(t => ({ ...t, count: t.key === "diskusi" ? komentar.length : t.key === "desain" ? menunggu.length : undefined }))}>
+
 
       {tab === "ringkasan" && (
         <>
@@ -471,6 +458,7 @@ export default async function DetailProyek({ params, searchParams }: { params: P
 
       {tab === "dokumen" && <DokumenPanel proyekId={p.id} admin={admin} items={dokumen} />}
       {tab === "diskusi" && <Diskusi proyekId={p.id} userId={s.userId} admin={admin} items={komentar} />}
+      </ProyekTabs>
     </div>
   );
 }

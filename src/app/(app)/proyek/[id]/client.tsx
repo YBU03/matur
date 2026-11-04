@@ -1,8 +1,10 @@
 "use client";
+import { useProyekBusy } from "@/components/proyek/activity";
+import { useProyekTransition } from "@/components/proyek/activity";
 import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { formatTanggal } from "@/lib/format";
 import type { Desain, Foto } from "@/lib/proyek";
@@ -16,7 +18,7 @@ export function ReportButton({ proyekId, pekerjaan }: { proyekId: string; pekerj
   const [ket, setKet] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [res, setRes] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
 
   const submit = () =>
     start(async () => {
@@ -75,7 +77,7 @@ export function ReportButton({ proyekId, pekerjaan }: { proyekId: string; pekerj
 // PRY-04: admin menyetujui sebelum foto & progres tampil ke mitra
 export function Approvals({ proyekId, admin, items }: { proyekId: string; admin: boolean; items: (Foto & { pekerjaan: string })[] }) {
   const [msg, setMsg] = useState<Result | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   return (
     <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
       <h2 className="mb-3 font-bold">{admin ? "Menunggu persetujuan" : "Laporan saya (menunggu persetujuan Admin)"}</h2>
@@ -114,6 +116,7 @@ export function Approvals({ proyekId, admin, items }: { proyekId: string; admin:
 // Unduh rincian keperluan langsung dari halaman proyek
 export function RabDownload({ judul, sub, items, split = false }: { judul: string; sub: string; items: RabRow[]; split?: boolean }) {
   const [busy, setBusy] = useState("");
+  useProyekBusy(!!busy, "Sedang menyiapkan dokumen…");
   const run = async (k: string, fn: () => Promise<void>) => {
     setBusy(k);
     try {
@@ -141,7 +144,7 @@ export function DesainGallery({ proyekId, admin, items }: { proyekId: string; ad
   const [open, setOpen] = useState<Desain | null>(null);
   const [msg, setMsg] = useState<Result | null>(null);
   const [progress, setProgress] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
 
   const upload = (files: FileList | null) =>
     files?.length &&

@@ -1,9 +1,11 @@
 "use client";
+import { useProyekBusy } from "@/components/proyek/activity";
 import { useState } from "react";
 import type { LaporanBelanja } from "@/lib/belanja-proyek-pdf";
 
 export function BelanjaPdf({ data }: { data: LaporanBelanja }) {
   const [busy, setBusy] = useState(false);
+  useProyekBusy(!!busy, "Sedang menyiapkan PDF…");
   const [error, setError] = useState("");
   async function download() {
     if (busy) return;
