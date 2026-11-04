@@ -2,6 +2,7 @@
 import { minta } from "@/components/dialog-tanya";
 
 import Link from "next/link";
+import { METODE_LANGSUNG, METODE_PLATFORM, metodePlatform, saranMetodeKanal } from "@/lib/metode-bayar";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Modal } from "@/components/confirm-edit";
 import { QrisTampil, type QrisOutlet } from "@/components/qris-tampil";
@@ -75,12 +76,7 @@ const KANAL = [
   ["tumbler", "Tumbler"],
 ] as const;
 const OJOL = new Set(["gofood", "grabfood", "shopeefood", "tiktok"]);
-const METODE = [
-  ["tunai", "Tunai"],
-  ["qris", "QRIS"],
-  ["debit", "Debit/Kredit"],
-  ["transfer", "Transfer"],
-] as const;
+const METODE = METODE_LANGSUNG;
 const MULTI = new Set(["Extra"]); // grup varian yang boleh dipilih lebih dari satu
 
 const priceFor = (kanal: string, l: Pick<Line, "menu" | "varian">) =>
@@ -163,6 +159,10 @@ export function PosScreen({
   const [meja, setMeja] = useState("");
   const [diskon, setDiskon] = useState("");
   const [metode, setMetode] = useState<string>("tunai");
+  const pilihKanal = (nilai: string) => {
+    setKanal(nilai);
+    setMetode(lama => saranMetodeKanal(nilai, lama));
+  };
   // QRIS: klik Bayar → QR tampil → kasir konfirmasi dana masuk → transaksi tersimpan
   const [qrisBayar, setQrisBayar] = useState<{ nominal: number; otorisasi?: string } | null>(null);
   const [diterima, setDiterima] = useState("");
@@ -503,7 +503,7 @@ export function PosScreen({
       });
     }
     setCart(lines);
-    setKanal(d.kanal);
+    pilihKanal(d.kanal);
     setTipe(d.tipe);
     setPelanggan(d.pelanggan ?? "");
     setMeja(d.meja ?? "");
@@ -711,7 +711,7 @@ export function PosScreen({
           {KANAL.map(([k, l]) => (
             <button
               key={k}
-              onClick={() => setKanal(k)}
+              onClick={() => pilihKanal(k)}
               className={`shrink-0 whitespace-nowrap ${chip(kanal === k)}`}
             >
               {l}
@@ -789,7 +789,7 @@ export function PosScreen({
           </label>
           <Row label="Total" value={formatRupiah(total)} bold />
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Metode pembayaran">
           {!split &&
             METODE.map(([k, l]) => (
               <button
@@ -801,6 +801,7 @@ export function PosScreen({
                 {l}
               </button>
             ))}
+          {!split && <button type="button" disabled={!antrean.online} onClick={() => setMetode(metodePlatform(kanal) ? kanal : "grabfood")} className={chip(metodePlatform(metode))}>Platform Online</button>}
           <button
             disabled={!antrean.online}
             onClick={() => setSplit(!split)}
@@ -809,6 +810,10 @@ export function PosScreen({
             {split ? "✕ Satu metode" : "➗ Split bayar"}
           </button>
         </div>
+        {!split && metodePlatform(metode) && <div className="space-y-1 rounded-xl bg-matur-50 p-3">
+          <label className="block text-sm font-semibold">Pembayaran melalui platform<select aria-label="Platform pembayaran" disabled={!antrean.online} value={metode} onChange={e => setMetode(e.target.value)} className="mt-1 w-full rounded-lg border border-matur-300 bg-white px-3 py-2 text-sm">{METODE_PLATFORM.map(([kode, nama]) => <option key={kode} value={kode}>{nama}</option>)}</select></label>
+          <p className="text-xs text-stone-600">Konfirmasi pesanan sudah dibayar di platform. Dana dicatat pada platform, bukan uang tunai di laci. Potongan dan pencairan platform dicatat terpisah.</p>
+        </div>}
         {(split ? bayarList.some((b) => b.metode === "qris" && num(b.nominal) > 0) : metode === "qris" && total > 0) && (
           <p className={`rounded-xl px-3 py-2 text-xs font-semibold ${qris ? "bg-sky-50 text-sky-800" : "bg-amber-50 text-amber-800"}`}>
             {qris ? "📱 QR muncul setelah klik Bayar. Selesaikan setelah dana masuk." : "⚠️ QRIS outlet belum diatur (Pengaturan → QRIS Outlet)."}
@@ -829,11 +834,8 @@ export function PosScreen({
                   }
                   className="rounded-lg border bg-white px-2 py-1"
                 >
-                  {METODE.map(([k, l]) => (
-                    <option key={k} value={k}>
-                      {l}
-                    </option>
-                  ))}
+                  <optgroup label="Pembayaran langsung">{METODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
+                  <optgroup label="Platform Online">{METODE_PLATFORM.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
                 </select>
                 <input
                   value={b.nominal}

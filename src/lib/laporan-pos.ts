@@ -1,3 +1,4 @@
+import { LABEL_METODE_BAYAR } from "./metode-bayar";
 import { tglOperasional } from "./hari-operasional";
 // Katalog Pusat Laporan (ala Luna): penjualan, pembelian, persediaan (outlet & gudang pusat), pendapatan/pengeluaran lain.
 // Data dari RPC laporan_operasional(jenis, outlet|null=gudang, dari, sampai, mode, bahan).
@@ -518,7 +519,7 @@ export const LABEL: Record<string, string> = {
   qris: "QRIS",
   debit: "Debit",
   transfer: "Transfer",
-  shopeepay: "Shopee-Pay",
+  ...LABEL_METODE_BAYAR,
   lunas: "Lunas",
   void: "Void",
   pemakaian: "Pemakaian",

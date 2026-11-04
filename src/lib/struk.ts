@@ -1,3 +1,4 @@
+import { LABEL_METODE_BAYAR } from "./metode-bayar";
 // Isi & susunan struk POS (format Ruma). Murni: dipakai cetak Bluetooth/aplikasi, PDF, dan tampilan layar.
 import type { BarisStruk } from "./printer-bt";
 
@@ -36,7 +37,7 @@ const LABEL_KANAL: Record<string, string> = {
   ruma_app: "Ruma App",
   tumbler: "Tumbler",
 };
-const LABEL_METODE: Record<string, string> = { tunai: "Tunai", qris: "Qris", debit: "Debit/Kredit", transfer: "Transfer" };
+const LABEL_METODE: Record<string, string> = { ...LABEL_METODE_BAYAR, qris: "Qris" };
 
 /** 24000 → "24.000" (tanpa "Rp", seperti struk kasir). */
 export const angkaStruk = (n: number) => Math.round(n).toLocaleString("id-ID").replace(/,/g, ".");
