@@ -83,3 +83,49 @@ describe('hapus nota dengan arsip dan koreksi atomik',()=>{
  it('kegagalan pembatalan nota membatalkan koreksi pembayaran dan perubahan versi sekaligus',async()=>{const b=await newBill(true);const v=await version(b);await db.exec(`create function test_tolak_hapus() returns trigger language plpgsql as $$begin if new.batal_at is not null then raise exception 'Uji rollback hapus';end if;return new;end$$;create trigger test_tolak_hapus before update on belanja_proyek for each row execute function test_tolak_hapus();`);await expect(hapus(b,v,true)).rejects.toThrow(/Uji rollback/);expect(await version(b)).toBe(v);expect((await db.query('select * from belanja_proyek_bayar where belanja_id=$1 and batal_at is null',[b])).rows).toHaveLength(1);await db.exec('drop trigger test_tolak_hapus on belanja_proyek;drop function test_tolak_hapus()');});
  it('mitra/nonaktif/anon ditolak dan wrapper memakai SECURITY INVOKER',async()=>{const b=await newBill();await db.exec("set app.role='mitra'");await expect(hapus(b,await version(b))).rejects.toThrow(/Hanya/);await db.exec("set app.role='admin_pusat';update pengguna set status='nonaktif'");await expect(hapus(b,await version(b))).rejects.toThrow(/aktif/);await db.exec("update pengguna set status='aktif'");expect((await db.query<{anon:boolean;definer:boolean}>("select has_function_privilege('anon','hapus_belanja_proyek(uuid,timestamptz,text,boolean)','EXECUTE') anon,(select prosecdef from pg_proc where oid='hapus_belanja_proyek(uuid,timestamptz,text,boolean)'::regprocedure) definer")).rows[0]).toEqual({anon:false,definer:false});});
 });
+
+describe('status RAB otomatis dari realisasi aktif',()=>{
+ beforeAll(async()=>{
+  await db.exec("alter table item_rab add column status text not null default 'rencana'");
+  await db.exec(readFileSync(new URL('../../../supabase/migrations/20261104042346_rab_status_realisasi_otomatis.sql',import.meta.url),'utf8'));
+ });
+ const rab=async(status='rencana')=>{const rid=crypto.randomUUID();await db.query('insert into item_rab(id,proyek_id,nama,kategori,satuan,status) values($1,$2,$3,$4,$5,$6)',[rid,p,'Barang baru','Material','pcs',status]);return rid;};
+ const note=(rid:string)=>({...data,items:[{item_rab_id:rid,qty:'1',harga_satuan:'20000'}]});
+ const status=async(rid:string)=>(await db.query<{status:string}>('select status from item_rab where id=$1',[rid])).rows[0].status;
+ const cancel=async(bid:string)=>db.query('select hapus_belanja_proyek($1,$2,$3,$4)',[bid,await version(bid),'Nota salah dicatat',true]);
+ it('nota DP mempromosikan Rencana; nilai nota dan pembayaran tetap terpisah',async()=>{
+  const rid=await rab(),bid=crypto.randomUUID();await save(bid,{...note(rid),nota_dp:true,pembayaran:{id:crypto.randomUUID(),tanggal:'2026-10-22',jumlah:'10000',sumber:'dana_proyek',metode:'transfer'}});
+  expect(await status(rid)).toBe('dibeli');
+  expect((await db.query('select total,nota_dp from belanja_proyek where id=$1',[bid])).rows).toEqual([{total:20000,nota_dp:true}]);
+  expect((await db.query('select jumlah from belanja_proyek_bayar where belanja_id=$1',[bid])).rows).toEqual([{jumlah:10000}]);
+  await cancel(bid);expect(await status(rid)).toBe('rencana');
+ });
+ it('edit yang mengganti barang memulihkan barang lama dan mempromosikan barang baru',async()=>{
+  const a=await rab(),b=await rab(),bid=crypto.randomUUID();await save(bid,note(a));
+  await save(bid,note(b),await version(bid));expect(await status(a)).toBe('rencana');expect(await status(b)).toBe('dibeli');
+  await save(bid,{...note(b),toko:'Revisi toko'},await version(bid));expect(await status(b)).toBe('dibeli');
+  expect((await db.query('select * from proyek_internal.status_rab_otomatis where item_rab_id=$1',[b])).rows).toHaveLength(1);
+ });
+ it('pembatalan satu nota tidak menurunkan status selama nota lain masih aktif',async()=>{
+  const rid=await rab(),a=crypto.randomUUID(),b=crypto.randomUUID();await save(a,note(rid));await save(b,note(rid));
+  await cancel(a);expect(await status(rid)).toBe('dibeli');await cancel(b);expect(await status(rid)).toBe('rencana');
+ });
+ it('Dibeli manual dan Terpasang tetap dipertahankan setelah nota dibatalkan',async()=>{
+  for(const awal of ['dibeli','terpasang']) {const rid=await rab(awal),bid=crypto.randomUUID();await save(bid,note(rid));await cancel(bid);expect(await status(rid)).toBe(awal);}
+  const rid=await rab(),bid=crypto.randomUUID();await save(bid,note(rid));await db.query("update item_rab set status='terpasang' where id=$1",[rid]);await cancel(bid);expect(await status(rid)).toBe('terpasang');
+ });
+ it('gagal pembayaran membatalkan nota dan perubahan status; item manual tidak memengaruhi RAB',async()=>{
+  const rid=await rab(),bid=crypto.randomUUID();await expect(save(bid,{...note(rid),pembayaran:{id:crypto.randomUUID(),tanggal:'2026-10-22',jumlah:'30000',sumber:'dana_proyek',metode:'transfer'}})).rejects.toThrow(/melebihi/);expect(await status(rid)).toBe('rencana');
+  await save(crypto.randomUUID(),{...data,items:[{nama:'Manual saja',qty:'1',harga_satuan:'1000'}]});expect(await status(rid)).toBe('rencana');
+ });
+ it('hapus lalu masukkan detail dalam satu transaksi mempertahankan status final',async()=>{
+  const rid=await rab(),bid=crypto.randomUUID();await save(bid,note(rid));
+  await db.exec('begin');await save(bid,{...note(rid),toko:'Edit atomik'},await version(bid));await db.exec('commit');expect(await status(rid)).toBe('dibeli');
+  await db.exec('begin');await db.query('delete from belanja_proyek_item where belanja_id=$1',[bid]);await db.exec('rollback');expect(await status(rid)).toBe('dibeli');
+  await db.query('delete from belanja_proyek_item where belanja_id=$1',[bid]);expect(await status(rid)).toBe('rencana');
+ });
+ it('akses helper dan provenance ditolak untuk klien; lintas proyek tetap ditolak RPC',async()=>{
+  expect((await db.query("select has_function_privilege('authenticated','proyek_internal.sinkron_status_rab(uuid)','EXECUTE') rpc,has_table_privilege('authenticated','proyek_internal.status_rab_otomatis','INSERT') direct,has_function_privilege('anon','proyek_internal.status_rab_dari_realisasi()','EXECUTE') anon")).rows).toEqual([{rpc:false,direct:false,anon:false}]);
+  await expect(save(crypto.randomUUID(),note(foreign))).rejects.toThrow(/RAB/);expect(await status(foreign)).toBe('rencana');
+ });
+});
