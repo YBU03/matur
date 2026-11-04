@@ -1,3 +1,4 @@
+import { kelompokNotaPdf, kelompokPembayaranPdf } from "./belanja-pdf-kelompok";
 import { formatRupiah as rp, formatTanggal } from "./format";
 import { ringkasanBelanja, statusBelanja, terbayar, SUMBER_BELANJA, type Belanja } from "./belanja-proyek";
 import type { Setoran } from "./proyek";
@@ -12,7 +13,7 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   const masuk = data.setoran.reduce((s, x) => s + Number(x.jumlah), 0);
   const r = ringkasanBelanja(data.belanja, data.realisasiLama, masuk);
   const head = { fillColor: [104, 66, 34] as [number, number, number] };
-  const styles = { fontSize: 9, cellPadding: 2.5, overflow: "linebreak" as const };
+  const styles = { font: "helvetica", fontSize: 9, cellPadding: 2.5, overflow: "linebreak" as const };
   let y = 16;
   doc.setFontSize(15).setFont("helvetica", "bold").text("Realisasi Belanja Proyek", 14, y);
   const judul = doc.splitTextToSize(data.nama, 180);
@@ -20,9 +21,10 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   y += judul.length * 5;
   doc.setFont("helvetica", "normal").setFontSize(9).text(`Seluruh nota proyek | Dicetak ${formatTanggal(dicetak.toISOString(), true)} WIB`, 14, y);
   y += 5;
-  const table = (headers: string[], body: string[][], moneyColumns: number[] = []) => {
+  const table = (headers: string[], body: string[][], moneyColumns: number[] = [], subtotal?: number) => {
     if (y > 240) { doc.addPage(); y = 16; }
     autoTable(doc, { startY: y, head: [headers], body, headStyles: head, styles,
+      ...(subtotal === undefined ? {} : { foot: [["Subtotal nota", "", "", rp(subtotal)]], footStyles: { fillColor: [255, 246, 222] as [number, number, number], textColor: [67, 43, 23] as [number, number, number], fontStyle: "bold" as const }, showFoot: "lastPage" as const }),
       margin: { top: 16, bottom: 18, left: 14, right: 14 }, rowPageBreak: "avoid",
       columnStyles: Object.fromEntries((headers.length === 1 ? [182] : headers.length === 2 ? (headers[0] === "Ringkasan dana" ? [130, 52] : [48, 134]) : headers.length === 3 ? [30, 116, 36] : headers[0] === "Barang / jasa" ? [86, 24, 36, 36] : [30, 48, 68, 36]).map((width, i) => [i, { cellWidth: width, ...(moneyColumns.includes(i) ? { halign: "right" as const } : {}) }])),
     });
@@ -48,17 +50,19 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   ]);
   heading("Dana masuk mitra");
   table(["Tanggal", "Keterangan", "Jumlah"], data.setoran.length ? data.setoran.map(s => [formatTanggal(s.tanggal), s.keterangan || "-", rp(s.jumlah)]) : [["-", "Belum ada dana masuk", rp(0)]], [2]);
-  for (const [index, b] of data.belanja.entries()) {
+  for (const [index, { nota: b, jumlahCatatan }] of kelompokNotaPdf(data.belanja).entries()) {
+    doc.addPage(); y = 16;
     heading(`${index + 1}. ${b.toko} | ${formatTanggal(b.tanggal)} | ${statusBelanja(b)}`);
     table(["Informasi nota", "Rincian"], [
-      ["Nomor nota", b.nomor_nota || "-"], ["Penanggung jawab", b.penanggung_jawab], ["Dicatat oleh", b.nama_pencatat],
-      [b.nota_dp ? "Nilai nota DP (bukan harga penuh)" : "Total pesanan", rp(b.total)], ["Sudah dibayar", rp(terbayar(b))], ["Sisa tagihan nota tercatat", rp(b.total - terbayar(b))],
+      ["Nomor nota", b.nomor_nota || "Belum diisi"],
+      ...(jumlahCatatan > 1 ? [["Pengelompokan", `${jumlahCatatan} input dalam satu kelompok nota`]] : []), ["Penanggung jawab", `${b.penanggung_jawab} | Dicatat: ${b.nama_pencatat}`],
+      [b.nota_dp ? "Nilai nota DP (bukan harga penuh)" : "Nilai / pembayaran", `Total: ${rp(b.total)} | Dibayar: ${rp(terbayar(b))} | Sisa: ${rp(b.total - terbayar(b))}`],
       ...(b.nota_dp ? [["Sisa pelunasan pesanan", "Belum dikonfirmasi; belum dianggap lunas"]] : []),
       ...(b.catatan ? [["Catatan", b.catatan]] : []),
       ...(b.batal_at ? [["Pembatalan (tidak masuk ringkasan aktif)", b.alasan_batal || "Dibatalkan"]] : []),
     ]);
-    table(["Barang / jasa", "Jumlah", "Harga satuan", "Total"], b.items.map(i => [i.nama, `${i.qty} ${i.satuan || ""}`.trim(), rp(i.harga_satuan), rp(i.jumlah)]), [2, 3]);
-    table(["Tanggal bayar", "Sumber / metode", "Catatan / pencatat", "Dibayar"], b.pembayaran.length ? b.pembayaran.map(p => [formatTanggal(p.tanggal), `${SUMBER_BELANJA[p.sumber]} / ${p.metode}`, [p.catatan, `Dicatat: ${p.nama_pencatat}`, ...(p.batal_at ? [`DIKOREKSI ${formatTanggal(p.batal_at, true)} oleh ${p.nama_pembatal || "-"}: ${p.alasan_batal || "-"} (tidak dihitung)`] : [])].filter(Boolean).join("\n"), `${rp(p.jumlah)}${p.batal_at ? " (dikoreksi)" : ""}`]) : [["-", "Belum ada pembayaran", "-", rp(0)]], [3]);
+    table(["Barang / jasa", "Jumlah", "Harga satuan", "Total"], b.items.map(i => [i.nama, `${i.qty} ${i.satuan || ""}`.trim(), rp(i.harga_satuan), rp(i.jumlah)]), [2, 3], b.total);
+    table(["Tanggal bayar", "Sumber / metode", "Catatan / pencatat", "Dibayar"], b.pembayaran.length ? kelompokPembayaranPdf(b.pembayaran).map(p => [formatTanggal(p.tanggal), `${SUMBER_BELANJA[p.sumber]} / ${p.metode}`, [p.catatan, `Dicatat: ${p.nama_pencatat}`, ...(p.batal_at ? [`DIKOREKSI ${formatTanggal(p.batal_at, true)} oleh ${p.nama_pembatal || "-"}: ${p.alasan_batal || "-"} (tidak dihitung)`] : [])].filter(Boolean).join("\n"), `${rp(p.jumlah)}${p.batal_at ? " (dikoreksi)" : ""}`]) : [["-", "Belum ada pembayaran", "-", rp(0)]], [3]);
   }
   if (!data.belanja.length) { heading("Belum ada realisasi belanja tercatat."); }
   const pages = doc.getNumberOfPages();
