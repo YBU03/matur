@@ -6,6 +6,7 @@ import {
   type PeriodeTitipan,
 } from "@/lib/periode-titipan";
 import { notFound } from "next/navigation";
+import { HeaderHalaman } from "@/components/ui-halaman";
 import { PilihOutlet } from "@/components/pilih-outlet";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -114,14 +115,17 @@ export default async function Titipan({
   if (e1 || e2 || e3) throw new Error((e1 ?? e2 ?? e3)!.message);
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Titipan Produk</h1>
-        <p className="text-sm text-stone-500">
-          Barang titipan produsen (mis. Bu Ratna). Barang masuk tidak dibebankan
-          — yang menjadi HPP hanya yang <b>terjual</b> (tercatat otomatis dari
-          kasir) × harga produsen.
-        </p>
-      </div>
+      <HeaderHalaman
+        ikon="🧁"
+        judul="Titipan Produk"
+        keterangan={
+          <>
+            Barang titipan produsen (mis. Bu Ratna). Terjual tercatat otomatis
+            dari POS; yang menjadi HPP hanya yang <b>terjual</b> × harga
+            produsen.
+          </>
+        }
+      />
       <PilihOutlet
         outlets={outlets}
         pilih={outlet.id}
