@@ -1,4 +1,5 @@
 "use client";
+import { LABEL_METODE_BAYAR } from "@/lib/metode-bayar";
 import { useEffect, useRef, useState } from "react";
 import { barisTeks } from "@/lib/struk-pdf";
 import { logoStruk } from "@/lib/struk-logo";
@@ -32,13 +33,6 @@ const KANAL = [
   ["ruma_app", "Ruma App"],
   ["tumbler", "Tumbler"],
 ] as const;
-const METODE = [
-  ["tunai", "Tunai"],
-  ["qris", "QRIS"],
-  ["debit", "Debit/Kredit"],
-  ["transfer", "Transfer"],
-] as const;
-
 // POS-05 (versi awal): struk bisa dicetak dari browser atau dikirim lewat WhatsApp
 export function ReceiptDialog({
   r,
@@ -92,7 +86,7 @@ export function ReceiptDialog({
   const labelMetode =
     metode === "split"
       ? "Split"
-      : (METODE.find(([k]) => k === metode)?.[1] ?? metode);
+      : (LABEL_METODE_BAYAR[metode] ?? metode);
   const nomor = testing
     ? `TEST-${r.nomor}`
     : offline
