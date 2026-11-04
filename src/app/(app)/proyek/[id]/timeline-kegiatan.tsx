@@ -1,6 +1,7 @@
 "use client";
+import { useProyekTransition } from "@/components/proyek/activity";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RowDeleter, RowEditor } from "@/components/row-editor";
 import { formatTanggal } from "@/lib/format";
@@ -16,7 +17,7 @@ export function TimelineKegiatan({ proyekId, jadwal, admin }: { proyekId: string
   const [draft, setDraft] = useState<string[] | null>(null);
   const [drag, setDrag] = useState<{ id: string; tujuan: number } | null>(null);
   const [pesan, setPesan] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useProyekTransition();
   const list = useRef<HTMLOListElement>(null);
   const cleanup = useRef<(() => void) | null>(null);
   const awal = jadwal.map((j) => j.id);

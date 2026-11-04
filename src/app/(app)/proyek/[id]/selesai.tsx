@@ -1,6 +1,7 @@
 "use client";
+import { useProyekTransition } from "@/components/proyek/activity";
 import { tanya } from "@/components/dialog-tanya";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { selesaikanProyek } from "@/lib/proyek-actions";
 
@@ -18,7 +19,7 @@ export function SelesaiProyek({
     new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10),
   );
   const [msg, setMsg] = useState("");
-  const [busy, start] = useTransition();
+  const [busy, start] = useProyekTransition();
   const jalan = (s: boolean) =>
     start(async () => {
       const r = await selesaikanProyek(id, s, s ? tgl : null);
