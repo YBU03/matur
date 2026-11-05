@@ -151,3 +151,44 @@ export async function kembalikanKePos(outletId: string, tanggal: string, kanal: 
   segarkan();
   return { ok: count ? `Dikembalikan ke angka POS (${count} penyesuaian diarsipkan).` : "Sudah sama dengan angka POS." };
 }
+
+export type SusunanTabel = { urutan: string[]; sembunyi: string[]; tampil: string[]; lebar: Record<string, number> };
+const AKUNTING = ["owner", "admin_pusat", "finance"];
+
+/** Simpan susunan kolom Tabel Harian (berlaku untuk semua akun akunting). */
+export async function aturTabelHarian(s: SusunanTabel): Promise<Result> {
+  const sesi = await getSession();
+  if (!sesi?.active || !AKUNTING.includes(sesi.active.role)) return { error: "Hanya Owner/Admin Pusat/Finance yang bisa mengatur kolom." };
+  const bersih: SusunanTabel = {
+    urutan: (s.urutan ?? []).filter((x) => typeof x === "string").slice(0, 100),
+    sembunyi: (s.sembunyi ?? []).filter((x) => typeof x === "string").slice(0, 100),
+    tampil: (s.tampil ?? []).filter((x) => typeof x === "string").slice(0, 100),
+    lebar: Object.fromEntries(Object.entries(s.lebar ?? {}).filter(([, v]) => Number.isFinite(v)).slice(0, 100).map(([k, v]) => [k, Math.max(60, Math.min(400, Math.round(v)))])),
+  };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("atur_tabel_harian", { p_susunan: bersih });
+  if (error) return { error: pesan(error.message) };
+  revalidatePath("/catatan-harian");
+  return { ok: "Susunan kolom disimpan untuk semua akunting." };
+}
+
+/** Kategori pengeluaran baru (langsung tersedia di POS, Catatan Harian, Rumus HPP). */
+export async function tambahKategoriBiaya(nama: string, grup: "hpp" | "beban" | "lain"): Promise<Result & { id?: string }> {
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("tambah_kategori_biaya", { p_nama: nama, p_grup: grup });
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  revalidatePath("/kasir/shift");
+  revalidatePath("/rumus-hpp");
+  return { ok: `Kategori "${nama.trim()}" ditambahkan.`, id: data as string };
+}
+
+export async function gantiNamaKategoriBiaya(id: string, nama: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("ganti_nama_kategori_biaya", { p_id: id, p_nama: nama });
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  revalidatePath("/kasir/shift");
+  revalidatePath("/rumus-hpp");
+  return { ok: `Nama kategori diganti menjadi "${nama.trim()}".` };
+}

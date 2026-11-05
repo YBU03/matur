@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Manual } from "@/lib/harian";
+import type { SusunanTabel } from "@/lib/harian-actions";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
@@ -143,8 +144,10 @@ export default async function CatatanHarianPage({
     (["owner", "admin_pusat", "finance"].includes(s.active.role) && revisiError)
   )
     throw new Error((belanjaError ?? revisiError)!.message);
+  const { data: pt } = await supabase.from("perusahaan").select("tabel_harian").limit(1).maybeSingle();
   return (
     <CatatanHarian
+      susunan={(pt?.tabel_harian ?? {}) as Partial<SusunanTabel>}
       key={`${outlet.id}-${bulan}-${sim}`}
       outlets={s.active.role === "spv" ? [outlet] : daftar}
       outletId={outlet.id}

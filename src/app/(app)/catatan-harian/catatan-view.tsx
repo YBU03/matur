@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { tabKelas } from "@/components/ui-halaman";
 import { TabelHarian } from "./tabel-harian";
+import type { SusunanTabel } from "@/lib/harian-actions";
 import { RiwayatPerbaikan } from "./riwayat-perbaikan";
 import { Modal } from "@/components/confirm-edit";
 import { ImporRuma } from "@/components/impor-ruma";
@@ -140,6 +141,7 @@ export function CatatanHarian({
   revisi = [],
   belanja = [],
   bolehImpor = false,
+  susunan = {},
 }: {
   outlets: { id: string; nama: string }[];
   outletId: string;
@@ -157,6 +159,7 @@ export function CatatanHarian({
   revisi?: RevisiKas[];
   belanja?: BelanjaBahan[];
   bolehImpor?: boolean;
+  susunan?: Partial<SusunanTabel>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -508,6 +511,9 @@ export function CatatanHarian({
           outletId={outletId}
           sim={sim}
           akunting={bolehImpor}
+          susunan={susunan}
+          outletNama={outletNama}
+          bulan={bulan}
           pending={pending}
           run={run}
           onPengeluaran={(t, item) => (setMsg(null), setForm({ tanggal: t, item }))}

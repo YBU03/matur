@@ -5,7 +5,7 @@ import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
 
 export type Hasil = { error?: string; ok?: string };
-export const PENGOREKSI_TRANSAKSI = ["owner", "admin_pusat", "finance"];
+const PENGOREKSI_TRANSAKSI = ["owner", "admin_pusat", "finance"];
 
 async function boleh() {
   const r = (await getSession())?.active?.role;

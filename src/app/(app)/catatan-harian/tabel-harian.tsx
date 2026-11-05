@@ -7,7 +7,7 @@ import { minta, tanya } from "@/components/dialog-tanya";
 import { Badge } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { KANAL_HARIAN, LABEL_KANAL, OJOL, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
-import { kembalikanKePos, rincianHarian, simpanKoreksi, type TrxRincian } from "@/lib/harian-actions";
+import { aturTabelHarian, gantiNamaKategoriBiaya, kembalikanKePos, rincianHarian, simpanKoreksi, tambahKategoriBiaya, type SusunanTabel, type TrxRincian } from "@/lib/harian-actions";
 import { koreksiTransaksi } from "@/lib/transaksi-admin-actions";
 import type { Result } from "@/lib/kas-actions";
 import type { Biaya, Hari } from "./catatan-view";
@@ -43,6 +43,9 @@ export function TabelHarian({
   run,
   onPengeluaran,
   onPlatform,
+  susunan = {},
+  outletNama = "",
+  bulan = "",
 }: {
   hari: Hari[];
   manual: Manual[];
@@ -55,7 +58,24 @@ export function TabelHarian({
   run: (fn: () => Promise<Result>, after?: () => void) => void;
   onPengeluaran: (tanggal: string, item?: Biaya) => void;
   onPlatform: (tanggal: string) => void;
+  susunan?: Partial<SusunanTabel>;
+  outletNama?: string;
+  bulan?: string;
 }) {
+  const [sus, setSus] = useState<SusunanTabel>(() => ({ urutan: susunan.urutan ?? [], sembunyi: susunan.sembunyi ?? [], tampil: susunan.tampil ?? [], lebar: susunan.lebar ?? {} }));
+  const [atur, setAtur] = useState(false);
+  const [seret, setSeret] = useState<string | null>(null);
+  const simpanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** ubah susunan kolom; akunting → tersimpan ke server (berlaku semua akunting) */
+  const ubahSus = (f: (x: SusunanTabel) => SusunanTabel) =>
+    setSus((x) => {
+      const baru = f(x);
+      if (akunting) {
+        if (simpanTimer.current) clearTimeout(simpanTimer.current);
+        simpanTimer.current = setTimeout(() => void aturTabelHarian(baru), 600);
+      }
+      return baru;
+    });
   const [pos, setPos] = useState<{ r: number; c: number }>({ r: 0, c: 0 });
   const [edit, setEdit] = useState<string | null>(null);
   const [ket, setKet] = useState("Penyesuaian akunting");
@@ -75,20 +95,92 @@ export function TabelHarian({
     return m;
   }, [biaya]);
 
-  const kolom: Kolom[] = useMemo(() => {
+  // semua kolom yang mungkin (urutan bawaan), lalu disaring & diurutkan sesuai susunan bersama akunting
+  const semuaKolom: (Kolom & { ada: boolean })[] = useMemo(() => {
     const dipakai = (k: KanalHarian) => ["tunai", "non_tunai", "gofood", "grabfood"].includes(k) || baris.some((h) => nilai.get(h.tanggal)?.[k].akhir);
-    const jual: Kolom[] = [...KANAL_HARIAN, "diskon" as KanalHarian].filter(dipakai).map((k) => ({ jenis: "jual", key: k, label: k === "non_tunai" ? "QRIS / Non Tunai" : LABEL_KANAL[k] }));
-    const katDipakai = [...new Set(biaya.map((b) => b.kategori_id))].map((id) => kat[id]).filter(Boolean).sort((a, b) => a.urutan - b.urutan);
-    const keluar: Kolom[] = perKategori ? katDipakai.map((k) => ({ jenis: "biaya", key: k.id, label: k.nama })) : [];
+    const katAda = new Set(biaya.map((b) => b.kategori_id));
     return [
-      ...jual,
-      { jenis: "total_jual", key: "total_jual", label: "TOTAL JUAL" },
-      ...keluar,
-      { jenis: "total_biaya", key: "total_biaya", label: "TOTAL KELUAR" },
-      { jenis: "kas", key: "setoran", label: "Setoran" },
-      { jenis: "kas", key: "selisih", label: "Selisih kas" },
+      ...[...KANAL_HARIAN, "diskon" as KanalHarian].map((k) => ({ jenis: "jual" as const, key: k, label: k === "non_tunai" ? "QRIS / Non Tunai" : LABEL_KANAL[k], ada: dipakai(k) })),
+      { jenis: "total_jual" as const, key: "total_jual" as const, label: "TOTAL JUAL", ada: true },
+      ...[...kategori].sort((a, b) => a.urutan - b.urutan).map((k) => ({ jenis: "biaya" as const, key: k.id, label: k.nama, ada: perKategori && katAda.has(k.id) })),
+      { jenis: "total_biaya" as const, key: "total_biaya" as const, label: "TOTAL KELUAR", ada: true },
+      { jenis: "kas" as const, key: "setoran" as const, label: "Setoran", ada: true },
+      { jenis: "kas" as const, key: "selisih" as const, label: "Selisih kas", ada: true },
     ];
-  }, [baris, nilai, biaya, kat, perKategori]);
+  }, [baris, nilai, biaya, kategori, perKategori]);
+  const urutkan = <T extends { key: string }>(xs: T[]) => {
+    // kolom yang ada di susunan memakai posisinya; kolom lain menempel setelah tetangga bawaannya
+    const posisi = new Map(sus.urutan.map((k, i) => [k, i]));
+    let terakhir = -1;
+    const rank = xs.map((x, i) => {
+      const p = posisi.get(x.key);
+      if (p !== undefined) terakhir = Math.max(terakhir, p);
+      return { x, r: p ?? terakhir + 0.001 * (i + 1) };
+    });
+    return rank.sort((a, b) => a.r - b.r).map((y) => y.x);
+  };
+  const kolom: Kolom[] = useMemo(
+    () => urutkan(semuaKolom.filter((k) => (k.ada || sus.tampil.includes(k.key)) && !sus.sembunyi.includes(k.key))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [semuaKolom, sus],
+  );
+  const pindahKolom = (key: string, ke: string | number) =>
+    ubahSus((x) => {
+      const now = kolom.map((k) => k.key);
+      const dari = now.indexOf(key);
+      if (dari < 0) return x;
+      now.splice(dari, 1);
+      const tujuan = typeof ke === "number" ? Math.max(0, Math.min(now.length, dari + ke)) : Math.max(0, now.indexOf(ke));
+      now.splice(tujuan, 0, key);
+      return { ...x, urutan: [...now, ...x.urutan.filter((k) => !now.includes(k))] };
+    });
+  const sembunyikan = (key: string) => ubahSus((x) => ({ ...x, sembunyi: [...new Set([...x.sembunyi, key])], tampil: x.tampil.filter((k) => k !== key) }));
+  const tampilkan = (key: string) => ubahSus((x) => ({ ...x, sembunyi: x.sembunyi.filter((k) => k !== key), tampil: [...new Set([...x.tampil, key])] }));
+  const gantiNama = async (kk: Kolom) => {
+    if (kk.jenis !== "biaya" || !akunting) return;
+    const nama = await minta(`Ganti nama kolom/kategori "${kk.label}". Nama baru ikut berubah di POS, Catatan Harian, Rumus HPP & laporan.`, { judul: "Ganti nama kategori", awal: kk.label, wajib: true, ya: "Simpan nama" });
+    if (nama && nama !== kk.label) run(() => gantiNamaKategoriBiaya(kk.key, nama));
+  };
+  const mulaiLebar = (key: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget as HTMLElement).parentElement!;
+    const awal = th.getBoundingClientRect().width;
+    const x0 = e.clientX;
+    let w = awal;
+    const gerakan = (ev: PointerEvent) => {
+      w = Math.max(60, Math.min(400, awal + ev.clientX - x0));
+      setSus((x) => ({ ...x, lebar: { ...x.lebar, [key]: w } }));
+    };
+    const selesai = () => {
+      window.removeEventListener("pointermove", gerakan);
+      window.removeEventListener("pointerup", selesai);
+      ubahSus((x) => ({ ...x, lebar: { ...x.lebar, [key]: w } }));
+    };
+    window.addEventListener("pointermove", gerakan);
+    window.addEventListener("pointerup", selesai);
+  };
+  const unduhTabel = async () => {
+    const { Workbook } = (await import("exceljs")).default;
+    const wb = new Workbook();
+    const ws = wb.addWorksheet("Catatan Harian");
+    ws.addRow([`Catatan Harian ${outletNama} ${bulan}`]).font = { bold: true, size: 13 };
+    const kepala = ws.addRow(["Tanggal", ...kolom.map((k) => k.label)]);
+    kepala.font = { bold: true };
+    for (const hh of baris) ws.addRow([hh.tanggal, ...kolom.map((k) => isiSel(hh, k) ?? null)]);
+    ws.addRow(["TOTAL", ...kolom.map((k) => total(k))]).font = { bold: true };
+    ws.columns.forEach((c, i) => {
+      c.width = i === 0 ? 12 : 16;
+      if (i > 0) c.numFmt = "#,##0";
+    });
+    ws.views = [{ state: "frozen", xSplit: 1, ySplit: 2 }];
+    const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Tabel Harian ${outletNama} ${bulan}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   const totalJual = (t: string) => KANAL_HARIAN.reduce((s, k) => s + (nilai.get(t)?.[k].akhir ?? 0), 0);
   const isiSel = (h: Hari, k: Kolom): number | null => {
@@ -234,6 +326,14 @@ export function TabelHarian({
             Keterangan penyesuaian
             <input value={ket} onChange={(e) => setKet(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-800" />
           </label>
+          {akunting && (
+            <button type="button" onClick={() => setAtur(true)} className="rounded-lg border border-matur-200 bg-matur-50 px-2.5 py-1 text-xs font-semibold text-matur-800">
+              ⚙ Atur kolom
+            </button>
+          )}
+          <button type="button" onClick={unduhTabel} className="rounded-lg border border-green-600 px-2.5 py-1 text-xs font-semibold text-green-700">
+            ⬇ Excel (tabel ini)
+          </button>
           <label className="flex items-center gap-1.5 text-xs text-stone-600">
             <input type="checkbox" checked={perKategori} onChange={(e) => setPerKategori(e.target.checked)} className="accent-matur-500" /> Pengeluaran per kategori
           </label>
@@ -257,11 +357,34 @@ export function TabelHarian({
               {kolom.map((kk, c) => (
                 <th
                   key={kk.key}
-                  className={`sticky top-0 z-20 min-w-24 whitespace-nowrap border-b border-r border-matur-100 px-2 py-2 text-right font-bold ${kk.jenis === "biaya" || kk.jenis === "total_biaya" ? "bg-rose-50 text-rose-900" : kk.jenis === "kas" ? "bg-sky-50 text-sky-900" : "bg-matur-50 text-kopi-900"} ${pos.c === c ? "underline" : ""}`}
+                  draggable={akunting}
+                  onDragStart={(e) => (setSeret(kk.key), e.dataTransfer.setData("text/plain", kk.key))}
+                  onDragOver={(e) => seret && e.preventDefault()}
+                  onDrop={(e) => (e.preventDefault(), seret && seret !== kk.key && pindahKolom(seret, kk.key), setSeret(null))}
+                  onDragEnd={() => setSeret(null)}
+                  onDoubleClick={() => gantiNama(kk)}
+                  style={sus.lebar[kk.key] ? { width: sus.lebar[kk.key], minWidth: sus.lebar[kk.key], maxWidth: sus.lebar[kk.key] } : undefined}
+                  title={akunting ? `Seret untuk memindah kolom${kk.jenis === "biaya" ? " · klik dua kali untuk ganti nama" : ""}` : undefined}
+                  className={`group sticky top-0 z-20 min-w-24 whitespace-nowrap border-b border-r border-matur-100 px-2 py-2 text-right font-bold ${akunting ? "cursor-grab active:cursor-grabbing" : ""} ${seret === kk.key ? "opacity-40" : ""} ${kk.jenis === "biaya" || kk.jenis === "total_biaya" ? "bg-rose-50 text-rose-900" : kk.jenis === "kas" ? "bg-sky-50 text-sky-900" : "bg-matur-50 text-kopi-900"} ${pos.c === c ? "underline" : ""}`}
                 >
-                  {kk.label}
+                  <span className="block truncate">{kk.label}</span>
+                  {akunting && (
+                    <span className="absolute left-1 top-0.5 hidden gap-0.5 text-[10px] font-normal group-hover:flex">
+                      <button type="button" onClick={() => pindahKolom(kk.key, -1)} className="rounded bg-white/90 px-1 shadow-sm" title="Geser ke kiri">◀</button>
+                      <button type="button" onClick={() => pindahKolom(kk.key, 1)} className="rounded bg-white/90 px-1 shadow-sm" title="Geser ke kanan">▶</button>
+                      <button type="button" onClick={() => sembunyikan(kk.key)} className="rounded bg-white/90 px-1 shadow-sm" title="Sembunyikan kolom">👁</button>
+                    </span>
+                  )}
+                  <span onPointerDown={(e) => mulaiLebar(kk.key, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-matur-300" title="Tarik untuk ubah lebar" />
                 </th>
               ))}
+              {akunting && (
+                <th className="sticky top-0 z-20 border-b border-r border-matur-100 bg-white px-1 py-1">
+                  <button type="button" onClick={() => setAtur(true)} className="whitespace-nowrap rounded-lg border border-dashed border-matur-400 px-2 py-1 text-xs font-bold text-matur-700 hover:bg-matur-50" title="Tambah kolom">
+                    ＋ Kolom
+                  </button>
+                </th>
+              )}
               <th className="sticky top-0 z-20 border-b border-matur-100 bg-matur-50 px-2 py-2 text-left font-bold">Cek</th>
             </tr>
           </thead>
@@ -281,7 +404,8 @@ export function TabelHarian({
                         key={kk.key}
                         onClick={() => (setPos({ r, c }), setEdit(null), wadah.current?.focus())}
                         onDoubleClick={() => (setPos({ r, c }), bisaEdit(kk) ? setEdit(String(nilaiSel ?? 0)) : aksiSel())}
-                        className={`relative cursor-cell whitespace-nowrap border-b border-r border-stone-100 px-2 py-1.5 text-right tabular-nums ${
+                        style={sus.lebar[kk.key] ? { width: sus.lebar[kk.key], maxWidth: sus.lebar[kk.key] } : undefined}
+                        className={`relative cursor-cell overflow-hidden whitespace-nowrap border-b border-r border-stone-100 px-2 py-1.5 text-right tabular-nums ${
                           tanda === "koreksi" ? "bg-amber-100" : tanda === "manual" ? "bg-violet-100" : kk.jenis === "total_jual" || kk.jenis === "total_biaya" ? "bg-stone-50 font-bold" : ""
                         } ${selisihMerah ? "font-bold text-red-600" : ""} ${aktif ? "outline outline-2 -outline-offset-2 outline-matur-500" : ""}`}
                       >
@@ -314,6 +438,7 @@ export function TabelHarian({
                       </td>
                     );
                   })}
+                  {akunting && <td className="border-b border-r border-stone-100" />}
                   <td className="whitespace-nowrap border-b border-stone-100 px-2 py-1.5">
                     {(hh.janggal ?? 0) > 0 && (
                       <button onClick={() => bukaRincian(hh.tanggal)} title="Ada transaksi yang kanal & metode bayarnya tidak cocok">
@@ -334,6 +459,7 @@ export function TabelHarian({
                   {angka(total(kk))}
                 </td>
               ))}
+              {akunting && <td className="sticky bottom-0 border-t-2 border-matur-300 bg-kopi-900" />}
               <td className="sticky bottom-0 border-t-2 border-matur-300 bg-kopi-900" />
             </tr>
           </tfoot>
@@ -341,6 +467,28 @@ export function TabelHarian({
       </div>
       {pending && <p className="text-xs text-stone-500">Menyimpan…</p>}
 
+      {atur && (
+        <AturKolom
+          semua={urutkan(semuaKolom)}
+          tampil={kolom.map((k) => k.key)}
+          pending={pending}
+          tutup={() => setAtur(false)}
+          tampilkan={tampilkan}
+          sembunyikan={sembunyikan}
+          geser={pindahKolom}
+          gantiNama={gantiNama}
+          bawaan={() => ubahSus(() => ({ urutan: [], sembunyi: [], tampil: [], lebar: {} }))}
+          tambahKategori={(nama, grup) =>
+            run(
+              async () => {
+                const r = await tambahKategoriBiaya(nama, grup);
+                if (r.id) tampilkan(r.id);
+                return r;
+              },
+            )
+          }
+        />
+      )}
       {rincian && (
         <PanelRincian
           {...rincian}
@@ -491,6 +639,98 @@ function PanelRincian({
         <div className="flex items-center justify-between border-t px-4 py-3 text-sm">
           <span className="text-stone-500">{tampil.length} transaksi</span>
           <b className="tabular-nums">{formatRupiah(jumlah)}</b>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AturKolom({
+  semua,
+  tampil,
+  pending,
+  tutup,
+  tampilkan,
+  sembunyikan,
+  geser,
+  gantiNama,
+  bawaan,
+  tambahKategori,
+}: {
+  semua: Kolom[];
+  tampil: string[];
+  pending: boolean;
+  tutup: () => void;
+  tampilkan: (k: string) => void;
+  sembunyikan: (k: string) => void;
+  geser: (k: string, arah: number) => void;
+  gantiNama: (k: Kolom) => void;
+  bawaan: () => void;
+  tambahKategori: (nama: string, grup: "hpp" | "beban" | "lain") => void;
+}) {
+  const [nama, setNama] = useState("");
+  const [grup, setGrup] = useState<"hpp" | "beban" | "lain">("beban");
+  const urut = [...semua.filter((k) => tampil.includes(k.key)).sort((a, b) => tampil.indexOf(a.key) - tampil.indexOf(b.key)), ...semua.filter((k) => !tampil.includes(k.key))];
+  const warna = (k: Kolom) => (k.jenis === "biaya" || k.jenis === "total_biaya" ? "bg-rose-50 text-rose-900" : k.jenis === "kas" ? "bg-sky-50 text-sky-900" : "bg-matur-50 text-kopi-900");
+  return (
+    <div role="dialog" aria-modal className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && tutup()}>
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-xl sm:rounded-3xl">
+        <div className="flex items-start gap-2 border-b p-4">
+          <div className="mr-auto">
+            <h3 className="text-lg font-bold text-kopi-900">⚙ Atur kolom</h3>
+            <p className="text-xs text-stone-500">Susunan berlaku untuk semua akun akunting. Di tabel: seret judul kolom untuk memindah, tarik tepi kanan untuk ubah lebar, klik dua kali judul pengeluaran untuk ganti nama.</p>
+          </div>
+          <button onClick={tutup} className="rounded-full px-2 text-xl text-stone-400 hover:text-stone-700" aria-label="Tutup">
+            ✕
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <section className="space-y-2 rounded-2xl border border-dashed border-matur-300 bg-matur-50/50 p-3">
+            <p className="text-sm font-bold text-kopi-900">＋ Kolom pengeluaran baru</p>
+            <div className="flex flex-wrap gap-2">
+              <input value={nama} onChange={(e) => setNama(e.target.value)} maxLength={60} placeholder="mis. Biaya Kebersihan" className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+              <select value={grup} onChange={(e) => setGrup(e.target.value as "hpp" | "beban" | "lain")} className="rounded-lg border border-stone-200 px-2 py-2 text-sm">
+                <option value="beban">Beban operasional</option>
+                <option value="hpp">Pembelian bahan (HPP)</option>
+                <option value="lain">Lain-lain</option>
+              </select>
+              <button disabled={pending || nama.trim().length < 3} onClick={() => (tambahKategori(nama.trim(), grup), setNama(""))} className="rounded-lg bg-matur-500 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">
+                Tambah
+              </button>
+            </div>
+            <p className="text-[11px] text-stone-500">Kategori baru langsung muncul di pilihan pengeluaran POS, Catatan Harian, dan Rumus HPP.</p>
+          </section>
+          <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200">
+            {urut.map((k) => {
+              const aktif = tampil.includes(k.key);
+              return (
+                <li key={k.key} className={`flex items-center gap-2 px-3 py-2 text-sm ${aktif ? "" : "opacity-60"}`}>
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${warna(k)}`}>{k.jenis === "jual" ? "Penjualan" : k.jenis === "biaya" ? "Pengeluaran" : k.jenis === "kas" ? "Kas" : "Total"}</span>
+                  <span className="min-w-0 flex-1 truncate">{k.label}</span>
+                  {aktif && (
+                    <>
+                      <button onClick={() => geser(k.key, -1)} className="rounded border px-1.5 text-xs" title="Geser ke kiri">◀</button>
+                      <button onClick={() => geser(k.key, 1)} className="rounded border px-1.5 text-xs" title="Geser ke kanan">▶</button>
+                    </>
+                  )}
+                  {k.jenis === "biaya" && (
+                    <button onClick={() => gantiNama(k)} className="rounded border px-1.5 text-xs" title="Ganti nama">✏️</button>
+                  )}
+                  <button onClick={() => (aktif ? sembunyikan(k.key) : tampilkan(k.key))} className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${aktif ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
+                    {aktif ? "👁 Tampil" : "Tampilkan"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t p-4">
+          <button onClick={bawaan} className="rounded-xl border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700">
+            ↺ Susunan bawaan
+          </button>
+          <button onClick={tutup} className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white">
+            Selesai
+          </button>
         </div>
       </div>
     </div>
