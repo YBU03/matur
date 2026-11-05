@@ -15,7 +15,7 @@ describe("DP dan laporan realisasi",()=>{
     const lunas={...nota,pembayaran:[...nota.pembayaran,{...nota.pembayaran[0],id:"lunas",jumlah:1758250,tanggal:"2026-10-31"}]};
     expect(ringkasanBelanja([lunas],0,25000000)).toMatchObject({nota:3250000,dariProyek:3250000,saldo:21750000,tagihan:0});
   });
-  it("PDF memuat rincian, tanggal DP, semua sumber, pembatalan dan halaman lanjutan",async()=>{
+  it("PDF memuat rincian, tanggal DP, semua sumber dan halaman lanjutan; nota batal tidak dicetak",async()=>{
     const data={nama:"Proyek Uji Lokal - bukan data produksi",rab:57111000,realisasiLama:100000,setoran:[{id:"s",tanggal:"2026-10-22",jumlah:25000000,keterangan:"Setoran uji"}],belanja:[nota,
       {...nota,id:"lain",toko:"Pembayaran sumber lain",pembayaran:[{...nota.pembayaran[0],sumber:"talangan_pusat" as const},{...nota.pembayaran[0],id:"mitra",jumlah:100000,sumber:"langsung_mitra" as const}]},
       {...nota,id:"batal",toko:"Nota dibatalkan",pembayaran:[],batal_at:"2026-10-24",alasan_batal:"Pesanan tidak dilanjutkan"},
@@ -23,14 +23,16 @@ describe("DP dan laporan realisasi",()=>{
     ]};
     const doc=await buatPdfRealisasi(data,new Date("2026-10-24T04:00:00Z"));
     const text=doc.output();
-    for(const s of ["Sisa Dana Aktual","Rp 1.491.750","Rp 23.508.250","24 Okt 2026","DP","Talangan pusat","Dibayar langsung mitra","Pesanan tidak dilanjutkan","Halaman 1 /"]) expect(text).toContain(s);
+    for(const s of ["Sisa Dana Aktual","Rp 1.491.750","Rp 23.508.250","24 Okt 2026","DP","Talangan pusat","Dibayar langsung mitra","Halaman 1 /"]) expect(text).toContain(s);
+    for(const s of ["Nota dibatalkan","Pesanan tidak dilanjutkan"]) expect(text).not.toContain(s);
     expect(doc.getNumberOfPages()).toBeGreaterThan(2);
     if(process.env.QA_PDF_PATH){const {writeFile}=await import("node:fs/promises");await writeFile(process.env.QA_PDF_PATH,Buffer.from(doc.output("arraybuffer")));}
   });
-  it("PDF mempertahankan riwayat koreksi dan membedakan nota DP dari harga penuh",async()=>{
+  it("PDF tidak mencetak pembayaran yang dikoreksi dan membedakan nota DP dari harga penuh",async()=>{
     const b={...nota,total:1491750,nota_dp:true,pembayaran:[...nota.pembayaran,{...nota.pembayaran[0],id:"void",jumlah:100000,batal_at:"2026-10-24T01:00:00Z",alasan_batal:"Nominal salah",nama_pembatal:"Admin Uji"}]};
     const doc=await buatPdfRealisasi({nama:"Uji DP",rab:2600000,realisasiLama:0,setoran:[{id:"s",tanggal:"2026-10-24",jumlah:25000000,keterangan:null}],belanja:[b]});
-    for(const text of ["Rp 23.508.250","Dibayar Sebagian ","DIKOREKSI","Nominal salah","Belum dikonfirmasi; belum dianggap lunas"]){expect(doc.output()).toContain(text);}
+    for(const text of ["Rp 23.508.250","Dibayar Sebagian ","Belum dikonfirmasi; belum dianggap lunas"]){expect(doc.output()).toContain(text);}
+    for(const text of ["DIKOREKSI","Nominal salah","Rp 100.000"]){expect(doc.output()).not.toContain(text);}
   });
   it("PDF tetap dapat dibuat saat nota dan setoran kosong",async()=>{
     const doc=await buatPdfRealisasi({nama:"Kosong",rab:0,realisasiLama:0,setoran:[],belanja:[]});

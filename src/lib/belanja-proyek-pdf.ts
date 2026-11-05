@@ -5,13 +5,15 @@ import type { Setoran } from "./proyek";
 
 export type LaporanBelanja = { nama: string; rab: number; realisasiLama: number; setoran: Setoran[]; belanja: Belanja[] };
 
-/** Seluruh proyek, bukan hanya nota yang sedang tampak pada filter. Tidak memuat signed URL bukti. */
+/** Seluruh proyek (bukan hanya filter tampilan), HANYA data aktif: nota batal & pembayaran yang dikoreksi tidak dicetak
+ *  (tetap tersimpan & terlihat di halaman Realisasi Belanja). Tidak memuat signed URL bukti. */
 export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date()) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const masuk = data.setoran.reduce((s, x) => s + Number(x.jumlah), 0);
   const r = ringkasanBelanja(data.belanja, data.realisasiLama, masuk);
+  const aktif = data.belanja.filter((b) => !b.batal_at).map((b) => ({ ...b, pembayaran: b.pembayaran.filter((p) => !p.batal_at) }));
   const head = { fillColor: [104, 66, 34] as [number, number, number] };
   const styles = { font: "helvetica", fontSize: 9, cellPadding: 2.5, overflow: "linebreak" as const };
   let y = 16;
@@ -19,8 +21,9 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   const judul = doc.splitTextToSize(data.nama, 180);
   doc.setFontSize(11).text(judul, 14, y += 7);
   y += judul.length * 5;
-  doc.setFont("helvetica", "normal").setFontSize(9).text(`Seluruh nota proyek | Dicetak ${formatTanggal(dicetak.toISOString(), true)} WIB`, 14, y);
-  y += 5;
+  const ket = doc.setFont("helvetica", "normal").setFontSize(9).splitTextToSize(`Data realisasi aktif (nota batal & pembayaran yang dikoreksi tidak ditampilkan) | Dicetak ${formatTanggal(dicetak.toISOString(), true)} WIB`, 182);
+  doc.text(ket, 14, y);
+  y += ket.length * 4 + 1;
   const table = (headers: string[], body: string[][], moneyColumns: number[] = [], subtotal?: number) => {
     if (y > 240) { doc.addPage(); y = 16; }
     autoTable(doc, { startY: y, head: [headers], body, headStyles: head, styles,
@@ -50,7 +53,7 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   ]);
   heading("Dana masuk mitra");
   table(["Tanggal", "Keterangan", "Jumlah"], data.setoran.length ? data.setoran.map(s => [formatTanggal(s.tanggal), s.keterangan || "-", rp(s.jumlah)]) : [["-", "Belum ada dana masuk", rp(0)]], [2]);
-  for (const [index, { nota: b, jumlahCatatan }] of kelompokNotaPdf(data.belanja).entries()) {
+  for (const [index, { nota: b, jumlahCatatan }] of kelompokNotaPdf(aktif).entries()) {
     doc.addPage(); y = 16;
     heading(`${index + 1}. ${b.toko} | ${formatTanggal(b.tanggal)} | ${statusBelanja(b)}`);
     table(["Informasi nota", "Rincian"], [
@@ -59,12 +62,11 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
       [b.nota_dp ? "Nilai nota DP (bukan harga penuh)" : "Nilai / pembayaran", `Total: ${rp(b.total)} | Dibayar: ${rp(terbayar(b))} | Sisa: ${rp(b.total - terbayar(b))}`],
       ...(b.nota_dp ? [["Sisa pelunasan pesanan", "Belum dikonfirmasi; belum dianggap lunas"]] : []),
       ...(b.catatan ? [["Catatan", b.catatan]] : []),
-      ...(b.batal_at ? [["Pembatalan (tidak masuk ringkasan aktif)", b.alasan_batal || "Dibatalkan"]] : []),
     ]);
     table(["Barang / jasa", "Jumlah", "Harga satuan", "Total"], b.items.map(i => [i.nama, `${i.qty} ${i.satuan || ""}`.trim(), rp(i.harga_satuan), rp(i.jumlah)]), [2, 3], b.total);
-    table(["Tanggal bayar", "Sumber / metode", "Catatan / pencatat", "Dibayar"], b.pembayaran.length ? kelompokPembayaranPdf(b.pembayaran).map(p => [formatTanggal(p.tanggal), `${SUMBER_BELANJA[p.sumber]} / ${p.metode}`, [p.catatan, `Dicatat: ${p.nama_pencatat}`, ...(p.batal_at ? [`DIKOREKSI ${formatTanggal(p.batal_at, true)} oleh ${p.nama_pembatal || "-"}: ${p.alasan_batal || "-"} (tidak dihitung)`] : [])].filter(Boolean).join("\n"), `${rp(p.jumlah)}${p.batal_at ? " (dikoreksi)" : ""}`]) : [["-", "Belum ada pembayaran", "-", rp(0)]], [3]);
+    table(["Tanggal bayar", "Sumber / metode", "Catatan / pencatat", "Dibayar"], b.pembayaran.length ? kelompokPembayaranPdf(b.pembayaran).map(p => [formatTanggal(p.tanggal), `${SUMBER_BELANJA[p.sumber]} / ${p.metode}`, [p.catatan, `Dicatat: ${p.nama_pencatat}`].filter(Boolean).join("\n"), rp(p.jumlah)]) : [["-", "Belum ada pembayaran", "-", rp(0)]], [3]);
   }
-  if (!data.belanja.length) { heading("Belum ada realisasi belanja tercatat."); }
+  if (!aktif.length) { heading("Belum ada realisasi belanja tercatat."); }
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i); doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(110);
