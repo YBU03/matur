@@ -1,6 +1,7 @@
 "use client";
 import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka, tombolAksi } from "@/components/ui-halaman";
 import { tanya } from "@/components/dialog-tanya";
+import { denganAlasan } from "@/lib/dengan-alasan";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -191,7 +192,7 @@ export function KasView({
                       disabled={pending}
                       onClick={async () =>
                         (await tanya("Hapus pengeluaran ini?")) &&
-                        run(() => hapusPengeluaran(c.id))
+                        run(() => denganAlasan((a) => hapusPengeluaran(c.id, a)))
                       }
                       className={`${tombolAksi.hapus} ml-1.5`}
                       title="Hapus"
@@ -225,7 +226,7 @@ export function KasView({
             onBatal={() => setUbah(null)}
             onSimpan={(d) =>
               run(
-                () => ubahPengeluaran(ubah.id, d),
+                () => denganAlasan((a) => ubahPengeluaran(ubah.id, d, a)),
                 () => setUbah(null),
               )
             }

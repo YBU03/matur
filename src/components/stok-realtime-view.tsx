@@ -271,7 +271,7 @@ function TitipanSection({ rows, tampilRp, linkSetor }: { rows: BarisRt[]; tampil
   return (
     <section className={`rounded-2xl border-2 bg-white p-4 ${perlu ? "border-pink-300" : "border-matur-200"}`}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto font-bold">🍰 Produk jadi titipan (cheesecake & dessert)</h2>
+        <h2 className="mr-auto font-bold">🍰 Produk jadi titipan (snack & cheesecake)</h2>
         <span className="text-xs text-stone-500">
           {perlu ? <b className="text-red-600">{perlu} perlu setor ulang</b> : "semua aman"} · stok = setoran − terjual − marketing
         </span>

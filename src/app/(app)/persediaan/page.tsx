@@ -37,7 +37,11 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
   if (!outlet) notFound();
   const kini = new Date(Date.now() + 7 * 3600_000);
   const bulan = Array.from({ length: 6 }, (_, i) => new Date(Date.UTC(kini.getUTCFullYear(), kini.getUTCMonth() - i, 1)).toISOString().slice(0, 10));
-  const hasil = await Promise.all(bulan.map((b) => supabase.rpc("persediaan_bulanan", { p_outlet: outlet.id, p_periode: b })));
+  const [hasil, { data: pt }] = await Promise.all([
+    Promise.all(bulan.map((b) => supabase.rpc("persediaan_bulanan", { p_outlet: outlet.id, p_periode: b }))),
+    supabase.from("perusahaan").select("rumus_hpp").limit(1).maybeSingle(),
+  ]);
+  const labelTitipan = ((pt?.rumus_hpp ?? {}) as { label_titipan?: string }).label_titipan || "Tagihan snack & cheesecake";
   const data = hasil.map((r) => r.data as P | null).filter((x): x is P => !!x);
   const err = hasil.find((r) => r.error)?.error?.message;
   const ini = data[0];
@@ -55,7 +59,7 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
         ikon="📦"
         keterangan={
           <>
-            Rumus Ruma: <b>HPP = persediaan awal + pembelian bahan baku + tagihan dessert & cheesecake − persediaan akhir</b>. Persediaan akhir bulan ini otomatis menjadi persediaan awal bulan depan.
+            Rumus Ruma: <b>HPP = persediaan awal + pembelian bahan baku + {labelTitipan.toLowerCase()} − persediaan akhir</b>. Persediaan akhir bulan ini otomatis menjadi persediaan awal bulan depan.
           </>
         }
       >
@@ -86,7 +90,7 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
               [
                 ["Persediaan awal", ini.awal ?? 0, ini.sumber_awal, ""],
                 ["Pembelian bahan baku", ini.pembelian, `kiriman gudang ${formatRupiah(ini.kiriman_gudang)}${Object.entries(ini.pembelian_rincian ?? {}).map(([k, v]) => ` + ${k} ${formatRupiah(Number(v))}`).join("")}`, "+"],
-                ["Tagihan dessert & cheesecake", ini.tagihan_titipan, "titipan terjual × harga produsen", "+"],
+                [labelTitipan, ini.tagihan_titipan, "titipan terjual × harga produsen", "+"],
                 ["Persediaan akhir", ini.akhir, ini.sumber_akhir, "−"],
               ] as [string, number, string, string][]
             ).map(([k, v, sub, op]) => (
@@ -105,7 +109,7 @@ export default async function Persediaan({ searchParams }: { searchParams: Promi
           </dl>
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <Link href="/stok" className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">Opname / stok awal</Link>
-            <Link href={`/titipan?outlet=${outlet.id}`} className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">Titipan dessert</Link>
+            <Link href={`/titipan?outlet=${outlet.id}`} className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">Titipan snack & cheesecake</Link>
             {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href={`/laporan/proyeksi?outlet=${outlet.id}`} className="rounded-xl bg-kopi-900 px-3 py-1.5 font-semibold text-white shadow-sm">Tutup buku / proyeksi</Link>}
             {["owner", "admin_pusat", "finance"].includes(s.active.role) && <Link href="/rumus-hpp" className="rounded-xl border border-matur-300 px-3 py-1.5 font-semibold text-matur-700 hover:bg-matur-50">⚙ Atur rumus HPP</Link>}
           </div>

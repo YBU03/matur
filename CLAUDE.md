@@ -79,3 +79,5 @@ Gateway BNI 3 November: baca `docs/bni-gateway-matoer-2026-11-03.md`. Get Token/
 UX dialog & tablet 3 November: pakai `tanya/minta/kabar` dari `src/components/dialog-tanya.tsx`, bukan confirm/prompt/alert. Baca `docs/ux-dialog-tablet-2026-11-03.md`.
 
 Tong sampah & koreksi penjualan 4 November: `hapus_transaksi`/`pulihkan_transaksi`/`koreksi_transaksi`, status `dihapus`, rekap kas per tanggal shift. Baca `docs/penjualan-sampah-koreksi-2026-11-04.md`.
+
+Catatan Harian Excel & perbaikan akunting 5 November: baca `docs/akunting-catatan-harian-tabel-2026-11-05.md`. Catatan Harian tetap per kanal (jangan per metode), penyesuaian = delta, pengeluaran kas final hanya lewat `koreksi_biaya_final`.

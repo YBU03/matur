@@ -2,6 +2,8 @@
 -- nominal/sumber/hapus khusus akunting + geser kas), (2) label rumus HPP bisa diedit, (3) Catatan Harian
 -- mengelompokkan penjualan per METODE BAYAR (sama dengan Laporan Penjualan) + tanda transaksi janggal,
 -- (4) riwayat perbaikan admin per outlet, (5) koreksi data #27/#30 Kominot 4 Nov.
+-- Catatan: dijalankan pemilik lewat SQL Editor 5 Nov. Bagian (3) rekap_harian per metode digantikan
+-- 20261105231111_rekap_harian_kanal_janggal (kembali per kanal + tanda janggal) agar rekonsiliasi 2 Nov tetap.
 
 -- (1) izinkan perubahan biaya kas final hanya lewat RPC (flag transaksi lokal)
 do $$

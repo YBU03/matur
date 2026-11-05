@@ -14,7 +14,7 @@ export type Laporan = {
   modal_awal: number;
   persediaan_awal: number;
   pembelian: number;
-  /** tagihan dessert & cheesecake titipan: yang terjual × harga produsen (masuk HPP) */
+  /** tagihan snack & cheesecake titipan: yang terjual × harga produsen (masuk HPP) */
   tagihan_titipan?: number;
   /** rincian tagihan titipan per produsen (mis. Bu Ratna) */
   rincian_titipan?: { produsen: string; jumlah: number }[];
@@ -44,7 +44,7 @@ const sum = (xs: { jumlah: number }[]) => xs.reduce((s, x) => s + Number(x.jumla
 /** Hitungan laporan; laba bersih memakai angka resmi bila tersimpan (selisih pembulatan Excel ±Rp1). */
 export function hitung(l: Laporan) {
   const totalPenjualan = sum(l.pendapatan) - l.diskon;
-  // HPP = persediaan awal + pembelian bahan baku + tagihan dessert & cheesecake − persediaan akhir
+  // HPP = persediaan awal + pembelian bahan baku + tagihan snack & cheesecake − persediaan akhir
   const tersedia = l.persediaan_awal + l.pembelian + Number(l.tagihan_titipan ?? 0);
   const hpp = tersedia - l.persediaan_akhir;
   const labaKotor = totalPenjualan - hpp;

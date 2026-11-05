@@ -76,7 +76,7 @@ export async function hapusProdukKeluar(id: string): Promise<Result> {
   return { ok: "Dibatalkan, stok dikembalikan." };
 }
 
-export async function aturRumusHpp(rumus: { kiriman_gudang: boolean; titipan: boolean }, grup: Record<string, string>): Promise<Result> {
+export async function aturRumusHpp(rumus: { kiriman_gudang: boolean; titipan: boolean; label_titipan?: string }, grup: Record<string, string>): Promise<Result> {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat", "finance"].includes(s.active.role)) return { error: "Hanya Owner/Akunting." };
   const supabase = await supabaseServer();
@@ -109,4 +109,45 @@ export async function hapusDataSimulasi(outletId: string): Promise<Result> {
   segarkan();
   revalidatePath("/dashboard");
   return { ok: "Data simulasi outlet ini dihapus." };
+}
+
+export type TrxRincian = { id: string; nomor: number; waktu: string; kanal: string; subtotal: number; diskon: number; total: number; kasir: string; bayar: { metode: string; nominal: number }[]; items: string | null };
+/** Rincian transaksi satu hari operasional (untuk panel "asal uang" di Catatan Harian). */
+export async function rincianHarian(outletId: string, tanggal: string, sim = false): Promise<{ data?: TrxRincian[]; error?: string }> {
+  if (!tglOk(tanggal)) return { error: "Tanggal tidak valid." };
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("rincian_harian", { p_outlet: outletId, p_tanggal: tanggal, p_mode: sim ? "simulasi" : "asli" });
+  if (error) return { error: pesan(error.message) };
+  return { data: (data ?? []) as TrxRincian[] };
+}
+
+export type Perbaikan = { waktu: string; siapa: string; jenis: string; tanggal: string; judul: string; lama: Record<string, unknown> | null; baru: Record<string, unknown> | null };
+/** Riwayat perbaikan admin (koreksi transaksi, pengeluaran, input manual) untuk satu bulan. */
+export async function riwayatPerbaikan(outletId: string, bulan: string): Promise<{ data?: Perbaikan[]; error?: string }> {
+  if (!/^\d{4}-\d{2}$/.test(bulan)) return { error: "Bulan tidak valid." };
+  const awal = `${bulan}-01`;
+  const d = new Date(awal + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  d.setUTCDate(0);
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("riwayat_perbaikan_harian", { p_outlet: outletId, p_awal: awal, p_akhir: d.toISOString().slice(0, 10) });
+  if (error) return { error: pesan(error.message) };
+  return { data: (data ?? []) as Perbaikan[] };
+}
+
+/** Kembalikan satu sel ke angka POS: hapus (arsip) semua input manual & koreksi kanal itu pada tanggal itu. */
+export async function kembalikanKePos(outletId: string, tanggal: string, kanal: KanalHarian): Promise<Result> {
+  if (!tglOk(tanggal)) return { error: "Tanggal tidak valid." };
+  const supabase = await supabaseServer();
+  const { error, count } = await supabase
+    .from("penjualan_manual")
+    .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
+    .eq("outlet_id", outletId)
+    .eq("tanggal", tanggal)
+    .eq("kanal", kanal)
+    .eq("mode", "asli")
+    .is("deleted_at", null);
+  if (error) return { error: pesan(error.message) };
+  segarkan();
+  return { ok: count ? `Dikembalikan ke angka POS (${count} penyesuaian diarsipkan).` : "Sudah sama dengan angka POS." };
 }

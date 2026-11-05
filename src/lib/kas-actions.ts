@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
 
-export type Result = { error?: string; ok?: string };
+export type Result = { error?: string; ok?: string; perluAlasan?: boolean };
 export type Pengeluaran = {
   kategori_id: string;
   jumlah: number;
@@ -73,9 +73,34 @@ export async function catatPengeluaran(
   return { ok: "Pengeluaran tercatat." };
 }
 
+/** Pengeluaran di kas shift yang sudah final: lewat RPC (kategori/keterangan oleh outlet; nominal/sumber/hapus khusus akunting + geser kas). */
+async function koreksiFinal(id: string, v: { kategori_id?: string; keterangan?: string | null; jumlah?: number; sumber?: string } | null, alasan?: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { data: lama } = await supabase.from("biaya_outlet").select("kategori_id, keterangan, jumlah, sumber").eq("id", id).maybeSingle();
+  if (!lama) return { error: "Pengeluaran tidak ditemukan." };
+  const { data, error } = await supabase.rpc("koreksi_biaya_final", {
+    p_id: id,
+    p_kategori: v?.kategori_id ?? lama.kategori_id,
+    p_keterangan: v ? (v.keterangan ?? "") : (lama.keterangan ?? ""),
+    p_jumlah: v?.jumlah ?? lama.jumlah,
+    p_sumber: v?.sumber ?? lama.sumber,
+    p_hapus: !v,
+    p_alasan: alasan ?? "",
+  });
+  if (error) {
+    const m = error.message;
+    if (m.includes("PERLU_ALASAN")) return { error: "Kas shift sudah final — tulis alasan perbaikan.", perluAlasan: true };
+    return { error: m };
+  }
+  segarkan();
+  return { ok: (data as { ok?: string })?.ok ?? "Perubahan tersimpan." };
+}
+const kasFinal = (m: string) => m.includes("sesi kas final");
+
 export async function ubahPengeluaran(
   id: string,
   d: Pengeluaran,
+  alasan?: string,
 ): Promise<Result> {
   const b = bersih(d);
   if (!b.v) return { error: b.error };
@@ -85,29 +110,32 @@ export async function ubahPengeluaran(
     .update(b.v, { count: "exact" })
     .eq("id", id)
     .is("deleted_at", null);
+  if (error && kasFinal(error.message)) return koreksiFinal(id, b.v, alasan);
   if (error) return { error: error.message };
-  if (!count)
-    return {
-      error:
-        "Tidak bisa diubah (catatan orang lain atau sudah lebih dari 2 hari).",
-    };
+  if (!count) {
+    // bukan pembuatnya / lewat batas waktu RLS: coba jalur perbaikan beraudit (akunting & outlet)
+    const r = await koreksiFinal(id, b.v, alasan);
+    if (!r.error || r.perluAlasan) return r;
+    return { error: "Tidak bisa diubah (catatan orang lain atau sudah lebih dari 2 hari)." };
+  }
   segarkan();
   return { ok: "Perubahan tersimpan." };
 }
 
-export async function hapusPengeluaran(id: string): Promise<Result> {
+export async function hapusPengeluaran(id: string, alasan?: string): Promise<Result> {
   const supabase = await supabaseServer();
   const { error, count } = await supabase
     .from("biaya_outlet")
     .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
     .eq("id", id)
     .is("deleted_at", null);
+  if (error && kasFinal(error.message)) return koreksiFinal(id, null, alasan);
   if (error) return { error: error.message };
-  if (!count)
-    return {
-      error:
-        "Tidak bisa dihapus (catatan orang lain atau sudah lebih dari 2 hari).",
-    };
+  if (!count) {
+    const r = await koreksiFinal(id, null, alasan);
+    if (!r.error || r.perluAlasan) return r;
+    return { error: "Tidak bisa dihapus (catatan orang lain atau sudah lebih dari 2 hari)." };
+  }
   segarkan();
   return {
     ok: "Pengeluaran dihapus (bisa dipulihkan admin dari tempat sampah).",

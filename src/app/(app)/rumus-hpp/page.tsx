@@ -12,6 +12,6 @@ export default async function RumusHpp() {
     supabase.from("perusahaan").select("rumus_hpp").limit(1).maybeSingle(),
     supabase.from("kategori_biaya").select("id, nama, grup, urutan").order("urutan"),
   ]);
-  const r = (pt?.rumus_hpp ?? {}) as { kiriman_gudang?: boolean; titipan?: boolean };
-  return <RumusView rumus={{ kiriman_gudang: r.kiriman_gudang !== false, titipan: r.titipan !== false }} kategori={(kat ?? []) as { id: string; nama: string; grup: string; urutan: number }[]} />;
+  const r = (pt?.rumus_hpp ?? {}) as { kiriman_gudang?: boolean; titipan?: boolean; label_titipan?: string };
+  return <RumusView rumus={{ kiriman_gudang: r.kiriman_gudang !== false, titipan: r.titipan !== false, label_titipan: r.label_titipan || "Tagihan snack & cheesecake" }} kategori={(kat ?? []) as { id: string; nama: string; grup: string; urutan: number }[]} />;
 }

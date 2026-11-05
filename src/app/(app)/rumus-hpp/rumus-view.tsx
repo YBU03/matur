@@ -11,7 +11,7 @@ const GRUP: [string, string, string][] = [
   ["lain", "Lain-lain / di luar laba rugi", "bg-stone-100 text-stone-700"],
 ];
 
-export function RumusView({ rumus, kategori }: { rumus: { kiriman_gudang: boolean; titipan: boolean }; kategori: Kat[] }) {
+export function RumusView({ rumus, kategori }: { rumus: { kiriman_gudang: boolean; titipan: boolean; label_titipan: string }; kategori: Kat[] }) {
   const [r, setR] = useState(rumus);
   const [grup, setGrup] = useState<Record<string, string>>(() => Object.fromEntries(kategori.map((k) => [k.id, k.grup])));
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
@@ -35,7 +35,7 @@ export function RumusView({ rumus, kategori }: { rumus: { kiriman_gudang: boolea
         <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Rumus aktif</p>
         <p className="mt-1 text-lg font-bold leading-relaxed">
           HPP = Persediaan awal + <span className="text-amber-700">Pembelian bahan baku</span>
-          {r.titipan && <> + <span className="text-pink-700">Tagihan dessert & cheesecake</span></>} − Persediaan akhir
+          {r.titipan && <> + <span className="text-pink-700">{r.label_titipan || "Tagihan snack & cheesecake"}</span></>} − Persediaan akhir
         </p>
         <p className="mt-2 text-sm text-stone-600">
           Pembelian bahan baku = {[r.kiriman_gudang && "kiriman gudang yang diterima", ...hppKat].filter(Boolean).join(" + ") || <i>(kosong)</i>}
@@ -47,7 +47,7 @@ export function RumusView({ rumus, kategori }: { rumus: { kiriman_gudang: boolea
         {(
           [
             ["kiriman_gudang", "Kiriman bahan dari gudang pusat", "Nilai kiriman yang sudah diterima outlet dihitung sebagai pembelian bahan baku."],
-            ["titipan", "Tagihan dessert & cheesecake (titipan)", "Hanya yang terjual/keluar × harga produsen (Bu Ratna) yang dibebankan."],
+            ["titipan", `${r.label_titipan || "Tagihan snack & cheesecake"} (titipan)`, "Hanya yang terjual/keluar × harga produsen (Bu Ratna) yang dibebankan."],
           ] as const
         ).map(([k, judul, ket]) => (
           <label key={k} className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 p-3 hover:bg-stone-50">
@@ -58,6 +58,18 @@ export function RumusView({ rumus, kategori }: { rumus: { kiriman_gudang: boolea
             </span>
           </label>
         ))}
+      </section>
+
+      <section className="space-y-2 rounded-2xl border border-stone-200 bg-white p-4">
+        <h2 className="font-bold">✏️ Nama komponen titipan</h2>
+        <p className="text-xs text-stone-500">Tampil di rumus, halaman Persediaan &amp; HPP, dan laporan. Contoh: Tagihan snack &amp; cheesecake.</p>
+        <input
+          value={r.label_titipan}
+          maxLength={60}
+          onChange={(e) => setR({ ...r, label_titipan: e.target.value })}
+          placeholder="Tagihan snack & cheesecake"
+          className="w-full rounded-xl border border-matur-200 px-3 py-2 text-sm outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100"
+        />
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4">

@@ -1,5 +1,6 @@
 "use client";
 import { tanya } from "@/components/dialog-tanya";
+import { denganAlasan } from "@/lib/dengan-alasan";
 
 import {
   RevisiAktualKas,
@@ -10,7 +11,10 @@ import {
   type BelanjaBahan,
 } from "@/components/penerimaan-belanja";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { tabKelas } from "@/components/ui-halaman";
+import { TabelHarian } from "./tabel-harian";
+import { RiwayatPerbaikan } from "./riwayat-perbaikan";
 import { Modal } from "@/components/confirm-edit";
 import { ImporRuma } from "@/components/impor-ruma";
 import { FormPengeluaran, label } from "@/components/form-pengeluaran";
@@ -56,6 +60,7 @@ export type Hari = {
   seharusnya: number | null;
   selisih: number | null;
   shift: number;
+  janggal?: number;
 };
 export type Biaya = {
   id: string;
@@ -183,6 +188,19 @@ export function CatatanHarian({
     items: { menu_id: string; qty: string }[];
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tampilan, setTampilan] = useState<"tabel" | "hari" | "riwayat">("tabel");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("catatan-harian:tampilan");
+      if (v === "hari" || v === "tabel" || v === "riwayat") setTampilan(v);
+    } catch {}
+  }, []);
+  const gantiTampilan = (v: "tabel" | "hari" | "riwayat") => {
+    setTampilan(v);
+    try {
+      localStorage.setItem("catatan-harian:tampilan", v);
+    } catch {}
+  };
   const kat = Object.fromEntries(kategori.map((k) => [k.id, k]));
   const per = <T extends { tanggal: string }>(xs: T[]) => {
     const m = new Map<string, T[]>();
@@ -314,7 +332,7 @@ export function CatatanHarian({
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className={`mx-auto space-y-4 ${tampilan === "tabel" ? "max-w-[1600px]" : "max-w-5xl"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-auto">
           <h1 className="text-2xl font-bold">Catatan Harian</h1>
@@ -468,6 +486,36 @@ export function CatatanHarian({
         </p>
       )}
 
+      <div className={tabKelas.wadah}>
+        {(
+          [
+            ["tabel", "📊 Tabel (Excel)"],
+            ["hari", "📋 Per hari"],
+            ["riwayat", "🕘 Riwayat perbaikan"],
+          ] as const
+        ).map(([v, l]) => (
+          <button key={v} onClick={() => gantiTampilan(v)} className={tampilan === v ? tabKelas.aktif : tabKelas.pasif}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {tampilan === "tabel" && (
+        <TabelHarian
+          hari={hari}
+          manual={manual}
+          biaya={biaya}
+          kategori={kategori}
+          outletId={outletId}
+          sim={sim}
+          akunting={bolehImpor}
+          pending={pending}
+          run={run}
+          onPengeluaran={(t, item) => (setMsg(null), setForm({ tanggal: t, item }))}
+          onPlatform={(t) => bukaPlatform(t)}
+        />
+      )}
+      {tampilan === "riwayat" && <RiwayatPerbaikan outletId={outletId} bulan={bulan} kategori={kategori} />}
+      {tampilan === "hari" && (
       <ul className="space-y-2">
         {hariTampil.map((h) => {
           const t = h.tanggal;
@@ -507,6 +555,11 @@ export function CatatanHarian({
                 {adaPlatform && (
                   <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
                     online food diisi
+                  </span>
+                )}
+                {(h.janggal ?? 0) > 0 && (
+                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800" title="Kanal & metode bayar tidak cocok — cek di Tabel → Asal uang">
+                    ⚠️ {h.janggal} transaksi perlu dicek
                   </span>
                 )}
                 {adaKoreksi && (
@@ -708,7 +761,7 @@ export function CatatanHarian({
                             disabled={pending}
                             onClick={async () =>
                               (await tanya("Hapus pengeluaran ini?")) &&
-                              run(() => hapusPengeluaran(b.id))
+                              run(() => denganAlasan((a) => hapusPengeluaran(b.id, a)))
                             }
                             className="rounded px-1.5 text-red-600"
                             title="Hapus"
@@ -862,6 +915,7 @@ export function CatatanHarian({
           );
         })}
       </ul>
+      )}
 
       {!sim && <PenerimaanBelanja data={belanja} bolehTerima={false} />}
       {form && (
@@ -885,10 +939,13 @@ export function CatatanHarian({
               run(
                 () =>
                   form.item
-                    ? ubahPengeluaran(form.item.id, {
-                        ...d,
-                        tanggal: form.tanggal,
-                      })
+                    ? denganAlasan((a) =>
+                        ubahPengeluaran(
+                          form.item!.id,
+                          { ...d, tanggal: form.tanggal },
+                          a,
+                        ),
+                      )
                     : catatPengeluaran(
                         { ...d, tanggal: form.tanggal },
                         outletId,
