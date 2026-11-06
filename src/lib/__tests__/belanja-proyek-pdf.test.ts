@@ -44,6 +44,17 @@ describe("DP dan laporan realisasi",()=>{
     expect(ringkasanBelanja([nota],0,1510000).saldo).toBe(18250);
     if(process.env.QA_SALDO_PDF_PATH){const {writeFile}=await import("node:fs/promises");await writeFile(process.env.QA_SALDO_PDF_PATH,Buffer.from(doc.output("arraybuffer")));}
   });
+  it.each([
+    [25000000, "Rp 32.111.000", "Grand Total RAB dikurangi dana masuk mitra"],
+    [57111000, "Rp 0", "Setoran terpenuhi"],
+    [58111000, "Rp 0", "Kelebihan setoran Rp 1.000.000"],
+  ])("PDF menghitung sisa setoran dari seluruh RAB untuk dana masuk %s", async (masuk, sisa, status) => {
+    const doc = await buatPdfRealisasi({nama:"Uji sisa setoran mitra",rab:57111000,realisasiLama:0,setoran:[{id:"s",tanggal:"2026-11-06",jumlah:masuk,keterangan:null}],belanja:[nota]});
+    expect(doc.output()).toContain("Sisa Setoran Mitra");
+    expect(doc.output()).toContain(sisa);
+    expect(doc.output()).toContain(status);
+    if(process.env.QA_SETORAN_PDF_PATH && masuk === 25000000){const {writeFile}=await import("node:fs/promises");await writeFile(process.env.QA_SETORAN_PDF_PATH,Buffer.from(doc.output("arraybuffer")));}
+  });
   it("PDF tetap dapat dibuat saat nota dan setoran kosong",async()=>{
     const doc=await buatPdfRealisasi({nama:"Kosong",rab:0,realisasiLama:0,setoran:[],belanja:[]});
     expect(doc.output()).toContain("Belum ada realisasi belanja tercatat.");
