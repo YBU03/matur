@@ -2,25 +2,21 @@
 
 // Catatan Harian model spreadsheet: baris = tanggal, kolom = kanal penjualan + kategori pengeluaran + kas.
 // Klik sel → bar keterangan (asal angka); ketik angka + Enter → disimpan sebagai penyesuaian (angka POS tetap utuh).
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { minta, tanya } from "@/components/dialog-tanya";
 import { Badge } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
-import { KANAL_HARIAN, LABEL_KANAL, OJOL, METODE_PLATFORM_HARIAN as ojol, RINCIAN_METODE_MULAI, janggal, kolomBayar, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
+import { LABEL_KANAL, OJOL, METODE_PLATFORM_HARIAN as ojol, RINCIAN_METODE_MULAI, janggal, kolomBayar, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
 export { RINCIAN_METODE_MULAI, janggal, kolomBayar };
 import { aturTabelHarian, gantiNamaKategoriBiaya, kembalikanKePos, rincianHarian, simpanKoreksi, tambahKategoriBiaya, type SusunanTabel, type TrxRincian } from "@/lib/harian-actions";
 import { koreksiTransaksi } from "@/lib/transaksi-admin-actions";
 import type { Result } from "@/lib/kas-actions";
 import type { Biaya, Hari } from "./catatan-view";
 
+import { kolomHarianRuma, keteranganHarian, totalPenjualanHarian, type KolomHarian } from "@/lib/tabel-harian-format";
+
 type Kat = { id: string; nama: string; grup: string; urutan: number };
-type Kolom =
-  | { jenis: "jual"; key: KanalHarian; label: string }
-  | { jenis: "total_jual"; key: "total_jual"; label: string }
-  | { jenis: "biaya"; key: string; label: string }
-  | { jenis: "total_biaya"; key: "total_biaya"; label: string }
-  | { jenis: "kas"; key: "setoran" | "selisih"; label: string }
-  | { jenis: "info"; key: "tumbler_info"; label: string };
+type Kolom = KolomHarian;
 
 const angka = (n: number) => (n ? Math.round(n).toLocaleString("id-ID") : "");
 /** kolom catatan harian untuk satu pembayaran (sama dengan rekap_harian: kanal menentukan, Normal dipecah tunai/non tunai) */
@@ -94,19 +90,7 @@ export function TabelHarian({
   }, [biaya]);
 
   // semua kolom yang mungkin (urutan bawaan), lalu disaring & diurutkan sesuai susunan bersama akunting
-  const semuaKolom: (Kolom & { ada: boolean })[] = useMemo(() => {
-    const dipakai = (k: KanalHarian) => ["tunai", "non_tunai", "gofood", "grabfood"].includes(k) || baris.some((h) => nilai.get(h.tanggal)?.[k].akhir);
-    const katAda = new Set(biaya.map((b) => b.kategori_id));
-    return [
-      ...[...KANAL_HARIAN, "diskon" as KanalHarian].map((k) => ({ jenis: "jual" as const, key: k, label: k === "non_tunai" ? "QRIS / Non Tunai" : LABEL_KANAL[k], ada: dipakai(k) })),
-      { jenis: "total_jual" as const, key: "total_jual" as const, label: "TOTAL JUAL", ada: true },
-      { jenis: "info" as const, key: "tumbler_info" as const, label: "🥤 Tumbler (info)", ada: baris.some((h) => (h.tumbler_n ?? 0) > 0) },
-      ...[...kategori].sort((a, b) => a.urutan - b.urutan).map((k) => ({ jenis: "biaya" as const, key: k.id, label: k.nama, ada: perKategori && katAda.has(k.id) })),
-      { jenis: "total_biaya" as const, key: "total_biaya" as const, label: "TOTAL KELUAR", ada: true },
-      { jenis: "kas" as const, key: "setoran" as const, label: "Setoran", ada: true },
-      { jenis: "kas" as const, key: "selisih" as const, label: "Selisih kas", ada: true },
-    ];
-  }, [baris, nilai, biaya, kategori, perKategori]);
+  const semuaKolom = useMemo(() => kolomHarianRuma(kategori, perKategori), [kategori, perKategori]);
   const urutkan = <T extends { key: string }>(xs: T[]) => {
     // kolom yang ada di susunan memakai posisinya; kolom lain menempel setelah tetangga bawaannya
     const posisi = new Map(sus.urutan.map((k, i) => [k, i]));
@@ -138,7 +122,7 @@ export function TabelHarian({
   const gantiNama = async (kk: Kolom) => {
     if (kk.jenis !== "biaya" || !akunting) return;
     const nama = await minta(`Ganti nama kolom/kategori "${kk.label}". Nama baru ikut berubah di POS, Catatan Harian, Rumus HPP & laporan.`, { judul: "Ganti nama kategori", awal: kk.label, wajib: true, ya: "Simpan nama" });
-    if (nama && nama !== kk.label) run(() => gantiNamaKategoriBiaya(kk.key, nama));
+    if (nama && nama !== kk.label) run(() => gantiNamaKategoriBiaya(kk.key, nama), () => tampilkan(kk.key));
   };
   const mulaiLebar = (key: string, e: React.PointerEvent) => {
     e.preventDefault();
@@ -170,7 +154,8 @@ export function TabelHarian({
     ws.addRow(["TOTAL", ...kolom.map((k) => total(k))]).font = { bold: true };
     ws.columns.forEach((c, i) => {
       c.width = i === 0 ? 12 : 16;
-      if (i > 0) c.numFmt = "#,##0";
+      if (i > 0 && kolom[i-1].jenis !== "keterangan") c.numFmt = "#,##0";
+      if (i > 0 && kolom[i-1].jenis === "keterangan") c.width = 48;
     });
     ws.views = [{ state: "frozen", xSplit: 1, ySplit: 2 }];
     const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -181,8 +166,9 @@ export function TabelHarian({
     URL.revokeObjectURL(a.href);
   };
 
-  const totalJual = (t: string) => KANAL_HARIAN.reduce((s, k) => s + (nilai.get(t)?.[k].akhir ?? 0), 0);
-  const isiSel = (h: Hari, k: Kolom): number | null => {
+  const totalJual = (t: string) => totalPenjualanHarian(nilai.get(t)!);
+  const isiSel = (h: Hari, k: Kolom): number | string | null => {
+    if (k.jenis === "keterangan") return keteranganHarian(h.shift, biaya.filter(b => b.tanggal === h.tanggal), kategori);
     const v = nilai.get(h.tanggal)!;
     if (k.jenis === "jual") return v[k.key].akhir;
     if (k.jenis === "total_jual") return totalJual(h.tanggal);
@@ -213,6 +199,28 @@ export function TabelHarian({
     run(() => simpanKoreksi(outletId, { tanggal: hh.tanggal, kanal: kk.key, jumlah: delta, keterangan: keterangan.trim() || "Penyesuaian akunting" }));
   };
 
+  // Geser hanya viewport tabel; tanggal, judul, dan total tidak menutupi sel aktif.
+  useLayoutEffect(() => {
+    const container = wadah.current;
+    if (!container || !container.contains(document.activeElement)) return;
+    const cell = container.querySelector<HTMLElement>(`[data-sel="${pos.r}:${pos.c}"]`);
+    if (!cell) return;
+    const rect = container.getBoundingClientRect();
+    const target = cell.getBoundingClientRect();
+    const dateWidth = container.querySelector("tbody th")?.getBoundingClientRect().width ?? 0;
+    const headerHeight = container.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+    const footerHeight = container.querySelector("tfoot")?.getBoundingClientRect().height ?? 0;
+    const left = rect.left + container.clientLeft + dateWidth + 2;
+    const right = rect.left + container.clientLeft + container.clientWidth - 2;
+    const top = rect.top + container.clientTop + headerHeight + 2;
+    const bottom = rect.top + container.clientTop + container.clientHeight - footerHeight - 2;
+    // Sel lebih lebar dari layar ditampilkan dari tepi kirinya.
+    container.scrollLeft += target.left < left || target.width > right - left
+      ? target.left - left : Math.max(0, target.right - right);
+    container.scrollTop += target.top < top || target.height > bottom - top
+      ? target.top - top : Math.max(0, target.bottom - bottom);
+  }, [pos, kolom, sus.lebar]);
+
   const gerak = (dr: number, dc: number) => setPos((p) => ({ r: Math.max(0, Math.min(baris.length - 1, p.r + dr)), c: Math.max(0, Math.min(kolom.length - 1, p.c + dc)) }));
   const bukaRincian = async (tanggal: string, kanal?: string) => {
     setRincian({ tanggal, kanal });
@@ -232,7 +240,7 @@ export function TabelHarian({
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (edit !== null) return;
+    if (edit !== null || !h || !k) return;
     const peta: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
     if (peta[e.key]) {
       e.preventDefault();
@@ -259,7 +267,7 @@ export function TabelHarian({
 
   // tempel dari Excel: blok angka (tab/baris) mulai dari sel aktif, hanya kolom penjualan
   const onPaste = async (e: React.ClipboardEvent) => {
-    if (edit !== null) return;
+    if (edit !== null || !h || !k) return;
     const teks = e.clipboardData.getData("text");
     if (!teks.trim()) return;
     e.preventDefault();
@@ -277,14 +285,15 @@ export function TabelHarian({
     for (const x of rencana) simpanSel(x.hh, x.kk, x.v, ket || "Tempel dari Excel");
   };
 
-  const total = (kk: Kolom) => baris.reduce((s, hh) => s + (isiSel(hh, kk) ?? 0), 0);
+  const total = (kk: Kolom): number | string => kk.jenis === "keterangan" ? "" : baris.reduce((s, hh) => s + Number(isiSel(hh, kk) ?? 0), 0);
   const v = h && k?.jenis === "jual" ? nilai.get(h.tanggal)![k.key] : null;
   const itemBiaya = h && k?.jenis === "biaya" ? biayaSel.get(`${h.tanggal}|${k.key}`) ?? [] : [];
 
   return (
     <div className="space-y-2">
+      <p className="text-xs text-stone-500">Urutan utama mengikuti 26 kolom Ruma. Total mencakup seluruh kanal dan pengeluaran, termasuk kolom tambahan yang disembunyikan. Kas seharusnya dan setoran adalah angka kas, bukan laba usaha. Sedekah di sini adalah uang yang benar-benar dikeluarkan.</p>
       {/* bar keterangan sel (seperti formula bar Excel) */}
-      <section className="z-20 space-y-2 rounded-2xl sm:sticky sm:top-0 border border-matur-200 bg-white p-3 shadow-sm">
+      <section className="z-20 space-y-2 rounded-2xl sm:min-h-48 sm:sticky sm:top-0 border border-matur-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-lg bg-kopi-900 px-2.5 py-1 text-xs font-bold text-white">{h ? `${formatTanggal(h.tanggal)} · ${k?.label ?? ""}` : "Pilih sel"}</span>
           {v && (
@@ -310,6 +319,7 @@ export function TabelHarian({
             {h && <button onClick={() => bukaRincian(h.tanggal)} className="rounded-lg border border-stone-200 px-2.5 py-1 text-xs font-semibold text-stone-700">🧾 Transaksi hari ini</button>}
           </span>
         </div>
+        {h && k?.jenis === "keterangan" && <p className="break-words text-xs text-stone-600">{keteranganHarian(h.shift, biaya.filter(b => b.tanggal === h.tanggal), kategori) || "Belum ada keterangan pengeluaran atau shift."}</p>}
         {itemBiaya.length > 0 && (
           <ul className="flex flex-wrap gap-1.5">
             {itemBiaya.map((b) => (
@@ -322,8 +332,8 @@ export function TabelHarian({
           </ul>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-stone-500">
-            Keterangan penyesuaian
+          <label className="flex w-full min-w-0 flex-col items-stretch gap-1 text-xs text-stone-500 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-2">
+            <span className="shrink-0">Keterangan penyesuaian</span>
             <input value={ket} onChange={(e) => setKet(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-800" />
           </label>
           {akunting && (
@@ -402,16 +412,20 @@ export function TabelHarian({
                     return (
                       <td
                         key={kk.key}
+                        data-sel={`${r}:${c}`}
                         onClick={() => (setPos({ r, c }), setEdit(null), wadah.current?.focus())}
-                        onDoubleClick={() => (setPos({ r, c }), bisaEdit(kk) ? setEdit(String(nilaiSel ?? 0)) : aksiSel())}
-                        style={sus.lebar[kk.key] ? { width: sus.lebar[kk.key], maxWidth: sus.lebar[kk.key] } : undefined}
+                        onDoubleClick={event => { event.preventDefault(); event.stopPropagation(); setPos({ r, c }); if (bisaEdit(kk)) setEdit(String(nilaiSel ?? 0)); else if (kk.jenis === "biaya") { const xs = biayaSel.get(`${hh.tanggal}|${kk.key}`) ?? []; onPengeluaran(hh.tanggal, xs.length === 1 ? xs[0] : undefined); } else bukaRincian(hh.tanggal); }}
+                        title={kk.jenis === "keterangan" ? String(nilaiSel ?? "") : undefined}
+                        style={sus.lebar[kk.key] ? { width: sus.lebar[kk.key], maxWidth: sus.lebar[kk.key] } : kk.jenis === "keterangan" ? { minWidth: 240, maxWidth: 320 } : undefined}
                         className={`relative cursor-cell overflow-hidden whitespace-nowrap border-b border-r border-stone-100 px-2 py-1.5 text-right tabular-nums ${
                           tanda === "koreksi" ? "bg-amber-100" : tanda === "manual" ? "bg-violet-100" : kk.jenis === "total_jual" || kk.jenis === "total_biaya" ? "bg-stone-50 font-bold" : ""
-                        } ${selisihMerah ? "font-bold text-red-600" : ""} ${aktif ? "outline outline-2 -outline-offset-2 outline-matur-500" : ""}`}
+                        } ${kk.jenis === "keterangan" ? "!text-left text-stone-600" : ""} ${selisihMerah ? "font-bold text-red-600" : ""} ${aktif ? "outline outline-2 -outline-offset-2 outline-matur-500" : ""}`}
                       >
                         {aktif && edit !== null ? (
                           <input
                             autoFocus
+                            onClick={event => event.stopPropagation()}
+                            onDoubleClick={event => event.stopPropagation()}
                             value={edit}
                             inputMode="numeric"
                             onChange={(e) => setEdit(e.target.value)}
@@ -421,7 +435,7 @@ export function TabelHarian({
                                 e.preventDefault();
                                 simpanSel(hh, kk, edit);
                                 setEdit(null);
-                                gerak(e.key === "Enter" ? 1 : 0, e.key === "Tab" ? 1 : 0);
+                                gerak(e.key === "Enter" ? 1 : 0, e.key === "Tab" ? (e.shiftKey ? -1 : 1) : 0);
                                 wadah.current?.focus();
                               } else if (e.key === "Escape") {
                                 setEdit(null);
@@ -433,15 +447,15 @@ export function TabelHarian({
                         ) : kk.jenis === "info" ? (
                           (hh.tumbler_n ?? 0) > 0 ? (
                             <span className="text-teal-700" title={`tunai ${angka(hh.tumbler_tunai ?? 0) || 0} · QRIS/non tunai ${angka(hh.tumbler_nontunai ?? 0) || 0}`}>
-                              {hh.tumbler_n}× · {angka(nilaiSel ?? 0)}
+                              {hh.tumbler_n}× · {angka(Number(nilaiSel ?? 0))}
                             </span>
                           ) : (
                             ""
                           )
                         ) : kk.jenis === "kas" ? (
-                          nilaiSel === null ? <span className="text-stone-300">–</span> : kk.key === "selisih" && nilaiSel === 0 ? <span className="text-emerald-600">0</span> : angka(nilaiSel)
+                          nilaiSel === null ? <span className="text-stone-300">–</span> : kk.key === "selisih" && nilaiSel === 0 ? <span className="text-emerald-600">0</span> : angka(Number(nilaiSel))
                         ) : (
-                          angka(nilaiSel ?? 0)
+                          kk.jenis === "keterangan" ? String(nilaiSel ?? "") : angka(Number(nilaiSel ?? 0))
                         )}
                       </td>
                     );
@@ -464,7 +478,7 @@ export function TabelHarian({
               <th className="sticky bottom-0 left-0 z-30 border-r border-t-2 border-matur-300 bg-kopi-900 px-2 py-2 text-left text-white">TOTAL</th>
               {kolom.map((kk) => (
                 <td key={kk.key} className="sticky bottom-0 z-20 whitespace-nowrap border-r border-t-2 border-matur-300 bg-kopi-900 px-2 py-2 text-right font-bold tabular-nums text-white">
-                  {angka(total(kk))}
+                  {typeof total(kk) === "string" ? "" : angka(Number(total(kk)))}
                 </td>
               ))}
               {akunting && <td className="sticky bottom-0 border-t-2 border-matur-300 bg-kopi-900" />}

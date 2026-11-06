@@ -1,3 +1,5 @@
+import { barisSetoranMitra } from "./setoran-proyek";
+import { formatSaldoProyek } from "@/lib/format-saldo-proyek";
 import { kelompokNotaPdf, kelompokPembayaranPdf } from "./belanja-pdf-kelompok";
 import { formatRupiah as rp, formatTanggal } from "./format";
 import { ringkasanBelanja, statusBelanja, terbayar, SUMBER_BELANJA, type Belanja } from "./belanja-proyek";
@@ -42,12 +44,13 @@ export async function buatPdfRealisasi(data: LaporanBelanja, dicetak = new Date(
   };
   table(["Ringkasan dana", "Jumlah"], [
     ["Grand Total RAB", rp(data.rab)], ["Dana Masuk Mitra", rp(masuk)],
-    ["Realisasi Pembayaran (dari dana proyek)", rp(r.dariProyek)], ["Sisa Dana Aktual", rp(r.saldo)],
+    ...barisSetoranMitra(data.rab, masuk),
+    ["Realisasi Pembayaran (dari dana proyek)", rp(r.dariProyek)], ["Sisa Dana Aktual", formatSaldoProyek(r.saldo)],
     ["Total nilai pesanan / nota aktif", rp(r.nota)], ["Total sudah dibayar (semua sumber)", rp(r.dibayar)],
     ["Sisa tagihan nota", rp(r.tagihan)], ["Talangan pusat", rp(r.talangan)], ["Dibayar langsung mitra", rp(r.mitra)],
     ...(data.realisasiLama ? [["Realisasi lama - pembayaran belum dirinci", rp(data.realisasiLama)]] : []),
   ], [1]);
-  table(["Dasar perhitungan"], [["Sisa Dana Aktual = dana masuk mitra dikurangi DP dan pelunasan dari dana proyek. Talangan pusat dan pembayaran langsung mitra tidak mengurangi saldo ini. RAB adalah anggaran, bukan harga pesanan aktual."],
+  table(["Dasar perhitungan"], [["Sisa Setoran Mitra = seluruh Grand Total RAB dikurangi dana masuk mitra, tanpa membedakan pembeli pusat/mitra. Belanja tidak mengurangi kewajiban setoran ini."],["Sisa Dana Aktual = dana masuk mitra dikurangi DP dan pelunasan dari dana proyek. Talangan pusat dan pembayaran langsung mitra tidak mengurangi saldo ini. RAB adalah anggaran, bukan harga pesanan aktual."],
     ...(r.dpBelumFinal ? [["Ada nota DP: harga total pesanan dan sisa pelunasan belum lengkap. Sisa tagihan hanya mencakup nilai nota yang sudah dicatat."]] : []),
     ...(data.realisasiLama ? [["Pembayaran realisasi lama belum dirinci dan belum mengurangi saldo. Cocokkan sebelum menggunakan saldo sebagai uang tersedia."]] : []),
   ]);
