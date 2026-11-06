@@ -28,6 +28,7 @@ export function FormPengeluaran({
   baru = false,
   onSimpan,
   onBatal,
+  kunciNominal = false,
 }: {
   kategori: Kat[];
   pending: boolean;
@@ -36,6 +37,8 @@ export function FormPengeluaran({
   baru?: boolean;
   onSimpan: (d: Pengeluaran, reset: () => void) => void;
   onBatal?: () => void;
+  /** kas shift sudah final: nominal & sumber dana dikunci (perbaikan nominal lewat Akunting) */
+  kunciNominal?: boolean;
 }) {
   const [bahan, setBahan] = useState<
     { id: string; nama: string; satuan_pakai: string }[]
@@ -83,13 +86,19 @@ export function FormPengeluaran({
           </button>
         ))}
       </div>
+      {kunciNominal && (
+        <p className="rounded-xl bg-stone-100 px-3 py-2 text-xs text-stone-700">
+          🔒 Kas shift ini sudah ditutup. <b>Kategori & keterangan</b> masih bisa diperbaiki. Untuk mengubah <b>nominal atau sumber dana</b>, hubungi Akunting.
+        </p>
+      )}
       <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
         <input
+          disabled={kunciNominal}
           value={jumlah ? Number(angka(jumlah)).toLocaleString("id-ID") : ""}
           onChange={(e) => setJumlah(e.target.value)}
           inputMode="numeric"
           placeholder="Nominal (Rp)"
-          className={`${cls} text-right text-base font-semibold`}
+          className={`${cls} text-right text-base font-semibold disabled:bg-stone-100 disabled:text-stone-500`}
         />
         <input
           value={ket}
@@ -194,8 +203,9 @@ export function FormPengeluaran({
           <button
             key={s}
             type="button"
+            disabled={kunciNominal}
             onClick={() => setSumber(s)}
-            className={`rounded-xl border-2 py-2 font-semibold ${sumber === s ? (s === "laci" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-blue-500 bg-blue-50 text-blue-800") : "border-stone-200 text-stone-500"}`}
+            className={`rounded-xl border-2 py-2 font-semibold disabled:opacity-60 ${sumber === s ? (s === "laci" ? "border-amber-500 bg-amber-50 text-amber-800" : "border-blue-500 bg-blue-50 text-blue-800") : "border-stone-200 text-stone-500"}`}
           >
             {s === "laci" ? "💵 Uang laci kasir" : "🏢 Dibayar pusat"}
           </button>

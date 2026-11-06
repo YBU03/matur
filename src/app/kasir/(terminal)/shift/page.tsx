@@ -12,6 +12,7 @@ import { statusPos } from "@/lib/pos-tim";
 import { TutupKasTim, type KasTim } from "@/components/tutup-kas-tim";
 import { supabaseServer } from "@/lib/supabase/server";
 import { KasView, type Catatan } from "./kas-view";
+import { tglOperasional } from "@/lib/hari-operasional";
 import { ProdukMarketing, type ProdukHariIni } from "./produk-marketing";
 
 // Kas & pengeluaran harian outlet (sheet "Transaksi" Ruma): catat pengeluaran, lihat ringkasan shift, tutup shift
@@ -37,7 +38,9 @@ export default async function KasPage() {
   const { data: kasTim } = sesiId
     ? await supabase.rpc("ringkasan_kas_tim", { p_sesi: sesiId })
     : { data: null };
-  const hari = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  // hari operasional (tutup buku 03.00): pengeluaran 00.00–03.00 masih milik hari yang sama
+  const hari = tglOperasional();
+  const tujuhHari = new Date(Date.parse(`${hari}T00:00:00Z`) - 6 * 86400_000).toISOString().slice(0, 10);
   const [
     { data: kat, error: katError },
     { data: sesiBuka },
@@ -64,8 +67,10 @@ export default async function KasPage() {
       )
       .eq("mode", "asli")
       .eq("outlet_id", outlet)
-      .eq("tanggal", hari)
+      .gte("tanggal", tujuhHari)
+      .lte("tanggal", hari)
       .is("deleted_at", null)
+      .order("tanggal", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase
       .from("menu")
@@ -87,6 +92,12 @@ export default async function KasPage() {
       "Data pengeluaran belum dapat dimuat: " +
         (katError ?? catatanError ?? produkError)!.message,
     );
+  // tandai pengeluaran yang kas shift-nya sudah ditutup (kategori/keterangan tetap bisa diperbaiki)
+  const idSesi = [...new Set((catatan ?? []).map((c) => c.sesi_kas_id).filter((x): x is string => !!x))];
+  const { data: sesiFinal } = idSesi.length
+    ? await supabase.from("sesi_kas").select("id").in("id", idSesi).not("ditutup_at", "is", null)
+    : { data: [] as { id: string }[] };
+  const final = new Set((sesiFinal ?? []).map((x) => x.id));
   const { data: belanja, error: belanjaError } = await supabase
     .from("belanja_bahan_outlet")
     .select("*")
@@ -117,7 +128,8 @@ export default async function KasPage() {
       <PosRiwayatShift outlet={outlet} />
       <KasView
         kategori={(kat ?? []) as { id: string; nama: string; grup: string }[]}
-        catatan={(catatan ?? []) as unknown as Catatan[]}
+        catatan={((catatan ?? []) as unknown as Catatan[]).map((c) => ({ ...c, final: !!c.sesi_kas_id && final.has(c.sesi_kas_id) }))}
+        hari={hari}
         meId={s.userId}
         sesi={null}
         adaShiftBuka={(sesiBuka ?? []).length > 0}

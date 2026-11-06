@@ -17,3 +17,8 @@ Migrasi: `20261105090000_akunting_perbaikan_harian.sql` (dijalankan via SQL Edit
 - Kolom penjualan & total tidak bisa diganti nama/dihapus; kategori berdata tidak dihapus, cukup disembunyikan.
 - **⬇ Excel (tabel ini)** mengekspor kolom sesuai susunan yang tampil; **Excel (format Ruma)** tetap format sheet lama.
 - File `"use server"` hanya boleh mengekspor fungsi async (konstanta di-ekspor membuat aksi gagal dipanggil dari klien).
+
+## POS pengeluaran & setoran (6 November)
+- POS Kas & Pengeluaran: tab **Hari ini** / **7 hari terakhir** (hari operasional, `tglOperasional`). Pengeluaran yang kas shift-nya ditutup bertanda 🔒: kategori & keterangan bisa diperbaiki siapa pun di outlet (lewat `koreksi_biaya_final`), nominal/sumber dikunci di form (`FormPengeluaran kunciNominal`), tombol hapus disembunyikan.
+- `catat_pengeluaran_pos` & `tempel_sesi_biaya` memakai `tgl_op(now())` (catatan 00.00–03.00 masuk hari shift berjalan).
+- `rekap_setoran`: pengeluaran laci yang terikat sesi kas dihitung pada `greatest(tanggal, tgl_op(created_at))` — pengeluaran yang ditulis mundur ikut hari uang keluar dari laci, sehingga "harus disetor" = kas shift (2–5 Nov Kominot cocok). Pengeluaran pusat & impor tetap per tanggal catatan.

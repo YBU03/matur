@@ -81,3 +81,5 @@ UX dialog & tablet 3 November: pakai `tanya/minta/kabar` dari `src/components/di
 Tong sampah & koreksi penjualan 4 November: `hapus_transaksi`/`pulihkan_transaksi`/`koreksi_transaksi`, status `dihapus`, rekap kas per tanggal shift. Baca `docs/penjualan-sampah-koreksi-2026-11-04.md`.
 
 Catatan Harian Excel & perbaikan akunting 5 November: baca `docs/akunting-catatan-harian-tabel-2026-11-05.md`. Catatan Harian tetap per kanal (jangan per metode), penyesuaian = delta, pengeluaran kas final hanya lewat `koreksi_biaya_final`.
+
+POS pengeluaran & setoran 6 November: riwayat 7 hari + kunci nominal kas final di POS, pengeluaran & rekap setoran per hari operasional. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.

@@ -31,6 +31,8 @@ export type Catatan = {
   dibuat_oleh: string | null;
   created_at: string;
   pengguna: { nama: string } | null;
+  /** kas shift pengeluaran ini sudah ditutup: kategori & keterangan masih bisa diubah, nominal/sumber khusus akunting */
+  final?: boolean;
 };
 
 const cls =
@@ -46,6 +48,7 @@ export function KasView({
   ringkas,
   outletNama,
   spv,
+  hari,
 }: {
   kategori: Kat[];
   catatan: Catatan[];
@@ -66,7 +69,13 @@ export function KasView({
   } | null;
   outletNama: string;
   spv: boolean;
+  /** hari operasional (tutup buku 03.00) */
+  hari?: string;
 }) {
+  const [tab, setTab] = useState<"hari" | "riwayat">("hari");
+  const semua = catatan;
+  const hariIni = hari ? semua.filter((c) => c.tanggal === hari) : semua;
+  const lampau = hari ? semua.filter((c) => c.tanggal !== hari) : [];
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Result | null>(null);
@@ -89,10 +98,11 @@ export function KasView({
         router.refresh();
       }
     });
-  const totalLaci = catatan
+  const tampil = tab === "hari" ? hariIni : lampau;
+  const totalLaci = hariIni
     .filter((c) => c.sumber === "laci")
     .reduce((a, c) => a + c.jumlah, 0);
-  const totalPusat = catatan
+  const totalPusat = hariIni
     .filter((c) => c.sumber === "pusat")
     .reduce((a, c) => a + c.jumlah, 0);
 
@@ -100,10 +110,10 @@ export function KasView({
     <div className="mx-auto max-w-3xl space-y-4">
       <HeaderHalaman judul="Kas & Pengeluaran" ikon="💰" keterangan="Catat uang keluar dari laci atau yang dibayar pusat, lalu tutup shift dengan hitungan uang fisik.">
         <ChipHeader>🏪 {outletNama}</ChipHeader>
-        <ChipHeader>📅 {formatTanggal(new Date().toISOString())}</ChipHeader>
+        <ChipHeader>📅 {formatTanggal(hari ?? new Date().toISOString())}</ChipHeader>
       </HeaderHalaman>
       <BarisAngka>
-        <KartuAngka label="Pengeluaran hari ini" nilai={catatan.length} ikon="🧾" sub="catatan" />
+        <KartuAngka label="Pengeluaran hari ini" nilai={hariIni.length} ikon="🧾" sub="catatan" />
         <KartuAngka label="Dari laci" nilai={formatRupiah(totalLaci)} ikon="🗄️" nada="kuning" sub="mengurangi uang laci" />
         <KartuAngka label="Dibayar pusat" nilai={formatRupiah(totalPusat)} ikon="🏢" nada="biru" sub="tidak dari laci" />
         <KartuAngka label="Transaksi shift" nilai={ringkas?.transaksi ?? 0} ikon="☕" nada="hijau" sub={ringkas ? `tunai ${formatRupiah(ringkas.tunai)}` : "kas belum dibuka"} />
@@ -137,24 +147,38 @@ export function KasView({
 
       <section className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
-          <h2 className="mr-auto text-base font-bold text-kopi-900">
-            🧾 Pengeluaran hari ini ({catatan.length})
-          </h2>
+          <div className="mr-auto flex gap-1 rounded-xl bg-matur-50 p-1 text-sm font-semibold">
+            <button type="button" onClick={() => setTab("hari")} className={`rounded-lg px-3 py-1.5 ${tab === "hari" ? "bg-white text-kopi-900 shadow-sm" : "text-stone-500"}`}>
+              🧾 Hari ini ({hariIni.length})
+            </button>
+            <button type="button" onClick={() => setTab("riwayat")} className={`rounded-lg px-3 py-1.5 ${tab === "riwayat" ? "bg-white text-kopi-900 shadow-sm" : "text-stone-500"}`}>
+              🗓 7 hari terakhir ({lampau.length})
+            </button>
+          </div>
           <span className="text-xs text-stone-500">
             dari laci <b>{formatRupiah(totalLaci)}</b> · dibayar pusat{" "}
             <b>{formatRupiah(totalPusat)}</b>
           </span>
         </div>
-        {catatan.length === 0 && (
+        {tab === "riwayat" && (
+          <p className="mb-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800">
+            Salah pilih kategori atau keterangan kemarin? Klik ✏️ Ubah. Pengeluaran bertanda 🔒 sudah masuk kas yang ditutup: kategori & keterangan tetap bisa diperbaiki, nominal/sumber dana hubungi Akunting. Semua perubahan tercatat.
+          </p>
+        )}
+        {tampil.length === 0 && (
           <p className="my-2 rounded-2xl border-2 border-dashed border-matur-200 py-6 text-center text-sm text-stone-500">
-            Belum ada pengeluaran hari ini.
+            {tab === "hari" ? "Belum ada pengeluaran hari ini." : "Tidak ada pengeluaran 7 hari terakhir."}
           </p>
         )}
         <ul className="divide-y">
-          {catatan.map((c) => {
+          {tampil.map((c, i) => {
             const milik = c.dibuat_oleh === meId || spv;
+            // kas final: siapa pun di outlet boleh perbaiki kategori/keterangan (diaudit); hapus khusus akunting
+            const bisaUbah = milik || !!c.final;
+            const judulTanggal = tab === "riwayat" && (i === 0 || tampil[i - 1].tanggal !== c.tanggal);
             return (
-              <li key={c.id} className="flex items-start gap-3 py-2.5 text-sm">
+              <li key={c.id} className="flex flex-wrap items-start gap-3 py-2.5 text-sm">
+                {judulTanggal && <p className="w-full pt-1 text-xs font-bold uppercase tracking-wide text-matur-700">{formatTanggal(c.tanggal)}</p>}
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">
                     {c.keterangan ||
@@ -169,6 +193,7 @@ export function KasView({
                     >
                       {c.sumber === "laci" ? "dari laci" : "dibayar pusat"}
                     </span>
+                    {c.final && <span className="font-semibold text-stone-600"> · 🔒 kas final</span>}
                     {c.pengguna?.nama && ` · ${c.pengguna.nama}`} ·{" "}
                     {new Date(c.created_at).toLocaleTimeString("id-ID", {
                       hour: "2-digit",
@@ -179,7 +204,7 @@ export function KasView({
                 <span className="font-semibold tabular-nums">
                   {formatRupiah(c.jumlah)}
                 </span>
-                {milik && (
+                {bisaUbah && (
                   <span className="flex shrink-0">
                     <button
                       onClick={() => (setMsg(null), setUbah(c))}
@@ -188,6 +213,7 @@ export function KasView({
                     >
                       ✏️ Ubah
                     </button>
+                    {!c.final && (
                     <button
                       disabled={pending}
                       onClick={async () =>
@@ -199,6 +225,7 @@ export function KasView({
                     >
                       🗑 Hapus
                     </button>
+                    )}
                   </span>
                 )}
               </li>
@@ -218,10 +245,11 @@ export function KasView({
       )}
 
       {ubah && (
-        <Modal title="Ubah pengeluaran">
+        <Modal title={`Ubah pengeluaran · ${formatTanggal(ubah.tanggal)}`}>
           <FormPengeluaran
             kategori={kategori}
             pending={pending}
+            kunciNominal={!!ubah.final}
             awal={ubah}
             onBatal={() => setUbah(null)}
             onSimpan={(d) =>
