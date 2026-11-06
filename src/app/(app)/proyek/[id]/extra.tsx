@@ -1,4 +1,5 @@
 "use client";
+import { barisSetoranMitra } from "@/lib/setoran-proyek";
 import { formatSaldoProyek } from "@/lib/format-saldo-proyek";
 import { useProyekBusy } from "@/components/proyek/activity";
 import { useProyekTransition } from "@/components/proyek/activity";
@@ -288,6 +289,7 @@ export function LaporanPdf({ data, className = "" }: { data: LaporanData; classN
           ["Grand Opening", tgl(data.grandOpening)],
           ["Grand Total RAB", formatRupiah(data.estimasi)],
           ["Dana Masuk Mitra", formatRupiah(dana)],
+          ...barisSetoranMitra(data.estimasi, dana),
           ["Realisasi Pembayaran (dana proyek)", formatRupiah(data.pembayaranProyek)],
           ["Sisa Dana Aktual", formatSaldoProyek(dana - data.pembayaranProyek)],
           ["Total realisasi biaya / pesanan", formatRupiah(data.realisasi)],
