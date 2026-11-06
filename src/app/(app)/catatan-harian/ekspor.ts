@@ -20,7 +20,9 @@ const JUAL: [KanalHarian, string][] = [
 const KOL_JUAL = 4; // D
 const KOL_KELUAR = KOL_JUAL + JUAL.length; // L
 const KOL_AB = KOL_KELUAR + KELUAR.length; // AB
-const LEBAR = KOL_AB + 1; // AC
+const KOL_AC = KOL_AB + 1;
+const KOL_KAS = KOL_AB + 2;
+const LEBAR = KOL_AB + 4; // kas seharusnya, setoran aktual, selisih
 const HIJAU = "FFC5E0B3";
 const RP = '_("Rp"* #,##0_);_("Rp"* (#,##0);_("Rp"* "-"_);_(@_)';
 const huruf = (c: number) => {
@@ -61,11 +63,12 @@ export async function eksporExcel(outlet: string, bulan: string, hari: Hari[], m
   JUAL.forEach(([, l], i) => sel(6, KOL_JUAL + i, l));
   sel(4, KOL_KELUAR, "Pengeluaran");
   ws.mergeCells(4, KOL_KELUAR, 5, KOL_AB - 1);
-  KELUAR.forEach(([l], i) => sel(6, KOL_KELUAR + i, l));
+  KELUAR.forEach(([l], i) => sel(6, KOL_KELUAR + i, l === "Biaya Lain-lain" ? "Lain Lain" : l));
   sel(4, KOL_AB, "Total");
-  ws.mergeCells(4, KOL_AB, 5, LEBAR);
+  ws.mergeCells(4, KOL_AB, 5, KOL_AC);
   sel(6, KOL_AB, "Penjualan");
-  sel(6, LEBAR, "Pengeluaran");
+  sel(6, KOL_AC, "Pengeluaran");
+  ["Kas Seharusnya", "Setoran Aktual", "Selisih Kas"].forEach((label, i) => { sel(4, KOL_KAS+i,label); ws.mergeCells(4,KOL_KAS+i,6,KOL_KAS+i); });
 
   const tanggal = [...new Set([...hari.map((h) => h.tanggal), ...manual.map((m) => m.tanggal), ...biaya.map((b) => b.tanggal), ...produk.map((p) => p.tanggal)])].sort();
   const awal = 7;
@@ -78,7 +81,7 @@ export async function eksporExcel(outlet: string, bulan: string, hari: Hari[], m
     const jual = JUAL.map(([k]) => v[k].akhir);
     // tumbler tidak punya kolom di format Ruma → digabung ke Non Tunai
     jual[1] += v.tumbler.akhir;
-    if (!jual.some(Boolean) && !items.length && !prod.length) continue;
+    if (!jual.some(Boolean) && !items.length && !prod.length && h?.setoran == null && h?.selisih == null) continue;
 
     // baris tanggal
     const barisTgl = r;
@@ -114,9 +117,10 @@ export async function eksporExcel(outlet: string, bulan: string, hari: Hari[], m
       r++;
     }
     // ringkasan hari di baris tanggal
+    [h?.seharusnya, h?.setoran, h?.selisih].forEach((nilai, i) => { ws.getCell(barisTgl, KOL_KAS+i).value = nilai ?? null; });
     const akhir = r - 1;
     ws.getCell(barisTgl, KOL_AB).value = { formula: `SUM(${huruf(KOL_JUAL)}${barisTgl}:${huruf(KOL_KELUAR - 2)}${barisTgl})-${huruf(KOL_KELUAR - 1)}${barisTgl}` };
-    ws.getCell(barisTgl, LEBAR).value = { formula: `SUM(${huruf(KOL_KELUAR)}${barisTgl}:${huruf(KOL_AB - 1)}${akhir})` };
+    ws.getCell(barisTgl, KOL_AC).value = { formula: `SUM(${huruf(KOL_KELUAR)}${barisTgl}:${huruf(KOL_AB - 1)}${akhir})` };
   }
 
   // baris total
@@ -129,8 +133,8 @@ export async function eksporExcel(outlet: string, bulan: string, hari: Hari[], m
     x.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HIJAU } };
     x.border = kotak;
   }
-  ws.getCell(tot + 2, 2).value = "Laba kotor (Penjualan − Pengeluaran)";
-  ws.getCell(tot + 2, KOL_AB).value = { formula: `${huruf(KOL_AB)}${tot}-${huruf(LEBAR)}${tot}` };
+  ws.getCell(tot + 2, 2).value = "Penjualan − Pengeluaran (bukan laba bersih / HPP)";
+  ws.getCell(tot + 2, KOL_AB).value = { formula: `${huruf(KOL_AB)}${tot}-${huruf(KOL_AC)}${tot}` };
   ws.getRow(tot + 2).font = { bold: true };
 
   ws.getColumn(1).numFmt = "dd mmmm yyyy";

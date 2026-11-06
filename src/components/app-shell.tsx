@@ -9,6 +9,16 @@ import { LogoutButton } from "./logout-button";
 /** Sidebar di desktop; di HP menjadi laci yang dibuka lewat tombol hamburger. */
 export function AppShell({ sidebar, title, quick, aksi, children }: { sidebar: React.ReactNode; title: string; quick: QuickItem[]; /** tombol di header (mis. lonceng notifikasi) */ aksi?: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { try { setCollapsed(localStorage.getItem("matoer:sidebar-collapsed") === "1"); } catch {} }, []);
+  const toggleSidebar = () => setCollapsed(value => { const next = !value; try { localStorage.setItem("matoer:sidebar-collapsed", next ? "1" : "0"); } catch {} return next; });
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const resize = () => { if (media.matches) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    media.addEventListener("change", resize); window.addEventListener("keydown", escape);
+    return () => { media.removeEventListener("change", resize); window.removeEventListener("keydown", escape); };
+  }, []);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
   useEffect(() => {
@@ -33,7 +43,7 @@ export function AppShell({ sidebar, title, quick, aksi, children }: { sidebar: R
       </header>
 
       {/* laci menu HP */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+      <div className={`fixed inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open} inert={!open}>
         <div onClick={() => setOpen(false)} className={`absolute inset-0 bg-black/40 transition-opacity ${open ? "opacity-100" : "opacity-0"}`} />
         <aside className={`absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto bg-white shadow-2xl transition-transform ${open ? "translate-x-0" : "-translate-x-full"}`}>
           <button onClick={() => setOpen(false)} aria-label="Tutup menu" className="absolute right-3 top-3 grid size-9 place-items-center rounded-lg text-stone-500 hover:bg-stone-100">
@@ -43,9 +53,12 @@ export function AppShell({ sidebar, title, quick, aksi, children }: { sidebar: R
         </aside>
       </div>
 
-      <aside className="hidden border-r border-matur-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto">{sidebar}</aside>
+      <aside id="desktop-sidebar" className={`hidden border-r border-matur-200 bg-white lg:sticky lg:top-0 ${collapsed ? "" : "lg:block"} lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto`}>{sidebar}</aside>
       <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pt-4">
         <div className="mb-4 hidden items-center justify-end gap-2 lg:flex">
+          <button type="button" onClick={toggleSidebar} aria-controls="desktop-sidebar" aria-expanded={!collapsed} aria-label={collapsed ? "Buka menu samping" : "Lipat menu samping"} className="mr-auto flex items-center gap-2 rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-matur-50 focus-visible:outline-2 focus-visible:outline-matur-500">
+            <span aria-hidden="true">☰</span> Menu
+          </button>
           {aksi}
           <LogoutButton />
         </div>
