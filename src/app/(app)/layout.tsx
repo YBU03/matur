@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SidebarBawah, SidebarKepala, SidebarProfil } from "@/components/sidebar-ctx";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { PANTAU_POS, POS_ONLY, POS_ROLES, ROLES } from "@/lib/roles";
@@ -31,22 +31,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const sidebar = (
     <>
-      <div className="flex items-center gap-2 p-4">
-        <Image src="/brand/logo-192.png" alt="Matoer" width={36} height={36} className="rounded-lg" />
-        <span className="text-lg font-bold">Matoer</span>
-      </div>
-      <Link href="/profil" className="mx-4 mb-3 flex items-center gap-3 rounded-xl bg-matur-50 p-2 hover:bg-matur-100" title="Profil saya">
-        <Image src={`/mascot/${r.mascot}.png`} alt="" width={44} height={44} className="rounded-lg" />
-        <div className="min-w-0 flex-1 text-sm">
-          <p className="truncate font-semibold">{s.nama}</p>
-          <p className="truncate text-xs text-stone-500">
-            {r.label} · {s.active.outletNama}
-          </p>
-          <p className="text-xs font-medium text-matur-700">Profil saya ›</p>
-        </div>
-      </Link>
+      <SidebarKepala />
+      <SidebarProfil nama={s.nama} peran={r.label} outlet={s.active.outletNama} mascot={r.mascot} />
       <SideNav items={r.menu} grouped={isAdminDashboardRole(s.active.role)} />
-      <div className="space-y-2 p-4 text-sm">
+      <SidebarBawah>
         {/* Aplikasi kasir (POS) terpisah di /kasir — untuk akun yang bertugas sebagai kasir/barista/SPV */}
         {s.assignments.some((a) => POS_ROLES.includes(a.role) && a.outletId) && (
           <Link href="/pos" className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">
@@ -59,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             Ganti peran
           </Link>
         )}
-      </div>
+      </SidebarBawah>
     </>
   );
 
