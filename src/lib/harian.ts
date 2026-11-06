@@ -44,3 +44,26 @@ export function totalBulan(hari: PosHari[], manual: Manual[]) {
   }
   return tot;
 }
+
+// ── Rincian uang Catatan Harian (sama dengan rekap_harian di database) ──
+/** Mulai hari operasional ini kolom uang = METODE BAYAR (sama dengan Penjualan POS, setoran & mutasi bank).
+ *  Kanal = asal pesanan; tumbler = wadah (uangnya ikut tunai/QRIS). Sebelum tanggal ini tetap per kanal. */
+export const RINCIAN_METODE_MULAI = "2026-11-05";
+export const METODE_PLATFORM_HARIAN = ["gofood", "grabfood", "shopeefood", "tiktok", "ruma_app"];
+/** Kolom Catatan Harian untuk satu pembayaran. */
+export const kolomBayar = (kanal: string, metode: string, tanggal = RINCIAN_METODE_MULAI) =>
+  tanggal >= RINCIAN_METODE_MULAI
+    ? METODE_PLATFORM_HARIAN.includes(metode) ? metode : metode === "tunai" ? "tunai" : "non_tunai"
+    : kanal !== "langsung" ? kanal : metode === "tunai" ? "tunai" : "non_tunai";
+/** Kanal & metode tidak cocok (info untuk akunting; sejak 5 Nov tidak mengubah angka). */
+export const janggal = (kanal: string, metode: string) =>
+  (kanal === "langsung" && METODE_PLATFORM_HARIAN.includes(metode)) || (METODE_PLATFORM_HARIAN.includes(kanal) && metode !== kanal);
+/** Rekap rincian per kolom dari daftar pembayaran (dipakai untuk uji: harus = rekap per metode Penjualan POS). */
+export function rincianDariPembayaran(trx: { kanal: string; tanggal: string; bayar: { metode: string; nominal: number }[] }[]) {
+  const out: Record<string, number> = {};
+  for (const t of trx) for (const b of t.bayar) {
+    const k = kolomBayar(t.kanal, b.metode, t.tanggal);
+    out[k] = (out[k] ?? 0) + b.nominal;
+  }
+  return out;
+}

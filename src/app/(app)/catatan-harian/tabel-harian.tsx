@@ -6,7 +6,8 @@ import { useMemo, useRef, useState } from "react";
 import { minta, tanya } from "@/components/dialog-tanya";
 import { Badge } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
-import { KANAL_HARIAN, LABEL_KANAL, OJOL, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
+import { KANAL_HARIAN, LABEL_KANAL, OJOL, METODE_PLATFORM_HARIAN as ojol, RINCIAN_METODE_MULAI, janggal, kolomBayar, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
+export { RINCIAN_METODE_MULAI, janggal, kolomBayar };
 import { aturTabelHarian, gantiNamaKategoriBiaya, kembalikanKePos, rincianHarian, simpanKoreksi, tambahKategoriBiaya, type SusunanTabel, type TrxRincian } from "@/lib/harian-actions";
 import { koreksiTransaksi } from "@/lib/transaksi-admin-actions";
 import type { Result } from "@/lib/kas-actions";
@@ -18,14 +19,11 @@ type Kolom =
   | { jenis: "total_jual"; key: "total_jual"; label: string }
   | { jenis: "biaya"; key: string; label: string }
   | { jenis: "total_biaya"; key: "total_biaya"; label: string }
-  | { jenis: "kas"; key: "setoran" | "selisih"; label: string };
+  | { jenis: "kas"; key: "setoran" | "selisih"; label: string }
+  | { jenis: "info"; key: "tumbler_info"; label: string };
 
 const angka = (n: number) => (n ? Math.round(n).toLocaleString("id-ID") : "");
-const ojol = ["gofood", "grabfood", "shopeefood", "tiktok", "ruma_app"];
 /** kolom catatan harian untuk satu pembayaran (sama dengan rekap_harian: kanal menentukan, Normal dipecah tunai/non tunai) */
-export const kolomBayar = (kanal: string, metode: string) => (kanal !== "langsung" ? kanal : metode === "tunai" ? "tunai" : "non_tunai");
-export const janggal = (kanal: string, metode: string) =>
-  (kanal === "langsung" && ojol.includes(metode)) || (ojol.includes(kanal) && metode !== kanal);
 const LABEL_METODE: Record<string, string> = { tunai: "Tunai", qris: "QRIS", debit: "Debit", transfer: "Transfer", shopeepay: "ShopeePay", gofood: "GoFood", grabfood: "GrabFood", shopeefood: "ShopeeFood", tiktok: "TikTok", ruma_app: "Ruma App" };
 const LABEL_KANAL_POS: Record<string, string> = { langsung: "Normal", gofood: "GoFood", grabfood: "GrabFood", shopeefood: "ShopeeFood", tiktok: "TikTok", ruma_app: "Ruma App", tumbler: "Tumbler" };
 const jamWib = (t: string) => new Date(t).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
@@ -102,6 +100,7 @@ export function TabelHarian({
     return [
       ...[...KANAL_HARIAN, "diskon" as KanalHarian].map((k) => ({ jenis: "jual" as const, key: k, label: k === "non_tunai" ? "QRIS / Non Tunai" : LABEL_KANAL[k], ada: dipakai(k) })),
       { jenis: "total_jual" as const, key: "total_jual" as const, label: "TOTAL JUAL", ada: true },
+      { jenis: "info" as const, key: "tumbler_info" as const, label: "🥤 Tumbler (info)", ada: baris.some((h) => (h.tumbler_n ?? 0) > 0) },
       ...[...kategori].sort((a, b) => a.urutan - b.urutan).map((k) => ({ jenis: "biaya" as const, key: k.id, label: k.nama, ada: perKategori && katAda.has(k.id) })),
       { jenis: "total_biaya" as const, key: "total_biaya" as const, label: "TOTAL KELUAR", ada: true },
       { jenis: "kas" as const, key: "setoran" as const, label: "Setoran", ada: true },
@@ -188,6 +187,7 @@ export function TabelHarian({
     if (k.jenis === "jual") return v[k.key].akhir;
     if (k.jenis === "total_jual") return totalJual(h.tanggal);
     if (k.jenis === "biaya") return (biayaSel.get(`${h.tanggal}|${k.key}`) ?? []).reduce((s, b) => s + b.jumlah, 0);
+    if (k.jenis === "info") return h.tumbler_nilai ?? 0;
     if (k.jenis === "total_biaya") return biaya.filter((b) => b.tanggal === h.tanggal).reduce((s, b) => s + b.jumlah, 0);
     return h[k.key];
   };
@@ -430,6 +430,14 @@ export function TabelHarian({
                             }}
                             className="w-24 rounded border border-matur-400 px-1 text-right outline-none"
                           />
+                        ) : kk.jenis === "info" ? (
+                          (hh.tumbler_n ?? 0) > 0 ? (
+                            <span className="text-teal-700" title={`tunai ${angka(hh.tumbler_tunai ?? 0) || 0} · QRIS/non tunai ${angka(hh.tumbler_nontunai ?? 0) || 0}`}>
+                              {hh.tumbler_n}× · {angka(nilaiSel ?? 0)}
+                            </span>
+                          ) : (
+                            ""
+                          )
                         ) : kk.jenis === "kas" ? (
                           nilaiSel === null ? <span className="text-stone-300">–</span> : kk.key === "selisih" && nilaiSel === 0 ? <span className="text-emerald-600">0</span> : angka(nilaiSel)
                         ) : (
@@ -538,17 +546,18 @@ function PanelRincian({
   const [ubah, setUbah] = useState<string | null>(null);
   const [isi, setIsi] = useState<{ kanal: string; metode: string }>({ kanal: "langsung", metode: "qris" });
   const baris = (data ?? []).map((t) => {
-    const kol = t.bayar.length ? [...new Set(t.bayar.map((b) => kolomBayar(t.kanal, b.metode)))] : [t.kanal === "langsung" ? "tunai" : t.kanal];
+    const kol = t.bayar.length ? [...new Set(t.bayar.map((b) => kolomBayar(t.kanal, b.metode, tanggal)))] : [t.kanal === "langsung" || t.kanal === "tumbler" ? "tunai" : t.kanal];
     return { t, kol, aneh: t.bayar.some((b) => janggal(t.kanal, b.metode)) };
   });
   const q = cari.trim().toLowerCase();
-  const tampil = baris.filter((x) => (!filter || (filter === "janggal" ? x.aneh : x.kol.includes(filter))) && (!q || `#${x.t.nomor} ${x.t.items ?? ""} ${x.t.kasir}`.toLowerCase().includes(q)));
+  const tampil = baris.filter((x) => (!filter || (filter === "janggal" ? x.aneh : filter === "kanal_tumbler" ? x.t.kanal === "tumbler" : x.kol.includes(filter))) && (!q || `#${x.t.nomor} ${x.t.items ?? ""} ${x.t.kasir}`.toLowerCase().includes(q)));
   const jumlah = tampil.reduce((s, x) => s + x.t.subtotal, 0);
   const pilihan = [
     ["", "Semua"],
     ["tunai", "Tunai"],
     ["non_tunai", "QRIS/Non tunai"],
     ...["gofood", "grabfood", "shopeefood", "tiktok", "ruma_app", "tumbler"].filter((k) => baris.some((x) => x.kol.includes(k))).map((k) => [k, LABEL_KANAL[k as KanalHarian]]),
+    ...(baris.some((x) => x.t.kanal === "tumbler") ? [["kanal_tumbler", `🥤 Tumbler (${baris.filter((x) => x.t.kanal === "tumbler").length})`]] : []),
     ["janggal", `⚠️ Perlu dicek (${baris.filter((x) => x.aneh).length})`],
   ];
   return (
@@ -557,7 +566,11 @@ function PanelRincian({
         <div className="flex items-start gap-2 border-b p-4">
           <div className="mr-auto">
             <h3 className="text-lg font-bold text-kopi-900">🔍 Asal uang · {formatTanggal(tanggal)}</h3>
-            <p className="text-xs text-stone-500">Transaksi POS hari operasional ini (tutup buku 03.00 WIB). Kolom mengikuti <b>kanal</b> (Normal dipecah tunai/QRIS). ⚠️ = kanal & metode bayar tidak cocok — cocokkan dengan mutasi bank/dashboard platform lalu koreksi.</p>
+            <p className="text-xs text-stone-500">Transaksi POS hari operasional ini (tutup buku 03.00 WIB). {tanggal >= RINCIAN_METODE_MULAI ? (
+                <>Kolom uang mengikuti <b>metode bayar</b> (sama dengan Penjualan POS & mutasi bank). Kanal = asal pesanan; tumbler = wadah, uangnya ikut tunai/QRIS. ⚠️ = kanal & metode tidak cocok (info, angka tetap mengikuti metode).</>
+              ) : (
+                <>Kolom mengikuti <b>kanal</b> (Normal dipecah tunai/QRIS). ⚠️ = kanal & metode bayar tidak cocok — cocokkan dengan mutasi bank/dashboard platform lalu koreksi.</>
+              )}</p>
           </div>
           <button onClick={tutup} className="rounded-full px-2 text-xl text-stone-400 hover:text-stone-700" aria-label="Tutup">
             ✕

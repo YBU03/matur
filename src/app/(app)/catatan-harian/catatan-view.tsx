@@ -62,6 +62,12 @@ export type Hari = {
   selisih: number | null;
   shift: number;
   janggal?: number;
+  /** info tumbler (wadah): jumlah transaksi & nilai, uangnya sudah masuk tunai/QRIS */
+  tumbler_n?: number;
+  tumbler_nilai?: number;
+  tumbler_tunai?: number;
+  tumbler_nontunai?: number;
+  rincian_metode?: boolean;
 };
 export type Biaya = {
   id: string;
@@ -443,7 +449,7 @@ export function CatatanHarian({
         </p>
       )}
 
-      <section className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-2 lg:grid-cols-6">
         {[
           [
             "Penjualan (setelah koreksi)",
@@ -466,6 +472,11 @@ export function CatatanHarian({
             "Marketing",
             formatRupiah(feeMkt),
             `fee/biaya · produk ${formatRupiah(produkMkt)} (HPP)`,
+          ],
+          [
+            "🥤 Pelanggan bawa tumbler",
+            `${hari.reduce((s, h) => s + (h.tumbler_n ?? 0), 0)} trx`,
+            `${formatRupiah(hari.reduce((s, h) => s + (h.tumbler_nilai ?? 0), 0))} · tunai ${formatRupiah(hari.reduce((s, h) => s + (h.tumbler_tunai ?? 0), 0))} · QRIS ${formatRupiah(hari.reduce((s, h) => s + (h.tumbler_nontunai ?? 0), 0))}`,
           ],
           [
             "Selisih kas",
