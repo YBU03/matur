@@ -4,16 +4,16 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "./supabase/server";
 
 /** Catat setoran barang titipan dari produsen (qty negatif = retur/koreksi). */
-export async function catatTitipan(outletId: string, menuId: string, qty: number, tanggal: string, catatan: string, jenis: "masuk" | "retur" | "rusak" | "koreksi" = "masuk"): Promise<{ error?: string; ok?: string }> {
+export async function catatTitipan(outletId: string, menuId: string, qty: number, tanggal: string, catatan: string, jenis: "masuk" | "retur" | "rusak" | "koreksi" = "masuk", barangId?: string): Promise<{ error?: string; ok?: string }> {
   const q = Math.round(Number(qty));
   if (!q) return { error: "Jumlah tidak boleh 0." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return { error: "Tanggal tidak valid." };
   const supabase = await supabaseServer();
-  const { error } = await supabase.from("titipan_masuk").insert({ outlet_id: outletId, menu_id: menuId, qty: q, tanggal, jenis, catatan: catatan.trim().slice(0, 200) || null });
+  const { error } = await supabase.from("titipan_masuk").insert({ outlet_id: outletId, ...(barangId ? { barang_id: barangId, menu_id: null } : { menu_id: menuId }), qty: q, tanggal, jenis, catatan: catatan.trim().slice(0, 200) || null });
   if (error) return { error: error.message.includes("row-level") ? "Anda tidak punya akses mencatat titipan di outlet ini." : error.message };
   revalidatePath("/titipan");
   revalidatePath("/persediaan");
-  return { ok: q > 0 ? `Setoran ${q} pcs dicatat.` : `Retur/koreksi ${-q} pcs dicatat.` };
+  return { ok: q > 0 ? `Setoran ${q} dicatat.` : `Retur/koreksi ${-q} dicatat.` };
 }
 
 type Hasil = { error?: string; ok?: string };
@@ -40,4 +40,35 @@ export async function hapusTitipan(id: string, alasan = ""): Promise<Hasil> {
   revalidatePath("/titipan");
   revalidatePath("/persediaan");
   return { ok: (data as { ok?: string })?.ok ?? "Catatan titipan dihapus." };
+}
+
+export type BarangTitipanInput = { id?: string; nama: string; kelompok: "dessert" | "snack" | "lain"; satuan: string; harga: number; produsen?: string; keterangan?: string; aktif?: boolean };
+
+/** Tambah / ubah barang titipan (harga per pcs/gram). HPP menu yang memakai barang ini ikut diperbarui. */
+export async function simpanBarangTitipan(b: BarangTitipanInput): Promise<Hasil> {
+  if (!b.nama?.trim()) return { error: "Isi nama barang." };
+  if (!(Number(b.harga) >= 0)) return { error: "Harga satuan tidak valid." };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc("simpan_barang_titipan", { p: { ...b, harga: Number(b.harga) } });
+  if (error) return { error: pesanGalat(error.message) };
+  revalidatePath("/titipan");
+  return { ok: b.id ? "Barang titipan diperbarui." : "Barang titipan ditambahkan." };
+}
+
+export async function hapusBarangTitipan(id: string): Promise<Hasil> {
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("hapus_barang_titipan", { p_id: id });
+  if (error) return { error: pesanGalat(error.message) };
+  revalidatePath("/titipan");
+  return { ok: (data as { ok?: string })?.ok ?? "Barang dihapus." };
+}
+
+/** Simpan isi satu menu titipan (mis. Mix Platter = 3 sosis + 3 nugget + 50 gram french fries). */
+export async function simpanIsiTitipan(menuId: string, isi: { barang_id: string; qty: number }[]): Promise<Hasil> {
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.rpc("simpan_isi_titipan", { p_menu: menuId, p_isi: isi.filter((x) => x.barang_id && Number(x.qty) > 0) });
+  if (error) return { error: pesanGalat(error.message) };
+  revalidatePath("/titipan");
+  revalidatePath("/master/menu");
+  return { ok: (data as { ok?: string })?.ok ?? "Isi menu disimpan." };
 }

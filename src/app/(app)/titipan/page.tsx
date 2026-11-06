@@ -11,6 +11,7 @@ import { PilihOutlet } from "@/components/pilih-outlet";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { TitipanView, type RekapTitipan } from "./titipan-view";
+import { TitipanBarangView, type BarangTitipan, type IsiTitipan, type RekapBarang, type RiwayatBarang } from "./titipan-barang-view";
 
 const BOLEH = [
   "owner",
@@ -21,6 +22,7 @@ const BOLEH = [
   "spv",
   "manajer_area",
 ];
+const BOLEH_ATUR = ["owner", "admin_pusat", "finance", "hrd", "admin_gudang"];
 
 // Produk titipan (cheesecake & dessert dari produsen): setoran masuk, terjual (otomatis dari POS), sisa, tagihan.
 export default async function Titipan({
@@ -113,6 +115,28 @@ export default async function Titipan({
       .order("created_at", { ascending: false }),
   ]);
   if (e1 || e2 || e3) throw new Error((e1 ?? e2 ?? e3)!.message);
+  // titipan per barang (pcs/gram) — bila tabel barang belum tersedia, halaman memakai tampilan per menu (lama)
+  const [bb, ii, rb, rw] = await Promise.all([
+    supabase.from("barang_titipan").select("id, nama, kelompok, satuan, harga, produsen, keterangan, aktif, urutan").order("urutan"),
+    supabase.from("isi_titipan").select("menu_id, barang_id, qty"),
+    supabase.rpc("rekap_titipan_barang", { p_outlet: outlet.id, p_awal: awal, p_akhir: akhir }),
+    supabase
+      .from("titipan_masuk")
+      .select("id, menu_id, barang_id, tanggal, qty, jenis, catatan, nama_pembuat, created_at")
+      .eq("outlet_id", outlet.id)
+      .gte("tanggal", awal)
+      .lte("tanggal", akhir)
+      .order("created_at", { ascending: false }),
+  ]);
+  const barangData =
+    !bb.error && !ii.error && !rb.error && !rw.error && (bb.data ?? []).length
+      ? {
+          barang: (bb.data ?? []) as BarangTitipan[],
+          isi: (ii.data ?? []) as IsiTitipan[],
+          rekap: (rb.data ?? []) as RekapBarang[],
+          riwayat: (rw.data ?? []) as RiwayatBarang[],
+        }
+      : null;
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <HeaderHalaman
@@ -138,14 +162,28 @@ export default async function Titipan({
         periode={periode}
         akhir={akhir}
       />
-      <TitipanView
-        outletId={outlet.id}
-        awal={awal}
-        akhir={akhir}
-        rekap={(rekap ?? []) as RekapTitipan[]}
-        menu={menu ?? []}
-        riwayat={riwayat ?? []}
-      />
+      {barangData ? (
+        <TitipanBarangView
+          outletId={outlet.id}
+          awal={awal}
+          akhir={akhir}
+          bolehAtur={BOLEH_ATUR.includes(s.active.role)}
+          barang={barangData.barang}
+          rekap={barangData.rekap}
+          isi={barangData.isi}
+          menu={menu ?? []}
+          riwayat={barangData.riwayat}
+        />
+      ) : (
+        <TitipanView
+          outletId={outlet.id}
+          awal={awal}
+          akhir={akhir}
+          rekap={(rekap ?? []) as RekapTitipan[]}
+          menu={menu ?? []}
+          riwayat={riwayat ?? []}
+        />
+      )}
     </div>
   );
 }
