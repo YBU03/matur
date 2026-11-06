@@ -34,6 +34,16 @@ describe("DP dan laporan realisasi",()=>{
     for(const text of ["Rp 23.508.250","Dibayar Sebagian ","Belum dikonfirmasi; belum dianggap lunas"]){expect(doc.output()).toContain(text);}
     for(const text of ["DIKOREKSI","Nominal salah","Rp 100.000"]){expect(doc.output()).not.toContain(text);}
   });
+  it("saldo minus dicetak eksplisit dan dana masuk mengurangi kekurangannya", async () => {
+    const data = {nama:"Uji saldo minus",rab:3250000,realisasiLama:0,setoran:[{id:"s",tanggal:"2026-10-24",jumlah:1410000,keterangan:null}],belanja:[nota]};
+    const doc = await buatPdfRealisasi(data);
+    expect(doc.output()).toContain("-Rp 81.750");
+    expect(doc.output()).not.toContain("\\(Rp 81.750\\)");
+    expect(ringkasanBelanja([nota],0,1460000).saldo).toBe(-31750);
+    expect(ringkasanBelanja([nota],0,1491750).saldo).toBe(0);
+    expect(ringkasanBelanja([nota],0,1510000).saldo).toBe(18250);
+    if(process.env.QA_SALDO_PDF_PATH){const {writeFile}=await import("node:fs/promises");await writeFile(process.env.QA_SALDO_PDF_PATH,Buffer.from(doc.output("arraybuffer")));}
+  });
   it("PDF tetap dapat dibuat saat nota dan setoran kosong",async()=>{
     const doc=await buatPdfRealisasi({nama:"Kosong",rab:0,realisasiLama:0,setoran:[],belanja:[]});
     expect(doc.output()).toContain("Belum ada realisasi belanja tercatat.");
