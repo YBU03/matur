@@ -2,7 +2,7 @@
 
 // Catatan Harian model spreadsheet: baris = tanggal, kolom = kanal penjualan + kategori pengeluaran + kas.
 // Klik sel → bar keterangan (asal angka); ketik angka + Enter → disimpan sebagai penyesuaian (angka POS tetap utuh).
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { minta, tanya } from "@/components/dialog-tanya";
 import { Badge } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
@@ -201,6 +201,28 @@ export function TabelHarian({
     run(() => simpanKoreksi(outletId, { tanggal: hh.tanggal, kanal: kk.key, jumlah: delta, keterangan: keterangan.trim() || "Penyesuaian akunting" }));
   };
 
+  // Geser hanya viewport tabel; tanggal, judul, dan total tidak menutupi sel aktif.
+  useLayoutEffect(() => {
+    const container = wadah.current;
+    if (!container || !container.contains(document.activeElement)) return;
+    const cell = container.querySelector<HTMLElement>(`[data-sel="${pos.r}:${pos.c}"]`);
+    if (!cell) return;
+    const rect = container.getBoundingClientRect();
+    const target = cell.getBoundingClientRect();
+    const dateWidth = container.querySelector("tbody th")?.getBoundingClientRect().width ?? 0;
+    const headerHeight = container.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+    const footerHeight = container.querySelector("tfoot")?.getBoundingClientRect().height ?? 0;
+    const left = rect.left + container.clientLeft + dateWidth + 2;
+    const right = rect.left + container.clientLeft + container.clientWidth - 2;
+    const top = rect.top + container.clientTop + headerHeight + 2;
+    const bottom = rect.top + container.clientTop + container.clientHeight - footerHeight - 2;
+    // Sel lebih lebar dari layar ditampilkan dari tepi kirinya.
+    container.scrollLeft += target.left < left || target.width > right - left
+      ? target.left - left : Math.max(0, target.right - right);
+    container.scrollTop += target.top < top || target.height > bottom - top
+      ? target.top - top : Math.max(0, target.bottom - bottom);
+  }, [pos, kolom, sus.lebar]);
+
   const gerak = (dr: number, dc: number) => setPos((p) => ({ r: Math.max(0, Math.min(baris.length - 1, p.r + dr)), c: Math.max(0, Math.min(kolom.length - 1, p.c + dc)) }));
   const bukaRincian = async (tanggal: string, kanal?: string) => {
     setRincian({ tanggal, kanal });
@@ -220,7 +242,7 @@ export function TabelHarian({
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (edit !== null) return;
+    if (edit !== null || !h || !k) return;
     const peta: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
     if (peta[e.key]) {
       e.preventDefault();
@@ -247,7 +269,7 @@ export function TabelHarian({
 
   // tempel dari Excel: blok angka (tab/baris) mulai dari sel aktif, hanya kolom penjualan
   const onPaste = async (e: React.ClipboardEvent) => {
-    if (edit !== null) return;
+    if (edit !== null || !h || !k) return;
     const teks = e.clipboardData.getData("text");
     if (!teks.trim()) return;
     e.preventDefault();
@@ -392,6 +414,7 @@ export function TabelHarian({
                     return (
                       <td
                         key={kk.key}
+                        data-sel={`${r}:${c}`}
                         onClick={() => (setPos({ r, c }), setEdit(null), wadah.current?.focus())}
                         onDoubleClick={event => { event.preventDefault(); event.stopPropagation(); setPos({ r, c }); if (bisaEdit(kk)) setEdit(String(nilaiSel ?? 0)); else if (kk.jenis === "biaya") { const xs = biayaSel.get(`${hh.tanggal}|${kk.key}`) ?? []; onPengeluaran(hh.tanggal, xs.length === 1 ? xs[0] : undefined); } else bukaRincian(hh.tanggal); }}
                         title={kk.jenis === "keterangan" ? String(nilaiSel ?? "") : undefined}
@@ -414,7 +437,7 @@ export function TabelHarian({
                                 e.preventDefault();
                                 simpanSel(hh, kk, edit);
                                 setEdit(null);
-                                gerak(e.key === "Enter" ? 1 : 0, e.key === "Tab" ? 1 : 0);
+                                gerak(e.key === "Enter" ? 1 : 0, e.key === "Tab" ? (e.shiftKey ? -1 : 1) : 0);
                                 wadah.current?.focus();
                               } else if (e.key === "Escape") {
                                 setEdit(null);
