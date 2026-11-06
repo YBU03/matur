@@ -32,3 +32,7 @@ Migrasi: `20261105090000_akunting_perbaikan_harian.sql` (dijalankan via SQL Edit
 ## Diskon (6 November)
 - Mulai 5 Nov kolom uang Catatan Harian = **nominal pembayaran per metode (sesudah diskon)**, persis Penjualan POS. `rekap_harian.diskon` = 0 untuk tanggal ≥ 5 Nov agar total/laporan tidak memotong diskon dua kali; nilai diskon ada di `diskon_info` (tampil "info …" di kolom Discount & kartu ringkasan). Sebelum 5 Nov tetap bruto + kolom diskon.
 - Konsekuensi: Laporan bulanan/ekspor Ruma menampilkan Discount 0 untuk ≥ 5 Nov (pendapatan sudah bersih). Total penjualan tidak berubah.
+
+## Titipan: setoran nota, sesuaikan stok, unduh (7 November)
+- `/titipan` tab Rekap: **📥 Setoran dari nota** (satu tanggal + banyak barang, `catatTitipanBanyak`), **⚖️ Sesuaikan stok** (hitung fisik → koreksi otomatis = fisik − sisa, tanggal ≤ hari ini, catatan "sistem X → fisik Y"), tombol + Setoran/⚖️ di baris minus, **⬇ PDF / ⬇ Excel** (`ekspor-titipan.ts`: rekap per barang + riwayat setoran periode).
+- Setoran tidak wajib untuk HPP/tagihan (dihitung dari penjualan × isi × harga); fitur ini hanya agar stok sisa tidak minus.

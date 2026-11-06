@@ -165,6 +165,7 @@ export default async function Titipan({
       {barangData ? (
         <TitipanBarangView
           outletId={outlet.id}
+          outletNama={outlet.nama}
           awal={awal}
           akhir={akhir}
           bolehAtur={BOLEH_ATUR.includes(s.active.role)}

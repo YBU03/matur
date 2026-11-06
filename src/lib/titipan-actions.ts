@@ -72,3 +72,22 @@ export async function simpanIsiTitipan(menuId: string, isi: { barang_id: string;
   revalidatePath("/master/menu");
   return { ok: (data as { ok?: string })?.ok ?? "Isi menu disimpan." };
 }
+
+/** Simpan beberapa catatan titipan sekaligus (mis. satu nota setoran berisi banyak barang, atau hasil hitung fisik). */
+export async function catatTitipanBanyak(
+  outletId: string,
+  tanggal: string,
+  baris: { barang_id: string; qty: number; jenis: "masuk" | "retur" | "rusak" | "koreksi"; catatan: string }[],
+): Promise<Hasil> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return { error: "Tanggal tidak valid." };
+  const isi = baris
+    .map((b) => ({ ...b, qty: Math.round(Number(b.qty)) }))
+    .filter((b) => b.barang_id && b.qty)
+    .map((b) => ({ outlet_id: outletId, barang_id: b.barang_id, menu_id: null, tanggal, qty: b.qty, jenis: b.jenis, catatan: b.catatan.trim().slice(0, 200) || null }));
+  if (!isi.length) return { error: "Isi minimal satu jumlah barang." };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("titipan_masuk").insert(isi);
+  if (error) return { error: pesanGalat(error.message) };
+  revalidatePath("/titipan");
+  return { ok: `${isi.length} catatan titipan tersimpan.` };
+}

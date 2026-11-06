@@ -7,7 +7,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { minta, tanya } from "@/components/dialog-tanya";
 import { Badge, BarisAngka, Kartu, KartuAngka, Kosong, isian, tabKelas, tabel, tombolAksi } from "@/components/ui-halaman";
 import { formatRupiah } from "@/lib/format";
-import { catatTitipan, hapusBarangTitipan, hapusTitipan, simpanBarangTitipan, simpanIsiTitipan, ubahTitipan, type BarangTitipanInput } from "@/lib/titipan-actions";
+import { catatTitipan, catatTitipanBanyak, hapusBarangTitipan, hapusTitipan, simpanBarangTitipan, simpanIsiTitipan, ubahTitipan, type BarangTitipanInput } from "@/lib/titipan-actions";
 
 export type BarangTitipan = { id: string; nama: string; kelompok: "dessert" | "snack" | "lain"; satuan: string; harga: number; produsen: string | null; keterangan: string | null; aktif: boolean; urutan: number };
 export type IsiTitipan = { menu_id: string; barang_id: string; qty: number };
@@ -32,9 +32,9 @@ const tglPendek = (t: string) => new Date(t + "T00:00:00").toLocaleDateString("i
 const bertanda = (j: Jenis, q: string) => (j === "retur" || j === "rusak" ? -Math.abs(Number(q)) : Number(q));
 
 export function TitipanBarangView({
-  outletId, awal, akhir, bolehAtur, barang, rekap, isi, menu, riwayat,
+  outletId, outletNama = "", awal, akhir, bolehAtur, barang, rekap, isi, menu, riwayat,
 }: {
-  outletId: string; awal: string; akhir: string; bolehAtur: boolean;
+  outletId: string; outletNama?: string; awal: string; akhir: string; bolehAtur: boolean;
   barang: BarangTitipan[]; rekap: RekapBarang[]; isi: IsiTitipan[];
   menu: { id: string; nama: string; produsen: string | null; harga_titip: number }[];
   riwayat: RiwayatBarang[];
@@ -66,6 +66,21 @@ export function TitipanBarangView({
   const total = rekapTampil.reduce((t, r) => t + Number(r.tagihan), 0);
   const minus = rekapTampil.filter((r) => r.sisa < 0).length;
   const sel = infoBarang.get(f.barang);
+  const [modal, setModal] = useState<"nota" | "fisik" | null>(null);
+  const [unduh, setUnduh] = useState("");
+  const dataEkspor = () => ({ outlet: outletNama, awal, akhir, rekap, riwayat, barang, namaMenu });
+  const ekspor = async (jenis: "pdf" | "xlsx") => {
+    setUnduh(jenis);
+    try {
+      const m = await import("./ekspor-titipan");
+      if (jenis === "pdf") await m.unduhPdfTitipan(dataEkspor());
+      else await m.unduhExcelTitipan(dataEkspor());
+    } catch {
+      setMsg({ error: "File belum berhasil dibuat. Coba lagi." });
+    } finally {
+      setUnduh("");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -99,7 +114,22 @@ export function TitipanBarangView({
             <option value="">Semua kelompok</option>
             {Object.entries(KELOMPOK).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          <span className="flex flex-wrap gap-1.5">
+            <button type="button" onClick={() => (setMsg(null), setModal("nota"))} className={tombolAksi.utama}>📥 Setoran dari nota</button>
+            <button type="button" onClick={() => (setMsg(null), setModal("fisik"))} className={tombolAksi.edit}>⚖️ Sesuaikan stok</button>
+            <button type="button" disabled={!!unduh} onClick={() => ekspor("pdf")} className={tombolAksi.netral}>{unduh === "pdf" ? "Menyiapkan…" : "⬇ PDF"}</button>
+            <button type="button" disabled={!!unduh} onClick={() => ekspor("xlsx")} className={tombolAksi.netral}>{unduh === "xlsx" ? "Menyiapkan…" : "⬇ Excel"}</button>
+          </span>
         </section>
+      )}
+
+      {modal === "nota" && (
+        <SetoranNota barang={aktif} akhir={akhir} pending={pending} tutup={() => setModal(null)}
+          simpan={(tgl, catatan, items) => jalankan(() => catatTitipanBanyak(outletId, tgl, items.map((x) => ({ ...x, jenis: "masuk" as const, catatan }))), () => setModal(null))} />
+      )}
+      {modal === "fisik" && (
+        <SesuaikanStok rekap={rekap.filter((r) => r.aktif)} akhir={akhir} pending={pending} tutup={() => setModal(null)}
+          simpan={(items) => jalankan(() => catatTitipanBanyak(outletId, akhir > hariIni() ? hariIni() : akhir, items.map((x) => ({ ...x, jenis: "koreksi" as const }))), () => setModal(null))} />
       )}
 
       {tab === "rekap" && (
@@ -145,9 +175,14 @@ export function TitipanBarangView({
                           <td className={`${tabel.td} text-right font-semibold tabular-nums`}>{formatRupiah(r.tagihan)}</td>
                           <td className={`${tabel.td} text-right`}>
                             {r.aktif && (
-                              <button onClick={() => (setF({ ...f, barang: r.barang_id, jenis: "masuk", qty: "" }), formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }))} className={tombolAksi.utama}>
-                                + Setoran
-                              </button>
+                              <span className="flex justify-end gap-1">
+                                <button onClick={() => (setF({ ...f, barang: r.barang_id, jenis: "masuk", qty: r.sisa < 0 ? String(Math.ceil(-r.sisa)) : "" }), formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }))} className={`${tombolAksi.utama} whitespace-nowrap`} title={r.sisa < 0 ? `Isi setoran minimal ${angka(-r.sisa)} ${r.satuan} agar tidak minus` : "Catat setoran"}>
+                                  + Setoran
+                                </button>
+                                {r.sisa < 0 && (
+                                  <button onClick={() => (setMsg(null), setModal("fisik"))} className={tombolAksi.edit} title="Sesuaikan dengan hitungan fisik">⚖️</button>
+                                )}
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -419,6 +454,89 @@ function AturBarang({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SetoranNota({ barang, akhir, pending, tutup, simpan }: { barang: BarangTitipan[]; akhir: string; pending: boolean; tutup: () => void; simpan: (tanggal: string, catatan: string, items: { barang_id: string; qty: number }[]) => void }) {
+  const [tgl, setTgl] = useState(akhir > hariIni() ? hariIni() : akhir);
+  const [catatan, setCatatan] = useState("");
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const isi = barang.filter((b) => Number(qty[b.id]) > 0);
+  const total = isi.reduce((t, b) => t + Number(qty[b.id]) * Number(b.harga), 0);
+  return (
+    <div role="dialog" aria-modal className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && tutup()}>
+      <div className="flex max-h-[92vh] w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-xl sm:rounded-3xl">
+        <div className="border-b p-4">
+          <h3 className="text-lg font-bold text-kopi-900">📥 Setoran dari satu nota</h3>
+          <p className="text-xs text-stone-500">Isi jumlah barang sesuai nota produsen (pcs/gram). Barang yang dikosongkan tidak dicatat.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="text-xs text-stone-500">Tanggal nota<input type="date" max={hariIni()} value={tgl} onChange={(e) => setTgl(e.target.value)} className={`${isian} mt-1 w-full`} /></label>
+            <label className="text-xs text-stone-500">Catatan / nomor nota<input value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="opsional" className={`${isian} mt-1 w-full`} /></label>
+          </div>
+        </div>
+        <ul className="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto px-4">
+          {barang.map((b) => (
+            <li key={b.id} className="flex items-center gap-3 py-2">
+              <span className="min-w-0 flex-1 text-sm"><b className="text-kopi-900">{b.nama}</b> <span className="text-xs text-stone-400">{KELOMPOK[b.kelompok]?.slice(3)} · {formatRupiah(b.harga)}/{b.satuan}</span></span>
+              <input value={qty[b.id] ?? ""} onChange={(e) => setQty({ ...qty, [b.id]: e.target.value.replace(/[^\d]/g, "") })} inputMode="numeric" placeholder="0" aria-label={`Jumlah ${b.nama}`} className={`${isian} w-24 text-right`} />
+              <span className="w-10 text-xs text-stone-500">{b.satuan}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="space-y-2 border-t p-4">
+          <p className="text-sm text-stone-600">{isi.length} barang · nilai nota <b className="tabular-nums text-kopi-900">{formatRupiah(total)}</b></p>
+          <div className="flex gap-2">
+            <button onClick={tutup} className="flex-1 rounded-xl border border-stone-200 py-2.5 text-sm font-semibold">Batal</button>
+            <button disabled={pending || !isi.length} onClick={() => simpan(tgl, catatan || "Setoran nota", isi.map((b) => ({ barang_id: b.id, qty: Number(qty[b.id]) })))} className="flex-1 rounded-xl bg-matur-500 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+              {pending ? "Menyimpan…" : `Simpan ${isi.length} barang`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SesuaikanStok({ rekap, akhir, pending, tutup, simpan }: { rekap: RekapBarang[]; akhir: string; pending: boolean; tutup: () => void; simpan: (items: { barang_id: string; qty: number; catatan: string }[]) => void }) {
+  const [fisik, setFisik] = useState<Record<string, string>>({});
+  const [alasan, setAlasan] = useState("Hitung fisik");
+  const ubah = rekap
+    .filter((r) => fisik[r.barang_id] !== undefined && fisik[r.barang_id] !== "")
+    .map((r) => ({ r, f: Number(fisik[r.barang_id]), d: Math.round(Number(fisik[r.barang_id]) - Number(r.sisa)) }))
+    .filter((x) => x.d !== 0);
+  return (
+    <div role="dialog" aria-modal className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && tutup()}>
+      <div className="flex max-h-[92vh] w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-xl sm:rounded-3xl">
+        <div className="border-b p-4">
+          <h3 className="text-lg font-bold text-kopi-900">⚖️ Sesuaikan stok dengan hitungan fisik</h3>
+          <p className="text-xs text-stone-500">Isi jumlah yang benar-benar ada (per {akhir > hariIni() ? hariIni() : akhir}). Sistem membuat catatan koreksi agar sisa = hitungan fisik. Tercatat di riwayat dan tetap bisa diedit/hapus.</p>
+          <label className="mt-3 block text-xs text-stone-500">Keterangan<input value={alasan} onChange={(e) => setAlasan(e.target.value)} className={`${isian} mt-1 w-full`} /></label>
+        </div>
+        <ul className="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto px-4">
+          {rekap.map((r) => {
+            const v = fisik[r.barang_id];
+            const d = v !== undefined && v !== "" ? Math.round(Number(v) - Number(r.sisa)) : 0;
+            return (
+              <li key={r.barang_id} className="flex items-center gap-3 py-2 text-sm">
+                <span className="min-w-0 flex-1"><b className="text-kopi-900">{r.nama}</b> <span className={`text-xs ${r.sisa < 0 ? "font-semibold text-red-600" : "text-stone-400"}`}>sistem {angka(r.sisa)} {r.satuan}</span></span>
+                <input value={v ?? ""} onChange={(e) => setFisik({ ...fisik, [r.barang_id]: e.target.value.replace(/[^\d]/g, "") })} inputMode="numeric" placeholder="fisik" aria-label={`Hitungan fisik ${r.nama}`} className={`${isian} w-24 text-right`} />
+                <span className={`w-16 text-right text-xs tabular-nums ${d > 0 ? "text-emerald-700" : d < 0 ? "text-red-600" : "text-stone-300"}`}>{d ? `${d > 0 ? "+" : ""}${angka(d)}` : "–"}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex gap-2 border-t p-4">
+          <button onClick={tutup} className="flex-1 rounded-xl border border-stone-200 py-2.5 text-sm font-semibold">Batal</button>
+          <button
+            disabled={pending || !ubah.length || alasan.trim().length < 3}
+            onClick={() => simpan(ubah.map((x) => ({ barang_id: x.r.barang_id, qty: x.d, catatan: `${alasan.trim()}: sistem ${angka(x.r.sisa)} → fisik ${angka(x.f)} ${x.r.satuan}` })))}
+            className="flex-1 rounded-xl bg-matur-500 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {pending ? "Menyimpan…" : `Sesuaikan ${ubah.length} barang`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
