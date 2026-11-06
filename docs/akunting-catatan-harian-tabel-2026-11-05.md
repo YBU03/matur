@@ -28,3 +28,7 @@ Migrasi: `20261105090000_akunting_perbaikan_harian.sql` (dijalankan via SQL Edit
 - Aturan klien sama: `kolomBayar/janggal/RINCIAN_METODE_MULAI` di `src/lib/harian.ts`, dites di `src/lib/__tests__/rincian-harian-metode.test.ts`.
 - POS tidak diubah (permintaan pemilik: jangan menyulitkan transaksi).
 - **Barang titipan - Barang titipan & isi menu: migrasi `20261106140000_barang_titipan_isi_menu.sql` (lihat file). isi menu** (aktif 6 Nov): tabel `barang_titipan` (pcs/gram, harga/satuan, kelompok dessert/snack) & `isi_titipan` (isi per porsi). `menu.harga_titip` otomatis = Σ isi × harga (`matur_internal.sinkron_harga_titip`) sehingga mesin POS tidak berubah. Rekap `rekap_titipan_barang` (terjual = porsi × isi, termasuk produk_keluar, beserta asal per menu). `titipan_masuk.barang_id` untuk setoran/retur/rusak per barang; `menu_id` lama tetap didukung. RPC: `simpan_barang_titipan`, `hapus_barang_titipan` (nonaktif bila sudah ada riwayat), `simpan_isi_titipan`. Halaman `/titipan` jatuh ke tampilan per menu bila tabel barang kosong/tidak ada.
+
+## Diskon (6 November)
+- Mulai 5 Nov kolom uang Catatan Harian = **nominal pembayaran per metode (sesudah diskon)**, persis Penjualan POS. `rekap_harian.diskon` = 0 untuk tanggal ≥ 5 Nov agar total/laporan tidak memotong diskon dua kali; nilai diskon ada di `diskon_info` (tampil "info …" di kolom Discount & kartu ringkasan). Sebelum 5 Nov tetap bruto + kolom diskon.
+- Konsekuensi: Laporan bulanan/ekspor Ruma menampilkan Discount 0 untuk ≥ 5 Nov (pendapatan sudah bersih). Total penjualan tidak berubah.

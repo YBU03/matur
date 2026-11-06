@@ -34,3 +34,11 @@ describe("Catatan Harian = rincian Penjualan POS (mulai 5 Nov)", () => {
     expect(janggal("langsung", "tunai")).toBe(false);
   });
 });
+
+describe("diskon mulai 5 Nov", () => {
+  it("kolom uang memakai nominal bayar sesudah diskon, jumlahnya = uang masuk per metode", () => {
+    // subtotal 50.000, diskon 10.000 → dibayar QRIS 40.000; Catatan Harian non_tunai harus 40.000 (bukan 50.000)
+    const r = rincianDariPembayaran([{ kanal: "langsung", tanggal: "2026-11-07", bayar: [{ metode: "qris", nominal: 40000 }] }]);
+    expect(r).toEqual({ non_tunai: 40000 });
+  });
+});

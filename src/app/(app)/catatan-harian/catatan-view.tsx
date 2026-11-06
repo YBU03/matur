@@ -68,6 +68,8 @@ export type Hari = {
   tumbler_tunai?: number;
   tumbler_nontunai?: number;
   rincian_metode?: boolean;
+  /** sejak 5 Nov: total diskon hari itu (info — sudah dipotong dari kolom uang) */
+  diskon_info?: number;
 };
 export type Biaya = {
   id: string;
@@ -454,7 +456,7 @@ export function CatatanHarian({
           [
             "Penjualan (setelah koreksi)",
             formatRupiah(totalJual),
-            `diskon ${formatRupiah(tot.diskon)}`,
+            `diskon ${formatRupiah(tot.diskon + hari.reduce((s, h) => s + (h.rincian_metode ? (h.diskon_info ?? 0) : 0), 0))}${hari.some((h) => h.rincian_metode && (h.diskon_info ?? 0) > 0) ? " (sudah dipotong dari tunai/QRIS)" : ""}`,
           ],
           [
             "Online food",

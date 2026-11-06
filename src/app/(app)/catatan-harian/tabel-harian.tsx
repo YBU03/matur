@@ -455,7 +455,11 @@ export function TabelHarian({
                         ) : kk.jenis === "kas" ? (
                           nilaiSel === null ? <span className="text-stone-300">–</span> : kk.key === "selisih" && nilaiSel === 0 ? <span className="text-emerald-600">0</span> : angka(Number(nilaiSel))
                         ) : (
-                          kk.jenis === "keterangan" ? String(nilaiSel ?? "") : angka(Number(nilaiSel ?? 0))
+                          kk.jenis === "keterangan" ? String(nilaiSel ?? "") : kk.key === "diskon" && hh.rincian_metode && !Number(nilaiSel) && (hh.diskon_info ?? 0) > 0 ? (
+                            <span className="text-stone-400" title="Sejak 5 Nov diskon sudah dipotong langsung dari kolom tunai/QRIS (sama dengan Penjualan POS); angka ini hanya info.">
+                              info {angka(hh.diskon_info ?? 0)}
+                            </span>
+                          ) : angka(Number(nilaiSel ?? 0))
                         )}
                       </td>
                     );
