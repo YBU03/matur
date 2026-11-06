@@ -1,4 +1,4 @@
--- STATUS: menunggu diterapkan (persetujuan Supabase). Titipan per BARANG (pcs/gram) + isi tiap menu titipan (sesuai PDF revisi akunting 5 Nov 2026).
+-- Diterapkan pemilik lewat SQL Editor 6 Nov 2026. Titipan per BARANG (pcs/gram) + isi tiap menu titipan (sesuai PDF revisi akunting 5 Nov 2026).
 -- HPP per porsi (menu.harga_titip) otomatis = Σ isi × harga satuan, sehingga mesin transaksi POS tidak berubah.
 create table if not exists public.barang_titipan (
   id uuid primary key default gen_random_uuid(),

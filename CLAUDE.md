@@ -83,3 +83,5 @@ Tong sampah & koreksi penjualan 4 November: `hapus_transaksi`/`pulihkan_transaks
 Catatan Harian Excel & perbaikan akunting 5 November: baca `docs/akunting-catatan-harian-tabel-2026-11-05.md`. Catatan Harian tetap per kanal (jangan per metode), penyesuaian = delta, pengeluaran kas final hanya lewat `koreksi_biaya_final`.
 
 POS pengeluaran & setoran 6 November: riwayat 7 hari + kunci nominal kas final di POS, pengeluaran & rekap setoran per hari operasional. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.
+
+Rincian per metode & titipan per barang 6 November: Catatan Harian per metode bayar mulai 5 Nov (tumbler = wadah, info), barang titipan pcs/gram + isi menu. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.
