@@ -24,3 +24,7 @@ Unit test menguji delta terhadap transaksi baru, simpan ulang tanpa pelipatan, m
 Pratinjau lokal memakai komponen asli dengan data contoh; route uji dan pengecualian middleware dihapus sebelum deploy. Data Oktober belum diimpor karena file belum diberikan. Tidak ada laporan November diterbitkan ke Mitra otomatis oleh perubahan ini.
 
 Hasil akhir: 367 tes pada 59 berkas lulus; TypeScript, ESLint quiet, dan build produksi lulus. PDF contoh tiga halaman A4 dirender dan diperiksa; Excel dibaca ulang untuk memverifikasi nilai serta penanda internal. Peringatan advisor global yang sudah ada berada di luar perubahan ini; fungsi metadata/staf baru mengecek auth dan tidak dapat dieksekusi anon.
+
+## Tampilan Tim Outlet Mitra (7 November 2026)
+
+`/portal/karyawan` (hanya tampilan, tanpa migrasi): kartu ringkasan (anggota, bertugas sekarang, shift hari ini, foto profil), kartu karyawan dengan jabatan berwarna, shift & status absen hari ini (jam masuk/telat/pulang), shift berikutnya. No. WA dan alamat **tidak ikut terkirim** ke browser: tampil tersamar, ikon mata memanggil server action `bukaDataKaryawan` (`src/lib/mitra-karyawan-actions.ts`, tetap lewat RPC `karyawan_outlet_saya` dengan RLS Mitra), terbuka 10 detik lalu tertutup otomatis (`data-tertutup.tsx`). Jadwal Shift tetap komponen `MitraJadwal` (hanya lihat).
