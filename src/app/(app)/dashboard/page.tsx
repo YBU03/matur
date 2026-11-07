@@ -5,6 +5,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { ROLES, type Role } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -23,8 +24,11 @@ const OUTLET: Role[] = ["spv"];
 const PROYEK: Role[] = ["mitra", "pic"];
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const s = (await getSession())!;
-  const active = s.active!;
+  const s = await getSession();
+  // sesi login habis / peran belum dipilih: arahkan, jangan sampai halaman error
+  if (!s) redirect("/login");
+  if (!s.active) redirect(s.assignments.length ? "/pilih-peran" : "/menunggu");
+  const active = s.active;
   const r = ROLES[active.role];
   const sp = await searchParams;
   const pusat = PUSAT.includes(active.role);

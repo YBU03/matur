@@ -8,7 +8,7 @@ import { PosAntrean } from "@/components/pos-antrean";
 import { PosLogout } from "@/components/pos-logout";
 import { TerminalNav } from "./terminal-nav";
 import { PrinterTombol } from "./printer-tombol";
-const NAV=[{href:"/kasir/pos",label:"Kasir"},{href:"/kasir/antrean",label:"Antrean"},{href:"/kasir/riwayat",label:"Riwayat"},{href:"/kasir/shift",label:"Kas"},{href:"/kasir/stok",label:"Stok"}];
+const NAV=[{href:"/kasir/pos",label:"Kasir",ikon:"pos"},{href:"/kasir/antrean",label:"Antrean",ikon:"antrean"},{href:"/kasir/riwayat",label:"Riwayat",ikon:"struk"},{href:"/kasir/shift",label:"Kas",ikon:"uang"},{href:"/kasir/stok",label:"Stok",ikon:"stok"}] as const;
 export default async function TerminalLayout({children}:{children:React.ReactNode}){
  const s=await getSession();if(s?.active?.role!=="tablet"||!s.active.outletId)return <Alihkan ke="/pos"/>;
  const path=(await headers()).get("x-matur-pathname")??"";

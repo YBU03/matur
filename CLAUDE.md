@@ -85,3 +85,5 @@ Catatan Harian Excel & perbaikan akunting 5 November: baca `docs/akunting-catata
 POS pengeluaran & setoran 6 November: riwayat 7 hari + kunci nominal kas final di POS, pengeluaran & rekap setoran per hari operasional. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.
 
 Rincian per metode & titipan per barang 6 November: Catatan Harian per metode bayar mulai 5 Nov (tumbler = wadah, info), barang titipan pcs/gram + isi menu. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.
+
+POS tampilan 7 November: kartu menu ringkas, kategori 1 baris, panel keranjang, tab ikon, kartu omzet hari ini, layar koneksi lambat, dashboard sesi habis → login. Hanya tampilan. Baca `docs/pos-tampilan-2026-11-07.md`.

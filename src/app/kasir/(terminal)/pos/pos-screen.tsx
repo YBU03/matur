@@ -24,6 +24,7 @@ import {
   simpanTertunda,
 } from "@/lib/pos-offline";
 import { ReceiptDialog } from "@/components/pos-receipt";
+import { OmzetKasir } from "@/components/omzet-kasir";
 import type { BayarStruk, StrukOutlet } from "@/lib/struk";
 
 /** rincian pembayaran untuk struk (Tender & Change) dari data checkout */
@@ -75,6 +76,33 @@ const KANAL = [
   ["ruma_app", "Ruma App"],
   ["tumbler", "Tumbler"],
 ] as const;
+// tampilan saja: warna kartu & ikon kategori (urutan kategori menentukan warna)
+const WARNA_KAT = [
+  "from-amber-100 to-amber-200 text-amber-800",
+  "from-sky-100 to-sky-200 text-sky-800",
+  "from-rose-100 to-rose-200 text-rose-800",
+  "from-emerald-100 to-emerald-200 text-emerald-800",
+  "from-violet-100 to-violet-200 text-violet-800",
+  "from-orange-100 to-orange-200 text-orange-800",
+  "from-teal-100 to-teal-200 text-teal-800",
+  "from-lime-100 to-lime-200 text-lime-800",
+  "from-stone-100 to-stone-200 text-stone-700",
+];
+function ikonKat(nama: string) {
+  const n = nama.toLowerCase();
+  if (/non[\s-]?(kopi|coffee)|susu|milk|choco|coklat|cokelat/.test(n)) return "🥛";
+  if (/teh|tea|matcha/.test(n)) return "🍵";
+  if (/kopi|coffee|espresso|latte|signature/.test(n)) return "☕";
+  if (/jus|juice|soda|mocktail|squash|es\b|ice|frappe|blend/.test(n)) return "🧃";
+  if (/dessert|kue|cake|manis|sweet/.test(n)) return "🍰";
+  if (/snack|camil|roti|bread|pastry|gorengan/.test(n)) return "🥐";
+  if (/makan|food|nasi|mie|rice|berat|main/.test(n)) return "🍛";
+  if (/tambah|extra|add|topping|varian/.test(n)) return "➕";
+  if (/titip/.test(n)) return "📦";
+  if (/minum|drink|bever/.test(n)) return "🥤";
+  return "🍽️";
+}
+const IKON_METODE: Record<string, string> = { tunai: "💵", qris: "📱", debit: "💳", transfer: "🏦" };
 const OJOL = new Set(["gofood", "grabfood", "shopeefood", "tiktok"]);
 const METODE = METODE_LANGSUNG;
 const MULTI = new Set(["Extra"]); // grup varian yang boleh dipilih lebih dari satu
@@ -546,15 +574,29 @@ export function PosScreen({
   };
 
   const chip = (active: boolean) =>
-    `rounded-lg px-3 py-1.5 text-sm font-medium ${active ? "bg-matur-500 text-white" : "bg-matur-50 text-kopi-700"}`;
+    `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-matur-500 text-white shadow-sm" : "bg-matur-50 text-kopi-700 hover:bg-matur-100"}`;
+  // tampilan saja: warna & ikon per kategori, jumlah menu per kategori (kategori & menu tidak diubah)
+  const gayaKat = (id: string | null) => {
+    const i = id ? kategori.findIndex((k) => k.id === id) : -1;
+    return i < 0 ? WARNA_KAT[WARNA_KAT.length - 1] : WARNA_KAT[i % (WARNA_KAT.length - 1)];
+  };
+  const namaKat = new Map(kategori.map((k) => [k.id, k.nama]));
+  const jumlahKat = new Map<string, number>();
+  for (const m of menus) if (!m.induk_id && m.kategori_id) jumlahKat.set(m.kategori_id, (jumlahKat.get(m.kategori_id) ?? 0) + 1);
+  const jumlahSemua = menus.filter((m) => !m.induk_id).length;
+  const chipKat = (active: boolean) =>
+    `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${active ? "border-matur-500 bg-matur-500 text-white shadow-sm" : "border-matur-200 bg-white text-kopi-700 hover:border-matur-400"}`;
+  const angkaKat = (active: boolean) =>
+    `rounded-full px-1.5 text-[11px] font-bold tabular-nums ${active ? "bg-white/25 text-white" : "bg-matur-50 text-stone-500"}`;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
       <section className={`min-w-0 space-y-3 ${cart.length ? "pb-24 lg:pb-0" : ""}`}>
-        <div className="flex items-center gap-2 rounded-xl bg-matur-50 px-3 py-1.5 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-matur-50 px-3 py-1.5 text-sm">
           <span className="mr-auto min-w-0 truncate">
             👤 Operator: <b>{kasir}</b>
           </span>
+          <OmzetKasir segarkan={receipt} />
           <Link
             href="/kasir/shift"
             className="rounded-lg border border-matur-300 bg-white px-2.5 py-1 text-xs font-semibold text-kopi-700"
@@ -562,30 +604,33 @@ export function PosScreen({
             Hitung / tutup kas tim
           </Link>
         </div>
-        <div className="space-y-2 lg:flex lg:flex-wrap lg:gap-2 lg:space-y-0">
-          <div className="relative lg:min-w-40 lg:flex-1">
+        <div className="space-y-2">
+          <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" aria-hidden>
-              🔍
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M20 20l-4-4" /></svg>
             </span>
             <input
               value={cari}
               onChange={(e) => setCari(e.target.value)}
               placeholder="Cari menu…"
               type="search"
-              className="w-full rounded-xl border border-matur-200 bg-white py-2.5 pl-9 pr-3 outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100"
+              className="w-full rounded-xl border border-matur-200 bg-white py-2.5 pl-10 pr-3 outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100"
             />
           </div>
-          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
-            <button onClick={() => setKat(null)} className={`shrink-0 whitespace-nowrap ${chip(!kat)}`}>
-              Semua
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:thin] sm:-mx-4 sm:px-4 lg:mx-0 lg:px-0" role="tablist" aria-label="Kategori menu">
+            <button onClick={() => setKat(null)} className={chipKat(!kat)} role="tab" aria-selected={!kat}>
+              <span aria-hidden>🍽️</span> Semua <span className={angkaKat(!kat)}>{jumlahSemua}</span>
             </button>
             {kategori.map((k) => (
               <button
                 key={k.id}
                 onClick={() => setKat(k.id)}
-                className={`shrink-0 whitespace-nowrap ${chip(kat === k.id)}`}
+                className={chipKat(kat === k.id)}
+                role="tab"
+                aria-selected={kat === k.id}
               >
-                {k.nama}
+                <span aria-hidden>{ikonKat(k.nama)}</span> {k.nama}
+                <span className={angkaKat(kat === k.id)}>{jumlahKat.get(k.id) ?? 0}</span>
               </button>
             ))}
           </div>
@@ -595,45 +640,49 @@ export function PosScreen({
             Belum ada menu. Tambahkan di Data Master → Menu.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-          {shown.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => (m.varian.length || anakOf.get(m.id)?.length ? setPicking(m) : add(m, []))}
-              className="relative overflow-hidden rounded-2xl border border-matur-200 bg-white text-left shadow-sm transition active:scale-95"
-            >
-              {m.foto_url ? (
-                // eslint-disable-next-line @next/next/no-img-element -- foto menu dari aset/Storage
-                <img
-                  src={m.foto_url}
-                  alt=""
-                  loading="lazy"
-                  className="aspect-[4/3] w-full bg-matur-50 object-cover sm:aspect-square"
-                />
-              ) : (
-                <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-matur-50 to-amber-100 text-3xl font-black text-matur-300 sm:aspect-square">
-                  {m.nama.slice(0, 1)}
-                </div>
-              )}
-              {qtyOf(m.id) > 0 && (
-                <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-matur-500 text-sm font-bold text-white shadow">
-                  {qtyOf(m.id)}
-                </span>
-              )}
-              <div className="p-2.5">
-                <p className="line-clamp-2 text-sm font-semibold leading-tight">
-                  {m.nama}
-                </p>
-                <p className="mt-0.5 text-sm font-bold text-matur-700">
-                  {anakOf.get(m.id)?.length ? <span className="text-[11px] font-medium text-stone-500">mulai </span> : null}
-                  {formatRupiah(hargaTampil(m))}
-                </p>
-                {!!anakOf.get(m.id)?.length && (
-                  <p className="truncate text-[11px] text-stone-500">{anakOf.get(m.id)!.map((x) => x.kemasan).join(" · ")}</p>
+        {menus.length > 0 && shown.length === 0 && (
+          <p className="py-10 text-center text-sm text-stone-400">Menu tidak ditemukan.</p>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {shown.map((m) => {
+            const q = qtyOf(m.id);
+            const kemasan = anakOf.get(m.id);
+            const nmKat = m.kategori_id ? namaKat.get(m.kategori_id) ?? "" : "";
+            return (
+              <button
+                key={m.id}
+                onClick={() => (m.varian.length || kemasan?.length ? setPicking(m) : add(m, []))}
+                className={`relative flex flex-col overflow-hidden rounded-xl border bg-white text-left shadow-sm transition hover:shadow active:scale-[0.97] ${q > 0 ? "border-matur-500 ring-2 ring-matur-200" : "border-matur-200"}`}
+              >
+                {m.foto_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- foto menu dari aset/Storage
+                  <img src={m.foto_url} alt="" loading="lazy" className="aspect-[16/10] w-full bg-matur-50 object-cover" />
+                ) : (
+                  <div className={`h-1.5 w-full bg-gradient-to-r ${gayaKat(m.kategori_id)}`} aria-hidden />
                 )}
-              </div>
-            </button>
-          ))}
+                {q > 0 && (
+                  <span className="absolute right-1.5 top-1.5 grid min-w-6 place-items-center rounded-full bg-matur-500 px-1.5 py-0.5 text-xs font-bold text-white shadow">
+                    {q}
+                  </span>
+                )}
+                <div className="flex flex-1 flex-col gap-1 p-2.5">
+                  {!m.foto_url && (
+                    <span className={`grid size-8 place-items-center rounded-lg bg-gradient-to-br text-base ${gayaKat(m.kategori_id)}`} aria-hidden>
+                      {ikonKat(nmKat)}
+                    </span>
+                  )}
+                  <p className="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-kopi-900">{m.nama}</p>
+                  <p className="mt-auto text-sm font-extrabold text-matur-700 tabular-nums">
+                    {kemasan?.length ? <span className="text-[10px] font-medium text-stone-500">mulai </span> : null}
+                    {formatRupiah(hargaTampil(m))}
+                  </p>
+                  {!!kemasan?.length && (
+                    <p className="truncate text-[10px] text-stone-500">{kemasan.map((x) => x.kemasan).join(" · ")}</p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -663,7 +712,7 @@ export function PosScreen({
         <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setBukaKeranjang(false)} aria-hidden />
       )}
       <aside
-        className={`${bukaKeranjang ? "fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-3xl px-4 pt-2 shadow-2xl [animation:pos-naik_.25s_ease-out]" : "hidden"} space-y-3 border border-matur-200 bg-white lg:block lg:max-h-none lg:overflow-visible lg:rounded-2xl lg:p-4 lg:shadow-none lg:[animation:none] lg:sticky lg:top-4 lg:self-start`}
+        className={`${bukaKeranjang ? "fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-3xl px-4 pt-2 shadow-2xl [animation:pos-naik_.25s_ease-out]" : "hidden"} space-y-3 border border-matur-200 bg-white lg:block lg:max-h-[calc(100dvh-5.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:p-4 lg:pb-0 lg:shadow-none lg:[animation:none] lg:sticky lg:top-[4.5rem] lg:self-start`}
       >
         <div className="sticky top-0 z-10 -mx-4 bg-white px-4 pb-1 pt-1 lg:hidden">
           <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-stone-300" aria-hidden />
@@ -707,29 +756,32 @@ export function PosScreen({
             {info}
           </p>
         )}
-        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0">
-          {KANAL.map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => pilihKanal(k)}
-              className={`shrink-0 whitespace-nowrap ${chip(kanal === k)}`}
-            >
-              {l}
-            </button>
-          ))}
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Kanal penjualan</p>
+          <div className="grid grid-cols-4 gap-1" role="group" aria-label="Kanal penjualan">
+            {KANAL.map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => pilihKanal(k)}
+                className={`truncate rounded-lg px-1 py-1.5 text-xs font-semibold transition-colors ${kanal === k ? "bg-matur-500 text-white shadow-sm" : "bg-matur-50 text-kopi-700 hover:bg-matur-100"}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-matur-50 p-1" role="group" aria-label="Tipe pesanan">
           <button
             onClick={() => setTipe("dine_in")}
-            className={chip(tipe === "dine_in")}
+            className={`rounded-lg py-1.5 text-sm font-semibold transition-colors ${tipe === "dine_in" ? "bg-white text-kopi-900 shadow-sm ring-1 ring-matur-200" : "text-stone-500"}`}
           >
-            Dine-in
+            🍽️ Dine-in
           </button>
           <button
             onClick={() => setTipe("take_away")}
-            className={chip(tipe === "take_away")}
+            className={`rounded-lg py-1.5 text-sm font-semibold transition-colors ${tipe === "take_away" ? "bg-white text-kopi-900 shadow-sm ring-1 ring-matur-200" : "text-stone-500"}`}
           >
-            Take away
+            🥡 Take away
           </button>
         </div>
         {/* tanpa nomor meja: pesanan dipanggil lewat nomor antrean otomatis (alarm), diambil atau diantar */}
@@ -737,10 +789,14 @@ export function PosScreen({
           value={pelanggan}
           onChange={(e) => setPelanggan(e.target.value)}
           placeholder="Nama pelanggan (opsional)"
-          className="w-full rounded-lg border px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-matur-200 px-3 py-2 text-sm outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100"
         />
 
-        <ul className="divide-y lg:max-h-64 lg:overflow-y-auto">
+        <div className="flex items-center justify-between border-t border-matur-100 pt-2">
+          <p className="text-sm font-bold text-kopi-900">Pesanan</p>
+          <p className="text-xs font-semibold text-stone-500">{jumlahItem} item · {cart.length} menu</p>
+        </div>
+        <ul className="divide-y divide-matur-100 lg:max-h-64 lg:overflow-y-auto">
           {cart.length === 0 && (
             <li className="py-6 text-center text-sm text-stone-400">
               Keranjang kosong
@@ -776,7 +832,7 @@ export function PosScreen({
           ))}
         </ul>
 
-        <div className="space-y-1 border-t pt-2 text-sm">
+        <div className="space-y-1 rounded-xl bg-matur-50/70 p-3 text-sm">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
           <label className="flex items-center justify-between">
             Diskon (Rp)
@@ -784,31 +840,41 @@ export function PosScreen({
               value={diskon}
               onChange={(e) => setDiskon(e.target.value)}
               inputMode="numeric"
-              className="w-28 rounded-lg border px-2 py-1 text-right"
+              className="w-28 rounded-lg border border-matur-200 bg-white px-2 py-1 text-right"
             />
           </label>
-          <Row label="Total" value={formatRupiah(total)} bold />
+          <div className="flex items-baseline justify-between border-t border-matur-200 pt-1.5">
+            <span className="font-bold text-kopi-900">Total</span>
+            <span className="text-2xl font-extrabold text-kopi-900 tabular-nums">{formatRupiah(total)}</span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Metode pembayaran">
-          {!split &&
-            METODE.map(([k, l]) => (
-              <button
-                disabled={!antrean.online && k !== "tunai"}
-                key={k}
-                onClick={() => setMetode(k)}
-                className={chip(metode === k)}
-              >
-                {l}
-              </button>
-            ))}
-          {!split && <button type="button" disabled={!antrean.online} onClick={() => setMetode(metodePlatform(kanal) ? kanal : "grabfood")} className={chip(metodePlatform(metode))}>Platform Online</button>}
-          <button
-            disabled={!antrean.online}
-            onClick={() => setSplit(!split)}
-            className={`${chip(split)} ml-auto`}
-          >
-            {split ? "✕ Satu metode" : "➗ Split bayar"}
-          </button>
+        <div className="space-y-1.5" role="group" aria-label="Metode pembayaran">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Metode bayar</p>
+          {!split && (
+            <div className="grid grid-cols-4 gap-1">
+              {METODE.map(([k, l]) => (
+                <button
+                  disabled={!antrean.online && k !== "tunai"}
+                  key={k}
+                  onClick={() => setMetode(k)}
+                  className={`flex flex-col items-center gap-0.5 rounded-xl border px-1 py-2 text-[11px] font-semibold leading-tight transition-colors disabled:opacity-40 ${metode === k ? "border-matur-500 bg-matur-500 text-white shadow-sm" : "border-matur-200 bg-white text-kopi-700 hover:border-matur-400"}`}
+                >
+                  <span className="text-lg leading-none" aria-hidden>{IKON_METODE[k] ?? "💰"}</span>
+                  <span className="max-w-full truncate">{l}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            {!split && <button type="button" disabled={!antrean.online} onClick={() => setMetode(metodePlatform(kanal) ? kanal : "grabfood")} className={`${chip(metodePlatform(metode))} disabled:opacity-40`}>🛵 Platform Online</button>}
+            <button
+              disabled={!antrean.online}
+              onClick={() => setSplit(!split)}
+              className={`${chip(split)} ml-auto disabled:opacity-40`}
+            >
+              {split ? "✕ Satu metode" : "➗ Split bayar"}
+            </button>
+          </div>
         </div>
         {!split && metodePlatform(metode) && <div className="space-y-1 rounded-xl bg-matur-50 p-3">
           <label className="block text-sm font-semibold">Pembayaran melalui platform<select aria-label="Platform pembayaran" disabled={!antrean.online} value={metode} onChange={e => setMetode(e.target.value)} className="mt-1 w-full rounded-lg border border-matur-300 bg-white px-3 py-2 text-sm">{METODE_PLATFORM.map(([kode, nama]) => <option key={kode} value={kode}>{nama}</option>)}</select></label>
@@ -933,7 +999,7 @@ export function PosScreen({
             {err}
           </p>
         )}
-        <div className="sticky bottom-0 -mx-4 space-y-2 border-t border-matur-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 lg:static lg:mx-0 lg:border-0 lg:p-0">
+        <div className="sticky bottom-0 -mx-4 space-y-2 border-t border-matur-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 lg:pb-4">
         <button
           disabled={pending || cart.length === 0 || !antrean.online}
           onClick={simpanSebagaiDraft}
@@ -952,7 +1018,7 @@ export function PosScreen({
                 setBayarTunai(true);
               } else mulaiBayar();
             }}
-            className="w-full rounded-xl bg-matur-500 py-3 text-lg font-bold text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-matur-500 py-3.5 text-lg font-extrabold text-white shadow-md shadow-matur-500/30 transition hover:bg-matur-600 active:scale-[0.99] disabled:opacity-50 disabled:shadow-none"
           >
             {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
           </button>
