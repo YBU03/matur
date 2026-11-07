@@ -1,6 +1,8 @@
 import { it, expect } from "vitest";
-import { awalMingguMitra, statusJadwalMitra, type JadwalMitra } from "../mitra-jadwal";
+import { awalMingguMitra, tanggalJadwalMitra, statusJadwalMitra, type JadwalMitra } from "../mitra-jadwal";
 const row:JadwalMitra={id:"a",outlet_id:"o",tanggal:"2026-11-07",nama:"A",shift:"Pagi",mulai:"08:00",selesai:"16:00",masuk_at:null,pulang_at:null,telat_menit:0,status:"jadwal"};
 it("minggu dimulai Senin termasuk lintas bulan dan tahun",()=>{expect(awalMingguMitra("2026-11-01","2026-11-07")).toBe("2026-10-26");expect(awalMingguMitra("2027-01-01","2026-11-07")).toBe("2026-12-28");expect(awalMingguMitra("2026-11-02","2026-11-07")).toBe("2026-11-02");});
 it("tanggal invalid kembali minggu ini",()=>{for(const s of [undefined,"2026-02-31","x","1800-01-01"])expect(awalMingguMitra(s,"2026-11-07")).toBe("2026-11-02");});
 it("jadwal tidak dianggap hadir sampai ada absen",()=>{expect(statusJadwalMitra(row).teks).toBe("Terjadwal");expect(statusJadwalMitra({...row,masuk_at:"2026-11-07T01:00:00Z"}).teks).toBe("Tepat waktu");expect(statusJadwalMitra({...row,masuk_at:"2026-11-07T01:10:00Z",telat_menit:10}).teks).toBe("Telat 10 menit");expect(statusJadwalMitra({...row,pulang_at:"2026-11-07T08:00:00Z"}).teks).toBe("Selesai bertugas");expect(statusJadwalMitra({...row,masuk_at:"2026-11-07T01:00:00Z",status:"tanpa_jadwal"}).teks).toBe("Masuk tanpa jadwal");expect(statusJadwalMitra({...row,status:"libur"}).teks).toBe("Libur");});
+
+it("tanggal pilihan tetap satu hari, bukan dibulatkan ke awal minggu",()=>{expect(tanggalJadwalMitra("2026-11-08","2026-11-07")).toBe("2026-11-08");expect(tanggalJadwalMitra(undefined,"2026-11-07")).toBe("2026-11-07");expect(tanggalJadwalMitra("2026-02-31","2026-11-07")).toBe("2026-11-07");});

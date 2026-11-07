@@ -1,5 +1,7 @@
 # Dropdown bulan dan jadwal mingguan mitra
 
+Revisi tampilan jadwal: lihat [Jadwal harian ringkas](mitra-jadwal-harian-ringkas-2026-11-07.md). Jadwal kini berada di Karyawan Outlet, satu tanggal per tampilan; dropdown bulan simulasi tetap berlaku.
+
 Simulasi Kemitraan memakai dropdown otomatis untuk bulan tunggal, bulan akhir
 acuan tiga bulan, serta bulan awal/akhir kustom. Pilihan berasal dari periode
 laporan yang tersedia untuk outlet terpilih (gabungan bulan untuk Semua Outlet),

@@ -13,7 +13,6 @@ import { ProjectDetailCharts, ProjectsOverview } from "./projects";
 import { SalesDashboard } from "./sales";
 import { Filters } from "./filters";
 import { LaporanRingkas } from "./laporan-ringkas";
-import { MitraJadwal } from "./mitra-jadwal";
 import { MitraRingkas } from "./mitra-ringkas";
 import { rentang } from "./sales";
 import { HrdOverview } from "./hrd-overview";
@@ -132,7 +131,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </Suspense>
         </>
       )}
-      {active.role === "mitra" && <Suspense fallback={<Skeleton h="h-64" />}><MitraJadwal minggu={sp.mitra_minggu} outlet={sp.mitra_outlet} /></Suspense>}
       {kartuBaru && (
         <>
           <LiveRefresh pantau={[{ table: "transaksi" }]} cadanganDetik={60} />
