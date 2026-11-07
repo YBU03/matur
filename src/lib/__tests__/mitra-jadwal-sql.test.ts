@@ -1,0 +1,26 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFileSync } from "node:fs";
+import { beforeAll,afterAll,it,expect } from "vitest";
+const db=new PGlite();
+const sql=readFileSync(new URL("../../../supabase/migrations/20261107043012_jadwal_mitra_mingguan.sql",import.meta.url),"utf8");
+const a='00000000-0000-0000-0000-000000000001',b='00000000-0000-0000-0000-000000000002';
+beforeAll(async()=>{await db.exec(`create role anon;create role authenticated;create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('app.uid',true),'')::uuid$$;
+create table pengguna(id uuid primary key,nama text,status text);create table outlet(id uuid primary key,nama text,deleted_at timestamptz,mode text);create table penugasan(pengguna_id uuid,outlet_id uuid,peran text);
+create table shift_outlet(id uuid primary key,outlet_id uuid,nama text,jam_mulai time,jam_selesai time);
+create table jadwal_shift(id uuid primary key,outlet_id uuid,shift_id uuid,pengguna_id uuid,tanggal date,status text);
+create table absensi(id uuid primary key,outlet_id uuid,pengguna_id uuid,jadwal_id uuid,tanggal date,masuk_at timestamptz,pulang_at timestamptz,telat_menit int,status text);
+create table pengajuan_izin(id uuid primary key,outlet_id uuid,pengguna_id uuid,tanggal date,status text,jenis text);
+insert into pengguna values('${a}','Mitra A','aktif'),('${b}','Mitra B','aktif'),('00000000-0000-0000-0000-000000000003','Staf A','aktif');
+insert into outlet values('${a}','Outlet A',null,'asli'),('${b}','Outlet B',null,'asli');
+insert into penugasan values('${a}','${a}','mitra'),('${b}','${b}','mitra');
+insert into shift_outlet values('${a}','${a}','Malam','20:00','04:00'),('${b}','${b}','Pagi','08:00','16:00');
+insert into jadwal_shift values('${a}','${a}','${a}','00000000-0000-0000-0000-000000000003','2026-11-07','terbit'),('${b}','${a}','${a}','00000000-0000-0000-0000-000000000003','2026-11-06','draft'),('00000000-0000-0000-0000-000000000004','${b}','${b}','00000000-0000-0000-0000-000000000003','2026-11-07','terbit');
+insert into pengajuan_izin values('${a}','${a}','00000000-0000-0000-0000-000000000003','2026-11-05','disetujui','libur'),('${b}','${a}','00000000-0000-0000-0000-000000000003','2026-11-04','menunggu','izin');
+insert into absensi values('${a}','${a}','00000000-0000-0000-0000-000000000003',null,(now()-interval '12 hours')::date,now()-interval '12 hours',null,0,'tanpa_jadwal'),('${b}','${a}','00000000-0000-0000-0000-000000000003',null,now()::date,now()-interval '25 hours',null,0,'tanpa_jadwal'),('00000000-0000-0000-0000-000000000005','${b}','00000000-0000-0000-0000-000000000003',null,now()::date,now()-interval '1 hour',null,0,'tanpa_jadwal');`);await db.exec(sql);});
+afterAll(()=>db.close());
+async function baca(id:string){await db.query("select set_config('app.uid',$1,false)",[id]);return (await db.query<{r:{outlets:{id:string}[];jadwal:{id:string;status:string;outlet_id:string}[];aktif:{id:string;outlet_id:string}[]}}>("select jadwal_mitra_mingguan('2026-11-07') r")).rows[0].r;}
+it("hanya outlet milik mitra, draft dan izin belum disetujui tidak bocor",async()=>{const r=await baca(a);expect(r.outlets.map(x=>x.id)).toEqual([a]);expect(r.jadwal.every(x=>x.outlet_id===a)).toBe(true);expect(r.jadwal.some(x=>x.id===a&&x.status==='jadwal')).toBe(true);expect(r.jadwal.some(x=>x.id===b&&x.status==='jadwal')).toBe(false);expect(r.jadwal.some(x=>x.status==='libur')).toBe(true);expect(r.jadwal.some(x=>x.status==='izin')).toBe(false);});
+it("absen malam yang belum pulang tetap aktif, absen lama dan outlet lain tidak ikut",async()=>{expect((await baca(a)).aktif.map(x=>x.id)).toEqual([a]);});
+it("mitra lain hanya melihat outletnya sendiri",async()=>{const r=await baca(b);expect(r.outlets.map(x=>x.id)).toEqual([b]);expect(r.jadwal.every(x=>x.outlet_id===b)).toBe(true);});
+it("staf, sesi kosong, dan mitra nonaktif tidak mendapat data",async()=>{for(const id of ['', '00000000-0000-0000-0000-000000000003'])expect((await baca(id)).outlets).toEqual([]);await db.exec("update pengguna set status='nonaktif' where nama='Mitra A'");expect(await baca(a)).toEqual({outlets:[],jadwal:[],aktif:[]});});
+it("anon tidak bisa memanggil wrapper maupun fungsi privat",async()=>{expect((await db.query<{ok:boolean}>("select has_function_privilege('anon','public.jadwal_mitra_mingguan(date)','execute') or has_function_privilege('anon','mitra_dashboard_internal.jadwal(date)','execute') ok")).rows[0].ok).toBe(false);});
