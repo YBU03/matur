@@ -10,6 +10,7 @@ export function awalMingguMitra(tanggal: string | undefined, hariIni: string) {
 export function statusJadwalMitra(r: JadwalMitra) {
   if (["libur", "izin", "sakit"].includes(r.status)) return { teks: r.status[0].toUpperCase() + r.status.slice(1), warna: "bg-violet-50 text-violet-800" };
   if (r.pulang_at) return { teks: "Selesai bertugas", warna: "bg-stone-100 text-stone-600" };
+  if (r.status === "tanpa_jadwal") return { teks: "Masuk tanpa jadwal", warna: "bg-sky-50 text-sky-800" };
   if (r.masuk_at) return { teks: r.telat_menit > 0 ? `Telat ${r.telat_menit} menit` : "Tepat waktu", warna: r.telat_menit > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800" };
   return { teks: "Terjadwal", warna: "bg-amber-50 text-amber-800" };
 }
