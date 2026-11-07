@@ -6,21 +6,29 @@ import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
 import { simulasikan, type InputSimulasi } from "@/lib/simulasi";
 
-export type Acuan = { nama: string; bulan: number; omzet: number; hpp: number; beban: number };
+import { geserBulan, hitungAcuanBulanan, type AcuanBulanan, type OutletAcuan } from "@/lib/simulasi-acuan";
 type Skema = { id: string; nama: string; sedekah: number; mitra: number };
 
 const nf = (n: number) => new Intl.NumberFormat("id-ID").format(Math.round(n));
 const angka = (v: string) => Number(v.replace(/\./g, "").replace(",", ".")) || 0;
 
-export function SimulasiView({ skema, acuan }: { skema: Skema[]; acuan: Acuan[] }) {
+export function SimulasiView({ skema, acuan, outlets, bulanIni }: { skema: Skema[]; acuan: AcuanBulanan[]; outlets: OutletAcuan[]; bulanIni: string }) {
   const awal = skema.find((k) => /55/.test(k.nama)) ?? skema[0];
-  const a0 = acuan[0];
+  const [outletId, setOutletId] = useState(outlets[0]?.id ?? "semua");
+  const [mode, setMode] = useState("tiga");
+  const [bulan, setBulan] = useState(acuan[0]?.periode ?? bulanIni);
+  const [dari, setDari] = useState(geserBulan(acuan[0]?.periode ?? bulanIni, -2));
+  const [sampai, setSampai] = useState(acuan[0]?.periode ?? bulanIni);
+  const [sumber, setSumber] = useState("");
+  const awalPeriode = mode === "satu" ? bulan : mode === "tiga" ? geserBulan(bulan, -2) : dari;
+  const akhirPeriode = mode === "kustom" ? sampai : bulan;
+  const hasilAcuan = useMemo(() => hitungAcuanBulanan(acuan, outlets, { outletId, dari: awalPeriode, sampai: akhirPeriode }), [acuan, outlets, outletId, awalPeriode, akhirPeriode]);
   const [x, setX] = useState<InputSimulasi>({
     investasi: 135_000_000,
-    omzet: a0?.omzet ?? 60_000_000,
+    omzet: 60_000_000,
     tumbuh: 0,
-    hpp: a0?.hpp ?? 40,
-    beban: a0?.beban ?? 15_000_000,
+    hpp: 40,
+    beban: 15_000_000,
     sedekah: awal?.sedekah ?? 2.5,
     mitra: awal?.mitra ?? 55,
     bulan: 36,
@@ -54,16 +62,39 @@ export function SimulasiView({ skema, acuan }: { skema: Skema[]; acuan: Acuan[] 
       </div>
 
       <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-        {acuan.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-stone-500">Isi dari outlet berjalan:</span>
-            {acuan.map((a) => (
-              <button key={a.nama} onClick={() => setX({ ...x, omzet: a.omzet, hpp: a.hpp, beban: a.beban })} className="rounded-full border border-matur-300 px-3 py-1 font-semibold text-matur-700 hover:bg-matur-50">
-                {a.nama} <span className="font-normal text-stone-500">(rata-rata {a.bulan} bln)</span>
-              </button>
-            ))}
+        <div className="space-y-3 rounded-xl bg-matur-50 p-3">
+          <h2 className="font-semibold text-kopi-900">Isi dari outlet berjalan</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs text-stone-600">Outlet
+              <select aria-label="Outlet" value={outletId} onChange={e => setOutletId(e.target.value)} className="mt-1 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm">
+                <option value="semua">Semua Outlet</option>
+                {outlets.map(o => <option key={o.id} value={o.id}>{o.nama}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-stone-600">Periode acuan
+              <select aria-label="Periode acuan" value={mode} onChange={e => setMode(e.target.value)} className="mt-1 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm">
+                <option value="satu">Satu bulan</option><option value="tiga">3 bulan sampai bulan pilihan</option><option value="kustom">Kustom rentang bulan</option>
+              </select>
+            </label>
+            {mode === "kustom" ? <>
+              <label className="text-xs text-stone-600">Bulan awal<input type="month" value={dari} onChange={e => setDari(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>
+              <label className="text-xs text-stone-600">Bulan akhir<input type="month" value={sampai} onChange={e => setSampai(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>
+            </> : <label className="text-xs text-stone-600">{mode === "satu" ? "Bulan" : "Sampai bulan"}<input type="month" value={bulan} onChange={e => setBulan(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>}
           </div>
-        )}
+          <p className="text-xs text-stone-600">Acuan memakai laporan keuangan bulanan yang tersedia. Semua Outlet dihitung rata-rata per outlet per bulan, bukan gabungan omzet seluruh outlet. Bulan tanpa laporan tidak dianggap nol.</p>
+          {hasilAcuan.error ? <p role="status" className="text-sm text-amber-800">{hasilAcuan.error}</p> : <div className="space-y-1 text-sm">
+            <p>{hasilAcuan.jumlah} laporan · {hasilAcuan.outlet} outlet · {awalPeriode} s.d. {akhirPeriode}</p>
+            <p>Penjualan {formatRupiah(hasilAcuan.omzet)} / bulan · HPP {hasilAcuan.hpp}% · Beban {formatRupiah(hasilAcuan.beban)} / bulan</p>
+            {!!hasilAcuan.kosong && <p className="text-xs text-amber-800">{hasilAcuan.kosong} kombinasi outlet-bulan belum memiliki laporan; tidak disertakan dalam rata-rata.</p>}
+          </div>}
+          <button type="button" disabled={!!hasilAcuan.error} onClick={() => {
+            if (hasilAcuan.error || hasilAcuan.omzet === undefined) return;
+            setX(v => ({ ...v, omzet: hasilAcuan.omzet, hpp: hasilAcuan.hpp, beban: hasilAcuan.beban }));
+            setTeks(v => ({ ...v, hpp: undefined }));
+            setSumber(`${outletId === "semua" ? "Semua Outlet" : outlets.find(o => o.id === outletId)?.nama} · ${awalPeriode} s.d. ${akhirPeriode} · ${hasilAcuan.jumlah} laporan`);
+          }} className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Gunakan sebagai acuan</button>
+          {sumber && <p role="status" className="text-xs text-emerald-800">Acuan terakhir diterapkan: {sumber}. Asumsi di bawah tetap dapat diedit manual.</p>}
+        </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {uang("investasi", "Investasi awal mitra (Rp)")}
           {uang("omzet", "Penjualan per bulan (Rp)")}

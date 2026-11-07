@@ -10,6 +10,8 @@ type Staf = {
   outlet: string;
   peran: string[] | null;
   foto_path: string | null;
+  alamat: string | null;
+  no_wa: string | null;
   tgl_masuk: string | null;
 };
 const LABEL: Record<string, string> = {
@@ -18,12 +20,13 @@ const LABEL: Record<string, string> = {
   barista: "Barista",
 };
 
-// Mitra: karyawan yang bertugas di outletnya (nama, peran, foto, tanggal masuk). Data pribadi tidak ditampilkan.
+// Mitra: karyawan outletnya; alamat teks sesuai izin, tanpa membuka profil lengkap.
 export default async function KaryawanMitra() {
   const s = await getSession();
   if (s?.active?.role !== "mitra") notFound();
   const supabase = await supabaseServer();
-  const { data } = await supabase.rpc("karyawan_outlet_saya");
+  const { data, error } = await supabase.rpc("karyawan_outlet_saya");
+  if (error) throw new Error("Daftar karyawan belum dapat dimuat. Silakan coba kembali.");
   const staf = (data ?? []) as Staf[];
   const paths = staf.map((x) => x.foto_path).filter((x): x is string => !!x);
   const { data: urls } = paths.length
@@ -86,6 +89,8 @@ export default async function KaryawanMitra() {
                     </div>
                     <p className="mt-2 font-bold">{x.nama}</p>
                     <p className="text-xs text-matur-700">{LABEL[peran]}</p>
+                    <p className="mt-2 break-words text-xs text-stone-600"><span className="font-semibold">No. WA: </span>{x.no_wa?.trim() || "No. WA belum diisi"}</p>
+                    <p className="mt-1 whitespace-pre-line break-words text-xs text-stone-600"><span className="font-semibold">Alamat: </span>{x.alamat?.trim() || "Alamat belum diisi"}</p>
                     {x.tgl_masuk && (
                       <p className="mt-1 text-xs text-stone-500">
                         Bergabung {formatTanggal(x.tgl_masuk)}
