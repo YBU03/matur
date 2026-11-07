@@ -2,8 +2,11 @@ import { addDays } from "./jadwal/waktu";
 export type JadwalMitra = { id: string; outlet_id: string; tanggal: string; nama: string; shift: string | null; mulai: string | null; selesai: string | null; masuk_at: string | null; pulang_at: string | null; telat_menit: number; status: string };
 export type AktifMitra = { id: string; outlet_id: string; nama: string; shift: string | null; masuk_at: string; telat_menit: number };
 export type DataJadwalMitra = { outlets: { id: string; nama: string }[]; jadwal: JadwalMitra[]; aktif: AktifMitra[] };
+export function tanggalJadwalMitra(tanggal: string | undefined, hariIni: string) {
+  return tanggal && /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && tanggal >= "1900-01-01" && tanggal <= "2200-12-31" && !Number.isNaN(Date.parse(tanggal)) && new Date(`${tanggal}T00:00:00Z`).toISOString().slice(0, 10) === tanggal ? tanggal : hariIni;
+}
 export function awalMingguMitra(tanggal: string | undefined, hariIni: string) {
-  const value = tanggal && /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && tanggal >= "1900-01-01" && tanggal <= "2200-12-31" && !Number.isNaN(Date.parse(tanggal)) && new Date(`${tanggal}T00:00:00Z`).toISOString().slice(0, 10) === tanggal ? tanggal : hariIni;
+  const value = tanggalJadwalMitra(tanggal, hariIni);
   const day = new Date(`${value}T00:00:00Z`).getUTCDay();
   return addDays(value, -(day + 6) % 7);
 }

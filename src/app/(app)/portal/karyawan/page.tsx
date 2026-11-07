@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { MitraJadwal } from "./jadwal";
 import { notFound } from "next/navigation";
 import { formatTanggal } from "@/lib/format";
 import { getSession } from "@/lib/session";
@@ -21,7 +23,8 @@ const LABEL: Record<string, string> = {
 };
 
 // Mitra: karyawan outletnya; alamat teks sesuai izin, tanpa membuka profil lengkap.
-export default async function KaryawanMitra() {
+export default async function KaryawanMitra({ searchParams }: { searchParams: Promise<{ mitra_tanggal?: string; mitra_outlet?: string }> }) {
+  const sp = await searchParams;
   const s = await getSession();
   if (s?.active?.role !== "mitra") notFound();
   const supabase = await supabaseServer();
@@ -103,6 +106,7 @@ export default async function KaryawanMitra() {
           </section>
         );
       })}
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-matur-50 motion-reduce:animate-none" aria-label="Menyiapkan jadwal shift" />}><MitraJadwal tanggal={sp.mitra_tanggal} outlet={sp.mitra_outlet} /></Suspense>
     </div>
   );
 }
