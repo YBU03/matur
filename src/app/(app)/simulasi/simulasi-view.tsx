@@ -20,8 +20,13 @@ export function SimulasiView({ skema, acuan, outlets, bulanIni }: { skema: Skema
   const [dari, setDari] = useState(geserBulan(acuan[0]?.periode ?? bulanIni, -2));
   const [sampai, setSampai] = useState(acuan[0]?.periode ?? bulanIni);
   const [sumber, setSumber] = useState("");
-  const awalPeriode = mode === "satu" ? bulan : mode === "tiga" ? geserBulan(bulan, -2) : dari;
-  const akhirPeriode = mode === "kustom" ? sampai : bulan;
+  const bulanTersedia = useMemo(() => [...new Set(acuan.filter(a => outletId === "semua" || a.outletId === outletId).map(a => a.periode))].sort().reverse(), [acuan, outletId]);
+  const bulanPilihan = bulanTersedia.includes(bulan) ? bulan : bulanTersedia[0] ?? "";
+  const bulanDari = bulanTersedia.includes(dari) ? dari : bulanTersedia.at(-1) ?? "";
+  const bulanSampai = bulanTersedia.includes(sampai) ? sampai : bulanTersedia[0] ?? "";
+  const opsiBulan = bulanTersedia.length ? bulanTersedia.map(b => <option key={b} value={b}>{new Date(`${b}-01T00:00:00Z`).toLocaleDateString("id-ID", { timeZone: "UTC", month: "long", year: "numeric" })}</option>) : <option value="">Belum ada bulan laporan</option>;
+  const awalPeriode = mode === "satu" ? bulanPilihan : mode === "tiga" ? geserBulan(bulanPilihan, -2) : bulanDari;
+  const akhirPeriode = mode === "kustom" ? bulanSampai : bulanPilihan;
   const hasilAcuan = useMemo(() => hitungAcuanBulanan(acuan, outlets, { outletId, dari: awalPeriode, sampai: akhirPeriode }), [acuan, outlets, outletId, awalPeriode, akhirPeriode]);
   const [x, setX] = useState<InputSimulasi>({
     investasi: 135_000_000,
@@ -62,8 +67,8 @@ export function SimulasiView({ skema, acuan, outlets, bulanIni }: { skema: Skema
       </div>
 
       <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-        <div className="space-y-3 rounded-xl bg-matur-50 p-3">
-          <h2 className="font-semibold text-kopi-900">Isi dari outlet berjalan</h2>
+        <div className="space-y-3 rounded-2xl border border-matur-200 bg-gradient-to-br from-matur-50 via-amber-50 to-white p-4 shadow-sm">
+          <div className="flex items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-matur-100 text-xl">📊</span><div><h2 className="font-bold text-kopi-900">Isi dari outlet berjalan</h2><p className="text-xs text-stone-500">Pilih outlet dan bulan laporan yang sudah tersedia</p></div></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs text-stone-600">Outlet
               <select aria-label="Outlet" value={outletId} onChange={e => setOutletId(e.target.value)} className="mt-1 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm">
@@ -77,9 +82,9 @@ export function SimulasiView({ skema, acuan, outlets, bulanIni }: { skema: Skema
               </select>
             </label>
             {mode === "kustom" ? <>
-              <label className="text-xs text-stone-600">Bulan awal<input type="month" value={dari} onChange={e => setDari(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>
-              <label className="text-xs text-stone-600">Bulan akhir<input type="month" value={sampai} onChange={e => setSampai(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>
-            </> : <label className="text-xs text-stone-600">{mode === "satu" ? "Bulan" : "Sampai bulan"}<input type="month" value={bulan} onChange={e => setBulan(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm" /></label>}
+              <label className="text-xs text-stone-600">Bulan awal<select aria-label="Bulan awal" value={bulanDari} disabled={!bulanTersedia.length} onChange={e => setDari(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm shadow-sm focus:ring-2 focus:ring-matur-300">{opsiBulan}</select></label>
+              <label className="text-xs text-stone-600">Bulan akhir<select aria-label="Bulan akhir" value={bulanSampai} disabled={!bulanTersedia.length} onChange={e => setSampai(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm shadow-sm focus:ring-2 focus:ring-matur-300">{opsiBulan}</select></label>
+            </> : <label className="text-xs text-stone-600">{mode === "satu" ? "Bulan" : "Sampai bulan"}<select aria-label="Bulan acuan" value={bulanPilihan} disabled={!bulanTersedia.length} onChange={e => setBulan(e.target.value)} className="mt-1 min-w-0 w-full rounded-lg border border-matur-200 bg-white p-2 text-sm shadow-sm focus:ring-2 focus:ring-matur-300">{opsiBulan}</select></label>}
           </div>
           <p className="text-xs text-stone-600">Acuan memakai laporan keuangan bulanan yang tersedia. Semua Outlet dihitung rata-rata per outlet per bulan, bukan gabungan omzet seluruh outlet. Bulan tanpa laporan tidak dianggap nol.</p>
           {hasilAcuan.error ? <p role="status" className="text-sm text-amber-800">{hasilAcuan.error}</p> : <div className="space-y-1 text-sm">
