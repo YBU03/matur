@@ -1,4 +1,7 @@
 "use client";
+import { QrisPaymentSuccess } from "@/components/qris-payment-success";
+import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
+import { pakaiFeedbackQrisDinamis } from "@/lib/qris-payment-feedback";
 import { QrisDemoDialog } from "@/components/qris-demo-dialog";
 import { minta } from "@/components/dialog-tanya";
 
@@ -195,6 +198,7 @@ export function PosScreen({
   // QRIS: klik Bayar → QR tampil → kasir konfirmasi dana masuk → transaksi tersimpan
   const [demoCheckout, setDemoCheckout] = useState<Checkout | null>(null);
   const [demoReceipt, setDemoReceipt] = useState(false);
+  const [qrisSuccessReady, setQrisSuccessReady] = useState<string | null>(null);
   const [qrisBayar, setQrisBayar] = useState<{ nominal: number; otorisasi?: string } | null>(null);
   const [diterima, setDiterima] = useState("");
   const [bayarTunai, setBayarTunai] = useState(false);
@@ -579,6 +583,7 @@ export function PosScreen({
       return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
     if (!qris) return setErr("QRIS outlet belum diatur (Pengaturan → QRIS Outlet). Pilih metode lain.");
     if (!navigator.onLine) return setErr("QRIS membutuhkan internet. Gunakan tunai saat offline.");
+    if (qris.mode === "dinamis") void siapkanSuaraQris().catch(() => {});
     if (qris.simulasi && qris.mode === "dinamis") return checkout(otorisasi, true);
     setQrisBayar({ nominal: nominalQris, otorisasi });
   };
@@ -1157,7 +1162,8 @@ export function PosScreen({
           </div>
         </Modal>
       )}
-      {receipt && (
+      {receipt && (pakaiFeedbackQrisDinamis(qris?.mode, receipt) && qrisSuccessReady !== receipt.r.id ?
+        <QrisPaymentSuccess paymentId={receipt.r.id} nominal={receipt.r.total} simulasi={demoReceipt} onComplete={() => setQrisSuccessReady(receipt.r.id)} /> :
         <ReceiptDialog
           {...receipt}
           testing={demoReceipt}
