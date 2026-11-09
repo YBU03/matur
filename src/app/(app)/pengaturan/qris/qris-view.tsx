@@ -156,7 +156,7 @@ export function QrisView({ outlets }: { outlets: OutletQris[] }) {
           <source src="/audio/pembayaran-diterima.wav" type="audio/wav" />
           Browser tidak mendukung pemutar audio. <a href="/audio/pembayaran-diterima.wav">Buka suara pembayaran diterima</a>.
         </audio>
-        <p className="mt-2 text-xs text-amber-800">Tes suara saja, tidak mencatat pembayaran. Pemutaran otomatis menunggu integrasi konfirmasi pembayaran QRIS BNI.</p>
+        <p className="mt-2 text-xs text-amber-800">Tes suara saja, tidak mencatat pembayaran. Pada QRIS Dinamis, suara dan centang hijau tampil setelah pembayaran terkonfirmasi, sebelum struk. Demo memakai konfirmasi simulasi; pembayaran nyata menunggu integrasi penyedia.</p>
       </section>
       {outlets.map((o) => (
         <Kartu key={o.id} o={o} />
