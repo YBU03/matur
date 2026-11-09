@@ -72,7 +72,7 @@ export default async function DashboardPos({
             <SalesDashboard
               outlets={outlets}
               outletId={outletId}
-              periode={sp.periode ?? "30"}
+              periode={sp.periode ?? "bulan"}
               kDari={sp.dari}
               kSampai={sp.sampai}
               mode={mode}

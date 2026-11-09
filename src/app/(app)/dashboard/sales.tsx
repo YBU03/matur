@@ -1,6 +1,7 @@
 import { BarList, ChartCard, Heatmap, StatTile, TrendChart } from "@/components/charts";
 import { LipatHp } from "@/components/lipat-hp";
 import { SERIES, angka, rupiah } from "@/lib/chart-utils";
+import { penjualanDalamPeriode } from "@/lib/penjualan-periode";
 import { stokMenipis, type Menipis } from "@/lib/stok-menipis";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -131,11 +132,12 @@ export function SalesView({
   // warna tetap per outlet (urutan nama), tidak berubah saat difilter
   const color = Object.fromEntries(outlets.map((o, i) => [o.id, SERIES[i % SERIES.length]]));
   const nama = Object.fromEntries(outlets.map((o) => [o.id, o.nama]));
-  const shown = outletId ? outlets.filter((o) => o.id === outletId) : outlets.filter((o) => d?.harian.some((h) => h.outlet_id === o.id));
+  const harian = penjualanDalamPeriode(d?.harian ?? [], r.dari, r.sampai);
+  const shown = outletId ? outlets.filter((o) => o.id === outletId) : outlets.filter((o) => harian.some((h) => h.outlet_id === o.id));
 
   const buckets = new Map<string, Record<string, string | number>>();
   const perHari = new Map<string, number>();
-  for (const h of d?.harian ?? []) {
+  for (const h of harian) {
     const b = bucket(h.tgl, r.hari);
     const row = buckets.get(b.key) ?? { label: b.label };
     row[h.outlet_id] = Number(row[h.outlet_id] ?? 0) + h.omzet;
