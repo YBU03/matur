@@ -1,4 +1,6 @@
-import { BarList, ChartCard, Heatmap, StatTile, TrendChart } from "@/components/charts";
+import { BarList, ChartCard, StatTile, TrendChart } from "@/components/charts";
+import { JamRamai } from "./jam-ramai";
+import type { DataJamTanggal } from "@/lib/jam-penjualan";
 import { LipatHp } from "@/components/lipat-hp";
 import { SERIES, angka, rupiah } from "@/lib/chart-utils";
 import { penjualanDalamPeriode } from "@/lib/penjualan-periode";
@@ -62,14 +64,6 @@ const labelTgl = (tgl: string) => {
   const d = new Date(tgl + "T00:00:00Z");
   return `${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BLN[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 };
-/** "09.00 - 22.00 WIB" → [9, 22] */
-function jamBuka(teks: string | null | undefined): [number, number] | null {
-  const m = teks?.match(/(\d{1,2})[.:]\d{2}\s*[-–]\s*(\d{1,2})[.:](\d{2})/);
-  if (!m) return null;
-  const tutup = Number(m[2]) + (Number(m[3]) > 0 ? 1 : 0);
-  return [Number(m[1]), tutup <= Number(m[1]) ? 24 : tutup];
-}
-
 const delta = (now: number, prev: number) => (prev ? `${now >= prev ? "▲" : "▼"} ${Math.abs(Math.round(((now - prev) / prev) * 100))}% vs periode sebelumnya` : undefined);
 const warnaUrut = (n: number) => Array.from({ length: n }, (_, i) => SERIES[i % SERIES.length]);
 
@@ -97,15 +91,18 @@ export async function SalesDashboard({
   const r = rentang(periode, kDari, kSampai);
   const supabase = await supabaseServer();
   const tampilOutlet = outletId ? outlets.filter((o) => o.id === outletId) : outlets;
-  const [{ data: now }, { data: prev }, menipis] = await Promise.all([
+  const [{ data: now }, { data: prev }, menipis, jamTanggal] = await Promise.all([
     supabase.rpc("ringkasan_penjualan", { p_outlet: outletId, p_dari: r.dari, p_sampai: r.sampai, p_mode: mode }),
     supabase.rpc("ringkasan_penjualan", { p_outlet: outletId, p_dari: r.prevDari, p_sampai: r.prevSampai, p_mode: mode }),
     mode === "asli" ? stokMenipis(tampilOutlet) : Promise.resolve([]),
+    supabase.rpc("jam_penjualan_tanggal", { p_outlet: outletId, p_dari: r.dari, p_sampai: r.sampai, p_mode: mode }),
   ]);
-  return <SalesView d={now as Ringkasan | null} p={prev as Ringkasan | null} menipis={menipis} outlets={outlets} outletId={outletId} r={r} mode={mode} tanpaRupiah={tanpaRupiah} ringkasHp={ringkasHp} />;
+  return <SalesView jamTanggal={jamTanggal.data as DataJamTanggal | null} jamError={!!jamTanggal.error} d={now as Ringkasan | null} p={prev as Ringkasan | null} menipis={menipis} outlets={outlets} outletId={outletId} r={r} mode={mode} tanpaRupiah={tanpaRupiah} ringkasHp={ringkasHp} />;
 }
 
 export function SalesView({
+  jamTanggal = null,
+  jamError = false,
   d,
   p,
   menipis,
@@ -116,6 +113,8 @@ export function SalesView({
   tanpaRupiah,
   ringkasHp = false,
 }: {
+  jamTanggal?: DataJamTanggal | null;
+  jamError?: boolean;
   d: Ringkasan | null;
   p: Ringkasan | null;
   menipis: Menipis[];
@@ -158,11 +157,7 @@ export function SalesView({
   const cabang = (d?.outlet ?? []).map((o) => ({ name: o.nama, value: o.omzet, id: o.outlet_id, trx: o.trx }));
   const qtyTotal = menu.reduce((s, m) => s + Number(m.qty), 0);
   const kotor = k.omzet + k.diskon;
-  const perJam = new Map<number, number>();
-  for (const c of d?.jam ?? []) perJam.set(c.jam, (perJam.get(c.jam) ?? 0) + Number(c.trx));
-  const jamTop = [...perJam.entries()].sort((a, b) => b[1] - a[1])[0];
   const lipat = ringkasHp;
-  const jam = jamBuka((outletId ? outlets.find((o) => o.id === outletId) : outlets.find((o) => o.jam_operasional))?.jam_operasional);
 
   return (
     <section className={`lg:space-y-4 ${lipat ? "space-y-2" : "space-y-4"}`}>
@@ -280,15 +275,8 @@ export function SalesView({
               </LipatHp>
           </div>
 
-          <LipatHp aktif={lipat} ikon="⏰" judul="Jam ramai & sepi" ringkas={jamTop ? `Teramai pukul ${String(jamTop[0]).padStart(2, "0")}.00–${String(jamTop[0] + 1).padStart(2, "0")}.00` : undefined}>
-          <ChartCard
-            title="Jam ramai"
-            sub={`Jumlah transaksi per hari dan jam${jam ? ` · jam buka ${String(jam[0]).padStart(2, "0")}.00–${String(jam[1]).padStart(2, "0")}.00` : ""}`}
-            rows={(d?.jam ?? []).map((c) => ({ Hari: ["", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"][c.dow], Jam: `${c.jam}.00`, Transaksi: c.trx }))}
-            cols={[{ key: "Hari", label: "Hari" }, { key: "Jam", label: "Jam" }, { key: "Transaksi", label: "Transaksi" }]}
-          >
-            <Heatmap cells={d?.jam ?? []} />
-          </ChartCard>
+          <LipatHp aktif={lipat} ikon="⏰" judul="Jam ramai & sepi" ringkas="Lihat per tanggal · 1–7, 8–14 dan seterusnya">
+            <JamRamai key={`${r.dari}:${r.sampai}:${outletId ?? "semua"}:${mode}`} data={jamTanggal} error={jamError} dari={r.dari} sampai={r.sampai} />
           </LipatHp>
         </>
       )}
