@@ -1,4 +1,5 @@
 "use client";
+import { QrisDemoDialog } from "@/components/qris-demo-dialog";
 import { minta } from "@/components/dialog-tanya";
 
 import Link from "next/link";
@@ -192,6 +193,8 @@ export function PosScreen({
     setMetode(lama => saranMetodeKanal(nilai, lama));
   };
   // QRIS: klik Bayar → QR tampil → kasir konfirmasi dana masuk → transaksi tersimpan
+  const [demoCheckout, setDemoCheckout] = useState<Checkout | null>(null);
+  const [demoReceipt, setDemoReceipt] = useState(false);
   const [qrisBayar, setQrisBayar] = useState<{ nominal: number; otorisasi?: string } | null>(null);
   const [diterima, setDiterima] = useState("");
   const [bayarTunai, setBayarTunai] = useState(false);
@@ -199,6 +202,7 @@ export function PosScreen({
   const [receipt, setReceipt] = useState<{
     r: Receipt;
     lines: Line[];
+    demoLines?: {key:string;nama:string;qty:number;total:number}[];
     kanal: string;
     metode: string;
     offline?: boolean;
@@ -299,7 +303,7 @@ export function PosScreen({
       { metode: "qris", nominal: "", diterima: "" },
     ]);
   };
-  const checkout = (otorisasi?: string) => {
+  const checkout = (otorisasi?: string, simulasi = false) => {
     const waktu = new Date(
       Date.parse(izin.server_at) + Date.now() - izin.client_at,
     );
@@ -362,6 +366,11 @@ export function PosScreen({
       c.waktu_asli = attempt.current.waktu;
     } else
       attempt.current = { fingerprint, id: c.client_id, waktu: c.waktu_asli! };
+    if (simulasi) {
+      if (!qris?.simulasi || split || draftId) return setErr("Simulasi QRIS memakai pembayaran penuh, tanpa split atau draft.");
+      setDemoCheckout(c);
+      return;
+    }
     const durableCash =
       izin.offlineBoleh &&
       !split &&
@@ -570,6 +579,7 @@ export function PosScreen({
       return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
     if (!qris) return setErr("QRIS outlet belum diatur (Pengaturan → QRIS Outlet). Pilih metode lain.");
     if (!navigator.onLine) return setErr("QRIS membutuhkan internet. Gunakan tunai saat offline.");
+    if (qris.simulasi && qris.mode === "dinamis") return checkout(otorisasi, true);
     setQrisBayar({ nominal: nominalQris, otorisasi });
   };
 
@@ -1113,6 +1123,8 @@ export function PosScreen({
           </div>
         </Modal>
       )}
+      {qris?.simulasi && <p className="my-3 text-center text-sm"><Link href="/kasir/qris-demo" className="font-semibold text-matur-700 underline">Riwayat QR simulasi Outlet Demo ↗</Link></p>}
+      {demoCheckout && !receipt && <QrisDemoDialog checkout={demoCheckout} onClose={() => { setDemoCheckout(null); attempt.current = null; }} onPaid={(r) => { setDemoReceipt(true); setReceipt({r: {...r,kembalian:0}, demoLines:r.lines, lines: cart, kanal: demoCheckout.kanal, metode: "qris", bayar: undefined}); setDemoCheckout(null); }} />}
       {qrisBayar && qris && !receipt && (
         <Modal title="Bayar dengan QRIS">
           <div className="space-y-2 text-center">
@@ -1148,11 +1160,12 @@ export function PosScreen({
       {receipt && (
         <ReceiptDialog
           {...receipt}
-          lines={receipt.lines.map((l) => ({ key: l.key, nama: l.menu.nama + (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""), qty: l.qty, total: priceFor(receipt.kanal, l) * l.qty }))}
+          testing={demoReceipt}
+          lines={receipt.demoLines ?? receipt.lines.map((l) => ({ key: l.key, nama: l.menu.nama + (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""), qty: l.qty, total: priceFor(receipt.kanal, l) * l.qty }))}
           outletNama={outletNama}
           kasir={kasir}
           struk={struk}
-          onClose={() => setReceipt(null)}
+          onClose={() => {setReceipt(null);if(demoReceipt)reset();setDemoReceipt(false);}}
         />
       )}
       {mintaSpv && (
