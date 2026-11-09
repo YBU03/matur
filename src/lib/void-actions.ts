@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
 
-export const PENGATUR_VOID = ["owner", "admin_pusat", "hrd", "admin_gudang"];
+const PENGATUR_VOID = ["owner", "admin_pusat", "hrd", "admin_gudang"];
 
 /** Switch per outlet: void di POS wajib PIN SPV (aktif) atau langsung dengan alasan (mati). */
 export async function aturVoidPin(outletId: string, aktif: boolean): Promise<{ error?: string; ok?: string }> {
