@@ -41,3 +41,7 @@ Database produksi diverifikasi read-only sebagai authenticated owner melalui tra
 Referensi: https://apidevportal.aspi-indonesia.or.id/api-services/keamanan dan https://apidevportal.aspi-indonesia.or.id/api-services/transfer-kredit/mpm ; standar formula symmetric SNAP https://docs.espay.id/api-mandatory/snap/signature-symmetric/ . Kontrak provider BNI produksi tetap perlu disesuaikan dengan spesifikasi resmi BNI.
 
 Validasi akhir: seluruh 448 tes pada 74 file lulus; setelah penguatan redaksi akhir, 13 tes protokol/SQL lulus kembali. TypeScript, ESLint, build produksi dan pemuatan dua compiled server-action entry pengaturan berhasil.
+
+## CORS Client Simulator ASPI (9 November 2026 malam)
+
+Client Simulator ASPI mengirim dari browser penguji, sehingga sebelumnya terblokir CORS. Proxy `src/app/api/integrasi/snap-sandbox/[...path]/route.ts` kini menjawab preflight `OPTIONS` (204) dan menambahkan header CORS **hanya** untuk origin `https://apidevportal.aspi-indonesia.or.id` (dengan/tanpa port 44310), helper `src/lib/snap-cors.ts`. Origin lain: preflight 403, tanpa header CORS. Autentikasi SNAP (token, signature, timestamp) tidak berubah; gateway BNI produksi tidak disentuh.
