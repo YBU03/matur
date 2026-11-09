@@ -340,3 +340,6 @@ for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].m
 for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/outlet",label:"Kontak Outlet",stage:4},{href:"/gudang/dokumen-arsip",label:"Arsip Dokumen",stage:4});
 
 for (const role of ["admin_pusat", "admin_gudang"] as Role[]) if (!ROLES[role].menu.some(m => m.href === "/stok")) ROLES[role].menu.push({ href: "/stok", label: "Opname Outlet", stage: 4 });
+
+// Pengujian ASPI terpisah dari konfigurasi QRIS outlet dan BNI produksi.
+for (const role of ["owner", "admin_pusat", "finance"] as Role[]) ROLES[role].menu.push({ href: "/pengaturan/snap-sandbox", label: "Pengujian SNAP / ASPI", stage: 5 });

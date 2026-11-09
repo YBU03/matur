@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -9,5 +10,5 @@ export default async function PengaturanQris() {
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang"].includes(s.active.role)) notFound();
   const supabase = await supabaseServer();
   const { data } = await supabase.from("outlet").select("id, nama, qris_url, qris_payload, qris_nama, qris_dinamis, qris_mode, qris_penyedia, qris_merchant_id").eq("mode", "asli").is("deleted_at", null).order("tgl_mulai");
-  return <QrisView outlets={(data ?? []) as OutletQris[]} />;
+  return <>{["owner", "admin_pusat"].includes(s.active.role) && <p className="mb-4 rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm"><Link href="/pengaturan/snap-sandbox" className="font-semibold underline">Buka Pengujian SNAP / ASPI →</Link> · Khusus sandbox, terpisah dari pilihan QRIS outlet.</p>}<QrisView outlets={(data ?? []) as OutletQris[]} /></>;
 }
