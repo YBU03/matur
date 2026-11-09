@@ -70,7 +70,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // tab: Harian (POS, seperti dasbor Luna) & Laporan Keuangan (bulanan); peran yang hanya punya salah satu tidak melihat tab
   const duaTab = !adminHome && lihatPenjualan && lihatLaporan;
   const tab = !lihatPenjualan ? "bulanan" : !lihatLaporan ? "harian" : sp.tab === "bulanan" ? "bulanan" : "harian";
-  const r0 = rentang(sp.periode ?? (tab === "bulanan" ? "12bln" : "30"), sp.dari, sp.sampai);
+  const r0 = rentang(sp.periode ?? (tab === "bulanan" ? "12bln" : "bulan"), sp.dari, sp.sampai);
   const simulasi = canSim && sp.mode === "simulasi";
   const tabHref = (t: string) => `/dashboard?${new URLSearchParams({ ...Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && !["tab", "periode", "dari", "sampai"].includes(k))) as Record<string, string>, ...(t === "bulanan" ? { tab: t } : {}) })}`;
   return (
@@ -167,7 +167,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <SalesDashboard
             outlets={outlets}
             outletId={outletId}
-            periode={sp.periode ?? "30"}
+            periode={sp.periode ?? "bulan"}
             kDari={sp.dari}
             kSampai={sp.sampai}
             mode={simulasi ? "simulasi" : "asli"}

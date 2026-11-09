@@ -50,7 +50,7 @@ export function Filters({
     }
     start(() => router.push(`${path}?${q}`, { scroll: false }));
   };
-  const def = jenis === "bulan" ? "12bln" : "30";
+  const def = jenis === "bulan" ? "12bln" : "bulan";
   const periode = sp.get("periode") ?? def;
   const PERIODE = jenis === "bulan" ? PERIODE_BULANAN : PERIODE_HARIAN;
   const hariIni = tglOperasional();
