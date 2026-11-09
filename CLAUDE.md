@@ -87,3 +87,5 @@ POS pengeluaran & setoran 6 November: riwayat 7 hari + kunci nominal kas final d
 Rincian per metode & titipan per barang 6 November: Catatan Harian per metode bayar mulai 5 Nov (tumbler = wadah, info), barang titipan pcs/gram + isi menu. Lihat bagian akhir `docs/akunting-catatan-harian-tabel-2026-11-05.md`.
 
 POS tampilan 7 November: kartu menu ringkas, kategori 1 baris, panel keranjang, tab ikon, kartu omzet hari ini, layar koneksi lambat, dashboard sesi habis → login. Hanya tampilan. Baca `docs/pos-tampilan-2026-11-07.md`.
+
+Draft pekerjaan tertunda 9 November: akun karyawan/PIN/password, Outlet Demo nonaktif, pop-up terima kasih shift, grafik Mitra, dll. Baca `docs/draft-pekerjaan-tertunda-2026-11-09.md` sebelum mengerjakan; tiap butir menunggu "gas".
