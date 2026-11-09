@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { OUTLET_DEMO_ID } from "./qris-demo";
 import { cekQris } from "./qris";
 import { getSession } from "./session";
 import { supabaseServer } from "./supabase/server";
@@ -22,7 +23,7 @@ export async function aturQris(outletId: string, d: { url: string | null; payloa
   if (error) return { error: error.message.replace(/^.*?ERROR:\s*/, "") };
   revalidatePath("/pengaturan/qris");
   revalidatePath("/kasir/pos");
-  return { ok: d.dinamis ? "Mode dinamis disimpan. Menunggu konfigurasi penyedia pembayaran." : "QRIS statis outlet disimpan." };
+  return { ok: d.dinamis ? outletId === OUTLET_DEMO_ID ? "QRIS Dinamis simulasi Outlet Demo aktif. Buka POS Demo untuk mencoba." : "Mode dinamis disimpan. Menunggu konfigurasi penyedia pembayaran." : "QRIS statis outlet disimpan." };
 }
 
 export async function hapusQris(outletId: string): Promise<Result> {

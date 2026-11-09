@@ -1,3 +1,4 @@
+import { qrisDemoAktif } from "@/lib/qris-demo";
 import type { StrukOutlet } from "@/lib/struk";
 import { notFound, redirect } from "next/navigation";
 import { BISA_JUAL } from "@/lib/roles";
@@ -107,6 +108,7 @@ export default async function PosPage() {
                   nama: ol.qris_nama,
                   dinamis: false,
                   mode: ol.qris_mode,
+                  simulasi: qrisDemoAktif(s.active.outletId, ol.qris_mode),
                 }
               : null,
         },

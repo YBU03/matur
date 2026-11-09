@@ -3,6 +3,7 @@ import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { OUTLET_DEMO_ID } from "@/lib/qris-demo";
 import { QrisTampil } from "@/components/qris-tampil";
 import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 import { cekQris } from "@/lib/qris";
@@ -71,12 +72,12 @@ function Kartu({ o }: { o: OutletQris }) {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="mr-auto text-lg font-bold">{o.nama}</h2>
         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.qris_mode === "dinamis" ? "bg-green-100 text-green-700" : o.qris_url ? "bg-sky-100 text-sky-700" : "bg-stone-100 text-stone-500"}`}>
-          {o.qris_mode === "dinamis" ? "Dinamis · Menunggu konfigurasi" : o.qris_url || o.qris_payload ? "Statis" : "Belum diatur"}
+          {o.qris_mode === "dinamis" ? o.id === OUTLET_DEMO_ID ? "Dinamis · Simulasi Demo" : "Dinamis · Menunggu konfigurasi" : o.qris_url || o.qris_payload ? "Statis" : "Belum diatur"}
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
         <div className="rounded-xl bg-stone-50 p-3 text-center">
-          {dinamis ? <p className="py-10 text-sm text-amber-800">QRIS dinamis menunggu konfigurasi penyedia pembayaran. QR per transaksi dan konfirmasi otomatis belum aktif.</p> : url || payload ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis: false }} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
+          {dinamis ? <p className="py-10 text-sm text-amber-800">{o.id === OUTLET_DEMO_ID ? "Simulasi QR aktif di POS Outlet Demo. Pilih produk → QRIS → Bayar → pindai dengan kamera HP. Tidak memakai uang nyata; riwayat dan struk simulasi terpisah." : "QRIS dinamis menunggu konfigurasi penyedia pembayaran. QR per transaksi dan konfirmasi otomatis belum aktif."}</p> : url || payload ? <QrisTampil q={{ url, payload: payload || null, nama, dinamis: false }} ukuran={210} /> : <p className="py-16 text-sm text-stone-400">Belum ada QRIS</p>}
 
         </div>
         <div className="space-y-3 text-sm">
@@ -111,12 +112,12 @@ function Kartu({ o }: { o: OutletQris }) {
               <input type="radio" name={`jenis-${o.id}`} checked={dinamis} onChange={() => setDinamis(true)} className="mt-0.5 size-4 accent-green-600" />
               <span>
                 <b>QRIS dinamis (konfirmasi otomatis)</b>
-                <span className="block text-xs text-stone-500">QR dibuat per transaksi dan pembayaran dikonfirmasi otomatis oleh penyedia. Saat ini menunggu penyedia dan konfigurasi integrasi. Gambar statis tetap tersimpan saat beralih mode.</span>
+                <span className="block text-xs text-stone-500">{o.id === OUTLET_DEMO_ID ? "Khusus Demo: QR sesuai total pesanan, konfirmasi simulasi lewat kamera HP, lalu struk muncul otomatis. Bukan pembayaran bank." : "QR dibuat per transaksi dan pembayaran dikonfirmasi otomatis oleh penyedia. Saat ini menunggu penyedia dan konfigurasi integrasi. Gambar statis tetap tersimpan saat beralih mode."}</span>
               </span>
             </label>
           </fieldset>
           {dinamis && <div className="space-y-2 rounded-xl bg-amber-50 p-3">
-            <p className="text-xs text-amber-900">Menunggu konfigurasi. Informasi ini disimpan sebagai persiapan; belum mengaktifkan transaksi otomatis.</p>
+            <p className="text-xs text-amber-900">{o.id === OUTLET_DEMO_ID ? "Mode simulasi internal Outlet Demo; tidak memerlukan Merchant ID bank. Data tidak masuk omzet/stok/akunting operasional." : "Menunggu konfigurasi. Informasi ini disimpan sebagai persiapan; belum mengaktifkan transaksi otomatis."}</p>
             <label className="block">Penyedia pembayaran<input maxLength={80} value={penyedia} onChange={(e) => setPenyedia(e.target.value)} placeholder="Nama bank / penyedia" className="mt-1 w-full rounded-lg border p-2" /></label>
             <label className="block">Merchant ID<input maxLength={120} value={merchant} onChange={(e) => setMerchant(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
           </div>}

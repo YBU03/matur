@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { qrisDinamis } from "@/lib/qris";
 
-export type QrisOutlet = { url: string | null; payload: string | null; nama: string | null; dinamis: boolean; mode?: "statis" | "dinamis" };
+export type QrisOutlet = { url: string | null; payload: string | null; nama: string | null; dinamis: boolean; simulasi?: boolean; mode?: "statis" | "dinamis" };
 
 /** Tampilkan QRIS: dinamis (nominal sudah tertanam) bila diaktifkan, selain itu gambar QRIS yang diunggah. */
 export function QrisTampil({ q, nominal, ukuran = 280 }: { q: QrisOutlet; nominal?: number; ukuran?: number }) {
