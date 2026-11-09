@@ -4,7 +4,7 @@
 // divalidasi (CVD-safe); warna mengikuti entitas (outlet), bukan peringkat.
 // Slot 3–5 kontrasnya < 3:1, jadi setiap grafik punya label langsung atau tampilan tabel.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -36,6 +36,8 @@ export function ChartCard({
   cols,
   children,
   className = "",
+  toolbar,
+  showEmptyContent = false,
 }: {
   title: string;
   sub?: string;
@@ -43,6 +45,8 @@ export function ChartCard({
   cols: Col[];
   children: React.ReactNode;
   className?: string;
+  toolbar?: React.ReactNode;
+  showEmptyContent?: boolean;
 }) {
   const [table, setTable] = useState(false);
   return (
@@ -58,9 +62,10 @@ export function ChartCard({
           </button>
         )}
       </div>
-      {rows.length === 0 ? (
+      {toolbar}
+      {rows.length === 0 && !showEmptyContent ? (
         <p className="py-12 text-center text-sm text-stone-400">Belum ada data pada periode ini.</p>
-      ) : table ? (
+      ) : table && rows.length > 0 ? (
         <div className="max-h-72 overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white text-left text-xs text-stone-500">
@@ -181,34 +186,60 @@ const URUT_HARI: [number, string][] = [[7, "Min"], [1, "Sen"], [2, "Sel"], [3, "
 
 /** Heatmap jam ramai: hari (Minggu–Sabtu) × jam operasional 06.00–02.00 (lewat tengah malam), gradasi kuning→ungu.
  *  Jam 00–02 masuk baris hari operasional sebelumnya (dow dihitung di DB dengan tutup buku 03.00). */
-export function Heatmap({ cells, buka = 6, tutup = 2 }: { cells: { dow: number; jam: number; trx: number }[]; buka?: number; tutup?: number }) {
+export function Heatmap({ cells, buka = 6, tutup = 2, hari, scrollJam = false }: {
+  cells: { dow: number; jam: number; trx: number }[]; buka?: number; tutup?: number;
+  hari?: { dow: number; label: string; tanggal: string }[];
+  scrollJam?: boolean;
+}) {
   const [hover, setHover] = useState<string>("");
+  const scroll = useRef<HTMLDivElement>(null);
+  const [scrollPos, setScrollPos] = useState({ kiri: false, kanan: false });
   const panjang = ((tutup - buka + 24) % 24) + 1;
   const utama = Array.from({ length: panjang }, (_, i) => (buka + i) % 24);
   // jam di luar jam operasional tetap ditampilkan bila ada transaksi
   const luar = [...new Set(cells.filter((c) => c.trx > 0 && !utama.includes(c.jam)).map((c) => c.jam))].sort((a, b) => ((a - buka + 24) % 24) - ((b - buka + 24) % 24));
   const jamList = [...utama, ...luar].sort((a, b) => ((a - buka + 24) % 24) - ((b - buka + 24) % 24));
+  useEffect(() => {
+    const el = scroll.current;
+    if (!scrollJam || !el) return;
+    const update = () => setScrollPos({ kiri: el.scrollLeft > 1, kanan: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    return () => { observer.disconnect(); el.removeEventListener("scroll", update); };
+  }, [scrollJam, jamList.length, hari?.length]);
   const map = new Map(cells.map((c) => [`${c.dow}-${c.jam}`, c.trx]));
   const max = Math.max(1, ...cells.map((c) => c.trx));
   const color = (v: number) => (v ? HEAT[Math.min(HEAT.length - 1, Math.floor((v / max) * HEAT.length))] : "#f5f5f4");
   return (
     <div>
-      <div className="overflow-x-auto">
+      {scrollJam && <div className="mb-2 flex items-center justify-end gap-2 text-xs text-stone-500">
+        <span>Geser tabel untuk melihat jam</span>
+        <button type="button" aria-label="Geser kolom jam ke kiri" disabled={!scrollPos.kiri} onClick={() => scroll.current?.scrollBy({ left: -240 })} className="rounded-lg border px-3 py-1 text-kopi-900 focus-visible:outline-2 disabled:opacity-30">←</button>
+        <button type="button" aria-label="Geser kolom jam ke kanan" disabled={!scrollPos.kanan} onClick={() => scroll.current?.scrollBy({ left: 240 })} className="rounded-lg border px-3 py-1 text-kopi-900 focus-visible:outline-2 disabled:opacity-30">→</button>
+      </div>}
+      <div ref={scroll} className="overflow-x-auto pb-2" tabIndex={scrollJam ? 0 : undefined} role={scrollJam ? "region" : undefined} aria-label={scrollJam ? "Tabel jam operasional, dapat digeser kanan kiri" : undefined} style={scrollJam ? { touchAction: "pan-x pan-y" } : undefined}>
         <div className="grid min-w-[520px] gap-[2px]" style={{ gridTemplateColumns: `36px repeat(${jamList.length}, 1fr)` }}>
           <span />
           {jamList.map((j) => (
             <span key={j} className="text-center text-[10px] text-stone-500">{String(j).padStart(2, "0")}</span>
           ))}
-          {URUT_HARI.map(([dow, h]) => (
-            <Row key={h} label={h}>
+          {(hari ?? URUT_HARI.map(([dow, label]) => ({ dow, label, tanggal: "" }))).map(({ dow, label: h, tanggal }) => (
+            <Row key={dow} label={tanggal ? <><span className="block">{h}</span><span className="block text-[9px] text-stone-400">{tanggal}</span></> : h} sticky={scrollJam}>
               {jamList.map((j) => {
                 const v = map.get(`${dow}-${j}`) ?? 0;
                 return (
                   <span
                     key={j}
-                    onMouseEnter={() => setHover(`${h}${j < 3 ? " (malam)" : ""} ${String(j).padStart(2, "0")}.00–${String((j + 1) % 24).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
+                    onMouseEnter={() => setHover(`${h}${tanggal ? ` ${tanggal}` : ""}${j < 3 ? " (malam)" : ""} ${String(j).padStart(2, "0")}.00–${String((j + 1) % 24).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
                     onMouseLeave={() => setHover("")}
-                    title={`${h} ${j}.00 · ${v} transaksi`}
+                    title={`${h}${tanggal ? ` ${tanggal}` : ""} ${j}.00 · ${v} transaksi`}
+                    tabIndex={0}
+                    role="button"
+                    onFocus={() => setHover(`${h} ${tanggal} ${String(j).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
+                    onClick={() => setHover(`${h} ${tanggal} ${String(j).padStart(2, "0")}.00 · ${angka(v)} transaksi`)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setHover(`${h} ${tanggal} ${String(j).padStart(2, "0")}.00 · ${angka(v)} transaksi`); } }}
                     className="h-6 rounded-[3px] hover:outline hover:outline-2 hover:outline-stone-800"
                     style={{ background: color(v) }}
                   />
@@ -228,10 +259,10 @@ export function Heatmap({ cells, buka = 6, tutup = 2 }: { cells: { dow: number; 
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children, sticky = false }: { label: React.ReactNode; children: React.ReactNode; sticky?: boolean }) {
   return (
     <>
-      <span className="self-center text-xs text-stone-600">{label}</span>
+      <span className={`self-center text-xs text-stone-600 ${sticky ? "sticky left-0 z-10 bg-white" : ""}`}>{label}</span>
       {children}
     </>
   );
