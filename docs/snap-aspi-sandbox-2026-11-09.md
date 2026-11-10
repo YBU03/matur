@@ -53,3 +53,18 @@ Tab **BNI Sandbox** di `/pengaturan/snap-sandbox` (Owner/Admin Pusat/Finance): `
 - Sertifikat ditempel pemilik ke portal BNI: Aplikasi Matoer → Autentikasi → Kredensial OAuth → X.509 certificate (menggantikan sertifikat lama yang private key-nya tidak ada di Matoer).
 - **Token Signature**: route `/admin/bni-signature` menandatangani `X-CLIENT-KEY|X-TIMESTAMP` dengan SHA256withRSA, hasil base64. Browser hanya menerima signature.
 - Migrasi `20261110114923_snap_bni_kunci.sql`. Edge versi 3.
+
+### Public key BNI (sandbox, dari portal BNI Direct API, 10 Nov 2026)
+Dipakai Matoer untuk memverifikasi signature notifikasi/respons dari BNI (bukan untuk minta token). RSA 2047-bit, publik:
+```
+-----BEGIN PUBLIC KEY-----
+MIIBITANBgkqhkiG9w0BAQEFAAOCAQ4AMIIBCQKCAQB341gQH64stemF7ZnxzrnG
+BPWLjUusBPSPh4NW7NFFx0cr7k2FT1hZRsFCkNhlpj5MCC7W/eXIGNPHysPttmoo
+Z9FlvOiDpxhUThIxjJJbY5mVVNCSixtaKCwag1vZIa9rDAYCeIntUMVY9dw7GVVZ
+hfTr6MM+Y/sMXAGh/dRzK3PxALYE9fAP+rjKgF1fAdpBmEPVL7B2Viqr21CdwPwB
+CAqEdaT9ZxZ5IVrZrnEidyAjuLP/mOUHIJ4Qx3Qo12OsDamOGhqXX8f0S+Rdeb4q
+ATiDvvNBajbBMBY0ZT2s7m2iB9IY9mz7IE9NTorLNJb7Jmh9GygBtqniphZORtid
+AgMBAAE=
+-----END PUBLIC KEY-----
+```
+Status 10 Nov: sertifikat Matoer baru sudah dipasang di Kredensial OAuth (Confidential); produk QRIS MPM SNAP + Snap Token dipilih. Sandbox portal: Generate Token → 4007302 Invalid Mandatory Field grantType; produk Snap Token → 400 Data not found. Menunggu arahan BNI / URL endpoint sandbox.
