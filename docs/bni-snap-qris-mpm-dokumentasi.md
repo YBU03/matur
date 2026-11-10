@@ -36,5 +36,12 @@ Kumpulan potongan dokumentasi yang dikirim pemilik. Belum diimplementasikan kecu
 - Respons & response code: belum ada contoh.
 - Catatan: `billNumber` kemungkinan berasal dari respons Generate QR / notifikasi (perlu konfirmasi).
 
+## 5. QRIS MPM — Transaction Notification (BNI → merchant)
+- Di sandbox ada **simulator**: `POST /simulator/callback/mpm/notif` dengan header **`X-CALLBACK-TARGET`** (URL webhook merchant tujuan), `X-TIMESTAMP`, `X-SIGNATURE`, `X-EXTERNAL-ID`, `CHANNEL-ID`, `X-PARTNER-ID`, `Content-Type`, `Authorization: Bearer`.
+- URL webhook merchant berformat `{merchant webhook base url}/{version}/qr/qr-mpm-notify` → Matoer: `https://www.matoer.id/api/integrasi/pembayaran/v1.0/qr/qr-mpm-notify` (sudah didaftarkan di formulir BNI; endpoint belum aktif).
+- Body utama: `originalReferenceNo` (wajib), `originalPartnerReferenceNo`, `latestTransactionStatus` (contoh "0"), `transactionStatusDesc` ("Transaksi Sukses"), `amount.value/currency`, `qrContent`; `additionalInfo`: billNumber, approvalCode, paidTime, nmid, merchantId, terminalId, rrn, stan, issuer/acquirer, amountMdr, feeAmount, **customerName & customerPan (data pribadi — jangan disimpan utuh)**.
+- Contoh body ada di dokumentasi portal (merchant contoh "Duitkucom", nominal "0").
+- Respons yang harus dikirim Matoer & kode respons: belum dijelaskan (standar SNAP: 2005200).
+
 ## Menunggu
-Transaction Notification, rumus rinci signature SNAP (konfirmasi), contoh respons & daftar response code, nilai CHANNEL-ID.
+Konfirmasi rumus signature (Generate/Query: simetris dengan token; notifikasi: belum jelas), contoh respons & response code, nilai CHANNEL-ID & X-PARTNER-ID, host/port final.
