@@ -25,5 +25,16 @@ Kumpulan potongan dokumentasi yang dikirim pemilik. Belum diimplementasikan kecu
 - Respons & kode respons: belum ada contoh di dokumentasi.
 - Belum dijelaskan: rumus X-SIGNATURE (dugaan SNAP: HMAC-SHA512 `POST:path:accessToken:lowerhex(SHA256(minified body)):timestamp` dengan Client Secret), nilai CHANNEL-ID, X-PARTNER-ID (dugaan: Kunci API / client id).
 
+## 4. QRIS MPM — Query Payment
+- `POST /snap-mpm/v1.0/qr/qr-mpm-query`, JSON, OAuth 2.0 client credential. Host/port "To be confirm".
+- Header: `Content-Type` (application/json), `Authorization: Bearer <access_token>`, `X-SIGNATURE` (**"Symmetric Signature with Get Token"** = SNAP simetris HMAC-SHA512 memakai access token), `X-TIMESTAMP` (`yyyy-MM-ddTHH:mm:ssTZD`), `Origin` (opsional), `X-PARTNER-ID` (ID unik partner), `X-EXTERNAL-ID` (string angka, unik per hari), `CHANNEL-ID` (channel id PJP).
+- Contoh body:
+```json
+{"additionalInfo":{"billNumber":"C09B880339"},"merchantId":"618299946","originalExternalId":"","originalPartnerReferenceNo":"202603261024","originalReferenceNo":"","serviceCode":"47"}
+```
+- Wajib: serviceCode (2, "47"), originalPartnerReferenceNo (64), merchantId (64), additionalInfo.billNumber. Opsional: originalReferenceNo (64), originalExternalId (32).
+- Respons & response code: belum ada contoh.
+- Catatan: `billNumber` kemungkinan berasal dari respons Generate QR / notifikasi (perlu konfirmasi).
+
 ## Menunggu
-Query Payment, Payment Notification, rumus signature SNAP, daftar response code.
+Transaction Notification, rumus rinci signature SNAP (konfirmasi), contoh respons & daftar response code, nilai CHANNEL-ID.
