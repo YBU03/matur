@@ -1,4 +1,5 @@
 "use client";
+import { autoPrintSekali } from "@/lib/auto-print";
 import { LABEL_METODE_BAYAR } from "@/lib/metode-bayar";
 import { useEffect, useRef, useState } from "react";
 import { barisTeks } from "@/lib/struk-pdf";
@@ -41,6 +42,7 @@ export function ReceiptDialog({
   metode,
   offline,
   testing = false,
+  autoPrint = false,
   outletNama,
   kasir,
   onClose,
@@ -62,6 +64,7 @@ export function ReceiptDialog({
   r: Receipt;
   offline?: boolean;
   testing?: boolean;
+  autoPrint?: boolean;
   lines: ReceiptLine[];
   kanal: string;
   metode: string;
@@ -105,7 +108,9 @@ export function ReceiptDialog({
   });
   const [sisa, setSisa] = useState(lamaTutup);
   const [jeda, setJeda] = useState(false);
-  const jalanOtomatis = otomatis && lamaTutup > 0 && !jeda;
+  const [printBusy,setPrintBusy] = useState(autoPrint&&!salinan);
+  const [printStatus,setPrintStatus] = useState("");
+  const jalanOtomatis = otomatis && lamaTutup > 0 && !jeda && !printBusy;
   const tutupRef = useRef(onClose);
   tutupRef.current = onClose;
   useEffect(() => {
@@ -147,9 +152,11 @@ export function ReceiptDialog({
   const [unduhErr, setUnduhErr] = useState("");
   const isiStruk = struk ?? STRUK_BAWAAN;
   const [logo, setLogo] = useState<Awaited<ReturnType<typeof logoStruk>>>(null);
+  const [logoReady,setLogoReady] = useState(!isiStruk.tampil_logo);
   useEffect(() => {
     let aktif = true;
-    if (isiStruk.tampil_logo) logoStruk(kertas).then((g) => aktif && setLogo(g));
+    setLogoReady(!isiStruk.tampil_logo);
+    if (isiStruk.tampil_logo) logoStruk(kertas).then((g) => {if(aktif)setLogo(g);}).catch(()=>{if(aktif)setLogo(null);}).finally(()=>{if(aktif)setLogoReady(true);});
     else setLogo(null);
     return () => {
       aktif = false;
@@ -190,6 +197,7 @@ export function ReceiptDialog({
     }
   };
   const cetakBt = async () => {
+    setPrintBusy(true);setJeda(true);
     setBtErr("");
     try {
       if (!namaPrinter()) setBt(await sambungPrinter());
@@ -197,8 +205,21 @@ export function ReceiptDialog({
     } catch (e) {
       const m = e instanceof Error ? e.message : "Gagal mencetak.";
       setBtErr(/cancel|chooser/i.test(m) ? "Pemilihan printer dibatalkan." : m);
-    }
+    } finally {setPrintBusy(false);}
   };
+  useEffect(()=>{
+    if(!autoPrint||salinan||!logoReady)return;
+    let live=true;setPrintBusy(true);
+    void autoPrintSekali(`${testing?"demo":"pos"}:${r.id}`,async()=>{
+      if(namaPrinter()){await cetakBluetooth(dataStruk());return 'sent';}
+      if(diAplikasi())throw Error('Pilih printer di menu Printer terlebih dahulu. Transaksi sudah tersimpan.');
+      // Browser menampilkan dialog print; tidak mengklaim kertas benar-benar keluar.
+      window.print();return 'dialog';
+    }).then(result=>{if(!live)return;setPrintBusy(false);if(result.status==='failed'){setBtErr(`${result.error} Jika struk belum keluar, gunakan Cetak manual.`);setJeda(true);}else setPrintStatus(result.status==='sent'?'Struk dikirim ke printer. Jika belum keluar, gunakan Cetak manual.':result.status==='dialog'?'Dialog cetak dibuka. Jika dibatalkan atau struk belum keluar, gunakan Cetak manual.':'Cetak otomatis sudah pernah dicoba. Gunakan Cetak manual bila struk belum keluar.');});
+    return()=>{live=false;};
+  // Isi struk sudah dibekukan pada receipt; pergantian kertas/re-render tidak mencetak ulang.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[autoPrint,salinan,logoReady,r.id,testing]);
   return (
     <Modal
       onClose={onClose}
@@ -266,6 +287,7 @@ export function ReceiptDialog({
           </button>
         ))}
       </div>
+      {(printBusy || printStatus) && <p role="status" className="mt-2 text-center text-xs text-stone-600">{printBusy ? "Mengirim struk ke printer…" : printStatus}</p>}
       {(btErr || unduhErr) && (
         <p className="mt-2 text-center text-xs text-red-600">{btErr || unduhErr}</p>
       )}
@@ -280,7 +302,7 @@ export function ReceiptDialog({
         </a>
         {bisaBluetooth() && (
           <button
-            onClick={cetakBt}
+            disabled={printBusy} onClick={cetakBt}
             className="rounded-lg border px-4 py-2 text-sm"
             title={bt ? `Tersambung: ${bt}` : "Sambungkan printer Bluetooth"}
           >
@@ -289,7 +311,7 @@ export function ReceiptDialog({
         )}
         {diAndroid() && !bt && !diAplikasi() && (
           <button
-            onClick={() => cetakRawBT(dataStruk())}
+            disabled={printBusy} onClick={() => cetakRawBT(dataStruk())}
             className="rounded-lg border px-4 py-2 text-sm"
             title="Cetak lewat aplikasi RawBT (printer Bluetooth klasik)"
           >
@@ -300,10 +322,10 @@ export function ReceiptDialog({
           ⬇ Unduh PDF
         </button>
         <button
-          onClick={() => window.print()}
+          disabled={printBusy} onClick={() => {setJeda(true);window.print();}}
           className="rounded-lg border px-4 py-2 text-sm"
         >
-          Cetak
+          Cetak manual
         </button>
         <button
           onClick={onClose}

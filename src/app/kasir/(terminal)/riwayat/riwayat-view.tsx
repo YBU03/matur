@@ -1,4 +1,7 @@
 "use client";
+import { PosRekapKategori } from "@/components/pos-rekap-kategori";
+import type { ProdukKategori } from "@/lib/pos-kategori";
+import { kelompokProduk } from "@/lib/pos-kategori";
 import { LABEL_METODE_BAYAR } from "@/lib/metode-bayar";
 
 import { Modal } from "@/components/confirm-edit";
@@ -35,7 +38,7 @@ export type Trx = {
   operator_nama?: string | null;
   pelanggan: string | null;
   subtotal?: number;
-  item_transaksi: { nama: string; qty: number; harga?: number }[];
+  item_transaksi: { nama: string; qty: number; harga?: number; menu_id?:string;kategori?:string|null;urutan?:number }[];
   pembayaran: { metode: string; nominal: number; diterima?: number | null }[];
 };
 export type Ringkas = {
@@ -99,7 +102,11 @@ export function RiwayatView({
   hari,
   struk: isiStruk = null,
   voidPin = false,
+  embedded = false,
+  rekap = [],
 }: {
+  embedded?: boolean;
+  rekap?: ProdukKategori[];
   voidPin?: boolean;
   struk?: StrukOutlet | null;
   trx: Trx[];
@@ -119,6 +126,7 @@ export function RiwayatView({
   const [batal, setBatal] = useState<Trx | null>(null);
   const [alasan, setAlasan] = useState("");
   const [ok, setOk] = useState("");
+  const [selected,setSelected] = useState<Trx|null>(null);
   const [struk, setStruk] = useState<Trx | null>(null);
   const [mode, setMode] = useState<"tanggal" | "bulan">("tanggal");
   const tampil = trx.filter(
@@ -136,7 +144,7 @@ export function RiwayatView({
       (t.pelanggan ?? "").toLowerCase().includes(q.toLowerCase()),
   );
   const url = (d: string, s2: string, extra = "") =>
-    `/kasir/riwayat?dari=${d}&sampai=${s2}${extra}`;
+    `/kasir/antrean?view=riwayat&dari=${d}&sampai=${s2}${extra}`;
   const awalBulan = hari.slice(0, 7) + "-01";
   const akhirBulanLalu = geser(awalBulan, -1);
   const preset: [string, string, string][] = [
@@ -153,11 +161,11 @@ export function RiwayatView({
       : `${tglPendek(dari)} – ${tglPendek(sampai)}`;
   const chipCls = (on: boolean) =>
     `whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${on ? "border-kopi-900 bg-kopi-900 text-white" : "border-matur-200 bg-white text-kopi-800"}`;
-  const bukaStruk = (t: Trx) => setStruk(t);
+  const bukaStruk = (t: Trx) => setSelected(t);
   return (
-    <div className="mx-auto max-w-3xl space-y-3">
+    <div className="mx-auto max-w-6xl space-y-3">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="mr-auto text-xl font-bold">🧾 Riwayat Transaksi</h1>
+        <h1 className="mr-auto text-xl font-bold">🧾 {embedded ? "Riwayat Order" : "Riwayat Transaksi"}</h1>
         <p className="text-sm font-semibold text-stone-600">
           📅 {labelPeriode}
         </p>
@@ -268,6 +276,7 @@ export function RiwayatView({
         </div>
       </section>
 
+      <details className="rounded-2xl border border-matur-200 bg-white p-4"><summary className="cursor-pointer font-bold">☕ Rekap produk per kategori · {labelPeriode}</summary><div className="mt-3"><PosRekapKategori rows={rekap}/></div></details>
       <nav className="flex gap-1 rounded-xl bg-matur-50 p-1 text-sm font-semibold">
         {(
           [
@@ -338,7 +347,7 @@ export function RiwayatView({
               {ok}
             </p>
           )}
-          <ul className="space-y-2">
+          <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><ul className={`${selected ? "hidden lg:block" : ""} space-y-2 lg:max-h-[75vh] lg:overflow-y-auto`}>
             {tampil.length === 0 && (
               <li className="rounded-2xl border bg-white p-6 text-center text-sm text-stone-400">
                 Belum ada transaksi.
@@ -422,6 +431,7 @@ export function RiwayatView({
               </li>
             ))}
           </ul>
+          {selected ? <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4 lg:sticky lg:top-20"><div className="flex items-center justify-between gap-2"><h2 className="font-bold">Order #{selected.nomor}</h2><button onClick={()=>setSelected(null)} className="rounded-lg border px-3 py-1 text-sm">Tutup detail</button></div><p className="text-xs text-stone-500">{jam(selected.created_at)} · {selected.operator_nama??"Kasir"} · {selected.status==='lunas'?'Lunas':'VOID'}</p>{selected.sumber_penjualan?<p className="text-sm">{selected.sumber_penjualan.products}</p>:<PosRekapKategori ringkas rows={selected.item_transaksi.map(i=>({nama:i.nama,qty:i.qty,nilai:Number(i.harga??0)*i.qty,kategori:i.kategori??null,urutan:i.urutan}))}/>}<div className="flex justify-between border-t pt-3 font-bold"><span>Total pembayaran</span><span>{formatRupiah(selected.total)}</span></div><p className="text-xs text-stone-500">{selected.pembayaran.map(p=>`${LABEL_METODE[p.metode]??p.metode} ${formatRupiah(p.nominal)}`).join(' + ')}</p><button onClick={()=>setStruk(selected)} className="w-full rounded-xl bg-kopi-900 p-3 font-semibold text-white">🧾 Lihat / cetak ulang struk</button></section>:<div className="hidden rounded-2xl border border-dashed p-10 text-center text-sm text-stone-500 lg:block">Pilih order di sebelah kiri untuk melihat rinciannya.</div>}</div>
           {adaLagi && (
             <Link
               href={url(dari, sampai, `&n=${n + 100}`)}
@@ -492,11 +502,11 @@ export function RiwayatView({
                 0,
               ),
           }}
-          lines={struk.item_transaksi.map((i, k) => ({
+          lines={kelompokProduk(struk.item_transaksi.map(i=>({nama:i.nama,qty:i.qty,nilai:Number(i.harga??0)*i.qty,kategori:i.kategori??null,urutan:i.urutan}))).flatMap(g=>g.items).map((i, k) => ({
             key: String(k),
             nama: i.nama,
             qty: i.qty,
-            total: Number(i.harga ?? 0) * i.qty,
+            total: i.nilai,
           }))}
           kanal={struk.kanal}
           metode={

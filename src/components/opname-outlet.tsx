@@ -6,8 +6,12 @@ import { OpnameView } from "@/app/(app)/stok/opname-view";
 // Stok & opname outlet: hitung fisik akhir bulan → nilai persediaan akhir laporan
 export async function OpnameOutlet({
   searchParams,
+  embedded=false,
+  sesiKasId,
 }: {
   searchParams: Promise<{ outlet?: string }>;
+  embedded?:boolean;
+  sesiKasId?:string;
 }) {
   const s = await getSession();
   if (
@@ -80,6 +84,9 @@ export async function OpnameOutlet({
   return (
     <OpnameView
       key={outlet.id}
+      embedded={embedded}
+      draftKey={`matoer-so:${s.userId}:${outlet.id}:${sesiKasId??"mandiri"}`}
+      sesiKasId={sesiKasId}
       outlets={personal ? [outlet] : daftar}
       tampilNilai={!sembunyikanNilai}
       outletId={outlet.id}

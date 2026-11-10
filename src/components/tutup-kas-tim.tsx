@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah as rp } from "@/lib/format";
 import { bacaAntrean } from "@/lib/pos-offline";
@@ -22,7 +22,7 @@ export type KasTim = {
   aktual: number | null;
   selisih: number | null;
 };
-export function TutupKasTim({ kas }: { kas: KasTim }) {
+export function TutupKasTim({ kas,opname }: { kas: KasTim;opname?:ReactNode }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<PosHasil>({});
@@ -55,6 +55,7 @@ export function TutupKasTim({ kas }: { kas: KasTim }) {
           </div>
         ))}
       </dl>
+      {opname&&!kas.ditutup_at&&<details className="my-4 rounded-2xl border-2 border-matur-200 bg-matur-50 p-3"><summary className="cursor-pointer font-bold text-matur-800">📦 Lanjut hitung stok / SO sebelum tutup shift</summary><p className="my-2 text-xs text-stone-600">Isi semua barang langsung di bawah. Simpan SO setelah memeriksa selisih, lalu lanjut hitung uang dan konfirmasi tutup kas. SO tidak mengunci akses POS.</p><div className="rounded-xl bg-white p-2">{opname}</div></details>}
       {kas.ditutup_at ? (
         <p className="rounded-xl bg-green-50 p-3 text-sm">
           Sesi ditutup · {kas.rekap_status} · uang fisik{" "}
