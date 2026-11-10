@@ -8,8 +8,47 @@ async function rpc(name,body={},jwt=key){
 }
 const service=(action,data={})=>rpc('snap_sandbox_service',{p_action:action,p_data:data});
 const json=(v,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+const BNI='https://sandbox.bni.co.id',BNI_NOTIF_PATH='/bni/v1.0/qr/qr-mpm-notify',BNI_CALLBACK='https://www.matoer.id/api/integrasi/snap-sandbox'+BNI_NOTIF_PATH;
+const te=new TextEncoder(),hexs=b=>[...new Uint8Array(b)].map(n=>n.toString(16).padStart(2,'0')).join(''),b64s=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const extId=()=>String(Date.now())+String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
+// Signature simetris SNAP: HMAC-SHA512(clientSecret, METHOD:path:accessToken:lowerhex(SHA256(minified body)):timestamp), base64.
+async function symSig(secret,method,path,token,body,ts){
+ const h=hexs(await crypto.subtle.digest('SHA-256',te.encode(JSON.stringify(body))));
+ const k=await crypto.subtle.importKey('raw',te.encode(secret),{name:'HMAC',hash:'SHA-512'},false,['sign']);
+ return b64s(await crypto.subtle.sign('HMAC',k,te.encode(`${method}:${path}:${token}:${h}:${ts}`)));
+}
+async function bniToken(){
+ const o=await rpc('snap_bni_oauth_service',{p_action:'ambil',p_data:{}});
+ const r=await fetch(BNI+'/api/oauth/token',{method:'POST',headers:{Authorization:'Basic '+btoa(o.client_id+':'+o.secret),'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},body:'grant_type=client_credentials',redirect:'error',signal:AbortSignal.timeout(20000)});
+ const d=await r.json().catch(()=>null);
+ if(!r.ok||!d?.access_token){const e=Error('token');e.detail={langkah:'token',status:r.status,respons:d};throw e;}
+ return {token:d.access_token,secret:o.secret};
+}
+async function bniCall(path,body,auth,o,extra={}){
+ const ts=stamp(),sig=await symSig(auth.secret,'POST',path,auth.token,body,ts),ext=o.externalId||extId();
+ const headers={'Content-Type':'application/json',Authorization:'Bearer '+auth.token,'X-TIMESTAMP':ts,'X-SIGNATURE':sig,'X-PARTNER-ID':o.partnerId,'X-EXTERNAL-ID':ext,'CHANNEL-ID':o.channelId,...extra};
+ const mulai=Date.now();let r,teks='';
+ try{r=await fetch(BNI+path,{method:'POST',headers,body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(25000)});teks=(await r.text()).slice(0,8000);}
+ catch(e){return {ok:false,status:0,durasiMs:Date.now()-mulai,pesan:'Tidak dapat terhubung ke '+BNI+': '+String(e?.message??e).slice(0,200),request:{url:BNI+path,headers:{...headers,Authorization:'Bearer ••••',['X-SIGNATURE']:sig.slice(0,12)+'…'},body},externalId:ext};}
+ let data=null;try{data=JSON.parse(teks);}catch{}
+ return {ok:r.ok,status:r.status,durasiMs:Date.now()-mulai,request:{url:BNI+path,headers:{...headers,Authorization:'Bearer ••••',['X-SIGNATURE']:sig.slice(0,12)+'…'},body},respons:data??{teks:teks.slice(0,1000)},externalId:ext};
+}
+const okId=(v,max=64)=>typeof v==='string'&&v.length<=max&&/^[A-Za-z0-9._-]*$/.test(v);
 Deno.serve(async req=>{
  const path=new URL(req.url).pathname.replace(/^\/matoer-snap-sandbox/,'');
+ // Penerima notifikasi uji dari simulator BNI (sandbox): catat ke inbox uji tanpa data pribadi; tidak menandai transaksi POS.
+ if(path===BNI_NOTIF_PATH){
+  const balas=(st,code,msg)=>json({responseCode:code,responseMessage:msg},st);
+  try{
+   if(req.method!=='POST')return balas(405,'4055200','Method not allowed');
+   if(!await service('limit',{key:'bni-notif'}))return balas(429,'4295200','Too many requests');
+   let b;try{b=JSON.parse(await readSnapBody(req));}catch{return balas(400,'4005201','Invalid JSON');}
+   const wajib=['x-timestamp','x-signature','x-external-id','channel-id','x-partner-id','authorization'];
+   const ai=b?.additionalInfo??{};
+   await rpc('snap_bni_notif_service',{p_data:{external_id:req.headers.get('x-external-id'),reference_no:b?.originalReferenceNo,partner_reference_no:b?.originalPartnerReferenceNo,status:b?.latestTransactionStatus,status_desc:b?.transactionStatusDesc,amount:b?.amount?.value,bill_number:ai.billNumber,header_lengkap:wajib.every(h=>req.headers.get(h)),body_hash:hexs(await crypto.subtle.digest('SHA-256',te.encode(JSON.stringify(b))))}});
+   return balas(200,'2005200','Successful');
+  }catch{return balas(500,'5005200','General error');}
+ }
  if(!path.startsWith('/admin/'))return handleSnap(req,path,{config:()=>service('config'),limit:key=>service('limit',{key}),receive:d=>service('receive',d)});
  try{
   if(req.method!=='POST')return json({error:'Gunakan POST.'},405);
@@ -77,6 +116,31 @@ Deno.serve(async req=>{
    const tok=data&&typeof data.access_token==='string'?data.access_token:'';
    const aman=data&&typeof data==='object'?Object.fromEntries(Object.entries(data).map(([k,v])=>[k,k==='access_token'?(tok?tok.slice(0,6)+'…'+tok.slice(-4):''):v])):{teks:teks.replace(/[A-Za-z0-9+/=_-]{40,}/g,'[disamarkan]').slice(0,500)};
    return json({ok:r.ok&&!!tok,status:r.status,durasiMs:Date.now()-mulai,respons:aman,token_type:data?.token_type??null,expires_in:data?.expires_in??null,scope:data?.scope??null});
+  }
+  // Uji QRIS MPM ke sandbox BNI (dokumentasi BNI Direct API SNAP QRIS MPM).
+  if(path==='/admin/bni-generate'||path==='/admin/bni-query'||path==='/admin/bni-notif-sim'){
+   const o={partnerId:String(body.partnerId??''),channelId:String(body.channelId??'95221'),externalId:''};
+   if(!okId(o.partnerId,100)||!o.partnerId)return json({error:'X-PARTNER-ID tidak valid.'},400);
+   if(!/^\d{1,10}$/.test(o.channelId))return json({error:'CHANNEL-ID harus angka.'},400);
+   const merchantId=String(body.merchantId??''),terminalId=String(body.terminalId??'');
+   if(!okId(merchantId)||!merchantId||!okId(terminalId))return json({error:'merchantId / terminalId tidak valid.'},400);
+   let auth;try{auth=await bniToken();}catch(e){return json({ok:false,status:e?.detail?.status??0,pesan:'Gagal mengambil token OAuth BNI.',respons:e?.detail?.respons??null});}
+   if(path==='/admin/bni-generate'){
+    const amount=String(body.amount??'');if(!/^\d{1,10}\.\d{2}$/.test(amount)||Number(amount)<=0)return json({error:'Nominal harus positif dengan dua desimal, mis. 10000.00'},400);
+    const menit=Math.min(Math.max(Number(body.menit)||30,5),1440);
+    const isi={partnerReferenceNo:'MTR'+extId().slice(-14),amount:{value:amount,currency:'IDR'},merchantId,...(terminalId?{terminalId}:{}),validityPeriod:stamp(Date.now()+menit*60000),additionalInfo:{additionalData:'',tipIndicator:'',tipValueFixed:'',tipValuePercentage:''}};
+    return json(await bniCall('/snap-mpm/v1.0/qr/qr-mpm-generate',isi,auth,o));
+   }
+   const pref=String(body.partnerReferenceNo??''),ref=String(body.referenceNo??''),bill=String(body.billNumber??''),oext=String(body.externalId??'');
+   if(!okId(pref)||!pref||!okId(ref)||!okId(bill)||!okId(oext,32))return json({error:'Data referensi tidak valid. Buat QR terlebih dahulu.'},400);
+   if(path==='/admin/bni-query'){
+    const isi={serviceCode:'47',originalReferenceNo:ref,originalPartnerReferenceNo:pref,originalExternalId:oext,merchantId,additionalInfo:{billNumber:bill}};
+    return json(await bniCall('/snap-mpm/v1.0/qr/qr-mpm-query',isi,auth,o));
+   }
+   const amount=String(body.amount??'0.00'),qr=String(body.qrContent??'').slice(0,1000);
+   const isi={additionalInfo:{feeAmount:{currency:'IDR',value:'0.00'},acquirerName:'BNI',acquirerNns:'93600009',additionalData:'',amountMdr:'0.00',approvalCode:'',billNumber:bill,customerName:'Uji Matoer',customerPan:'',discount:'',issuerName:'BNI',issuerNns:'93600009',merchantCategoryCode:'',merchantCity:'',merchantCountry:'ID',merchantCriteria:'',merchantId,merchantName:'Matoer',merchantPan:'',nmid:'',paidTime:stamp().slice(0,19),qrMethod:'MPM',retrievalReferenceNumber:'',stan:'',terminalId},amount:{currency:'IDR',value:amount},latestTransactionStatus:'00',originalPartnerReferenceNo:pref,originalReferenceNo:ref,qrContent:qr,transactionStatusDesc:'Transaksi Sukses'};
+   const hasil=await bniCall('/simulator/callback/mpm/notif',isi,auth,o,{'X-CALLBACK-TARGET':BNI_CALLBACK});
+   return json({...hasil,callbackTarget:BNI_CALLBACK});
   }
   const c=await service('config');
   if(path==='/admin/result'){

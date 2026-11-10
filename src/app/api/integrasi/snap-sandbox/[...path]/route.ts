@@ -2,7 +2,7 @@ import { readSnapBody } from "../../../../../../supabase/functions/_shared/snap-
 import { corsSnap, SNAP_TERUSKAN } from "@/lib/snap-cors";
 export const dynamic = "force-dynamic";
 
-const PATHS = ["/v1.0/access-token/b2b", "/v1.0/qr/qr-mpm-notify", "/public-key"];
+const PATHS = ["/v1.0/access-token/b2b", "/v1.0/qr/qr-mpm-notify", "/public-key", "/bni/v1.0/qr/qr-mpm-notify"];
 const TERUSKAN = SNAP_TERUSKAN;
 
 const jalur = async (params: Promise<{ path: string[] }>) => "/" + (await params).path.join("/");

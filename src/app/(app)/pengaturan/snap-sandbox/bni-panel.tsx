@@ -4,6 +4,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Copy, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
 import { bniAction } from "@/lib/snap-sandbox-actions";
+import { BniUji } from "./bni-uji";
 
 const CLIENT_KEY_AWAL = "9b1d880a-de13-466d-b522-4cd4104934b6";
 const sekarangWib = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 19) + "+07:00";
@@ -23,7 +24,7 @@ function Salin({ teks, label }: { teks: string; label: string }) {
 }
 
 export function BniPanel() {
-  const [info, setInfo] = useState<{ ada: boolean; sertifikat?: string; dibuat_at?: string; oauth?: { ada: boolean; client_id?: string; diubah_at?: string } } | null>(null);
+  const [info, setInfo] = useState<{ ada: boolean; sertifikat?: string; dibuat_at?: string; oauth?: { ada: boolean; client_id?: string; diubah_at?: string }; notif?: Parameters<typeof BniUji>[0]["notif"] } | null>(null);
   const [oauthId, setOauthId] = useState(CLIENT_KEY_AWAL);
   const [oauthSecret, setOauthSecret] = useState("");
   const [lihatSecret, setLihatSecret] = useState(false);
@@ -35,9 +36,10 @@ export function BniPanel() {
   const [sig, setSig] = useState<{ signature: string; timestamp: string; stringToSign: string } | null>(null);
   const [konfirmasiGanti, setKonfirmasiGanti] = useState(false);
 
+  const muatInfo = () => bniAction("bni-kunci").then((r) => (r.error ? setErr(r.error) : setInfo(r.data as typeof info)));
   useEffect(() => {
     setTs(sekarangWib());
-    bniAction("bni-kunci").then((r) => (r.error ? setErr(r.error) : setInfo(r.data as typeof info)));
+    muatInfo();
   }, []);
 
   const buat = (ganti: boolean) =>
@@ -174,6 +176,8 @@ export function BniPanel() {
           </div>
         )}
       </section>
+
+      {info?.oauth?.ada && <BniUji partnerAwal="143ddc60-0375-4203-96cf-d191acd7762c" notif={info.notif ?? []} segarkan={muatInfo} />}
 
       {info?.ada && (
         <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">

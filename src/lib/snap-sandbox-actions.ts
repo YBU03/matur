@@ -29,13 +29,13 @@ export async function snapLihatBukti(path:string):Promise<{url?:string;error?:st
 }
 
 /** Kunci & Token Signature Matoer untuk BNI Direct API (sandbox). Private key tetap di Vault; browser hanya menerima sertifikat & signature. */
-export async function bniAction(action:"bni-kunci"|"bni-kunci-buat"|"bni-signature"|"bni-oauth-simpan"|"bni-token-tes",data:Record<string,unknown>={}):Promise<{data?:Record<string,unknown>;error?:string}> {
+export async function bniAction(action:"bni-kunci"|"bni-kunci-buat"|"bni-signature"|"bni-oauth-simpan"|"bni-token-tes"|"bni-generate"|"bni-query"|"bni-notif-sim",data:Record<string,unknown>={}):Promise<{data?:Record<string,unknown>;error?:string}> {
  const s=await getSession();if(!s?.active||!["owner","admin_pusat","finance"].includes(s.active.role))return {error:"Tidak berwenang."};
- if(!["bni-kunci","bni-kunci-buat","bni-signature","bni-oauth-simpan","bni-token-tes"].includes(action)||JSON.stringify(data).length>2000)return {error:"Permintaan tidak valid."};
+ if(!["bni-kunci","bni-kunci-buat","bni-signature","bni-oauth-simpan","bni-token-tes","bni-generate","bni-query","bni-notif-sim"].includes(action)||JSON.stringify(data).length>2000)return {error:"Permintaan tidak valid."};
  try {
   const db=await supabaseServer();const {data:session}=await db.auth.getSession();const token=session.session?.access_token;
   if(!token)return {error:"Sesi habis. Masuk kembali."};
-  const r=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/functions/v1/matoer-snap-sandbox/admin/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(data),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(25000)});
+  const r=await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL+'/functions/v1/matoer-snap-sandbox/admin/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(data),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(55000)});
   const body=await r.json();
   if(!r.ok||body.error)return {error:typeof body.error==='string'?body.error:'Proses kunci BNI belum berhasil.'};
   return {data:body};

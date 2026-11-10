@@ -45,3 +45,9 @@ Kumpulan potongan dokumentasi yang dikirim pemilik. Belum diimplementasikan kecu
 
 ## Menunggu
 Konfirmasi rumus signature (Generate/Query: simetris dengan token; notifikasi: belum jelas), contoh respons & response code, nilai CHANNEL-ID & X-PARTNER-ID, host/port final.
+
+## 6. Uji dari Matoer (10 November 2026)
+- Tab **BNI Sandbox** di `/pengaturan/snap-sandbox` (muncul setelah OAuth Client Secret tersimpan): tombol **1. Tes Generate QR** (gambar QR dari `qrContent`), **2. Tes Query Payment** (memakai partnerReferenceNo/billNumber hasil Generate), **3. Tes Notifikasi** (simulator BNI `/simulator/callback/mpm/notif`).
+- Dikirim dari Edge Function `matoer-snap-sandbox` (v5) ke `sandbox.bni.co.id`: token OAuth langsung dari `/api/oauth/token`, X-SIGNATURE simetris HMAC-SHA512 (Client Secret) `POST:path:token:lowerhex(sha256(body)):timestamp`. Token & signature dimasking di tampilan.
+- Nominal, merchantId (618299946), terminalId (301928301), CHANNEL-ID (95221) dan X-PARTNER-ID (default Kunci API) bisa diubah di layar bila BNI menolak.
+- Penerima notifikasi uji: `https://www.matoer.id/api/integrasi/snap-sandbox/bni/v1.0/qr/qr-mpm-notify` (dipakai sebagai `X-CALLBACK-TARGET`). Disimpan ke `snap_sandbox_internal.bni_notif` (maks 200 baris, tanpa nama/PAN pelanggan), membalas `2005200`. **Tidak** menandai transaksi POS lunas.
