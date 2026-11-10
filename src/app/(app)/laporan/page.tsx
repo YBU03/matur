@@ -3,6 +3,7 @@ import type { PeriodeLaporan } from "@/lib/laporan-internal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ImporRuma } from "@/components/impor-ruma";
+import { ImporLaporanPdf } from "@/components/impor-laporan-pdf";
 import { ChartCard, TrendChart } from "@/components/charts";
 import { SERIES } from "@/lib/chart-utils";
 import { formatRupiah } from "@/lib/format";
@@ -71,6 +72,9 @@ export default async function DaftarLaporan({
               label="⬆ Impor laporan (Excel)"
             />
           )}
+        {["owner", "admin_pusat", "finance"].includes(s.active.role) && pilih && (
+          <ImporLaporanPdf outlets={daftar.map((o) => ({ id: o.id, nama: o.nama }))} outletId={pilih} />
+        )}
         {["owner", "admin_pusat", "finance"].includes(s.active.role) && (
           <Link
             href={`/laporan/proyeksi${pilih ? `?outlet=${pilih}` : ""}`}

@@ -254,3 +254,16 @@ export async function setujuiMitra(
     revalidatePath(p);
   return { id: String(data) };
 }
+
+/** Hapus draft laporan internal (mis. hasil impor yang tidak sesuai). Laporan resmi untuk Mitra tidak tersentuh; isi draft disalin ke log aktivitas. */
+export async function hapusDraftLaporan(outlet: string, periode: string, versi: string | null): Promise<{ ok?: string; error?: string }> {
+  const s = await getSession();
+  if (!s?.active || !["owner", "admin_pusat", "finance"].includes(s.active.role)) return { error: "Hanya Owner, Admin Pusat, atau Finance." };
+  if (!/^\d{4}-\d{2}-01$/.test(periode)) return { error: "Periode tidak valid." };
+  const db = await supabaseServer();
+  const { error } = await db.rpc("hapus_laporan_internal", { p_outlet: outlet, p_periode: periode, p_versi: versi });
+  if (error) return { error: error.message.replace(/^.*?ERROR:\s*/, "") };
+  revalidatePath("/laporan");
+  revalidatePath("/laporan/proyeksi");
+  return { ok: "Draft laporan dihapus. Laporan resmi (bila ada) tetap aman." };
+}

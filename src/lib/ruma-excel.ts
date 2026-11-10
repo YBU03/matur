@@ -204,9 +204,14 @@ export function parseLaporan(g: Grid): LaporanImpor {
   const bagi_hasil: { nama: string; persen: number; jumlah: number }[] = [];
   for (let r = rShare + 1; rShare >= 0 && r < (rAkhir < 0 ? g.length : rAkhir); r++) {
     const l = label(r);
-    const m = l?.match(/^(?:untuk|pembagian hasil(?: a\.?n\.?)?)\s+(.*?)\s*([\d.,]+)\s*%/i);
-    if (m) bagi_hasil.push({ nama: m[1].trim().replace(/^a\.?n\.?\s+/i, ""), persen: Number(m[2].replace(",", ".")), jumlah: Math.round(nilaiKanan(r)) });
+    // "Untuk Pengelola 90%", "Pembagian Hasil a.n Ibu Ida 5%", "Bagi Hasil a.n Ibu Ida 5%"; persen boleh tidak tertulis
+    const m = l?.match(/^(?:untuk|(?:pem)?bagian hasil|bagi hasil)\s+(?:a\.?n\.?\s+)?(.*?)\s*(?:([\d.,]+)\s*%)?\s*$/i);
+    if (m && m[1]) bagi_hasil.push({ nama: m[1].trim().replace(/^a\.?n\.?\s+/i, ""), persen: m[2] ? Number(m[2].replace(",", ".")) : NaN, jumlah: Math.round(nilaiKanan(r)) });
   }
+  // persen yang tidak tertulis = sisa dari 100% (mis. "Untuk Pengelola" tanpa angka)
+  const tanpa = bagi_hasil.filter((b) => !Number.isFinite(b.persen));
+  const terpakai = bagi_hasil.reduce((t, b) => t + (Number.isFinite(b.persen) ? b.persen : 0), 0);
+  for (const b of tanpa) b.persen = tanpa.length === 1 ? Math.max(0, Math.round((100 - terpakai) * 100) / 100) : 0;
   const rTf = cari(/penerimaan transfer/);
   const transfer: LaporanImpor["transfer"] = [];
   if (rTf >= 0) {

@@ -14,7 +14,8 @@ import {
   type Proyeksi,
   type Transfer,
 } from "@/lib/laporan";
-import { simpanInternal, setujuiMitra } from "@/lib/laporan-actions";
+import { hapusDraftLaporan, simpanInternal, setujuiMitra } from "@/lib/laporan-actions";
+import { JadwalBuka } from "./jadwal-buka";
 import {
   pulihkanIsian,
   keWibInput,
@@ -1136,15 +1137,19 @@ export function ProyeksiForm(p: Props) {
             placeholder="Contoh: koreksi biaya sesuai nota atau sumber file laporan"
           />
         </label>
-        <label className="block text-sm">
-          Tanggal dan jam buka untuk Mitra (WIB)
-          <input
-            type="datetime-local"
-            value={buka}
-            onChange={(e) => setBuka(e.target.value)}
-            className="mt-1 w-full rounded-lg border p-2"
-          />
-        </label>
+        <JadwalBuka
+          value={buka}
+          onChange={setBuka}
+          status={
+            p.sudahTerbit && p.draft?.buka_at && Date.parse(p.draft.buka_at) <= Date.now()
+              ? { teks: "Sudah terbit", warna: "bg-emerald-100 text-emerald-800" }
+              : p.sudahTerbit
+                ? { teks: "Disetujui · terbuka sesuai jadwal", warna: "bg-sky-100 text-sky-800" }
+                : buka
+                  ? { teks: "Terjadwal · menunggu persetujuan", warna: "bg-amber-100 text-amber-800" }
+                  : { teks: "Belum dijadwalkan", warna: "bg-stone-100 text-stone-600" }
+          }
+        />
         <p className="text-xs text-stone-600">
           Simpan Internal hanya menyimpan pekerjaan Accounting. Mitra melihat
           periode terkunci dan jadwalnya. Isi serta PDF/Excel terbuka setelah
@@ -1201,6 +1206,30 @@ export function ProyeksiForm(p: Props) {
             Setujui Terbit ke Mitra
           </button>
         </div>
+        {versi && !p.sim && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50/60 px-3 py-2">
+            <p className="text-xs text-red-900">
+              Hasil impor/draft tidak sesuai? Hapus draft lalu impor ulang. {p.sudahTerbit ? "Laporan yang sudah terbit ke Mitra tetap aman." : ""}
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                if (!(await tanya(`Hapus draft laporan ${info.nama_outlet} ${namaBulan(periode)}? Isi draft disimpan di log dan bisa dipulihkan. ${p.sudahTerbit ? "Laporan resmi untuk Mitra tidak ikut terhapus." : ""}`))) return;
+                start(async () => {
+                  const r = await hapusDraftLaporan(p.outletId, periode, versi);
+                  if (r.error) return setErr(r.error);
+                  setVersi(null);
+                  setDraftMsg(r.ok ?? "");
+                  pindah({ sumber: "otomatis", reset: "1" });
+                });
+              }}
+              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              🗑 Hapus draft
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

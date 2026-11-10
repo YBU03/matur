@@ -164,3 +164,10 @@ body {
 
 @keyframes pos-pop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 100% { transform: scale(1); } }
 @keyframes pos-naik { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* kartu laporan Mitra: gembok terbuka */
+@keyframes laporan-buka {
+  0% { transform: scale(0.85) rotate(-6deg); opacity: 0.4; }
+  60% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
