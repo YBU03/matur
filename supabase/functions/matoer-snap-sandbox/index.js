@@ -58,6 +58,26 @@ Deno.serve(async req=>{
    const sig=new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(ck+'|'+ts)));
    return json({signature:btoa(String.fromCharCode(...sig)),stringToSign:ck+'|'+ts,timestamp:ts,clientKey:ck});
   }
+  // OAuth BNI Direct API (sandbox): Client Secret di Vault; tes token ke https://sandbox.bni.co.id/api/oauth/token (Basic auth, grant_type=client_credentials).
+  if(path==='/admin/bni-oauth-simpan'){
+   const id=String(body.clientId??'').trim(),sec=String(body.clientSecret??'');
+   if(!/^[A-Za-z0-9._-]{3,100}$/.test(id))return json({error:'Client ID tidak valid.'},400);
+   if(sec.length<8||sec.length>500)return json({error:'Client Secret tidak valid.'},400);
+   await rpc('snap_bni_oauth_service',{p_action:'simpan',p_data:{client_id:id,secret:sec,oleh:uid}});
+   return json(await rpc('snap_bni_kunci_info',{},jwt));
+  }
+  if(path==='/admin/bni-token-tes'){
+   let o;try{o=await rpc('snap_bni_oauth_service',{p_action:'ambil',p_data:{}});}catch{return json({error:'Simpan Client ID & Client Secret OAuth BNI dahulu.'},400);}
+   const mulai=Date.now();let r,teks='';
+   try{
+    r=await fetch('https://sandbox.bni.co.id/api/oauth/token',{method:'POST',headers:{Authorization:'Basic '+btoa(o.client_id+':'+o.secret),'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},body:'grant_type=client_credentials',redirect:'error',signal:AbortSignal.timeout(20000)});
+    teks=(await r.text()).slice(0,4000);
+   }catch(e){return json({ok:false,status:0,durasiMs:Date.now()-mulai,pesan:'Tidak dapat terhubung ke sandbox.bni.co.id: '+String(e?.message??e).slice(0,200)});}
+   let data=null;try{data=JSON.parse(teks);}catch{}
+   const tok=data&&typeof data.access_token==='string'?data.access_token:'';
+   const aman=data&&typeof data==='object'?Object.fromEntries(Object.entries(data).map(([k,v])=>[k,k==='access_token'?(tok?tok.slice(0,6)+'…'+tok.slice(-4):''):v])):{teks:teks.replace(/[A-Za-z0-9+/=_-]{40,}/g,'[disamarkan]').slice(0,500)};
+   return json({ok:r.ok&&!!tok,status:r.status,durasiMs:Date.now()-mulai,respons:aman,token_type:data?.token_type??null,expires_in:data?.expires_in??null,scope:data?.scope??null});
+  }
   const c=await service('config');
   if(path==='/admin/result'){
    if(!Number.isInteger(body.nomor)||body.nomor<1||body.nomor>10||!['dicoba','sesuai','tidak_sesuai'].includes(body.status))return json({error:'Hasil pengujian tidak valid.'},400);

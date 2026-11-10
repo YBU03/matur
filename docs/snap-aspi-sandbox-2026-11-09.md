@@ -68,3 +68,6 @@ AgMBAAE=
 -----END PUBLIC KEY-----
 ```
 Status 10 Nov: sertifikat Matoer baru sudah dipasang di Kredensial OAuth (Confidential); produk QRIS MPM SNAP + Snap Token dipilih. Sandbox portal: Generate Token → 4007302 Invalid Mandatory Field grantType; produk Snap Token → 400 Data not found. Menunggu arahan BNI / URL endpoint sandbox.
+
+### Token OAuth BNI (10 Nov 2026 malam)
+Tab BNI Sandbox: simpan **Client ID + Client Secret OAuth** (Kredensial OAuth portal BNI) ke Vault (`snap_sandbox_internal.bni_oauth`, RPC `snap_bni_oauth_service` service_role only; migrasi `20261110131229_snap_bni_oauth.sql`). Tombol **Tes token BNI (sandbox)**: Edge `/admin/bni-token-tes` → `POST https://sandbox.bni.co.id/api/oauth/token` dengan `Authorization: Basic base64(client_id:client_secret)`, `Content-Type: application/x-www-form-urlencoded`, body `grant_type=client_credentials` (sesuai dokumentasi BNI). Respons ditampilkan dengan access_token disamarkan; kegagalan jaringan/IP ditampilkan apa adanya. Edge versi 4. Host BNI: produksi `api.bni.co.id`, non-produksi `newapidev.bni.co.id` (port dev 8066, testing 8065), sandbox `sandbox.bni.co.id:443`.

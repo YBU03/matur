@@ -29,9 +29,9 @@ export async function snapLihatBukti(path:string):Promise<{url?:string;error?:st
 }
 
 /** Kunci & Token Signature Matoer untuk BNI Direct API (sandbox). Private key tetap di Vault; browser hanya menerima sertifikat & signature. */
-export async function bniAction(action:"bni-kunci"|"bni-kunci-buat"|"bni-signature",data:Record<string,unknown>={}):Promise<{data?:Record<string,unknown>;error?:string}> {
+export async function bniAction(action:"bni-kunci"|"bni-kunci-buat"|"bni-signature"|"bni-oauth-simpan"|"bni-token-tes",data:Record<string,unknown>={}):Promise<{data?:Record<string,unknown>;error?:string}> {
  const s=await getSession();if(!s?.active||!["owner","admin_pusat","finance"].includes(s.active.role))return {error:"Tidak berwenang."};
- if(!["bni-kunci","bni-kunci-buat","bni-signature"].includes(action)||JSON.stringify(data).length>2000)return {error:"Permintaan tidak valid."};
+ if(!["bni-kunci","bni-kunci-buat","bni-signature","bni-oauth-simpan","bni-token-tes"].includes(action)||JSON.stringify(data).length>2000)return {error:"Permintaan tidak valid."};
  try {
   const db=await supabaseServer();const {data:session}=await db.auth.getSession();const token=session.session?.access_token;
   if(!token)return {error:"Sesi habis. Masuk kembali."};
