@@ -45,3 +45,11 @@ Validasi akhir: seluruh 448 tes pada 74 file lulus; setelah penguatan redaksi ak
 ## CORS Client Simulator ASPI (9 November 2026 malam)
 
 Client Simulator ASPI mengirim dari browser penguji, sehingga sebelumnya terblokir CORS. Proxy `src/app/api/integrasi/snap-sandbox/[...path]/route.ts` kini menjawab preflight `OPTIONS` (204) dan menambahkan header CORS **hanya** untuk origin `https://apidevportal.aspi-indonesia.or.id` (dengan/tanpa port 44310), helper `src/lib/snap-cors.ts`. Origin lain: preflight 403, tanpa header CORS. Autentikasi SNAP (token, signature, timestamp) tidak berubah; gateway BNI produksi tidak disentuh.
+
+## Kunci & Token Signature BNI Direct API (10 November 2026)
+
+Tab **BNI Sandbox** di `/pengaturan/snap-sandbox` (Owner/Admin Pusat/Finance): `bni-panel.tsx`, server action `bniAction`.
+- **Buat kunci & sertifikat**: Edge `matoer-snap-sandbox` route `/admin/bni-kunci-buat` membuat RSA 2048 (WebCrypto) + sertifikat X.509 self-signed 1 tahun (`npm:@peculiar/x509`), CN `matoer.id`, OU `Matoer BNI Sandbox`. Private key langsung ke Vault lewat `snap_bni_kunci_service('simpan')` (service_role only); tabel `snap_sandbox_internal.bni_kunci` hanya menyimpan public key & sertifikat. Ganti kunci butuh konfirmasi dan tercatat di `log_aktivitas`.
+- Sertifikat ditempel pemilik ke portal BNI: Aplikasi Matoer → Autentikasi → Kredensial OAuth → X.509 certificate (menggantikan sertifikat lama yang private key-nya tidak ada di Matoer).
+- **Token Signature**: route `/admin/bni-signature` menandatangani `X-CLIENT-KEY|X-TIMESTAMP` dengan SHA256withRSA, hasil base64. Browser hanya menerima signature.
+- Migrasi `20261110114923_snap_bni_kunci.sql`. Edge versi 3.

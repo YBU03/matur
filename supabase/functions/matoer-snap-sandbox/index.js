@@ -1,3 +1,4 @@
+import * as x509 from 'npm:@peculiar/x509@1.14.3';
 import { handleSnap,readSnapBody,rsaPair,authSignature,serviceSignature,stamp,cleanResult,cleanNote,TOKEN_PATH,NOTIFY_PATH } from '../_shared/snap-sandbox.ts';
 const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 async function rpc(name,body={},jwt=key){
@@ -17,7 +18,7 @@ Deno.serve(async req=>{
   const user=await fetch(url+'/auth/v1/user',{headers:{apikey:key,Authorization:auth},signal:AbortSignal.timeout(10000)});if(!user.ok)return json({error:'Sesi tidak berlaku.'},401);
   const admin=(action,data={})=>rpc('snap_sandbox_admin',{p_action:action,p_data:data},jwt);
   let state;try{state=await admin('status');}catch{return json({error:'Hanya Owner, Admin Pusat atau Finance aktif.'},403);}
-  if(!await service('limit',{key:'admin:'+(await user.json()).id}))return json({error:'Terlalu banyak permintaan.'},429);
+  const uid=(await user.json()).id;if(!await service('limit',{key:'admin:'+uid}))return json({error:'Terlalu banyak permintaan.'},429);
   const body=JSON.parse(await readSnapBody(req));
   if(path==='/admin/status')return json(state);
   if(path==='/admin/save'){
@@ -31,6 +32,31 @@ Deno.serve(async req=>{
   if(path==='/admin/toggle'){
    if(typeof body.aktif!=='boolean')return json({error:'Pilih aktif atau nonaktif.'},400);
    return json(await admin('toggle',{aktif:body.aktif}));
+  }
+  // Kunci RSA + sertifikat X.509 Matoer untuk BNI Direct API: private key langsung ke Vault, tidak pernah dikirim ke browser.
+  if(path==='/admin/bni-kunci')return json(await rpc('snap_bni_kunci_info',{},jwt));
+  if(path==='/admin/bni-kunci-buat'){
+   const ganti=body.ganti===true;const info=await rpc('snap_bni_kunci_info',{},jwt);
+   if(info.ada&&!ganti)return json({error:'Kunci BNI sudah ada. Pilih ganti bila ingin membuat baru.'},400);
+   x509.cryptoProvider.set(crypto);
+   const alg={name:'RSASSA-PKCS1-v1_5',hash:'SHA-256',publicExponent:new Uint8Array([1,0,1]),modulusLength:2048};
+   const keys=await crypto.subtle.generateKey(alg,true,['sign','verify']);
+   const now=new Date(Date.now()-60000),akhir=new Date(Date.now()+365*86400000);
+   const serial=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('').replace(/^[89a-f]/,'1');
+   const cert=await x509.X509CertificateGenerator.createSelfSigned({serialNumber:serial,name:'C=ID, ST=Jawa Tengah, L=Purbalingga, O=CV Hazna Berkah Indonesia, OU=Matoer BNI Sandbox, CN=matoer.id',notBefore:now,notAfter:akhir,signingAlgorithm:alg,keys,extensions:[new x509.BasicConstraintsExtension(false,undefined,true),new x509.KeyUsagesExtension(x509.KeyUsageFlags.digitalSignature,true)]});
+   const pem=(t,b)=>`-----BEGIN ${t}-----\n${btoa(String.fromCharCode(...new Uint8Array(b))).match(/.{1,64}/g).join('\n')}\n-----END ${t}-----`;
+   await rpc('snap_bni_kunci_service',{p_action:'simpan',p_data:{private:pem('PRIVATE KEY',await crypto.subtle.exportKey('pkcs8',keys.privateKey)),public:pem('PUBLIC KEY',await crypto.subtle.exportKey('spki',keys.publicKey)),sertifikat:cert.toString('pem'),oleh:uid,ganti}});
+   return json(await rpc('snap_bni_kunci_info',{},jwt));
+  }
+  if(path==='/admin/bni-signature'){
+   const ck=String(body.clientKey??'').trim(),ts=String(body.timestamp??'').trim();
+   if(!/^[A-Za-z0-9._-]{3,100}$/.test(ck))return json({error:'X-CLIENT-KEY tidak valid.'},400);
+   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?([+-]\d{2}:\d{2}|Z)$/.test(ts))return json({error:'Format X-TIMESTAMP harus seperti 2026-11-10T18:30:00+07:00.'},400);
+   const k=await rpc('snap_bni_kunci_service',{p_action:'private',p_data:{}});
+   const der=Uint8Array.from(atob(k.private.replace(/-----[^-]+-----|\s/g,'')),ch=>ch.charCodeAt(0));
+   const key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+   const sig=new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(ck+'|'+ts)));
+   return json({signature:btoa(String.fromCharCode(...sig)),stringToSign:ck+'|'+ts,timestamp:ts,clientKey:ck});
   }
   const c=await service('config');
   if(path==='/admin/result'){
