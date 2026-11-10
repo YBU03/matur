@@ -3,6 +3,7 @@ import { QrisPaymentSuccess } from "@/components/qris-payment-success";
 import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
 import { pakaiFeedbackQrisDinamis } from "@/lib/qris-payment-feedback";
 import { QrisDemoDialog } from "@/components/qris-demo-dialog";
+import { extraBerulang, namaAdditional, pulihkanAdditional } from "@/lib/pos-additional";
 import { minta } from "@/components/dialog-tanya";
 
 import Link from "next/link";
@@ -487,7 +488,7 @@ export function PosScreen({
       qty: l.qty,
       nama:
         l.menu.nama +
-        (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""),
+        (l.varian.length ? ` (${namaAdditional(l.varian)})` : ""),
       harga: price(l),
     }));
   const simpanSebagaiDraft = () =>
@@ -529,7 +530,7 @@ export function PosScreen({
         hilang.push(it.nama);
         continue;
       }
-      const varian = m.varian.filter((v) => it.varian_ids.includes(v.id));
+      const varian = pulihkanAdditional(it.varian_ids, m.varian);
       lines.push({
         key:
           m.id +
@@ -823,7 +824,7 @@ export function PosScreen({
                 <p className="truncate font-medium">{l.menu.nama}</p>
                 {l.varian.length > 0 && (
                   <p className="truncate text-xs text-stone-500">
-                    {l.varian.map((v) => v.nama).join(", ")}
+                    {namaAdditional(l.varian)}
                   </p>
                 )}
               </div>
@@ -1167,7 +1168,8 @@ export function PosScreen({
         <ReceiptDialog
           {...receipt}
           testing={demoReceipt}
-          lines={receipt.demoLines ?? receipt.lines.map((l) => ({ key: l.key, nama: l.menu.nama + (l.varian.length ? ` (${l.varian.map((v) => v.nama).join(", ")})` : ""), qty: l.qty, total: priceFor(receipt.kanal, l) * l.qty }))}
+          autoPrint
+          lines={receipt.demoLines ?? receipt.lines.map((l) => ({ key: l.key, nama: l.menu.nama + (l.varian.length ? ` (${namaAdditional(l.varian)})` : ""), qty: l.qty, total: priceFor(receipt.kanal, l) * l.qty }))}
           outletNama={outletNama}
           kasir={kasir}
           struk={struk}
@@ -1295,7 +1297,7 @@ function VariantPicker({
     );
   // ganti kemasan: pilihan gula/extra yang sama dibawa ke kemasan baru
   const gantiKemasan = (k: PosMenu) => {
-    setSel((s) => k.varian.filter((v) => s.some((x) => x.grup === v.grup && x.nama === v.nama)));
+    setSel((s) => s.flatMap(x => {const v=k.varian.find(v=>v.grup===x.grup&&v.nama===x.nama);return v?[v]:[];}));
     setPilih(k);
   };
   const total = harga(pilih) + sel.reduce((n, v) => n + v.tambahan_harga, 0);
@@ -1326,7 +1328,7 @@ function VariantPicker({
             <div className="flex flex-wrap gap-2">
               {pilih.varian
                 .filter((v) => v.grup === g)
-                .map((v) => (
+                .map((v) => extraBerulang(v) ? <div key={v.id} className="flex items-center gap-2 rounded-xl border border-matur-300 bg-matur-50 p-2"><span className="text-sm font-semibold">{v.nama} {v.tambahan_harga ? `+${formatRupiah(v.tambahan_harga)}/shot` : ""}</span><button type="button" aria-label={`Kurangi ${v.nama}`} disabled={!sel.some(x=>x.id===v.id)} onClick={()=>setSel(s=>{const i=s.findIndex(x=>x.id===v.id);return i<0?s:s.filter((_,j)=>j!==i);})} className="size-9 rounded-lg border bg-white disabled:opacity-40">−</button><output aria-label={`Jumlah ${v.nama}`} className="min-w-5 text-center font-bold">{sel.filter(x=>x.id===v.id).length}</output><button type="button" aria-label={`Tambah ${v.nama}`} disabled={sel.filter(x=>x.id===v.id).length>=10} onClick={()=>setSel(s=>[...s,v])} className="size-9 rounded-lg bg-matur-500 font-bold text-white disabled:opacity-40">+</button></div> : (
                   <button key={v.id} type="button" onClick={() => toggle(v)} className={btn(sel.some((x) => x.id === v.id))}>
                     {v.nama}
                     {v.tambahan_harga ? ` +${formatRupiah(v.tambahan_harga)}` : ""}

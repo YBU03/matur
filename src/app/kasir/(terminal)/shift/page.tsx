@@ -1,3 +1,4 @@
+import { OpnameOutlet } from "@/components/opname-outlet";
 import {
   PenerimaanBelanja,
   type BelanjaBahan,
@@ -105,10 +106,11 @@ export default async function KasPage() {
     .order("created_at", { ascending: false })
     .limit(100);
   if (belanjaError) throw new Error(belanjaError.message);
+  const so=<OpnameOutlet embedded sesiKasId={sesiId??undefined} searchParams={Promise.resolve({outlet})}/>;
   return (
     <div className="space-y-4">
       {pos.alur_shift && (
-        <PosAlurShift status={pos} outlet={s.active.outletNama} kelola />
+        <PosAlurShift status={pos} outlet={s.active.outletNama} kelola opname={so} />
       )}
       {!pos.alur_shift && pos.sesi && (
         <PosModalKas
@@ -120,6 +122,7 @@ export default async function KasPage() {
       {!pos.alur_shift && kasTim && (
         <div id="tutup" className="scroll-mt-20">
           <TutupKasTim
+            opname={so}
             kas={{ ...(kasTim as KasTim), kas_harian: pos.sesi?.kas_harian }}
           />
         </div>

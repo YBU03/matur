@@ -1477,3 +1477,31 @@ it("platform checkout records one sale, splits cash correctly, and excludes plat
     expect((await q("select sum(total)::int total from transaksi where sesi_kas_id=$1 and status='lunas'",[kas]))[0].total).toBe(omzet);
   } finally { await db.exec("rollback"); }
 });
+
+it('Extra Shot repeated IDs price from snapshot, multiply HPP/stock, reject other repeats and preserve void/idempotency',async()=>{
+ await db.exec('begin');
+ try{
+ await db.exec('set check_function_bodies=off');
+ await db.exec(readFileSync(new URL('./fixtures/pos-luna-report-baseline.sql',import.meta.url),'utf8'));
+ await db.exec('set check_function_bodies=on');
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261110035014_pos_extra_shot_rekap.sql',import.meta.url),'utf8'));
+ await as(andi);await q("update pengguna set status='aktif' where id=$1",[andi]);
+ const outlet=id(99501),kas=id(99502),produk=id(99503),ingredient=id(99504),shot=id(99505),sugar=id(99506);
+ await q("insert into outlet(id,nama)values($1,'Uji Extra')",[outlet]);await q("insert into penugasan(pengguna_id,peran,outlet_id)values($1,'kasir',$2)",[andi,outlet]);
+ await q('insert into sesi_kas(id,outlet_id,kasir_id,modal_laci)values($1,$2,$3,0)',[kas,outlet,andi]);
+ await q("insert into menu(id,nama,harga_langsung,harga_ojol)values($1,'Kopi Extra',10000,12000)",[produk]);
+ await q("insert into bahan(id,nama,satuan_beli,satuan_pakai,harga_pokok)values($1,'Beans Extra','kg','kg',1000)",[ingredient]);
+ await q('insert into stok(outlet_id,bahan_id,jumlah)values($1,$2,100)',[outlet,ingredient]);
+ await q("insert into varian(id,menu_id,grup,nama,tambahan_harga)values($1,$2,'Extra','Extra Shot',5000),($3,$2,'Gula','Less Sugar',0)",[shot,produk,sugar]);
+ await q('insert into resep(menu_id,bahan_id,takaran)values($1,$2,1)',[produk,ingredient]);
+ await q('insert into resep(menu_id,varian_id,bahan_id,takaran)values($1,$2,$3,0.5)',[produk,shot,ingredient]);
+ const p={client_id:id(99507),outlet_id:outlet,sesi_id:kas,kanal:'langsung',metode:'tunai',items:[{menu_id:produk,qty:2,varian_ids:[shot,shot,shot]}],_katalog:{menu:{[produk]:{langsung:9000,ojol:11000}},varian:{[shot]:4000}}};
+ const sale=await call<{id:string;total:number}>('matur_internal.buat_transaksi',[p]);expect(sale.total).toBe(42000);
+ const item=(await q('select * from item_transaksi where transaksi_id=$1',[sale.id]))[0];expect(item.hpp_teoritis).toBe(2500);expect(item.nama).toContain('Extra Shot ×3');
+ expect(Number((await q('select jumlah from stok where outlet_id=$1 and bahan_id=$2',[outlet,ingredient]))[0].jumlah)).toBe(95);
+ expect((await call<{id:string}>('matur_internal.buat_transaksi',[p])).id).toBe(sale.id);
+ await as(owner);await call('void_transaksi',[sale.id,'Uji void extra']);expect(Number((await q('select jumlah from stok where outlet_id=$1 and bahan_id=$2',[outlet,ingredient]))[0].jumlah)).toBe(100);await as(andi);
+ await expect(call('matur_internal.buat_transaksi',[{...p,client_id:id(99508),items:[{menu_id:produk,qty:1,varian_ids:[sugar,sugar]}]}])).rejects.toThrow(/additional/);
+ // SQL error aborts transaction; use isolated savepoint for subsequent assertions.
+ }finally{await db.exec('rollback');}
+},30000);

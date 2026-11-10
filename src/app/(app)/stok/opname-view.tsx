@@ -2,7 +2,7 @@
 import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { simpanOpname } from "@/lib/opname-actions";
 
@@ -40,8 +40,14 @@ export function OpnameView({
   bahan,
   riwayat,
   tampilNilai = true,
+  embedded=false,
+  draftKey,
+  sesiKasId,
 }: {
   tampilNilai?: boolean;
+  embedded?:boolean;
+  draftKey?:string;
+  sesiKasId?:string;
   outlets: { id: string; nama: string }[];
   outletId: string;
   bahan: Bahan[];
@@ -69,6 +75,17 @@ export function OpnameView({
   );
   const [catatan, setCatatan] = useState("");
   const [q, setQ] = useState("");
+  const [belum,setBelum]=useState(false);
+  const [focused,setFocused]=useState("");
+  const [review,setReview]=useState(false);
+  const [draftLoaded,setDraftLoaded]=useState(false);
+  const [draftStatus,setDraftStatus]=useState("");
+  const [snapshot,setSnapshot]=useState<Record<string,number>>({});
+  const formRef=useRef<HTMLFieldSetElement>(null);
+  useEffect(()=>{try{const raw=localStorage.getItem(draftKey??`matoer-so:${outletId}:mandiri`);if(raw){const d=JSON.parse(raw);if(d.version===1&&d.outletId===outletId){setIsi(d.isi??{});setSnapshot(d.sistem??{});setTanggal(d.tanggal);setCatatan(d.catatan??"");setJenis(d.jenis??"rutin");requestId.current=d.requestId??null;setDraftStatus('Draft hitungan sebelumnya dipulihkan. Periksa kembali sebelum menyimpan SO.');}}}catch{setDraftStatus('Penyimpanan draft perangkat belum tersedia. Jangan tutup halaman sebelum SO tersimpan.');}setDraftLoaded(true);},[draftKey,outletId]);
+  useEffect(()=>{if(!draftLoaded)return;try{localStorage.setItem(draftKey??`matoer-so:${outletId}:mandiri`,JSON.stringify({version:1,outletId,isi,tanggal,catatan,jenis,requestId:requestId.current,sistem:Object.fromEntries(bahan.map(b=>[b.id,snapshot[b.id]??b.sistem]))}));}catch{setDraftStatus('Draft belum tersimpan di perangkat. Jangan tutup halaman sebelum SO tersimpan.');}},[draftLoaded,draftKey,outletId,isi,tanggal,catatan,jenis,bahan,snapshot]);
+  const berikutnya=(el:HTMLElement)=>{const list=[...(formRef.current?.querySelectorAll<HTMLInputElement>('input[data-so-input]')??[])];const i=list.indexOf(el as HTMLInputElement);list[i+1]?.focus();list[i+1]?.select();};
+
   const [busy, setBusy] = useState("");
   const outletNama = outlets.find((o) => o.id === outletId)?.nama ?? "";
   const terisi = bahan.filter((b) => fisik(b, isi[b.id]) !== null);
@@ -87,17 +104,12 @@ export function OpnameView({
     (s, b) => s + fisik(b, isi[b.id])! * b.hargaPakai,
     0,
   );
-  const tampil = bahan.filter(
-    (b) =>
-      !q ||
-      b.nama.toLowerCase().includes(q.toLowerCase()) ||
-      (b.kategori ?? "").toLowerCase().includes(q.toLowerCase()),
-  );
+  const tampil = bahan.filter(b=>(!belum||fisik(b,isi[b.id])===null||focused===b.id)&&(!q||b.nama.toLowerCase().includes(q.toLowerCase())||(b.kategori??"").toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>(a.kategori??"Lainnya").localeCompare(b.kategori??"Lainnya",'id')||a.nama.localeCompare(b.nama,'id'));
   const set = (id: string, k: keyof Isi, v: string) =>
-    setIsi((lama) => ({
+    (setReview(false),setIsi((lama) => ({
       ...lama,
       [id]: { ...(lama[id] ?? { kemasan: "", eceran: "" }), [k]: v },
-    }));
+    })));
 
   const template = async () => {
     setBusy("tpl");
@@ -115,6 +127,7 @@ export function OpnameView({
     try {
       const { bacaTemplate } = await import("./excel");
       const r = await bacaTemplate(await f.arrayBuffer(), bahan);
+      setReview(false);
       setIsi({ ...isi, ...r.isi });
       setMsg({
         ok: `${Object.keys(r.isi).length} bahan terisi dari Excel. Periksa lalu simpan.${r.lewat ? ` ${r.lewat} baris tidak dikenali.` : ""}`,
@@ -132,7 +145,7 @@ export function OpnameView({
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Stok & Opname Outlet</h1>
+        <h1 className="text-2xl font-bold">{embedded ? "Hitung stok akhir shift" : "Stok & Opname Outlet"}</h1>
         <p className="text-sm text-stone-500">
           Hitung stok fisik. Hasil tersimpan menjadi stok outlet dan persediaan
           di laporan keuangan. Penjualan berikutnya mengurangi stok sesuai
@@ -160,6 +173,7 @@ export function OpnameView({
         </p>
       )}
 
+      {draftStatus&&<p role="status" className="rounded-xl bg-sky-50 p-3 text-xs text-sky-800">{draftStatus}</p>}
       <section className="grid grid-cols-2 gap-2">
         {(
           [
@@ -213,7 +227,7 @@ export function OpnameView({
               )}
             />
           </label>
-          <button type="button" disabled={pending} onClick={() => start(() => router.refresh())} className="rounded-lg border border-stone-300 px-3 py-2 text-xs">Muat ulang stok sistem</button>
+          <button type="button" disabled={pending} onClick={() => {setSnapshot({});setReview(false);start(() => router.refresh());}} className="rounded-lg border border-stone-300 px-3 py-2 text-xs">Muat ulang stok sistem</button>
           {jenis === "rutin" && (
             <button
               onClick={() =>
@@ -249,13 +263,15 @@ export function OpnameView({
             Tidak ada bahan yang cocok dengan pencarian.
           </p>
         )}
-        <fieldset disabled={pending}>
+        <div className="sticky top-16 z-10 mb-2 rounded-xl border border-matur-200 bg-white/95 p-3"><div className="flex flex-wrap items-center justify-between gap-2 text-xs"><b>{terisi.length} / {bahan.length} barang sudah dihitung</b><label className="flex items-center gap-2"><input type="checkbox" checked={belum} onChange={e=>setBelum(e.target.checked)}/>Belum diisi ({bahan.length-terisi.length})</label></div><progress value={terisi.length} max={Math.max(bahan.length,1)} className="mt-2 h-2 w-full accent-orange-500"/><p className="text-xs text-stone-500">Kosong = belum dihitung · 0 = habis · Enter untuk kolom berikutnya. Draft tersimpan di perangkat ini.</p></div>
+        <fieldset ref={formRef} disabled={pending} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement){e.preventDefault();berikutnya(e.target);}}}>
           <ul className="divide-y">
-            {tampil.map((b) => {
+            {tampil.map((b,index) => {
               const v = fisik(b, isi[b.id]);
               const beda = v !== null && Math.abs(v - b.sistem) > 0.001;
               return (
                 <li key={b.id} className="space-y-1.5 py-2.5 text-sm">
+                  {(index===0||tampil[index-1].kategori!==b.kategori)&&<h2 className="mb-2 rounded-lg bg-matur-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-kopi-800">{b.kategori??"Lainnya"}</h2>}
                   <div className="flex items-baseline gap-2">
                     <p className="min-w-0 flex-1 font-medium">{b.nama}</p>
                     <span className="text-xs text-stone-500">
@@ -266,6 +282,7 @@ export function OpnameView({
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <input
+                      data-so-input onFocus={()=>setFocused(b.id)}
                       value={isi[b.id]?.kemasan ?? ""}
                       onChange={(e) => set(b.id, "kemasan", e.target.value)}
                       aria-label={`Kemasan ${b.nama}`}
@@ -282,6 +299,7 @@ export function OpnameView({
                       <>
                         <span className="text-stone-400">+</span>
                         <input
+                          data-so-input onFocus={()=>setFocused(b.id)}
                           value={isi[b.id]?.eceran ?? ""}
                           onChange={(e) => set(b.id, "eceran", e.target.value)}
                           aria-label={`Sisa ${b.nama}`}
@@ -294,6 +312,7 @@ export function OpnameView({
                         </span>
                       </>
                     )}
+                    <button type="button" aria-label={`Berikutnya setelah ${b.nama}`} onClick={e=>{const row=e.currentTarget.closest("li");const last=row?.querySelectorAll<HTMLInputElement>("input[data-so-input]");if(last?.length)berikutnya(last[last.length-1]);}} className="rounded-lg border px-2 py-1 text-xs text-matur-700">Berikutnya ↓</button>
                     {v !== null && (
                       <span className="ml-auto text-xs">
                         ={" "}
@@ -317,6 +336,8 @@ export function OpnameView({
       </section>
 
       <section className="space-y-2 rounded-2xl border-2 border-kopi-700 bg-white p-4">
+        <button type="button" disabled={invalid||!terisi.length} onClick={()=>setReview(true)} className="w-full rounded-xl border-2 border-matur-300 p-3 font-semibold text-matur-700 disabled:opacity-40">Periksa hitungan & selisih ({terisi.length} barang)</button>
+        {review&&<div className="max-h-64 overflow-y-auto rounded-xl bg-stone-50 p-3"><h2 className="mb-2 font-bold">Periksa sebelum menyimpan SO</h2>{terisi.map(b=>{const sistem=snapshot[b.id]??b.sistem;const actual=fisik(b,isi[b.id])!;return <div key={b.id} className="border-b py-2 text-xs"><b>{b.nama}</b><p>Sistem {nf.format(sistem)} · Fisik {nf.format(actual)} {b.satuan_pakai} · <span className={actual===sistem?"text-green-700":"text-amber-700"}>Selisih {actual-sistem>0?'+':''}{nf.format(actual-sistem)}</span></p></div>;})}{terisi.length<bahan.length&&<p className="mt-2 text-xs text-amber-800">{bahan.length-terisi.length} barang belum dihitung; stoknya tetap dipertahankan.</p>}</div>}
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="text-sm font-medium">
             Tanggal hitung
@@ -364,23 +385,25 @@ export function OpnameView({
           </p>
         )}
         <button
-          disabled={pending || invalid || !terisi.length}
+          disabled={pending || invalid || !terisi.length || !review}
           onClick={async () =>
             (await tanya(
               `Simpan ${jenis === "awal" ? "stok awal" : "opname"} ${terisi.length} bahan di ${outletNama}? Stok outlet akan disesuaikan dengan hasil hitung.`,
             )) &&
             start(async () => {
               const ket =
-                `${jenis === "awal" ? "[Stok awal]" : "[Opname]"} ${catatan}`.trim();
+                `${jenis === "awal" ? "[Stok awal]" : "[Opname]"}${sesiKasId ? ` [Kas:${sesiKasId}]` : ""} ${catatan}`.trim();
               let r: { error?: string; ok?: string };
               try {
+                requestId.current ??= crypto.randomUUID();
+                try{const key=draftKey??`matoer-so:${outletId}:mandiri`;const current=JSON.parse(localStorage.getItem(key)??'{}');localStorage.setItem(key,JSON.stringify({...current,requestId:requestId.current}));}catch{}
                 r = await simpanOpname(
                   outletId,
                   tanggal,
                   terisi.map((b) => ({
                     bahan_id: b.id,
                     qty_fisik: fisik(b, isi[b.id])!,
-                    qty_sistem: b.sistem,
+                    qty_sistem: snapshot[b.id]??b.sistem,
                   })),
                   ket,
                   (requestId.current ??= crypto.randomUUID()),
@@ -396,6 +419,10 @@ export function OpnameView({
               if (r.error) requestId.current = null;
               if (!r.error) {
                 requestId.current = null;
+                setReview(false);
+                setSnapshot({});
+                try{localStorage.removeItem(draftKey??`matoer-so:${outletId}:mandiri`);}catch{}
+                setDraftStatus("SO tersimpan. Hasil hitungan tersedia pada Riwayat opname untuk shift berikutnya.");
                 setIsi({});
                 setJenis("rutin");
                 router.refresh();
@@ -429,7 +456,7 @@ export function OpnameView({
                     )}
                   </summary>
                   <p className="my-2 text-xs text-stone-500">
-                    {r.catatan} · Dicatat{" "}
+                    {r.catatan?.replace(/\[Kas:[^\]]+\]/g, 'SO shift').trim()} · Dicatat{" "}
                     {new Date(r.created_at).toLocaleString("id-ID", {
                       timeZone: "Asia/Jakarta",
                     })}

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { TimStatus } from "@/lib/pos-tim";
@@ -16,10 +16,12 @@ export function PosAlurShift({
   status: s,
   outlet,
   kelola = false,
+  opname,
 }: {
   status: TimStatus;
   outlet: string;
   kelola?: boolean;
+  opname?:ReactNode;
 }) {
   const router = useRouter();
   const sh = s.shift_aktif;
@@ -308,6 +310,7 @@ export function PosAlurShift({
               </div>
             )}
 
+            {langkah===2&&opname&&<details className="mb-3 rounded-2xl border-2 border-matur-200 bg-white p-3"><summary className="cursor-pointer font-bold text-matur-800">📦 Hitung stok / SO untuk serah terima</summary><div className="mt-3">{opname}</div></details>}
             {/* 2. hitung uang fisik */}
             {langkah === 2 && (
               <div className="space-y-4">
