@@ -18,6 +18,12 @@ export async function proxyBni(req: Request, path: "get-token" | "callback") {
   });
   for (const h of [
     "authorization",
+    "x-client-key",
+    "x-partner-id",
+    "x-timestamp",
+    "x-signature",
+    "x-external-id",
+    "channel-id",
     "x-matoer-timestamp",
     "x-matoer-signature",
   ]) {
