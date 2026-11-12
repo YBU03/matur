@@ -36,3 +36,9 @@ No secrets in repository, logs, or public document. Only the final private hando
 ## Verification
 
 Unit/security tests cover signature verification, token expiration, tampered payloads, identity isolation, required headers, amount format, duplicate/conflict handling and storage failures. PGlite checks service-only RPC permissions, fail-closed activation and inbox idempotency. Live self-test evidence is stored outside the repo, with access tokens removed.
+
+## Aktivasi sandbox (12 Nov 2026, malam)
+- Public key BNI sandbox (dari portal BNI Direct API: Aplikasi & Kredensial → Kredensial; sama dengan yang dicatat 10 Nov di `docs/snap-aspi-sandbox-2026-11-09.md`) dipasang pada client BNI asli di `bni_internal.snap_client`, lalu `active=true`. Client selftest tetap nonaktif.
+- Kunci BNI tersebut **RSA 2047 bit**. Pemeriksaan `modulusLength<2048` akan menolak semua Get Token BNI, jadi batas diturunkan ke 2047 (kunci lemah seperti 1024 tetap ditolak; ada tes). Edge `matoer-bni` v4.
+- Untuk BNI: Endpoint Get Token = `https://www.matoer.id/api/integrasi/bni/get-token`, Callback = `https://www.matoer.id/api/integrasi/bni/callback`, X-CLIENT-KEY = X-PARTNER-ID = client_id (bukan rahasia). API Secret hanya diserahkan privat oleh pemilik.
+- Belum ada uji langsung dari BNI. Sandbox Claude tidak bisa memanggil matoer.id dan tidak punya private key BNI.

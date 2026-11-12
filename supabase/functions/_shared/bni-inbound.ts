@@ -22,7 +22,7 @@ async function verifyBank(c:InboundConfig,stamp:string,sig:string){
  try{
   const bytes=Uint8Array.from(atob(c.bankPublicKey.replace(/-----[^-]+-----|\s/g,'')),x=>x.charCodeAt(0));
   const key=await crypto.subtle.importKey('spki',bytes,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
-  if((key.algorithm as RsaHashedKeyAlgorithm).modulusLength<2048)return false;
+  if((key.algorithm as RsaHashedKeyAlgorithm).modulusLength<2047)return false; // kunci sandbox BNI 2047 bit (dicek 12 Nov 2026)
   return await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,Uint8Array.from(atob(sig),x=>x.charCodeAt(0)),enc.encode(c.clientId+'|'+stamp));
  }catch{return false;}
 }
