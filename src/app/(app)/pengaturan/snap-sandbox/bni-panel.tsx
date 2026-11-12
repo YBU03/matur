@@ -1,227 +1,60 @@
 "use client";
+import {useEffect,useState,useTransition} from 'react';
+import {Eye,EyeOff,KeyRound,QrCode,Search,History,Download,RefreshCw} from 'lucide-react';
+import {bniAction} from '@/lib/snap-sandbox-actions';
+import type {BniResult} from '../../../../../supabase/functions/_shared/bni-direct';
 
-// Kunci Matoer untuk BNI Direct API (sandbox): buat kunci + sertifikat X.509 (private key ke Vault), lalu buat Token Signature.
-import { useEffect, useState, useTransition } from "react";
-import { Copy, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
-import { bniAction } from "@/lib/snap-sandbox-actions";
-import { BniUji } from "./bni-uji";
-
-const CLIENT_KEY_AWAL = "9b1d880a-de13-466d-b522-4cd4104934b6";
-const sekarangWib = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 19) + "+07:00";
-const kotak = "w-full min-w-0 rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100";
-
-function Salin({ teks, label }: { teks: string; label: string }) {
-  const [ok, setOk] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => navigator.clipboard?.writeText(teks).then(() => (setOk(true), setTimeout(() => setOk(false), 1500))).catch(() => {})}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-matur-200 bg-white px-3 py-1.5 text-xs font-semibold text-kopi-800 hover:border-matur-400"
-    >
-      <Copy size={13} /> {ok ? "Tersalin" : label}
-    </button>
-  );
-}
-
-export function BniPanel() {
-  const [info, setInfo] = useState<{ ada: boolean; sertifikat?: string; dibuat_at?: string; oauth?: { ada: boolean; client_id?: string; diubah_at?: string }; notif?: Parameters<typeof BniUji>[0]["notif"] } | null>(null);
-  const [oauthId, setOauthId] = useState(CLIENT_KEY_AWAL);
-  const [oauthSecret, setOauthSecret] = useState("");
-  const [lihatSecret, setLihatSecret] = useState(false);
-  const [tes, setTes] = useState<{ ok: boolean; status: number; durasiMs: number; respons?: Record<string, unknown>; pesan?: string; expires_in?: number | null } | null>(null);
-  const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
-  const [clientKey, setClientKey] = useState(CLIENT_KEY_AWAL);
-  const [ts, setTs] = useState("");
-  const [sig, setSig] = useState<{ signature: string; timestamp: string; stringToSign: string } | null>(null);
-  const [konfirmasiGanti, setKonfirmasiGanti] = useState(false);
-
-  const muatInfo = () => bniAction("bni-kunci").then((r) => (r.error ? setErr(r.error) : setInfo(r.data as typeof info)));
-  useEffect(() => {
-    setTs(sekarangWib());
-    muatInfo();
-  }, []);
-
-  const buat = (ganti: boolean) =>
-    start(async () => {
-      setErr("");
-      const r = await bniAction("bni-kunci-buat", { ganti });
-      if (r.error) return setErr(r.error);
-      setInfo(r.data as typeof info);
-      setKonfirmasiGanti(false);
-      setSig(null);
-    });
-  const simpanOauth = () =>
-    start(async () => {
-      setErr("");
-      const r = await bniAction("bni-oauth-simpan", { clientId: oauthId, clientSecret: oauthSecret });
-      if (r.error) return setErr(r.error);
-      setOauthSecret("");
-      setInfo(r.data as typeof info);
-    });
-  const tesToken = () =>
-    start(async () => {
-      setErr("");
-      setTes(null);
-      const r = await bniAction("bni-token-tes");
-      if (r.error) return setErr(r.error);
-      setTes(r.data as typeof tes);
-    });
-  const tandatangan = () =>
-    start(async () => {
-      setErr("");
-      setSig(null);
-      const r = await bniAction("bni-signature", { clientKey, timestamp: ts });
-      if (r.error) return setErr(r.error);
-      setSig(r.data as typeof sig);
-    });
-
-  return (
-    <div className="space-y-4">
-      <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-matur-100 text-matur-700">
-            <ShieldCheck size={18} />
-          </span>
-          <div className="mr-auto min-w-0">
-            <h2 className="font-bold text-kopi-900">Sertifikat Matoer untuk BNI</h2>
-            <p className="text-xs text-stone-500">Private key disimpan terenkripsi di Vault Matoer, tidak pernah ditampilkan atau dikirim ke browser.</p>
-          </div>
-          {info?.ada && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">● Kunci tersedia</span>}
-        </div>
-
-        {info === null && !err && <p className="text-sm text-stone-500">Memuat…</p>}
-        {info && !info.ada && (
-          <div className="space-y-2 rounded-xl bg-matur-50 p-3 text-sm">
-            <p>Belum ada kunci. Klik tombol di bawah untuk membuat pasangan kunci RSA 2048 dan sertifikat X.509 (berlaku 1 tahun).</p>
-            <button type="button" disabled={pending} onClick={() => buat(false)} className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-              <KeyRound size={15} className="mr-1 inline" /> Buat kunci & sertifikat
-            </button>
-          </div>
-        )}
-        {info?.ada && info.sertifikat && (
-          <>
-            <ol className="list-decimal space-y-1 pl-5 text-sm text-stone-700">
-              <li>
-                Salin sertifikat di bawah, lalu di portal BNI buka <b>Aplikasi Matoer → Autentikasi → Kredensial OAuth → Aksi → Ubah</b>.
-              </li>
-              <li>
-                Ganti seluruh isi kolom <b>X.509 certificate</b> dengan sertifikat ini, lalu <b>Simpan Perubahan</b>.
-              </li>
-            </ol>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-stone-500">Dibuat {info.dibuat_at ? new Date(info.dibuat_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB" : ""}</p>
-              <Salin teks={info.sertifikat} label="Salin sertifikat" />
-            </div>
-            <textarea readOnly rows={8} value={info.sertifikat} className={`${kotak} font-mono text-[11px]`} onFocus={(e) => e.currentTarget.select()} />
-            {!konfirmasiGanti ? (
-              <button type="button" onClick={() => setKonfirmasiGanti(true)} className="text-xs font-semibold text-stone-500 underline">
-                Buat ulang kunci (ganti)
-              </button>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-                <span className="mr-auto">Kunci lama tidak berlaku lagi. Sertifikat di portal BNI juga harus diganti dengan yang baru.</span>
-                <button type="button" disabled={pending} onClick={() => buat(true)} className="rounded-lg bg-red-600 px-3 py-1.5 font-semibold text-white disabled:opacity-50">
-                  Ya, ganti kunci
-                </button>
-                <button type="button" onClick={() => setKonfirmasiGanti(false)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 font-semibold">
-                  Batal
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="mr-auto font-bold text-kopi-900">Token OAuth BNI (sandbox)</h2>
-          {info?.oauth?.ada && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">● Secret tersimpan</span>}
-        </div>
-        <p className="text-xs text-stone-500">
-          Sesuai dokumentasi BNI: <span className="font-mono">POST https://sandbox.bni.co.id/api/oauth/token</span>, Basic auth (Client ID:Client Secret), body <span className="font-mono">grant_type=client_credentials</span>. Ambil Client Secret dari portal BNI → Kredensial OAuth → <b>Lihat rahasia</b>. Disimpan terenkripsi di Vault.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs font-semibold text-stone-600">
-            Client ID OAuth
-            <input id="bni-oauth-id" value={oauthId} onChange={(e) => setOauthId(e.target.value.trim())} className={`${kotak} mt-1 font-mono text-xs`} />
-          </label>
-          <label className="block text-xs font-semibold text-stone-600">
-            Client Secret {info?.oauth?.ada ? "(kosongkan bila tidak diganti)" : ""}
-            <span className="mt-1 flex gap-1.5">
-              <input id="bni-oauth-secret" type={lihatSecret ? "text" : "password"} autoComplete="off" value={oauthSecret} onChange={(e) => setOauthSecret(e.target.value)} className={`${kotak} font-mono text-xs`} />
-              <button type="button" onClick={() => setLihatSecret(!lihatSecret)} className="shrink-0 rounded-xl border border-matur-200 bg-white px-2.5 text-xs font-semibold text-kopi-800">
-                {lihatSecret ? "Tutup" : "Lihat"}
-              </button>
-            </span>
-          </label>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={pending || !oauthId || oauthSecret.length < 8} onClick={simpanOauth} className="rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
-            Simpan Client Secret
-          </button>
-          <button type="button" disabled={pending || !info?.oauth?.ada} onClick={tesToken} className="rounded-xl bg-matur-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
-            {pending ? "Memproses…" : "Tes token BNI (sandbox)"}
-          </button>
-        </div>
-        {tes && (
-          <div className={`space-y-1.5 rounded-xl p-3 text-sm ${tes.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`}>
-            <p className="font-bold">
-              {tes.ok ? `✓ Token BNI berhasil didapat${tes.expires_in ? ` · berlaku ${Math.round(Number(tes.expires_in) / 60)} menit` : ""}` : `✗ Gagal${tes.status ? ` (HTTP ${tes.status})` : ""}`}
-              <span className="ml-2 text-xs font-normal opacity-70">{tes.durasiMs} ms</span>
-            </p>
-            {tes.pesan && <p className="text-xs">{tes.pesan}</p>}
-            {tes.respons && <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-white/70 p-2 text-[11px]">{JSON.stringify(tes.respons, null, 2)}</pre>}
-            <p className="text-[11px] opacity-70">Token disamarkan. Bila gagal, kirim tangkapan layar respons ini ke tim BNI.</p>
-          </div>
-        )}
-      </section>
-
-      {info?.oauth?.ada && <BniUji partnerAwal="143ddc60-0375-4203-96cf-d191acd7762c" notif={info.notif ?? []} segarkan={muatInfo} />}
-
-      {info?.ada && (
-        <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
-          <h2 className="font-bold text-kopi-900">Token Signature (untuk Sandbox BNI)</h2>
-          <p className="text-xs text-stone-500">Isi X-CLIENT-KEY dan X-TIMESTAMP persis seperti di halaman Sandbox BNI, lalu buat signature dan tempel ke kolom <b>Token Signature</b>.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-stone-600">
-              X-CLIENT-KEY (Klien ID OAuth)
-              <input value={clientKey} onChange={(e) => setClientKey(e.target.value.trim())} className={`${kotak} mt-1 font-mono text-xs`} />
-            </label>
-            <label className="block text-xs font-semibold text-stone-600">
-              X-TIMESTAMP
-              <span className="mt-1 flex gap-1.5">
-                <input value={ts} onChange={(e) => setTs(e.target.value.trim())} className={`${kotak} font-mono text-xs`} />
-                <button type="button" onClick={() => setTs(sekarangWib())} title="Pakai jam sekarang" className="shrink-0 rounded-xl border border-matur-200 bg-white px-2.5 text-kopi-800">
-                  <RefreshCw size={14} />
-                </button>
-              </span>
-            </label>
-          </div>
-          <button type="button" disabled={pending || !clientKey || !ts} onClick={tandatangan} className="rounded-xl bg-matur-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-            {pending ? "Memproses…" : "Buat Token Signature"}
-          </button>
-          {sig && (
-            <div className="space-y-2 rounded-xl bg-emerald-50 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-emerald-900">Token Signature</p>
-                <Salin teks={sig.signature} label="Salin signature" />
-              </div>
-              <textarea readOnly rows={4} value={sig.signature} className={`${kotak} font-mono text-[11px]`} onFocus={(e) => e.currentTarget.select()} />
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate font-mono text-[11px] text-emerald-900">X-TIMESTAMP: {sig.timestamp}</p>
-                <Salin teks={sig.timestamp} label="Salin timestamp" />
-              </div>
-              <p className="text-[11px] text-emerald-800">Pakai X-TIMESTAMP yang sama persis di halaman Sandbox BNI. Bila timestamp diubah, buat signature baru.</p>
-            </div>
-          )}
-        </section>
-      )}
-      {err && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {err}
-        </p>
-      )}
-    </div>
-  );
+type Row={id:string;created_at:string;action:string;result:BniResult};
+type State={configured:boolean;clientId?:string;apiKeyMasked?:string;merchantId:string;channelId:string;terminalId:string;publicKey?:string;certificate?:string;history:Row[]};
+const input='mt-1 w-full min-w-0 rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm outline-none focus:border-matur-500';
+const button='inline-flex items-center justify-center gap-2 rounded-xl bg-kopi-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40';
+const blank={clientId:'',apiKey:'',apiSecret:'',clientSecret:'',merchantId:'',channelId:'',terminalId:''};
+const labels={clientId:'Client ID BNI',apiKey:'API Key / X-PARTNER-ID',apiSecret:'Secret Key API',clientSecret:'Client Secret BNI',merchantId:'Merchant ID sandbox',channelId:'CHANNEL-ID dari BNI',terminalId:'Terminal ID (jika diwajibkan)'};
+function download(name:string,content:string,type='text/plain'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function title(action:string){return action==='token'?'Token B2B':action==='generate'?'Generate QR':'Query Payment';}
+export function BniPanel(){
+ const [state,setState]=useState<State|null>(null),[form,setForm]=useState(blank),[amount,setAmount]=useState('1000.00'),[show,setShow]=useState<Record<string,boolean>>({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[selected,setSelected]=useState(''),[qr,setQr]=useState('');
+ const [pending,start]=useTransition();
+ const dirty=!!state&&(form.clientId!==(state.clientId??'')||form.merchantId!==state.merchantId||form.channelId!==state.channelId||form.terminalId!==state.terminalId||!!form.apiKey||!!form.apiSecret||!!form.clientSecret);
+ function load(s:State){setState(s);setForm({...blank,clientId:s.clientId??'',merchantId:s.merchantId??'',channelId:s.channelId??'',terminalId:s.terminalId??''});}
+ function refresh(){start(async()=>{setError('');const r=await bniAction('bni-snap-status');if(r.error)setError(r.error);else load(r.data as unknown as State);});}
+ useEffect(()=>{let active=true;void bniAction('bni-snap-status').then(r=>{if(!active)return;if(r.error)setError(r.error);else load(r.data as unknown as State);});return()=>{active=false;};},[]);
+ const generations=state?.history.filter(r=>r.action==='generate'&&r.result.ok)??[];
+ const chosen=generations.find(r=>r.id===selected);
+ const content=typeof chosen?.result.response.qrContent==='string'?chosen.result.response.qrContent:'';
+ useEffect(()=>{let active=true;setQr('');if(content)void import('qrcode').then(q=>q.toDataURL(content,{width:240,margin:1})).then(s=>{if(active)setQr(s);}).catch(()=>{});return()=>{active=false;};},[content]);
+ function save(){start(async()=>{setError('');setNotice('');const r=await bniAction('bni-snap-save',form);if(r.error)setError(r.error);else{load(r.data as unknown as State);setNotice('Konfigurasi sandbox BNI tersimpan.');setSelected('');}});}
+ function run(action:'token'|'generate'|'query'){start(async()=>{setError('');setNotice('');const r=await bniAction(`bni-snap-${action}`,action==='generate'?{amount}:action==='query'?{generationId:selected}:{});if(r.error){setError(r.error);return;}const d=r.data as unknown as {state:State;result:BniResult&{id:string}};setState(d.state);if(action==='generate'&&d.result.ok)setSelected(d.result.id);setNotice(d.result.ok?`${title(action)} berhasil. Hasil tersimpan di riwayat.`:`${title(action)} belum berhasil. Periksa respons asli BNI di riwayat.`);});}
+ return <div className="space-y-4">
+  <section className="rounded-2xl border border-matur-200 bg-matur-50 p-4"><h2 className="font-bold text-kopi-900">BNI Sandbox · SNAP QRIS MPM</h2><p className="mt-1 text-sm text-stone-600">Uji langsung ke sandbox BNI, terpisah dari simulasi ASPI dan transaksi POS. Token, timestamp, signature, dan referensi dibuat oleh server.</p><p className="mt-2 text-xs text-stone-500">Alur collection BNI: token RSA → Generate QR → Query Payment. Token/secret/private key tidak ditampilkan dalam hasil.</p></section>
+  {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+  {notice&&<p role="status" className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{notice}</p>}
+  {!state&&!error&&<p className="animate-pulse p-4 text-sm">Memuat konfigurasi BNI…</p>}
+  {state&&<>
+   <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
+    <div className="flex flex-wrap items-center gap-2"><KeyRound size={19}/><h3 className="mr-auto font-bold">Kredensial & identitas sandbox</h3><span className={`rounded-full px-3 py-1 text-xs font-bold ${state.configured?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-900'}`}>{state.configured?'Kredensial tersimpan':'Belum lengkap'}</span></div>
+    <p className="text-xs text-stone-500">API Key tersimpan: {state.apiKeyMasked||'belum ada'}. Kosongkan kredensial rahasia untuk mempertahankan nilai lama. Mengganti Client ID memerlukan kredensial lengkap.</p>
+    <div className="grid gap-3 sm:grid-cols-2">{(Object.keys(blank) as (keyof typeof blank)[]).map(k=>{const secret=['apiSecret','clientSecret','apiKey'].includes(k);return <label key={k} className="min-w-0 text-xs font-semibold text-stone-600">{labels[k]}<span className="flex items-center gap-1"><input aria-label={labels[k]} autoComplete="off" type={secret&&!show[k]?'password':'text'} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value.trim()})} placeholder={secret&&state.configured?'Tersimpan; isi jika ingin mengganti':k==='merchantId'||k==='channelId'?'Isi sesuai informasi BNI':''} className={input}/>{secret&&<button type="button" aria-label={`${show[k]?'Sembunyikan':'Lihat'} ${labels[k]}`} onClick={()=>setShow({...show,[k]:!show[k]})} className="rounded-xl border p-2">{show[k]?<EyeOff size={16}/>:<Eye size={16}/>}</button>}</span></label>;})}</div>
+    <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Merchant ID QRIS statis outlet belum tentu berlaku di sandbox. CHANNEL-ID “API” dari contoh ditolak pada uji sebelumnya; isi nilai yang dikonfirmasi BNI. Tidak ada nilai merchant/channel contoh yang diaktifkan otomatis.</p>
+    <button type="button" className={button} disabled={pending||!form.clientId} onClick={save}>Simpan konfigurasi BNI</button>
+   </section>
+   <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4"><h3 className="font-bold">Mulai pengujian</h3>
+    <label className="block max-w-xs text-xs font-semibold">Nominal uji IDR<input aria-label="Nominal uji IDR" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" className={input}/></label>
+    <div className="flex flex-wrap gap-2"><button className={button} disabled={pending||dirty||!state.configured} onClick={()=>run('token')}><KeyRound size={16}/>1. Tes Token B2B</button><button className={button} disabled={pending||dirty||!state.configured||!state.merchantId||!state.channelId} onClick={()=>run('generate')}><QrCode size={16}/>2. Generate QR tanpa Tip</button></div>
+    {dirty&&<p className="text-xs text-amber-800">Simpan perubahan konfigurasi sebelum menguji.</p>}
+    {(!state.merchantId||!state.channelId)&&<p className="text-xs text-amber-800">Token dapat diuji sekarang. Generate QR menunggu Merchant ID dan CHANNEL-ID sandbox BNI.</p>}
+    <label className="block text-xs font-semibold">QR berhasil dari riwayat<select aria-label="QR berhasil dari riwayat" value={selected} onChange={e=>setSelected(e.target.value)} className={input}><option value="">Pilih hasil Generate QR</option>{generations.map(r=><option key={r.id} value={r.id}>{new Date(r.created_at).toLocaleString('id-ID')} · {String(r.result.response.referenceNo??r.id)}</option>)}</select></label>
+    <button className={button} disabled={pending||dirty||!chosen} onClick={()=>run('query')}><Search size={16}/>3. Query Payment</button>
+    {qr&&<figure className="w-fit rounded-xl border p-3">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={qr} alt="QR sandbox BNI" width={200} height={200}/><figcaption className="text-center text-xs">QR sandbox · jangan dibayar</figcaption></figure>}
+    <p className="text-xs text-stone-500">Setiap pengujian mengambil token BNI baru di server. Query yang berhasil berarti pengecekan berhasil, belum tentu pembayaran lunas.</p>
+    <p className="rounded-xl bg-stone-50 p-3 text-xs">Notifikasi pembayaran: menunggu kontrak/skenario simulator dari BNI. Inbox simulasi sebelumnya tidak dianggap sebagai bukti verifikasi pembayaran bank atau lunas POS.</p>
+    {pending&&<p role="status" className="animate-pulse text-sm text-matur-700">Memproses sandbox BNI…</p>}
+   </section>
+   <details className="rounded-2xl border border-matur-200 bg-white p-4"><summary className="cursor-pointer text-sm font-bold">Public key & sertifikat gateway yang digunakan</summary><p className="my-2 text-xs text-stone-500">Pasangan kunci gateway Ruma/Matoer tetap di server. Tidak memakai private key contoh collection atau referensi ASPI.</p><div className="flex flex-wrap gap-2">{state.publicKey&&<button className={button} onClick={()=>download('ruma-matoer-public.pem',state.publicKey!)}><Download size={15}/>Unduh public key</button>}{state.certificate&&<button className={button} onClick={()=>download('ruma-matoer-x509.pem',state.certificate!)}><Download size={15}/>Unduh sertifikat</button>}</div></details>
+   <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4"><div className="flex flex-wrap items-center gap-2"><History size={18}/><h3 className="mr-auto font-bold">Riwayat respons BNI</h3><button aria-label="Muat ulang riwayat" disabled={pending} onClick={refresh} className="rounded-xl border p-2"><RefreshCw size={16}/></button><button className="text-xs font-semibold underline" onClick={()=>download('hasil-sandbox-bni.json',JSON.stringify(state.history,null,2),'application/json')}>Unduh hasil JSON</button></div>
+    {!state.history.length&&<p className="text-sm text-stone-500">Belum ada pengujian dari panel ini.</p>}
+    {state.history.map(r=><details key={r.id} className="rounded-xl border border-stone-200 p-3"><summary className="cursor-pointer text-sm"><span className={`mr-2 rounded-lg px-2 py-1 text-xs font-bold ${r.result.ok?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-900'}`}>{r.result.ok?'Berhasil':'Perlu diperiksa'}</span>{title(r.action)} · HTTP {r.result.status} · {String(r.result.response.responseCode??'')}<span className="mt-2 block text-xs text-stone-500">{new Date(r.created_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})} WIB · {String(r.result.response.responseMessage??'')}</span></summary><pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-stone-50 p-3 text-[11px]">{JSON.stringify({request:r.result.request,response:r.result.response},null,2)}</pre></details>)}
+   </section>
+  </>}
+ </div>;
 }
