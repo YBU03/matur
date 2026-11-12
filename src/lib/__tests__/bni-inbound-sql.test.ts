@@ -1,0 +1,23 @@
+import {PGlite} from '@electric-sql/pglite';
+import {readFileSync} from 'node:fs';
+import {it,expect} from 'vitest';
+it('service-only inbox stores once, detects conflict and refuses activation without bank key',async()=>{
+ const db=new PGlite();
+ await db.exec(`create role anon;create role authenticated;create role service_role;create schema vault;
+ create table vault.secrets(id uuid primary key);create table vault.decrypted_secrets(id uuid primary key,decrypted_secret text);
+ create schema bni_internal;create table bni_internal.konfigurasi(id boolean,private_secret_id uuid,public_key text,aktif boolean);
+ insert into vault.secrets values('00000000-0000-0000-0000-000000000001');
+ insert into vault.decrypted_secrets values('00000000-0000-0000-0000-000000000001','testsecret');
+ insert into bni_internal.konfigurasi values(true,'00000000-0000-0000-0000-000000000001','test-own-public',true);`);
+ await db.exec(readFileSync('supabase/migrations/20261112083629_bni_inbound_snap_sandbox.sql','utf8'));
+ await db.exec(`insert into bni_internal.snap_client(client_id,partner_id,api_secret_id) values('test','test','00000000-0000-0000-0000-000000000001');`);
+ await expect(db.query(`update bni_internal.snap_client set active=true where client_id='test'`)).rejects.toThrow();
+ await expect(db.query(`select public.bni_inbound_config('test')`)).rejects.toThrow('Forbidden');
+ await db.exec(`set request.jwt.claim.role='service_role';`);
+ await expect(db.query(`select public.bni_inbound_receive('test','external','${'a'.repeat(64)}','{}')`)).rejects.toThrow('Client unavailable');
+ await db.exec(`update bni_internal.snap_client set bank_public_key='-----BEGIN PUBLIC KEY-----TEST',active=true where client_id='test'`);
+ const call=(h:string)=>db.query<{v:string}>(`select public.bni_inbound_receive('test','external',$1,'{}') as v`,[h]);
+ expect((await call('a'.repeat(64))).rows[0].v).toBe('received');expect((await call('a'.repeat(64))).rows[0].v).toBe('duplicate');expect((await call('b'.repeat(64))).rows[0].v).toBe('conflict');
+ const inbox=await db.query<{processing_status:string,environment:string}>(`select * from bni_internal.snap_inbox`);expect(inbox.rows).toHaveLength(1);expect(inbox.rows[0]).toMatchObject({environment:'sandbox',processing_status:'RECEIVED_NOT_RECONCILED'});
+ await db.exec(`set role anon;`);await expect(db.query('select * from bni_internal.snap_inbox')).rejects.toThrow();await expect(db.query(`select public.bni_inbound_config('test')`)).rejects.toThrow();await db.close();
+}, 20000);
