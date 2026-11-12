@@ -1,3 +1,4 @@
+import {runBni,validateBniConfig} from '../_shared/bni-direct.ts';
 import * as x509 from 'npm:@peculiar/x509@1.14.3';
 import { handleSnap,readSnapBody,rsaPair,authSignature,serviceSignature,stamp,cleanResult,cleanNote,TOKEN_PATH,NOTIFY_PATH } from '../_shared/snap-sandbox.ts';
 const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -71,6 +72,31 @@ Deno.serve(async req=>{
   if(path==='/admin/toggle'){
    if(typeof body.aktif!=='boolean')return json({error:'Pilih aktif atau nonaktif.'},400);
    return json(await admin('toggle',{aktif:body.aktif}));
+  }
+  // SNAP collection BNI: RSA token, APISecret HMAC, sanitized history. All routes already passed authenticated admin guard above.
+  if(path.startsWith('/admin/bni-snap-')){
+   const action=path.slice('/admin/bni-snap-'.length);
+   if(action==='status')return json(await rpc('bni_snap_service',{p_action:'status'}));
+   if(action==='save'){
+    const status=await rpc('bni_snap_service',{p_action:'status'});validateBniConfig(body,status.configured);
+    await rpc('bni_snap_service',{p_action:'save',p_data:{...body,certificate:undefined,oleh:uid}});
+    return json(await rpc('bni_snap_service',{p_action:'status'}));
+   }
+   if(!['token','generate','query'].includes(action))return json({error:'Aksi tidak tersedia.'},404);
+   const config=await rpc('bni_snap_service',{p_action:'config'});
+   let input=body;
+   if(action==='query'){
+    if(typeof body.generationId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.generationId))return json({error:'Pilih QR yang berhasil dari riwayat.'},400);
+    input={generation:await rpc('bni_snap_service',{p_action:'generation',p_data:{id:body.generationId}})};
+   }
+   let result;
+   try{result=await runBni(action,config,input);}
+   catch(e){
+    if(e instanceof TypeError||e?.name==='TimeoutError'||e?.name==='AbortError')result={action,ok:false,status:0,durationMs:0,request:{stage:'network'},response:{responseMessage:'Koneksi BNI belum berhasil. Periksa riwayat sebelum mengulang Generate QR.'},version:config.version};
+    else return json({error:['generate','query'].includes(action)?'Periksa CHANNEL-ID, Merchant ID, nominal, serta pilihan QR. Konfigurasi berubah memerlukan QR baru.':'Konfigurasi kunci/token belum dapat digunakan.'},400);
+   }
+   const saved=await rpc('bni_snap_service',{p_action:'record',p_data:{oleh:uid,result}});
+   return json({result:{...saved,...result},state:await rpc('bni_snap_service',{p_action:'status'})});
   }
   // Kunci RSA + sertifikat X.509 Matoer untuk BNI Direct API: private key langsung ke Vault, tidak pernah dikirim ke browser.
   if(path==='/admin/bni-kunci')return json(await rpc('snap_bni_kunci_info',{},jwt));
