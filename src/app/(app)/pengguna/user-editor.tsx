@@ -40,6 +40,9 @@ export function UserEditor({
 }) {
   const [section, setSection] = useState(kind === "aksi" ? "detail" : kind);
   const [nama, setNama] = useState(user.nama);
+  const [alamatKtp, setAlamatKtp] = useState(user.alamat_ktp ?? "");
+  const [alamatDomisili, setAlamatDomisili] = useState(user.alamat_domisili ?? "");
+  const [foto, setFoto] = useState<File | null>(null);
   const [hp, setHp] = useState(user.no_hp ?? "");
   const [selected, setSelected] = useState(user.assignments[0]?.id ?? "");
   const a = user.assignments.find((x) => x.id === selected);
@@ -103,6 +106,13 @@ export function UserEditor({
       <fieldset disabled={busy} className="space-y-4">
         {section === "detail" && (
           <>
+            {profileAllowed && <div className="space-y-3 rounded-xl bg-stone-50 p-3">
+              {user.foto_url && <img src={user.foto_url} alt={`Foto ${user.nama}`} className="size-20 rounded-full object-cover" />}
+              <label className="block text-sm font-medium">Foto profil
+                <input type="file" accept="image/jpeg,image/png,image/webp" className={field} onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+              </label>
+              <p className="text-xs text-stone-500">Unggah atau ganti foto. JPG, PNG, WebP, maksimal 3 MB. Foto disimpan privat.</p>
+            </div>}
             <label className="block text-sm font-medium">
               Nama
               <input
@@ -123,6 +133,10 @@ export function UserEditor({
                 onChange={(e) => setHp(e.target.value)}
               />
             </label>
+            {profileAllowed && <>
+              <label className="block text-sm font-medium">Alamat sesuai KTP<textarea maxLength={2000} rows={3} value={alamatKtp} onChange={(e) => setAlamatKtp(e.target.value)} className={field} /></label>
+              <label className="block text-sm font-medium">Alamat domisili<textarea maxLength={2000} rows={3} value={alamatDomisili} onChange={(e) => setAlamatDomisili(e.target.value)} className={field} /></label>
+            </>}
             <p className="text-xs text-stone-500">
               Terdaftar {new Date(user.created_at).toLocaleDateString("id-ID")}.
               Email login: {user.email ?? "—"}.
@@ -137,6 +151,7 @@ export function UserEditor({
                       user.id,
                       { nama: user.nama, no_hp: user.no_hp },
                       { nama, no_hp: hp },
+                      (() => { const f = new FormData(); f.set("alamat_ktp", alamatKtp); f.set("alamat_domisili", alamatDomisili); if (foto) f.set("foto", foto); return f; })(),
                     ),
                   )
                 }

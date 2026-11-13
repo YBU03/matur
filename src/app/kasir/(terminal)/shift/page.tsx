@@ -110,7 +110,7 @@ export default async function KasPage() {
   return (
     <div className="space-y-4">
       {pos.alur_shift && (
-        <PosAlurShift status={pos} outlet={s.active.outletNama} kelola opname={so} />
+        <PosAlurShift outletId={outlet} status={pos} outlet={s.active.outletNama} kelola opname={so} />
       )}
       {!pos.alur_shift && pos.sesi && (
         <PosModalKas
@@ -122,6 +122,7 @@ export default async function KasPage() {
       {!pos.alur_shift && kasTim && (
         <div id="tutup" className="scroll-mt-20">
           <TutupKasTim
+            outlet={outlet}
             opname={so}
             kas={{ ...(kasTim as KasTim), kas_harian: pos.sesi?.kas_harian }}
           />

@@ -1,4 +1,5 @@
 "use client";
+import { ShiftReceipt } from "./shift-receipt";
 import { type ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah as rp } from "@/lib/format";
@@ -22,8 +23,9 @@ export type KasTim = {
   aktual: number | null;
   selisih: number | null;
 };
-export function TutupKasTim({ kas,opname }: { kas: KasTim;opname?:ReactNode }) {
+export function TutupKasTim({ kas,opname,outlet }: { kas: KasTim;opname?:ReactNode;outlet:string }) {
   const router = useRouter();
+  const [closedNow, setClosedNow] = useState(false);
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<PosHasil>({});
   return (
@@ -55,8 +57,9 @@ export function TutupKasTim({ kas,opname }: { kas: KasTim;opname?:ReactNode }) {
           </div>
         ))}
       </dl>
-      {opname&&!kas.ditutup_at&&<details className="my-4 rounded-2xl border-2 border-matur-200 bg-matur-50 p-3"><summary className="cursor-pointer font-bold text-matur-800">📦 Lanjut hitung stok / SO sebelum tutup shift</summary><p className="my-2 text-xs text-stone-600">Isi semua barang langsung di bawah. Simpan SO setelah memeriksa selisih, lalu lanjut hitung uang dan konfirmasi tutup kas. SO tidak mengunci akses POS.</p><div className="rounded-xl bg-white p-2">{opname}</div></details>}
-      {kas.ditutup_at ? (
+      {(kas.ditutup_at || closedNow) && <ShiftReceipt outlet={outlet} sesi={kas.id} otomatis={closedNow} />}
+      {opname&&!kas.ditutup_at&&!closedNow&&<details className="my-4 rounded-2xl border-2 border-matur-200 bg-matur-50 p-3"><summary className="cursor-pointer font-bold text-matur-800">📦 Lanjut hitung stok / SO sebelum tutup shift</summary><p className="my-2 text-xs text-stone-600">Isi semua barang langsung di bawah. Simpan SO setelah memeriksa selisih, lalu lanjut hitung uang dan konfirmasi tutup kas. SO tidak mengunci akses POS.</p><div className="rounded-xl bg-white p-2">{opname}</div></details>}
+      {kas.ditutup_at || closedNow ? (
         <p className="rounded-xl bg-green-50 p-3 text-sm">
           Sesi ditutup · {kas.rekap_status} · uang fisik{" "}
           {rp(Number(kas.aktual))} · selisih {rp(Number(kas.selisih))}
@@ -95,7 +98,7 @@ export function TutupKasTim({ kas,opname }: { kas: KasTim;opname?:ReactNode }) {
                       ids,
                     );
                 setMsg(r);
-                if (!r.error) router.refresh();
+                if (!r.error) { setClosedNow(true); router.refresh(); }
               } catch {
                 setMsg({
                   error:

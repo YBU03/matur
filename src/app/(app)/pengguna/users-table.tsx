@@ -155,7 +155,7 @@ export function UsersTable({
                             aria-hidden
                             className="hidden size-9 shrink-0 items-center justify-center rounded-full border border-matur-200 bg-gradient-to-br from-amber-50 to-orange-100 font-bold text-kopi-700 sm:flex"
                           >
-                            {u.nama.slice(0, 1).toUpperCase()}
+                            {u.foto_url ? <img src={u.foto_url} alt="" className="size-9 rounded-full object-cover" /> : u.nama.slice(0, 1).toUpperCase()}
                           </span>
                           <span className="min-w-0">
                             <span className="block break-words font-semibold text-kopi-900">

@@ -257,6 +257,7 @@ export async function editUserProfile(
   uid: string,
   before: { nama: string; no_hp: string | null },
   data: { nama: string; no_hp: string },
+  form: FormData,
 ): Promise<Result> {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat"].includes(s.active.role))
@@ -268,20 +269,21 @@ export async function editUserProfile(
       error:
         "Isi nama (maks. 120 karakter) dan nomor HP valid (maks. 30 karakter).",
     };
+  const alamatKtp = String(form.get("alamat_ktp") ?? "").trim();
+  const alamatDomisili = String(form.get("alamat_domisili") ?? "").trim();
+  if (alamatKtp.length > 2000 || alamatDomisili.length > 2000) return { error: "Alamat maksimal 2.000 karakter." };
   const db = await supabaseServer();
-  let q = db
-    .from("pengguna")
-    .update({ nama, no_hp: hp || null }, { count: "exact" })
-    .eq("id", uid)
-    .eq("nama", before.nama);
-  q = before.no_hp === null ? q.is("no_hp", null) : q.eq("no_hp", before.no_hp);
-  const { error, count } = await q;
-  if (error || !count)
-    return {
-      error:
-        error?.message ??
-        "Data sudah berubah atau Anda tidak berwenang. Muat ulang daftar.",
-    };
+  let foto: string | null = null;
+  const file = form.get("foto");
+  if (file instanceof File && file.size) {
+    if (file.size > 3 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(file.type)) return { error: "Gunakan foto JPG, PNG, atau WebP maksimal 3 MB." };
+    foto = `${uid}/admin-${crypto.randomUUID()}.${file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"}`;
+    const { error } = await db.storage.from("profil").upload(foto, file, { contentType: file.type });
+    if (error) return { error: "Foto belum terunggah: " + error.message };
+  }
+  const { error } = await db.rpc("edit_profil_admin", { uid, sebelum: before, p: { nama, no_hp: hp, foto_path: foto, alamat_ktp: alamatKtp, alamat_domisili: alamatDomisili } });
+  if (error) return { error: error.message };
+  revalidatePath("/karyawan/profil");
   revalidatePath("/pengguna");
   return { ok: "✓ Profil pengguna diperbarui." };
 }

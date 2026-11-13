@@ -41,6 +41,13 @@ export default async function PenggunaPage() {
     if (error) throw new Error(error.message);
     ids = new Set(((data ?? []) as unknown as string[]).map(String));
   }
+  // Alamat hanya dikirim ke Owner/Admin Pusat, bukan peran pengelola akun staf.
+  const profiles = !staf ? await supabase.from("profil_karyawan").select("pengguna_id,foto_path,alamat_ktp,alamat_domisili") : { data: [] };
+  if ("error" in profiles && profiles.error) throw new Error("Profil belum dapat dimuat: " + profiles.error.message);
+  const profileMap = new Map(await Promise.all((profiles.data ?? []).map(async (p) => {
+    const foto = p.foto_path ? await supabase.storage.from("profil").createSignedUrl(p.foto_path, 3600) : null;
+    return [p.pengguna_id, { alamat_ktp: p.alamat_ktp, alamat_domisili: p.alamat_domisili, foto_url: foto?.data?.signedUrl ?? null }] as const;
+  })));
   const rows: UserRow[] = (users ?? [])
     .filter(
       (u) =>
@@ -51,11 +58,12 @@ export default async function PenggunaPage() {
     )
     .map((u) => ({
       ...u,
+      ...profileMap.get(u.id),
       assignments: (tugas ?? []).filter((t) => t.pengguna_id === u.id),
     }));
   return (
     <>
-      <LiveRefresh pantau={[{ table: "pengguna" }, { table: "penugasan" }]} />
+      <LiveRefresh pantau={[{ table: "pengguna" }, { table: "penugasan" }, { table: "profil_karyawan" }]} />
       <UserAdmin
         users={rows}
         outlets={outlets ?? []}

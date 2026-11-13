@@ -101,6 +101,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Link>
       )}
 
+      {active.role === "finance" && <Link href="/hpp-menu" className="flex items-center justify-between rounded-2xl border-2 border-green-300 bg-green-50 p-5 text-green-950"><span><b className="block text-lg">Edit HPP Menu</b><span className="text-sm">Cari menu, perbarui HPP titipan atau resep, dan periksa margin.</span></span><span className="rounded-xl bg-green-800 px-4 py-2 font-semibold text-white">Edit HPP →</span></Link>}
+      {active.role === "spv" && <Link href={`/jadwal?outlet=${active.outletId ?? ""}`} className="block rounded-2xl border-2 border-matur-300 bg-matur-50 p-5 text-kopi-900"><b className="block text-lg">Kelola Jadwal Outlet</b><span className="text-sm">Tambah jadwal, ubah tanggal/shift, atau ganti petugas. Pilih tanggal lalu Kelola tanggal →</span></Link>}
       {/* Owner & Admin Pusat: ringkasan POS paling atas, lalu stok, lalu karyawan (peringatan ada di lonceng) */}
       {adminHome && <Suspense fallback={<Skeleton h="h-32" />}><RingkasPos /></Suspense>}
       {["owner", "admin_pusat", "finance", "admin_gudang", "spv"].includes(active.role) && (
