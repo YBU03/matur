@@ -23,9 +23,13 @@ export type KasTim = {
   aktual: number | null;
   selisih: number | null;
 };
-export function TutupKasTim({ kas,opname,outlet }: { kas: KasTim;opname?:ReactNode;outlet:string }) {
+export function TutupKasTim({ kas: currentKas,opname,outlet }: { kas: KasTim;opname?:ReactNode;outlet:string }) {
   const router = useRouter();
-  const [closedNow, setClosedNow] = useState(false);
+  // statusPos may already return the next session after refresh. Keep the completed
+  // session identity and count until the user leaves this confirmation screen.
+  const [closed, setClosed] = useState<KasTim | null>(null);
+  const kas = closed ?? currentKas;
+  const closedNow = !!closed;
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<PosHasil>({});
   return (
@@ -98,7 +102,11 @@ export function TutupKasTim({ kas,opname,outlet }: { kas: KasTim;opname?:ReactNo
                       ids,
                     );
                 setMsg(r);
-                if (!r.error) { setClosedNow(true); router.refresh(); }
+                if (!r.error) {
+                  const aktual = Number(f.get("aktual"));
+                  setClosed({ ...kas, ditutup_at: new Date().toISOString(), aktual, selisih: aktual - kas.seharusnya });
+                  router.refresh();
+                }
               } catch {
                 setMsg({
                   error:
