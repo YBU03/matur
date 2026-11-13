@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { editHppTitipan } from "@/lib/hpp-actions";
+import { Modal } from "@/components/confirm-edit";
 import { Badge, Kosong, isian } from "@/components/ui-halaman";
 import { EditorResep } from "@/components/editor-resep";
 import { formatRupiah } from "@/lib/format";
@@ -62,6 +65,7 @@ function Baris({ m, label, template, resep, peta, bisaUbah, onEdit }: { m: MenuH
           <span className="text-xs text-matur-700 group-open:hidden">rincian ▾</span>
           <span className="hidden text-xs text-matur-700 group-open:inline">tutup ▴</span>
         </summary>
+        {bisaUbah && <button type="button" onClick={() => onEdit(m)} className="mt-3 rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white">✎ Edit HPP</button>}
         {!m.titipan && (
           <div className="mt-2 space-y-2">
             {rows.length > 0 && (
@@ -106,7 +110,7 @@ function Baris({ m, label, template, resep, peta, bisaUbah, onEdit }: { m: MenuH
   }
 
 // HPP Menu live: dihitung dari resep yang dipakai POS × harga bahan saat ini. Data file HPP lama hanya referensi.
-export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah }: { menus: MenuHpp[]; hpp: Hpp[]; resep: BarisResep[]; bahan: BahanHpp[]; opsi: { id: string; nama: string }[]; bisaUbah: boolean }) {
+export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah, kelolaMenu = true }: { menus: MenuHpp[]; hpp: Hpp[]; resep: BarisResep[]; bahan: BahanHpp[]; opsi: { id: string; nama: string }[]; bisaUbah: boolean; kelolaMenu?: boolean }) {
   const [cari, setCari] = useState("");
   const [kat, setKat] = useState("");
   const [edit, setEdit] = useState<MenuHpp | null>(null);
@@ -165,7 +169,8 @@ export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah }: { menus:
                     {menu.kategori_menu?.nama ?? "Tanpa kategori"}
                     {anak.length > 0 && ` · ${anak.length} kemasan`}
                   </span>
-                  {bisaUbah && !menu.titipan && (
+                  {bisaUbah && <button type="button" onClick={() => setEdit(menu)} className="rounded-lg bg-kopi-900 px-4 py-2 text-sm font-semibold text-white">✎ Edit HPP</button>}
+                  {kelolaMenu && !menu.titipan && (
                     <Link href={`/menu-varian/${menu.id}`} className="text-xs font-semibold text-matur-700 hover:underline">
                       🧋 Varian & Kemasan
                     </Link>
@@ -197,7 +202,7 @@ export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah }: { menus:
                             {x.harga_jual ? ` · jual file ${formatRupiah(x.harga_jual)}` : ""}
                           </p>
                           <p className="text-stone-600">{x.komponen.map((k) => `${k.nama}${k.qty === null ? "" : ` ${angka.format(k.qty)}${k.satuan ? " " + k.satuan : ""}`}`).join(", ")}</p>
-                          {bisaUbah && (
+                          {kelolaMenu && (
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-stone-500">
                               Terhubung ke: <PilihMenu id={x.id} value={x.menu_id} opsi={opsi} />
                             </div>
@@ -212,7 +217,7 @@ export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah }: { menus:
           })}
         </ul>
       )}
-      {edit && (
+      {edit?.titipan ? <EditorHppTitipan key={edit.id} menu={edit} onClose={() => setEdit(null)} /> : edit && (
         <EditorResep
           key={edit.id}
           menu={edit}
@@ -223,4 +228,24 @@ export function DaftarHpp({ menus, hpp, resep, bahan, opsi, bisaUbah }: { menus:
       )}
     </section>
   );
+}
+
+function EditorHppTitipan({ menu, onClose }: { menu: MenuHpp; onClose: () => void }) {
+  const router = useRouter();
+  const [nilai, setNilai] = useState(String(menu.harga_titip ?? 0));
+  const [busy, start] = useTransition();
+  const [error, setError] = useState("");
+  return <Modal title={`Edit HPP · ${menu.nama}`} onClose={() => !busy && onClose()}>
+    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); start(async () => {
+      setError("");
+      try { const r = await editHppTitipan(menu.id, menu.harga_titip == null ? null : Number(menu.harga_titip), Number(nilai));
+        if (r.error) setError(r.error); else { router.refresh(); onClose(); }
+      } catch { setError("Belum tersimpan. Periksa koneksi lalu coba lagi."); }
+    }); }}>
+      <p className="text-sm text-stone-600">HPP sekarang: <b>{formatRupiah(Number(menu.harga_titip ?? 0))}</b>. Harga jual tetap. Transaksi lama tetap memakai biaya yang sudah tercatat.</p>
+      <label className="block text-sm font-semibold">HPP per porsi (Rp)<input autoFocus type="number" min="0" max="100000000" step="1" required value={nilai} onChange={(e) => setNilai(e.target.value)} className={`${isian} mt-1 w-full`} disabled={busy} /></label>
+      {error && <p role="alert" className="text-sm text-red-700">{error} <Link href="/titipan" className="underline">Buka Titipan Produk</Link></p>}
+      <button disabled={busy || nilai === ""} className="w-full rounded-xl bg-kopi-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Menyimpan…" : "Simpan HPP"}</button>
+    </form>
+  </Modal>;
 }

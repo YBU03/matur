@@ -13,7 +13,8 @@ import { hppResep, marginPersen, type BahanHpp, type BarisResep } from "@/lib/hp
 export default async function HppMenu() {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance", "hrd"].includes(s.active.role)) notFound();
-  const bisaUbah = s.active.role !== "finance";
+  const bisaUbah = true;
+  const kelolaMenu = s.active.role !== "finance";
   const supabase = await supabaseServer();
   const [{ data: h }, { data: m }, { data: bahan }, { data: kategori }, { data: resep }] = await Promise.all([
     supabase.from("hpp_menu").select("id, menu_id, nama_hpp, seri, komponen, total_hpp, harga_jual").is("deleted_at", null),
@@ -42,7 +43,7 @@ export default async function HppMenu() {
 
   return (
     <div className="space-y-4">
-      <HeaderHalaman judul="HPP Menu" ikon="☕" keterangan="HPP live dari resep yang dipakai POS × HPP bahan terbaru (ikut pembelian Gudang), beserta harga jual dan margin. Ubah resep langsung di sini.">
+      <HeaderHalaman judul="HPP Menu" ikon="☕" keterangan="HPP live dari resep yang dipakai POS × HPP bahan terbaru (ikut pembelian Gudang), beserta harga jual dan margin. Edit HPP titipan atau resep langsung melalui tombol Edit HPP. Berlaku untuk transaksi berikutnya.">
         <ChipHeader>{hpp.length} data HPP</ChipHeader>
         {lepas.length > 0 && <ChipHeader>⚠️ {lepas.length} belum terhubung</ChipHeader>}
       </HeaderHalaman>
@@ -54,7 +55,7 @@ export default async function HppMenu() {
         <KartuAngka label="Belum ada resep" nilai={tanpaResep} ikon="❔" nada="kuning" sub="stok tidak terpotong, HPP Rp 0" />
       </BarisAngka>
 
-      {bisaUbah && <TambahHpp menus={menus.filter((m) => !m.induk_id && !m.titipan && !rs.some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
+      {kelolaMenu && <TambahHpp menus={menus.filter((m) => !m.induk_id && !m.titipan && !rs.some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
       {lepas.length > 0 && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
           <h2 className="font-bold text-amber-900">HPP belum terhubung ke menu POS ({lepas.length})</h2>
@@ -65,14 +66,14 @@ export default async function HppMenu() {
                 <span className="min-w-0 flex-1 basis-48">
                   <b>{x.nama_hpp}</b> ({x.seri}) · HPP {formatRupiah(x.total_hpp)}
                 </span>
-                {bisaUbah && <PilihMenu id={x.id} value={null} opsi={opsi} />}
+                {kelolaMenu && <PilihMenu id={x.id} value={null} opsi={opsi} />}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <DaftarHpp menus={menus} hpp={hpp.filter((x) => x.menu_id)} resep={rs} bahan={bh} opsi={opsi} bisaUbah={bisaUbah} />
+      <DaftarHpp menus={menus} hpp={hpp.filter((x) => x.menu_id)} resep={rs} bahan={bh} opsi={opsi} bisaUbah={bisaUbah} kelolaMenu={kelolaMenu} />
     </div>
   );
 }

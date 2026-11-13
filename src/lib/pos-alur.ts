@@ -42,6 +42,7 @@ export type AturanShift = {
   versi: number;
 };
 export type LaporanShift = {
+  pembayaran?: Record<string, number>;
   outlet: string;
   kas: {
     modal: number;
@@ -52,6 +53,9 @@ export type LaporanShift = {
     seharusnya: number;
   };
   sesi: {
+    dibuka_at?: string;
+    nama_kasir?: string;
+    catatan_tutup?: string | null;
     tanggal_shift: string;
     ditutup_at: string | null;
     fisik_akhir: number | null;

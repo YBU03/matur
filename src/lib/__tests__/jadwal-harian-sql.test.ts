@@ -310,3 +310,12 @@ it("validates active staff, approved leave, duplicate base shift and role scope"
     )[0].v,
   ).toBe(false);
 });
+
+it("SPV creates and moves staff schedules inside their outlet", async () => {
+  await db.exec(`set test.uid='${spv}'`);
+  const j = await add("2026-11-20");
+  const versi = (await q("select versi from jadwal_shift where id=$1", [j]))[0].versi;
+  await call({aksi:"simpan",id:j,versi,tanggal:"2026-11-21",pengguna_id:rekan,shift_id:shift});
+  const row = (await q("select tanggal::text,pengguna_id from jadwal_shift where id=$1",[j]))[0];
+  expect(row.tanggal).toBe("2026-11-21"); expect(row.pengguna_id).toBe(rekan);
+});

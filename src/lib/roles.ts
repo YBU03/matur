@@ -105,6 +105,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/hpp-menu", label: "Edit HPP Menu", stage: 4 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
       { href: "/master/biaya_outlet", label: "Biaya Operasional", stage: 4 },

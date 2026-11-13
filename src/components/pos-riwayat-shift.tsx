@@ -1,4 +1,5 @@
 "use client";
+import { ShiftReceipt } from "./shift-receipt";
 import { useState, useTransition } from "react";
 import { riwayatAlurShift, laporanAlurOutlet } from "@/lib/pos-alur-actions";
 import { teksLaporanShift } from "@/lib/pos-alur";
@@ -10,6 +11,7 @@ export function PosRiwayatShift({ outlet }: { outlet: string }) {
   const [data, setData] = useState<Riwayat | null>(null),
     [text, setText] = useState(""),
     [error, setError] = useState("");
+  const [selected, setSelected] = useState("");
   const [busy, start] = useTransition();
   return (
     <section className="mx-auto max-w-3xl rounded-2xl border bg-white p-4">
@@ -34,7 +36,7 @@ export function PosRiwayatShift({ outlet }: { outlet: string }) {
       {data && (
         <div className="mt-3 space-y-2">
           {!data.length && (
-            <p className="text-sm">Belum ada riwayat alur shift baru.</p>
+            <p className="text-sm">Belum ada riwayat shift.</p>
           )}
           {data.map((s) => (
             <article key={s.id} className="rounded-xl border p-3 text-sm">
@@ -55,7 +57,7 @@ export function PosRiwayatShift({ outlet }: { outlet: string }) {
                     try {
                       const r = await laporanAlurOutlet(outlet, s.id);
                       if (r.error) setError(r.error);
-                      else if (r.data) setText(teksLaporanShift(r.data));
+                      else if (r.data) { setText(teksLaporanShift(r.data)); setSelected(s.id); }
                     } catch {
                       setError("Laporan belum termuat. Coba lagi.");
                     }
@@ -68,6 +70,7 @@ export function PosRiwayatShift({ outlet }: { outlet: string }) {
           ))}
         </div>
       )}
+      {selected && <ShiftReceipt key={selected} outlet={outlet} sesi={selected} />}
       {text && (
         <>
           <textarea

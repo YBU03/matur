@@ -32,6 +32,9 @@ import {
 
 type Assign = { id: string; peran: string; outlet_id: string | null };
 export type UserRow = {
+  foto_url?: string | null;
+  alamat_ktp?: string | null;
+  alamat_domisili?: string | null;
   id: string;
   nama: string;
   email: string | null;

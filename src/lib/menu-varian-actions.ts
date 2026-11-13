@@ -19,7 +19,7 @@ export async function simpanVarianMenu(p: VarianMenuInput): Promise<{ ok?: strin
 /** Ganti resep dasar satu menu/kemasan (dipakai POS untuk potong stok & HPP). */
 export async function simpanResep(menuId: string, bahan: { bahan_id: string; takaran: number }[]): Promise<{ ok?: string; error?: string }> {
   const s = await getSession();
-  if (!s?.active || !PENGELOLA_MENU.includes(s.active.role)) return { error: "Tidak berwenang mengatur resep." };
+  if (!s?.active || (!PENGELOLA_MENU.includes(s.active.role) && s.active.role !== "finance")) return { error: "Tidak berwenang mengatur resep." };
   const db = await supabaseServer();
   const { error } = await db.rpc("atur_resep_menu", { p: { menu_id: menuId, bahan: bahan.map((b) => ({ bahan_id: b.bahan_id, takaran: String(Math.round(b.takaran * 1000) / 1000) })) } });
   if (error) return { error: error.message };

@@ -1,4 +1,5 @@
 "use client";
+import { ShiftReceipt } from "./shift-receipt";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,11 +16,13 @@ const input = "mt-1 block w-full rounded-xl border bg-white p-3";
 export function PosAlurShift({
   status: s,
   outlet,
+  outletId,
   kelola = false,
   opname,
 }: {
   status: TimStatus;
   outlet: string;
+  outletId?: string;
   kelola?: boolean;
   opname?:ReactNode;
 }) {
@@ -151,9 +154,11 @@ export function PosAlurShift({
             sessionStorage.removeItem(key);
           } catch {}
           if (tutup) {
-            const report = await ambilLaporanShift(sesi);
-            if (report.data) setRekap(report.data);
             setDitutup(true);
+            try {
+              const report = await ambilLaporanShift(sesi);
+              if (report.data) setRekap(report.data);
+            } catch { setMsg("Shift sudah ditutup. Muat ulang laporan bila belum muncul."); }
           } else {
             router.refresh();
             setOpen(false);
@@ -497,6 +502,7 @@ export function PosAlurShift({
           </p>
         )}
 
+        {ditutup && outletId && <ShiftReceipt outlet={outletId} sesi={sesi} awal={rekap ?? undefined} otomatis />}
         {rekap && ditutup && (
           <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50/50 p-4">
             <p className="font-extrabold text-kopi-900">📋 Laporan harian</p>
