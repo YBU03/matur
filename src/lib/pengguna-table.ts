@@ -65,3 +65,33 @@ export function groupPengguna<T extends TableUser>(
     a.label.localeCompare(b.label, "id"),
   );
 }
+
+/** One row per barista, including unassigned and multi-outlet staff. */
+export function groupBaristaByOutlet<T extends TableUser>(
+  users: T[], outletLabel: (id: string | null) => string,
+) {
+  const groups = new Map<string, { key: string; label: string; users: T[] }>();
+  for (const user of users) {
+    const ids = [...new Set(user.assignments
+      .filter((a) => a.peran === "barista" && a.outlet_id)
+      .map((a) => a.outlet_id as string))];
+    const key = ids.length > 1 ? "multi" : ids[0] ?? "unassigned";
+    const label = key === "multi" ? "Beberapa outlet"
+      : key === "unassigned" ? "Belum ditetapkan outlet" : outletLabel(key);
+    if (!groups.has(key)) groups.set(key, { key, label, users: [] });
+    groups.get(key)!.users.push(user);
+  }
+  return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label, "id"));
+}
+
+/** Group before pagination so outlet sections stay contiguous on later pages. */
+export function orderPenggunaForTable<T extends TableUser>(
+  users: T[], mode: GroupMode, roleLabel: (id: string) => string,
+  outletLabel: (id: string | null) => string,
+) {
+  return groupPengguna(users, mode, roleLabel, outletLabel).flatMap((group) =>
+    mode === "peran" && group.key === "barista"
+      ? groupBaristaByOutlet(group.users, outletLabel).flatMap((outlet) => outlet.users)
+      : group.users,
+  );
+}

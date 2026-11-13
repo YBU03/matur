@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { UserRow } from "./user-admin";
 import { ROLES, type Role } from "@/lib/roles";
-import { groupPengguna, type GroupMode } from "@/lib/pengguna-table";
+import { groupBaristaByOutlet, groupPengguna, orderPenggunaForTable, type GroupMode } from "@/lib/pengguna-table";
 import type { UserSelection } from "./user-delete-panel";
 const roleLabel = (r: string) => ROLES[r as Role]?.label ?? r;
 const statusColor: Record<string, string> = {
@@ -29,7 +29,8 @@ export function UsersTable({
   const size = 15;
   const pages = Math.max(1, Math.ceil(users.length / size));
   const current = Math.min(page, pages);
-  const slice = users.slice((current - 1) * size, current * size);
+  const ordered = orderPenggunaForTable(users, mode, roleLabel, outletName);
+  const slice = ordered.slice((current - 1) * size, current * size);
   const groups = groupPengguna(slice, mode, roleLabel, outletName);
   return (
     <section className="overflow-hidden rounded-[1.5rem] border border-matur-200 bg-white shadow-[0_8px_32px_-24px_#6b3b13]">
@@ -99,7 +100,29 @@ export function UsersTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {g.users.map((u) => {
+                {(mode === "peran" && g.key === "barista"
+                  ? groupBaristaByOutlet(g.users, outletName)
+                  : [{ key: g.key, label: g.label, users: g.users }]
+                ).map((outlet) => {
+                  const nested = mode === "peran" && g.key === "barista";
+                  const key = `${g.key}:${outlet.key}`;
+                  return <Fragment key={key}>
+                    {nested && <tr>
+                      <th colSpan={selection ? 6 : 5} className="bg-matur-50/60 p-0 text-left">
+                        <button type="button" aria-expanded={!collapsed.has(key)}
+                          className="flex w-full items-center gap-2 px-5 py-2.5 text-xs font-semibold text-kopi-800 hover:bg-matur-100/60"
+                          onClick={() => setCollapsed((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(key)) next.delete(key); else next.add(key);
+                            return next;
+                          })}>
+                          <span aria-hidden className="text-matur-600">{collapsed.has(key) ? "▸" : "▾"}</span>
+                          {outlet.label}
+                          <span className="rounded-full border border-matur-200 bg-white px-2 text-stone-500">{outlet.users.length}</span>
+                        </button>
+                      </th>
+                    </tr>}
+                    {(!nested || !collapsed.has(key)) && outlet.users.map((u) => {
                   const roles = [...new Set(u.assignments.map((a) => a.peran))];
                   const outletIds = [
                     ...new Set(u.assignments.map((a) => a.outlet_id)),
@@ -213,6 +236,8 @@ export function UsersTable({
                       </td>
                     </tr>
                   );
+                    })}
+                  </Fragment>;
                 })}
               </tbody>
             </table>

@@ -111,3 +111,43 @@ it("status, outlet, role and search filters compose without duplication", () => 
     ),
   ).toHaveLength(1);
 });
+
+it("barista outlet sections include new outlets and all statuses without duplicate rows", async () => {
+  const { groupBaristaByOutlet } = await import("../pengguna-table");
+  const barista = (id: string, outlet: string | null, status = "aktif"): TableUser => ({
+    id, nama: id, email: null, status, assignments: [{ peran: "barista", outlet_id: outlet }],
+  });
+  const rows = [barista("UHB", "uhb"), barista("Kominot", "kominot", "nonaktif"),
+    barista("Cabang baru", "new"), barista("Belum ditempatkan", null),
+    { ...barista("Lintas outlet", "uhb"), assignments: [
+      { peran: "barista", outlet_id: "uhb" }, { peran: "barista", outlet_id: "kominot" },
+      { peran: "barista", outlet_id: "uhb" },
+    ] }];
+  const groups = groupBaristaByOutlet(rows, (id) => ({uhb:"Ruma UHB",kominot:"Ruma Kominot",new:"Outlet Baru"})[id!]!);
+  expect(groups.map((g) => g.label)).toEqual(["Beberapa outlet", "Belum ditetapkan outlet", "Outlet Baru", "Ruma Kominot", "Ruma UHB"]);
+  expect(groups.flatMap((g) => g.users).map((u) => u.id).sort()).toEqual(rows.map((u) => u.id).sort());
+  expect(groups.find((g) => g.key === "kominot")?.users[0].status).toBe("nonaktif");
+});
+
+it("orders outlet groups before pagination and keeps every user exactly once", async () => {
+  const { orderPenggunaForTable, groupPengguna } = await import("../pengguna-table");
+  const rows: TableUser[] = Array.from({length: 32}, (_, i) => ({
+    id: String(i), nama: `Barista ${i}`, email: null, status: "aktif",
+    assignments: [{peran: "barista", outlet_id: i % 2 ? "uhb" : "kominot"}],
+  }));
+  const ordered = orderPenggunaForTable(rows, "peran", (r) => r, (id) => id!);
+  expect(ordered.slice(0,16).every((u) => u.assignments[0].outlet_id === "kominot")).toBe(true);
+  expect(ordered.slice(16).every((u) => u.assignments[0].outlet_id === "uhb")).toBe(true);
+  expect(new Set(ordered.map((u) => u.id)).size).toBe(32);
+  expect(groupPengguna(ordered.slice(15,30), "peran", (r) => r, (id) => id!)[0].users).toHaveLength(15);
+  expect(rows[1].assignments[0].outlet_id).toBe("uhb");
+});
+
+it("keeps multi-role accounts in Multi Peran and preserves filter modes", async () => {
+  const { orderPenggunaForTable } = await import("../pengguna-table");
+  for (const mode of ["peran", "outlet", "semua"] as const) {
+    const ordered = orderPenggunaForTable(users, mode, (r) => r, (id) => id ?? "Semua");
+    expect(ordered.map((u) => u.id).sort()).toEqual(["1", "2", "3", "4"]);
+  }
+  expect(groupPengguna(users, "peran", (r) => r, (id) => id ?? "Semua").find((g) => g.key === "multi")?.users[0].id).toBe("1");
+});
