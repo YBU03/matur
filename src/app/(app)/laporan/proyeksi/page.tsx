@@ -1,3 +1,4 @@
+import { sewaBulananLaporan } from "@/lib/sewa-perjanjian";
 import { tglOperasional } from "@/lib/hari-operasional";
 import { notFound } from "next/navigation";
 import { totalBulan, type Manual, type PosHari } from "@/lib/harian";
@@ -95,7 +96,7 @@ export default async function ProyeksiLaporan({
     supabase
       .from("perjanjian")
       .select(
-        "modal_outlet, sewa_bulanan, bank, no_rekening, atas_nama, mitra(nama)",
+        "modal_outlet, sewa_tahunan, sewa_bulanan, bank, no_rekening, atas_nama, mitra(nama)",
       )
       .eq("outlet_id", outlet.id)
       .eq("mode", "asli")
@@ -216,7 +217,7 @@ export default async function ProyeksiLaporan({
         pj
           ? {
               modal: Number(pj.modal_outlet ?? 0),
-              sewa: Number(pj.sewa_bulanan ?? 0),
+              sewa: sewaBulananLaporan(pj),
               mitra:
                 (pj.mitra as unknown as { nama: string } | null)?.nama ?? null,
               bank: pj.bank,
