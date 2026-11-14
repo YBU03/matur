@@ -836,7 +836,7 @@ export function ProyeksiForm(p: Props) {
             Biaya Operasional
           </Link>
           {p.perjanjian?.sewa
-            ? " · sewa dari perjanjian bila belum diinput"
+            ? " · sewa bulanan dari perjanjian tahunan ÷ 12 (dibulatkan rupiah), bila belum diinput"
             : ""}
           .
         </p>

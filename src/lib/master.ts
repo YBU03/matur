@@ -77,7 +77,7 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "outlet_id", label: "Outlet", type: "select", ref: { table: "outlet", label: "nama" }, required: true },
       { key: "persen_mitra", label: "Bagi Hasil Mitra %", type: "percent", required: true },
       { key: "persen_pengelola", label: "Bagi Hasil Pengelola %", type: "percent", required: true },
-      { key: "sewa_bulanan", label: "Sewa Bulanan", type: "money" },
+      { key: "sewa_tahunan", label: "Sewa Tahunan", type: "money" },
       { key: "modal_outlet", label: "Modal Outlet (Kas Kecil)", type: "money" },
       { key: "investasi_awal", label: "Investasi Awal", type: "money", required: true },
       { key: "sewa_masuk_bep", label: "Sewa dihitung BEP", type: "bool", list: false },

@@ -1,3 +1,4 @@
+import { sewaTahunan, formatSewaBulanan } from "@/lib/sewa-perjanjian";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,6 +14,7 @@ type Janji = {
   persen_mitra: number;
   persen_pengelola: number;
   sewa_bulanan: number | null;
+  sewa_tahunan: number | null;
   modal_outlet: number | null;
   investasi_awal: number | null;
   bank: string | null;
@@ -57,7 +59,7 @@ export default async function InfoOutlet({
     supabase
       .from("perjanjian")
       .select(
-        "id, persen_mitra, persen_pengelola, sewa_bulanan, modal_outlet, investasi_awal, bank, no_rekening, atas_nama, mitra(nama, no_hp, email)",
+        "id, persen_mitra, persen_pengelola, sewa_tahunan, sewa_bulanan, modal_outlet, investasi_awal, bank, no_rekening, atas_nama, mitra(nama, no_hp, email)",
       )
       .eq("outlet_id", id)
       .eq("mode", "asli")
@@ -237,10 +239,12 @@ export default async function InfoOutlet({
                   </dd>
                   <dt className="text-stone-500">Investasi</dt>
                   <dd>{formatRupiah(Number(j.investasi_awal || 0))}</dd>
-                  {!!j.sewa_bulanan && (
+                  {sewaTahunan(j) > 0 && (
                     <>
-                      <dt className="text-stone-500">Sewa/bulan</dt>
-                      <dd>{formatRupiah(Number(j.sewa_bulanan))}</dd>
+                      <dt className="text-stone-500">Sewa/tahun</dt>
+                      <dd>{formatRupiah(sewaTahunan(j))}</dd>
+                      <dt className="text-stone-500">Setara/bulan</dt>
+                      <dd>{formatSewaBulanan(sewaTahunan(j))}</dd>
                     </>
                   )}
                   {j.no_rekening && (

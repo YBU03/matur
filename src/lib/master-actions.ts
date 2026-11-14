@@ -40,6 +40,11 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
       if (!Number.isSafeInteger(Number(values.tambahan_harga)) || Number(values.tambahan_harga) < 0) return { error: "Harga tambahan harus angka rupiah nol atau lebih." };
     }
   }
+  if (g.entity.table === "perjanjian" && "sewa_tahunan" in values) {
+    values.sewa_tahunan ??= 0;
+    const sewa = Number(values.sewa_tahunan);
+    if (!Number.isSafeInteger(sewa) || sewa < 0 || sewa > 1_000_000_000_000) return { error: "Sewa tahunan harus rupiah bulat nol atau lebih (maksimal 1 triliun)." };
+  }
   // HPP per satuan pakai = harga beli ÷ isi kemasan bila tidak diisi
   if (g.entity.table === "bahan" && values.harga_pokok === null)
     values.harga_pokok = Math.round((Number(values.harga_beli ?? 0) / Math.max(Number(values.konversi ?? 1), 0.001)) * 10000) / 10000;
@@ -53,6 +58,10 @@ export async function saveMaster(entityKey: string, id: string | null, form: Rec
   if (URUT.has(g.entity.table) && values.urutan != null) await sisipkan(g.supabase, g.entity.table, String(baru.id), Number(values.urutan));
   revalidatePath(`/master/${entityKey}`);
   if (g.entity.table === "varian") revalidatePath("/kasir/pos");
+  if (g.entity.table === "perjanjian") {
+    revalidatePath("/outlet/[id]", "page");
+    revalidatePath("/laporan/proyeksi");
+  }
   return {};
 }
 

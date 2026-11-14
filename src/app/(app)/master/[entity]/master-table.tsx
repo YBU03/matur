@@ -9,6 +9,7 @@ import {
   type Change,
 } from "@/components/confirm-edit";
 import { DeleteTwoStepDialog } from "@/components/delete-two-step";
+import { formatSewaBulanan } from "@/lib/sewa-perjanjian";
 import type { Entity, Field } from "@/lib/master";
 import { saveMaster, setDeleted, uploadFotoMenu } from "@/lib/master-actions";
 import { compressImage } from "@/lib/compress-image";
@@ -968,6 +969,7 @@ export function Input({
           />
         </div>
       )}
+      {f.key === "sewa_tahunan" && <span className="mt-1 block text-xs font-normal text-stone-500" aria-live="polite">Setara {formatSewaBulanan(Number(String(value).replace(/[^\d-]/g, "")) || 0)}/bulan (sewa tahunan ÷ 12).</span>}
     </label>
   );
 }
