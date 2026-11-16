@@ -1,0 +1,50 @@
+import {PGlite} from '@electric-sql/pglite';
+import {readFileSync} from 'node:fs';
+import {beforeAll,afterAll,it,expect} from 'vitest';
+const db=new PGlite();const id=(n:number)=>`10000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
+const as=async(n:number,role:string)=>db.exec(`reset role;set test.uid='${id(n)}';set test.peran='${role}';set role authenticated;`);
+beforeAll(async()=>{
+ await db.exec(`create role authenticated;create role anon;create schema auth;create schema matur_internal;grant usage on schema auth to authenticated;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+ create type peran as enum('hrd','admin_gudang','kasir','barista','spv','owner');
+ create function punya_peran(text[]) returns boolean language sql stable as $$select current_setting('test.peran',true)=any($1)$$;
+ create function pengelola_staf() returns boolean language sql stable as $$select punya_peran('{hrd,admin_gudang}')$$;
+ create table pengguna(id uuid primary key,status text,nama text,akun_tablet boolean default false,permintaan jsonb);
+ create table outlet(id uuid primary key,nama text,mode text,deleted_at timestamptz);
+ create table penugasan(pengguna_id uuid,peran peran,outlet_id uuid);
+ create table gaji_staf(pengguna_id uuid primary key,bank text,no_rekening text,atas_nama text,gaji_pokok bigint default 0,tunjangan bigint default 0,updated_at timestamptz default now());
+ create table transaksi(id uuid primary key,nomor integer,outlet_id uuid,mode text,status text,created_at timestamptz,void_at timestamptz,total bigint,subtotal bigint,diskon bigint,void_nama text,void_kategori text,void_alasan text,void_oleh uuid);
+ create table item_transaksi(id uuid primary key,transaksi_id uuid,nama text,qty integer,harga bigint);
+ create table notifikasi(id uuid primary key,created_at timestamptz,tautan text,judul text);
+ create function public.void_pos_langsung(p_outlet uuid,p_device text,p_transaksi uuid,p_kategori text,p_catatan text,p_nama text) returns text language plpgsql as $$begin return '/laporan-pos/void?outlet=' || p_outlet; end$$;
+ grant select on pengguna,outlet,penugasan,gaji_staf,transaksi,item_transaksi to authenticated;
+ alter table transaksi enable row level security;create policy own_outlet on transaksi for select to authenticated using(outlet_id='${id(90)}');
+ insert into outlet values('${id(90)}','Uji','asli',null),('${id(91)}','Lain','asli',null);
+ insert into pengguna values('${id(1)}','aktif','HRD',false,null),('${id(2)}','menunggu','Pendaftar',false,null),('${id(3)}','aktif','Barista',false,null),('${id(4)}','menunggu','Pendaftar 2',false,null);
+ insert into penugasan values('${id(3)}','barista','${id(90)}');insert into gaji_staf values('${id(3)}','Lama','0012345678','Barista',1500000,100000,now());
+ insert into transaksi values('${id(20)}',1,'${id(90)}','asli','void','2026-11-15T05:00:00Z','2026-11-16T03:00:00Z',25000,30000,5000,'Uji','Salah input','Catatan',null),('${id(21)}',1,'${id(91)}','asli','void','2026-11-16T01:00:00Z','2026-11-16T03:00:00Z',50000,50000,0,'Lain','Lain','Catatan',null);
+ `);
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261116025653_hrd_rekening_data_void.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261116031425_rekening_wrapper_privilege.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261116031607_rekening_private_api.sql',import.meta.url),'utf8'));
+},30000);
+afterAll(()=>db.close());
+it('HRD approves unmarked registration, requires outlet and cannot grant HRD',async()=>{
+ await as(1,'hrd');await expect(db.query('select setujui_staf($1,$2,$3)',[id(2),'hrd',id(90)])).rejects.toThrow(/Hanya peran/);
+ await expect(db.query('select setujui_staf($1,$2,$3)',[id(2),'barista',null])).rejects.toThrow(/outlet aktif/);
+ await db.query('select setujui_staf($1,$2,$3)',[id(2),'barista',id(90)]);
+ await expect(db.query('select setujui_staf($1,$2,$3)',[id(2),'barista',id(90)])).rejects.toThrow(/sudah diproses/);
+ await as(1,'admin_gudang');await expect(db.query('select tolak_staf($1)',[id(4)])).rejects.toThrow(/tidak diizinkan/);
+});
+it('own bank retains leading zeros and salary, blocks generic users and direct salary edits',async()=>{
+ await as(3,'barista');await db.query('select simpan_rekening_sendiri($1,$2,$3)',['BNI','00 12345678','Barista']);
+ expect((await db.query('select no_rekening,gaji_pokok::int,tunjangan::int from gaji_staf')).rows).toEqual([{no_rekening:'0012345678',gaji_pokok:1500000,tunjangan:100000}]);
+ await expect(db.query('update gaji_staf set gaji_pokok=999999')).rejects.toThrow(/permission denied/);
+ await as(4,'kasir');await expect(db.query("select simpan_rekening_sendiri('BNI','0012345678','Uji')")).rejects.toThrow(/karyawan aktif/);
+});
+it('period uses void time and direct transaction respects outlet RLS',async()=>{
+ await as(3,'barista');let r=await db.query<{data_void:unknown[]}>('select data_void(null,$1,$2,null)',['2026-11-16','2026-11-16']);expect(r.rows[0].data_void).toHaveLength(1);
+ r=await db.query('select data_void(null,$1,$2,null)',['2026-11-15','2026-11-15']);expect(r.rows[0].data_void).toHaveLength(0);
+ r=await db.query('select data_void(null,$1,$2,$3)',['2026-11-16','2026-11-16',id(21)]);expect(r.rows[0].data_void).toHaveLength(0);
+ await db.exec('reset role;set role anon');await expect(db.query("select data_void(null,'2026-11-16','2026-11-16',null)")).rejects.toThrow(/permission denied/);
+});

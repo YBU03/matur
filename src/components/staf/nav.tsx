@@ -14,6 +14,7 @@ export const MENU_KARYAWAN: MenuKaryawan[] = [
   { href: "/karyawan/jadwal", label: "Jadwal", ikon: "CalendarDays", bawah: true },
   { href: "/karyawan/absen", label: "Absen", ikon: "ScanFace", bawah: true },
   { href: "/karyawan/izin", label: "Izin & Tukar", ikon: "ClipboardList", bawah: true },
+  { href: "/karyawan/void", label: "Data Void", ikon: "Receipt" },
   { href: "/karyawan/slip", label: "Slip Gaji", ikon: "Receipt" },
   { href: "/karyawan/kiriman", label: "Terima Barang", ikon: "PackageCheck" },
   { href: "/karyawan/setoran", label: "Setoran", ikon: "Wallet" },

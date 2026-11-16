@@ -33,7 +33,7 @@ export default async function PenggunaPage() {
       "Daftar pengguna belum dapat dimuat: " +
         (usersError ?? tugasError ?? outletsError)!.message,
     );
-  // HRD & Admin Gudang hanya mengelola akun kasir/barista dan pendaftar karyawan outlet
+  // HRD melihat semua pendaftar; pengelolaan akun aktif tetap kasir/barista.
   const staf = s.active.role === "hrd" || s.active.role === "admin_gudang";
   let ids: Set<string> | null = null;
   if (staf) {
@@ -54,7 +54,7 @@ export default async function PenggunaPage() {
         !ids ||
         ids.has(u.id) ||
         (u.status === "menunggu" &&
-          (u.permintaan as { jenis?: string } | null)?.jenis === "staf_outlet"),
+          (s.active?.role === "hrd" || (u.permintaan as { jenis?: string } | null)?.jenis === "staf_outlet")),
     )
     .map((u) => ({
       ...u,

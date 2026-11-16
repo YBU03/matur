@@ -321,6 +321,8 @@ for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].
 for (const role of ["owner", "hrd", "admin_pusat"] as Role[]) ROLES[role].menu.push({ href: "/profil-karyawan", label: "Profil Karyawan", stage: 5 });
 for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":"Akses Kasir POS Outlet",stage:5});
 
+for (const role of ["owner", "admin_pusat", "finance", "hrd", "admin_gudang", "manajer_area", "spv"] as Role[]) ROLES[role].menu.push({ href: "/data-void", label: "Data Void", stage: 4 });
+
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }

@@ -1,3 +1,4 @@
+import { FormRekening } from "./form-rekening";
 import Link from "next/link";
 import { InstallButton } from "@/components/install-button";
 import { Avatar, Kartu, KepalaKartu, tombol } from "@/components/staf/ui";
@@ -23,6 +24,7 @@ export default async function ProfilStaf() {
   const kurang = (kurangData ?? []) as string[];
   const fotoUrl = pk?.foto_path ? (await supabase.storage.from("profil").createSignedUrl(pk.foto_path, 3600)).data?.signedUrl ?? null : null;
   const wajibProfil = s.assignments.some((x) => ["kasir", "barista", "spv"].includes(x.role));
+  const {data:rekening,error:rekeningError}=wajibProfil ? await supabase.from("gaji_staf").select("bank,no_rekening,atas_nama").eq("pengguna_id",s.userId).maybeSingle() : {data:null,error:null};
   const pin = p?.email?.endsWith("@pin.matur.id") ?? false;
   const kode = pin ? p!.email!.replace("@pin.matur.id", "") : p?.email;
   return (
@@ -70,6 +72,7 @@ export default async function ProfilStaf() {
           />
         </Kartu>
       )}
+      {wajibProfil && <Kartu><KepalaKartu judul="Rekening Gaji" keterangan="Data rekening pribadi karyawan" />{rekeningError ? <p role="alert">Rekening belum bisa dimuat. Muat ulang sebelum mengubah data.</p> : <FormRekening data={rekening}/>}</Kartu>}
       <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
         <Kartu>
           <KepalaKartu judul="Data diri" keterangan="Nomor HP dipakai HRD untuk menghubungi." />
