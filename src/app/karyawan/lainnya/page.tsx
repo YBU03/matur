@@ -14,6 +14,7 @@ export default async function Lainnya() {
     <>
       <JudulHalaman judul="Lainnya" keterangan="Slip gaji, terima barang, setoran, stok, dan akun." />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <KartuModul href="/karyawan/void" judul="Data Void" keterangan="Rekap pembatalan transaksi" ikon={Receipt} nada="merah" />
         <KartuModul href="/karyawan/slip" judul="Slip Gaji" keterangan="Bulan yang sudah final" ikon={Receipt} nada="oranye" />
         <KartuModul href="/karyawan/kiriman" judul="Terima Barang" keterangan="Kiriman gudang" ikon={PackageCheck} nada="kopi" />
         <KartuModul href="/karyawan/setoran" judul="Setoran" keterangan="Setor omzet & bukti" ikon={Wallet} nada="hijau" />

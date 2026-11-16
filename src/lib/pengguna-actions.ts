@@ -76,6 +76,7 @@ export async function createUser(_: Result, form: FormData): Promise<Result> {
       };
   }
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: `Akun ${nama} dibuat.` };
 }
 
@@ -124,6 +125,7 @@ export async function addAssignment(
         : error.message,
     };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: "Peran ditambahkan." };
 }
 
@@ -135,6 +137,7 @@ export async function removeAssignment(id: string): Promise<Result> {
     .eq("id", id);
   if (error || !count) return { error: "Gagal mencabut peran (hanya owner)." };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: "Peran dicabut." };
 }
 
@@ -154,6 +157,7 @@ export async function approveUser(
     });
     if (error) return { error: error.message };
     revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
     return { ok: `Disetujui sebagai ${ROLES[role].label}.` };
   }
   const { error } = await supabase.rpc("setujui_pengguna", {
@@ -163,6 +167,7 @@ export async function approveUser(
   });
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: `Disetujui sebagai ${ROLES[role].label}.` };
 }
 
@@ -174,6 +179,7 @@ export async function rejectUser(uid: string): Promise<Result> {
   );
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: "Pendaftaran ditolak." };
 }
 
@@ -192,6 +198,7 @@ export async function setUserStatus(
     });
     if (error) return { error: error.message };
     revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
     return {
       ok: status === "aktif" ? "Akun diaktifkan." : "Akun dinonaktifkan.",
     };
@@ -203,6 +210,7 @@ export async function setUserStatus(
   if (error || !count)
     return { error: "Tidak diizinkan mengubah status akun ini." };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return {
     ok: status === "aktif" ? "Akun diaktifkan." : "Akun dinonaktifkan.",
   };
@@ -217,6 +225,7 @@ export async function hapusPengguna(uid: string): Promise<Result> {
   const { data, error } = await supabase.rpc("hapus_pengguna", { p_uid: uid });
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return {
     ok:
       data === "dihapus"
@@ -251,6 +260,7 @@ export async function editAssignment(
   });
   if (error) return { error: error.message };
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: "✓ Akses pengguna diperbarui." };
 }
 export async function editUserProfile(
@@ -285,5 +295,6 @@ export async function editUserProfile(
   if (error) return { error: error.message };
   revalidatePath("/karyawan/profil");
   revalidatePath("/pengguna");
+  revalidatePath("/dashboard");
   return { ok: "✓ Profil pengguna diperbarui." };
 }

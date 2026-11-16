@@ -68,6 +68,7 @@ export const ADMIN_MENU_GROUPS = [
       "/master/biaya_outlet",
       "/laporan",
       "/laporan-pos",
+      "/data-void",
       "/tutup-buku",
       "/skema-bagi-hasil",
       "/transfer",

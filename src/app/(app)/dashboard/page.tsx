@@ -46,13 +46,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     outlets = data ?? [];
   }
   let pendaftar = 0;
-  // HRD & Admin Gudang: hanya pendaftar karyawan outlet (kasir/barista)
+  // HRD menerima pendaftar umum; Gudang tetap menyaring penanda staf.
   const staf = active.role === "hrd" || active.role === "admin_gudang";
   if (canSim || staf) {
     const supabase = await supabaseServer();
     let q = supabase.from("pengguna").select("id", { count: "exact", head: true }).eq("status", "menunggu");
-    if (staf) q = q.eq("permintaan->>jenis", "staf_outlet");
-    const { count } = await q;
+    q = q.eq("akun_tablet", false);
+    if (active.role === "admin_gudang") q = q.eq("permintaan->>jenis", "staf_outlet");
+    const { count, error } = await q;
+    if(error) throw new Error("Antrean pendaftar belum dapat dimuat: " + error.message);
     pendaftar = count ?? 0;
   }
   const outletId = pusat || gudangPusat ? (outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null) : active.outletId;
