@@ -83,7 +83,7 @@ export async function OpnameOutlet({
   const m = new Map((stok ?? []).map((x) => [x.bahan_id, Number(x.jumlah)]));
   return (
     <OpnameView
-      key={outlet.id}
+      key={`${outlet.id}:${sesiKasId??"mandiri"}`}
       embedded={embedded}
       draftKey={`matoer-so:${s.userId}:${outlet.id}:${sesiKasId??"mandiri"}`}
       sesiKasId={sesiKasId}
