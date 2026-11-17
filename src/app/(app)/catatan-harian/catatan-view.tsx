@@ -1,4 +1,5 @@
 "use client";
+import { tglOperasional } from "@/lib/hari-operasional";
 import { tanya } from "@/components/dialog-tanya";
 import { denganAlasan } from "@/lib/dengan-alasan";
 
@@ -130,8 +131,6 @@ const jam = (t: string | null) =>
         timeZone: "Asia/Jakarta",
       })
     : "–";
-const tglWib = (t: string) =>
-  new Date(new Date(t).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 const num = (v: string) =>
   v.trim() === "" ? null : Number(v.replace(/[^\d-]/g, "")) || 0;
 
@@ -225,7 +224,7 @@ export function CatatanHarian({
   const produkHari = useMemo(() => per(produk), [produk]);
   const manualHari = useMemo(() => per(manual), [manual]);
   const sesiHari = useMemo(
-    () => per(sesi.map((x) => ({ ...x, tanggal: x.tanggal_shift ?? tglWib(x.dibuka_at) }))),
+    () => per(sesi.map((x) => ({ ...x, tanggal: x.tanggal_shift ?? tglOperasional(x.dibuka_at) }))),
     [sesi],
   );
   const run = (
@@ -857,7 +856,7 @@ export function CatatanHarian({
                     </ul>
                   </div>
 
-                  {!sim && items.some(b => b.sumber === "laci" && (!b.sesi_kas_id || !sesi.some(s => s.id === b.sesi_kas_id && s.tanggal_shift === b.tanggal))) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
+                  {!sim && items.some(b => b.sumber === "laci" && (!b.sesi_kas_id || !sesi.some(s => s.id === b.sesi_kas_id && (s.tanggal_shift ?? tglOperasional(s.dibuka_at)) === b.tanggal))) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
                   {/* Shift & kas */}
                   {shift.length > 0 && (
                     <div>
