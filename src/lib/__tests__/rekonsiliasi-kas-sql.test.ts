@@ -1,0 +1,114 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFileSync } from "node:fs";
+import { beforeAll, afterAll, expect, it } from "vitest";
+const db = new PGlite();
+const id = (n: number) => `50000000-0000-0000-0000-${String(n).padStart(12,"0")}`;
+const q = async (sql: string, args: unknown[] = []) => (await db.query<Record<string, any>>(sql,args)).rows; // eslint-disable-line @typescript-eslint/no-explicit-any
+const as = async (role: string) => db.exec(`reset role;set test.uid='${id(1)}';set test.peran='${role}';set role authenticated`);
+const file = (name: string) => readFileSync(new URL(`../../../supabase/migrations/${name}`, import.meta.url),"utf8");
+const correction = async (p: object) => (await q('select koreksi_rekonsiliasi_kas($1::jsonb) v',[JSON.stringify(p)]))[0].v;
+beforeAll(async () => {
+ await db.exec(`create role anon;create role authenticated;create schema auth;create schema matur_internal;grant usage on schema auth to authenticated;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+ create function punya_peran(text[]) returns boolean language sql stable as $$select current_setting('test.peran',true)=any($1)$$;
+ create function boleh_outlet(uuid) returns boolean language sql stable set search_path=public as $$select auth.uid() is not null and ($1='${id(90)}' or punya_peran('{owner,finance}'))$$;
+ create type mode_data as enum('asli','simulasi');
+ create function tgl_op(timestamptz) returns date language sql immutable as $$select (($1 at time zone 'Asia/Jakarta')-interval '3 hours')::date$$;
+ create function awal_op(date) returns timestamptz language sql immutable as $$select ($1+time '03:00') at time zone 'Asia/Jakarta'$$;
+ create table pengguna(id uuid primary key,nama text);
+ create table outlet(id uuid primary key);
+ create table sesi_kas(id uuid primary key,outlet_id uuid,mode mode_data default 'asli',tanggal_shift date,dibuka_at timestamptz default now(),ditutup_at timestamptz default now(),nama_kasir text,pos_tim boolean default true,modal_laci bigint default 200000,setoran bigint,seharusnya bigint,selisih bigint,fisik_akhir bigint,kas_seharusnya bigint,pending_offline int default 0);
+ create table transaksi(id uuid primary key,outlet_id uuid,mode mode_data default 'asli',status text default 'lunas',kanal text default 'langsung',nomor int default 1,created_at timestamptz default '2026-11-11T05:00:00Z',sesi_kas_id uuid,subtotal bigint default 10000,total bigint default 10000,diskon bigint default 0);
+ create table pembayaran(id uuid primary key,transaksi_id uuid,metode text,nominal bigint);
+ create table menu(id uuid primary key,nama text);
+ create table item_transaksi(id uuid primary key,transaksi_id uuid,menu_id uuid,qty int);
+ create table biaya_outlet(id uuid primary key,outlet_id uuid,mode mode_data default 'asli',tanggal date,jumlah bigint,sumber text,keterangan text,sesi_kas_id uuid,kategori_id uuid,deleted_at timestamptz,created_at timestamptz default now());
+ create table belanja_bahan_outlet(biaya_id uuid);
+ create table pos_kas_keluar(sesi_id uuid,jumlah bigint);
+ create table log_aktivitas(id uuid default gen_random_uuid(),pengguna_id uuid,aksi text,entitas text,entitas_id text,nilai_lama jsonb,nilai_baru jsonb,waktu timestamptz default now());
+ create function tempel_sesi_biaya() returns trigger language plpgsql as $$begin return new;end$$;
+ create trigger tempel_sesi_biaya before insert on biaya_outlet for each row execute function tempel_sesi_biaya();
+ create function matur_internal.kas_ringkas(uuid) returns jsonb language sql stable set search_path=public as $$select jsonb_build_object('tunai',(select coalesce(sum(p.nominal),0) from transaksi t join pembayaran p on p.transaksi_id=t.id where t.sesi_kas_id=s.id and t.status='lunas' and p.metode='tunai'),'laci',(select coalesce(sum(jumlah),0) from biaya_outlet where sesi_kas_id=s.id and sumber='laci' and deleted_at is null),'keluar',(select coalesce(sum(jumlah),0) from pos_kas_keluar where sesi_id=s.id),'seharusnya',s.modal_laci+(select coalesce(sum(p.nominal),0) from transaksi t join pembayaran p on p.transaksi_id=t.id where t.sesi_kas_id=s.id and t.status='lunas' and p.metode='tunai')-(select coalesce(sum(jumlah),0) from biaya_outlet where sesi_kas_id=s.id and sumber='laci' and deleted_at is null)-(select coalesce(sum(jumlah),0) from pos_kas_keluar where sesi_id=s.id)) from sesi_kas s where s.id=$1$$;
+ insert into pengguna values('${id(1)}','Akunting uji');insert into outlet values('${id(90)}'),('${id(91)}');
+ insert into sesi_kas(id,outlet_id,tanggal_shift,setoran,seharusnya,selisih,fisik_akhir,kas_seharusnya) values('${id(10)}','${id(90)}','2026-11-11',599000,589000,10000,799000,789000),('${id(11)}','${id(90)}','2026-11-07',1093000,1129000,-36000,1293000,1329000);
+ insert into transaksi(id,outlet_id,sesi_kas_id) values('${id(20)}','${id(90)}','${id(10)}'),('${id(21)}','${id(90)}','${id(11)}');
+ insert into pembayaran values('${id(30)}','${id(20)}','tunai',657000),('${id(31)}','${id(21)}','tunai',1204000);
+ insert into biaya_outlet(id,outlet_id,tanggal,jumlah,sumber,sesi_kas_id,keterangan) values('${id(40)}','${id(90)}','2026-11-07',10000,'laci','${id(10)}','Zoda'),('${id(41)}','${id(90)}','2026-11-11',58000,'laci','${id(10)}','Biaya benar'),('${id(42)}','${id(90)}','2026-11-07',75000,'laci','${id(11)}','Biaya benar'),('${id(43)}','${id(90)}','2026-11-07',26000,'laci',null,'Belum terhubung');
+ grant select on transaksi,pembayaran,item_transaksi,menu,sesi_kas,biaya_outlet to authenticated;
+ `);
+ await db.exec(file('20261106223711_rekap_harian_diskon_bersih.sql'));
+ const old = file('20261105090000_akunting_perbaikan_harian.sql');
+ const start = old.indexOf('create or replace function public.rincian_harian');
+ await db.exec(old.slice(start,old.indexOf('$$;',start)+3));
+ const guard=file('20261030033115_accounting_aktual_belanja_titipan.sql');
+ const gs=guard.indexOf('create function operasional_outlet_internal.jaga_belanja()');
+ await db.exec('create schema operasional_outlet_internal;'+guard.slice(gs,guard.indexOf('-- Rentang',gs)));
+ await db.exec(file('20261117073411_rekonsiliasi_kas_verifikasi_transaksi.sql'));
+ await db.exec(file('20261117074053_rekonsiliasi_riwayat_waktu.sql'));
+ await as('finance');
+},30000);
+afterAll(() => db.close());
+it('preview makes no changes; moving wrong-day expense updates BOTH shifts with actual retained', async () => {
+ const b=(await q("select periksa_rekonsiliasi_kas($1) v",[id(10)]))[0].v.biaya.find((b:{id:string})=>b.id===id(40));
+ const p={id:b.id,tanggal:b.tanggal,jumlah:b.jumlah,sumber:'laci',sesi_id:id(11),sidik_biaya:b.sidik};
+ const preview=await correction(p);expect(preview.sesudah.find((x:{id:string})=>x.id===id(10)).selisih).toBe(0);
+ expect((await q('select selisih from sesi_kas where id=$1',[id(10)]))[0].selisih).toBe(10000);
+ await correction({...p,sidik:preview.sidik,simpan:true,alasan:'Tanggal pengeluaran sesuai nota'});
+ expect((await q('select setoran,seharusnya,selisih from sesi_kas where id=$1',[id(10)]))[0]).toMatchObject({setoran:599000,seharusnya:599000,selisih:0});
+ const b2=(await q("select periksa_rekonsiliasi_kas($1) v",[id(11)]))[0].v.biaya.find((b:{id:string})=>b.id===id(43));
+ const p2={id:b2.id,tanggal:b2.tanggal,jumlah:b2.jumlah,sumber:'laci',sesi_id:id(11),sidik_biaya:b2.sidik};const v=await correction(p2);
+ await correction({...p2,sidik:v.sidik,simpan:true,alasan:'Hubungkan biaya yang belum tercatat pada shift'});
+ expect((await q('select selisih from sesi_kas where id=$1',[id(11)]))[0].selisih).toBe(0);
+ await expect(correction({...p2,sidik:v.sidik,simpan:true,alasan:'retry'})).rejects.toThrow(/berubah/);
+});
+it('rejects wrong-date target, missing reason and unprivileged caller',async()=>{
+ const b=(await q("select periksa_rekonsiliasi_kas($1) v",[id(10)]))[0].v.biaya[0];
+ const p={id:b.id,tanggal:b.tanggal,jumlah:b.jumlah,sumber:'laci',sesi_id:id(11),sidik_biaya:b.sidik};
+ await expect(correction(p)).rejects.toThrow(/Tanggal/);
+ await as('barista');await expect(correction(p)).rejects.toThrow(/Hanya/);
+ await db.exec('reset role;set role anon');await expect(q('select periksa_rekonsiliasi_kas($1)',[id(10)])).rejects.toThrow(/permission denied/);await as('finance');
+});
+it('verification clears warning without changing money; edits invalidate even if reverted',async()=>{
+ await db.exec(`reset role;update transaksi set kanal='grabfood' where id='${id(20)}';set role authenticated`);
+ let rows=(await q("select rincian_harian($1,'2026-11-11') v",[id(90)]))[0].v;const row=rows.find((x:{id:string})=>x.id===id(20));
+ await expect(q('select verifikasi_transaksi_harian($1,$2,$3)',[id(20),'stale','Sesuai bukti'])).rejects.toThrow(/berubah/);
+ await q('select verifikasi_transaksi_harian($1,$2,$3)',[id(20),row.sidik,'Sesuai bukti pembayaran langsung']);
+ rows=(await q("select rincian_harian($1,'2026-11-11') v",[id(90)]))[0].v;expect(rows.find((x:{id:string})=>x.id===id(20)).verifikasi.alasan).toMatch(/Sesuai/);
+ const days=(await q("select rekap_harian($1,'2026-11-01') v",[id(90)]))[0].v;expect(days.find((x:{tanggal:string})=>x.tanggal==='2026-11-11').janggal).toBe(0);
+ expect((await q('select nominal from pembayaran where id=$1',[id(30)]))[0].nominal).toBe(657000);
+ await db.exec(`reset role;update pembayaran set nominal=657001 where id='${id(30)}';update pembayaran set nominal=657000 where id='${id(30)}';set role authenticated`);
+ rows=(await q("select rincian_harian($1,'2026-11-11') v",[id(90)]))[0].v;expect(rows.find((x:{id:string})=>x.id===id(20)).verifikasi).toBeNull();
+});
+it('stale preview and empty reason cannot commit; rollback leaves original expense',async()=>{
+ await as('finance');const b=(await q('select periksa_rekonsiliasi_kas($1) v',[id(10)]))[0].v.biaya[0];
+ const p={id:b.id,tanggal:b.tanggal,jumlah:b.jumlah,sumber:'laci',sesi_id:id(10),sidik_biaya:b.sidik};const preview=await correction(p);
+ await expect(correction({...p,sidik:preview.sidik,simpan:true,alasan:''})).rejects.toThrow(/alasan/);
+ await db.exec(`reset role;update pembayaran set nominal=nominal+1 where id='${id(30)}';set role authenticated`);
+ await expect(correction({...p,sidik:preview.sidik,simpan:true,alasan:'Sesuai nota'})).rejects.toThrow(/Perhitungan berubah/);
+ await db.exec(`reset role;update pembayaran set nominal=nominal-1 where id='${id(30)}';set role authenticated`);
+});
+it('pending offline, cross outlet and mismatched date targets are rejected',async()=>{
+ const b=(await q('select periksa_rekonsiliasi_kas($1) v',[id(10)]))[0].v.biaya[0];
+ const p={id:b.id,tanggal:b.tanggal,jumlah:b.jumlah,sumber:'laci',sesi_id:id(10),sidik_biaya:b.sidik};
+ await db.exec(`reset role;update sesi_kas set pending_offline=1 where id='${id(10)}';set role authenticated`);
+ await expect(correction(p)).rejects.toThrow(/offline/);
+ await db.exec(`reset role;update sesi_kas set pending_offline=0 where id='${id(10)}';insert into sesi_kas(id,outlet_id,tanggal_shift) values('${id(12)}','${id(91)}','2026-11-11');set role authenticated`);
+ await expect(correction({...p,sesi_id:id(12)})).rejects.toThrow(/Tanggal/);
+});
+it('new and redated expenses never attach to a current shift with another operational day',async()=>{
+ await db.exec(`reset role;insert into sesi_kas(id,outlet_id,tanggal_shift,ditutup_at) values('${id(13)}','${id(90)}','2026-11-12',null);
+ insert into biaya_outlet(id,outlet_id,tanggal,jumlah,sumber) values('${id(44)}','${id(90)}','2026-11-11',5000,'laci'),('${id(45)}','${id(90)}','2026-11-12',5000,'laci');`);
+ expect((await q('select sesi_kas_id from biaya_outlet where id=$1',[id(44)]))[0].sesi_kas_id).toBeNull();
+ expect((await q('select sesi_kas_id from biaya_outlet where id=$1',[id(45)]))[0].sesi_kas_id).toBe(id(13));
+ await db.exec(`update biaya_outlet set tanggal='2026-11-10' where id='${id(45)}';`);
+ expect((await q('select sesi_kas_id from biaya_outlet where id=$1',[id(45)]))[0].sesi_kas_id).toBeNull();await as('finance');
+});
+
+it('stock-linked cost cannot change nominal/date but its shift can be corrected',async()=>{
+ await db.exec(`reset role;insert into belanja_bahan_outlet values('${id(41)}');set role authenticated`);
+ const b=(await q('select periksa_rekonsiliasi_kas($1) v',[id(10)]))[0].v.biaya.find((b:{id:string})=>b.id===id(41));
+ expect(b.dilindungi).toBe(true);
+ const p={id:b.id,tanggal:b.tanggal,jumlah:b.jumlah+1,sumber:'laci',sesi_id:id(10),sidik_biaya:b.sidik};const preview=await correction(p);
+ await expect(correction({...p,sidik:preview.sidik,simpan:true,alasan:'Test proteksi stok'})).rejects.toThrow(/Pembelian terkait penerimaan/);
+ expect((await q('select jumlah from biaya_outlet where id=$1',[b.id]))[0].jumlah).toBe(b.jumlah);
+});

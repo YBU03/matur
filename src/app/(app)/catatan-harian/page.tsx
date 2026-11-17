@@ -73,7 +73,7 @@ export default async function CatatanHarianPage({
     supabase
       .from("biaya_outlet")
       .select(
-        "id, tanggal, kategori_id, jumlah, keterangan, sumber, created_at, pengguna:pengguna!biaya_outlet_dibuat_oleh_fkey(nama)",
+        "id, tanggal, kategori_id, jumlah, keterangan, sumber, sesi_kas_id, created_at, pengguna:pengguna!biaya_outlet_dibuat_oleh_fkey(nama)",
       )
       .eq("mode", mode)
       .eq("outlet_id", outlet.id)
@@ -110,7 +110,7 @@ export default async function CatatanHarianPage({
     supabase
       .from("sesi_kas")
       .select(
-        "id, dibuka_at, ditutup_at, modal_laci, setoran, seharusnya, selisih, nama_kasir, pos_tim, fisik_akhir",
+        "id, dibuka_at, ditutup_at, modal_laci, setoran, seharusnya, selisih, nama_kasir, pos_tim, fisik_akhir, tanggal_shift",
       )
       .eq("mode", mode)
       .eq("outlet_id", outlet.id)

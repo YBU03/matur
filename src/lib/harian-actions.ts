@@ -111,7 +111,7 @@ export async function hapusDataSimulasi(outletId: string): Promise<Result> {
   return { ok: "Data simulasi outlet ini dihapus." };
 }
 
-export type TrxRincian = { id: string; nomor: number; waktu: string; kanal: string; subtotal: number; diskon: number; total: number; kasir: string; bayar: { metode: string; nominal: number }[]; items: string | null };
+export type TrxRincian = { sidik?: string; verifikasi?: { nama: string; waktu: string; alasan: string } | null; id: string; nomor: number; waktu: string; kanal: string; subtotal: number; diskon: number; total: number; kasir: string; bayar: { metode: string; nominal: number }[]; items: string | null };
 /** Rincian transaksi satu hari operasional (untuk panel "asal uang" di Catatan Harian). */
 export async function rincianHarian(outletId: string, tanggal: string, sim = false): Promise<{ data?: TrxRincian[]; error?: string }> {
   if (!tglOk(tanggal)) return { error: "Tanggal tidak valid." };
