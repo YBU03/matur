@@ -2,8 +2,11 @@
 
 // Catatan Harian model spreadsheet: baris = tanggal, kolom = kanal penjualan + kategori pengeluaran + kas.
 // Klik sel → bar keterangan (asal angka); ketik angka + Enter → disimpan sebagai penyesuaian (angka POS tetap utuh).
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { minta, tanya } from "@/components/dialog-tanya";
+import { useRouter } from "next/navigation";
+import { verifikasiTransaksi } from "@/lib/rekonsiliasi-kas-actions";
+import { alasanTransaksi } from "@/lib/rekonsiliasi-kas";
 import { Badge } from "@/components/ui-halaman";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { LABEL_KANAL, OJOL, METODE_PLATFORM_HARIAN as ojol, RINCIAN_METODE_MULAI, janggal, kolomBayar, nilaiHari, type KanalHarian, type Manual } from "@/lib/harian";
@@ -467,7 +470,7 @@ export function TabelHarian({
                   {akunting && <td className="border-b border-r border-stone-100" />}
                   <td className="whitespace-nowrap border-b border-stone-100 px-2 py-1.5">
                     {(hh.janggal ?? 0) > 0 && (
-                      <button onClick={() => bukaRincian(hh.tanggal)} title="Ada transaksi yang kanal & metode bayarnya tidak cocok">
+                      <button onClick={() => bukaRincian(hh.tanggal, "janggal")} title="Ada transaksi yang kanal & metode bayarnya tidak cocok">
                         <Badge nada="kuning">⚠️ {hh.janggal} cek</Badge>
                       </button>
                     )}
@@ -517,10 +520,15 @@ export function TabelHarian({
       )}
       {rincian && (
         <PanelRincian
+          key={`${rincian.tanggal}-${rincian.kanal ?? ""}`}
           {...rincian}
           akunting={akunting}
           pending={pending}
           tutup={() => setRincian(null)}
+          verifikasi={async (t) => {
+            const alasan = await minta(`Transaksi #${t.nomor}: pastikan sudah sesuai bukti. Tulis alasan data ini benar:`, { judul: "Sudah dicek — data benar", wajib: true, ya: "Konfirmasi data benar" });
+            if (alasan && t.sidik) run(() => verifikasiTransaksi(t.id, t.sidik!, alasan), () => bukaRincian(rincian.tanggal, rincian.kanal));
+          }}
           koreksi={async (t, kanal, metode) => {
             const alasan = await minta(`Koreksi transaksi #${t.nomor} menjadi kanal ${LABEL_KANAL_POS[kanal] ?? kanal}${metode ? `, bayar ${LABEL_METODE[metode] ?? metode}` : ""}. Tulis alasannya:`, {
               judul: "Koreksi transaksi",
@@ -549,6 +557,7 @@ function PanelRincian({
   pending,
   tutup,
   koreksi,
+  verifikasi,
 }: {
   tanggal: string;
   kanal?: string;
@@ -558,6 +567,7 @@ function PanelRincian({
   pending: boolean;
   tutup: () => void;
   koreksi: (t: TrxRincian, kanal: string, metode: string | null) => void;
+  verifikasi: (t: TrxRincian) => void;
 }) {
   const [filter, setFilter] = useState(kanal ?? "");
   const [cari, setCari] = useState("");
@@ -565,10 +575,10 @@ function PanelRincian({
   const [isi, setIsi] = useState<{ kanal: string; metode: string }>({ kanal: "langsung", metode: "qris" });
   const baris = (data ?? []).map((t) => {
     const kol = t.bayar.length ? [...new Set(t.bayar.map((b) => kolomBayar(t.kanal, b.metode, tanggal)))] : [t.kanal === "langsung" || t.kanal === "tumbler" ? "tunai" : t.kanal];
-    return { t, kol, aneh: t.bayar.some((b) => janggal(t.kanal, b.metode)) };
+    return { t, kol, aneh: !t.verifikasi && t.bayar.some((b) => janggal(t.kanal, b.metode)) };
   });
   const q = cari.trim().toLowerCase();
-  const tampil = baris.filter((x) => (!filter || (filter === "janggal" ? x.aneh : filter === "kanal_tumbler" ? x.t.kanal === "tumbler" : x.kol.includes(filter))) && (!q || `#${x.t.nomor} ${x.t.items ?? ""} ${x.t.kasir}`.toLowerCase().includes(q)));
+  const tampil = baris.filter((x) => (!filter || (filter === "janggal" ? x.aneh : filter === "kanal_tumbler" ? x.t.kanal === "tumbler" : (filter === "terverifikasi" ? !!x.t.verifikasi : x.kol.includes(filter)))) && (!q || `#${x.t.nomor} ${x.t.items ?? ""} ${x.t.kasir}`.toLowerCase().includes(q)));
   const jumlah = tampil.reduce((s, x) => s + x.t.subtotal, 0);
   const pilihan = [
     ["", "Semua"],
@@ -577,6 +587,7 @@ function PanelRincian({
     ...["gofood", "grabfood", "shopeefood", "tiktok", "ruma_app", "tumbler"].filter((k) => baris.some((x) => x.kol.includes(k))).map((k) => [k, LABEL_KANAL[k as KanalHarian]]),
     ...(baris.some((x) => x.t.kanal === "tumbler") ? [["kanal_tumbler", `🥤 Tumbler (${baris.filter((x) => x.t.kanal === "tumbler").length})`]] : []),
     ["janggal", `⚠️ Perlu dicek (${baris.filter((x) => x.aneh).length})`],
+    ["terverifikasi", `Sudah diverifikasi (${baris.filter((x) => x.t.verifikasi).length})`],
   ];
   return (
     <div role="dialog" aria-modal className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && tutup()}>
@@ -618,10 +629,14 @@ function PanelRincian({
                       {LABEL_METODE[b.metode] ?? b.metode} {formatRupiah(b.nominal)}
                     </Badge>
                   ))}
-                  {aneh && <Badge nada="kuning">⚠️ kanal ≠ metode</Badge>}
+                  {aneh && <Badge nada="kuning">⚠️ Perlu dicek</Badge>}
+                  {t.verifikasi && <Badge nada="hijau">Sudah diverifikasi</Badge>}
                   <b className="ml-auto tabular-nums">{formatRupiah(t.subtotal)}</b>
                 </div>
                 <p className="mt-0.5 text-xs text-stone-500">{t.items}</p>
+                {aneh && <p className="mt-1 text-xs text-amber-900">{t.bayar.map(b => alasanTransaksi(t.kanal, b.metode)).filter(Boolean).join(" ")} Penanda ini bukan bukti uang kurang; angka tetap mengikuti pembayaran tercatat.</p>}
+                {t.verifikasi && <p className="mt-1 text-xs text-green-800">Diperiksa {t.verifikasi.nama} · {new Date(t.verifikasi.waktu).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} · {t.verifikasi.alasan}. Perubahan data akan memerlukan pemeriksaan ulang.</p>}
+                {aneh && akunting && t.sidik && <button disabled={pending} onClick={() => verifikasi(t)} className="mt-1 rounded border border-green-400 bg-green-50 px-2 py-1 text-xs font-semibold text-green-900">Sudah dicek — data benar</button>}
                 {akunting && (
                   <div className="mt-1">
                     {ubah === t.id ? (
@@ -766,4 +781,20 @@ function AturKolom({
       </div>
     </div>
   );
+}
+
+/** Tombol pada kartu harian: langsung membuka transaksi yang perlu diperiksa. */
+export function PemeriksaTransaksi({ outletId, tanggal, sim, akunting, jumlah }: { outletId: string; tanggal: string; sim: boolean; akunting: boolean; jumlah: number }) {
+ const router = useRouter();
+ const [buka, setBuka] = useState(false);
+ const [hasil, setHasil] = useState<{ data?: TrxRincian[]; error?: string }>({});
+ const [pending, start] = useTransition();
+ const muat = async () => { try { setHasil(await rincianHarian(outletId, tanggal, sim)); } catch { setHasil({ error: "Gagal memuat transaksi. Tutup dan coba lagi." }); } };
+ const jalan = (fn: () => Promise<{ error?: string }>) => start(async () => { try { const r = await fn(); if (r.error) setHasil(x => ({ ...x, error: r.error })); else { await muat(); router.refresh(); } } catch { setHasil(x => ({ ...x, error: "Koneksi terputus. Muat ulang untuk memeriksa hasil." })); } });
+ return <>
+  <button type="button" onClick={() => { setBuka(true); void muat(); }} className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800" title="Buka transaksi beserta alasan pemeriksaannya">⚠️ {jumlah} transaksi perlu dicek</button>
+  {buka && <PanelRincian tanggal={tanggal} kanal="janggal" {...hasil} akunting={akunting && !sim} pending={pending} tutup={() => setBuka(false)}
+   verifikasi={async t => { const alasan = await minta(`Transaksi #${t.nomor}: tulis hasil pemeriksaan yang menyatakan data ini benar.`, { judul: "Sudah dicek — data benar", wajib: true, ya: "Konfirmasi data benar" }); if (alasan && t.sidik) jalan(() => verifikasiTransaksi(t.id, t.sidik!, alasan)); }}
+   koreksi={async (t, kanal, metode) => { const alasan = await minta(`Alasan koreksi transaksi #${t.nomor}:`, { judul: "Koreksi transaksi", wajib: true, ya: "Simpan koreksi" }); if (alasan) jalan(() => koreksiTransaksi(t.id, { kanal, metode, alasan })); }} />}
+ </>;
 }

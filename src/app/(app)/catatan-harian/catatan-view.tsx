@@ -13,7 +13,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { tabKelas } from "@/components/ui-halaman";
-import { TabelHarian } from "./tabel-harian";
+import { RekonsiliasiKas } from "@/components/rekonsiliasi-kas";
+import { TabelHarian, PemeriksaTransaksi } from "./tabel-harian";
 import type { SusunanTabel } from "@/lib/harian-actions";
 import { RiwayatPerbaikan } from "./riwayat-perbaikan";
 import { Modal } from "@/components/confirm-edit";
@@ -78,6 +79,7 @@ export type Biaya = {
   jumlah: number;
   keterangan: string | null;
   sumber: "laci" | "pusat";
+  sesi_kas_id?: string | null;
   created_at: string;
   pengguna: { nama: string } | null;
 };
@@ -94,6 +96,7 @@ export type ProdukKeluar = {
   created_at: string;
 };
 export type Sesi = {
+  tanggal_shift?: string | null;
   pos_tim?: boolean;
   fisik_akhir?: number | null;
   id: string;
@@ -222,7 +225,7 @@ export function CatatanHarian({
   const produkHari = useMemo(() => per(produk), [produk]);
   const manualHari = useMemo(() => per(manual), [manual]);
   const sesiHari = useMemo(
-    () => per(sesi.map((x) => ({ ...x, tanggal: tglWib(x.dibuka_at) }))),
+    () => per(sesi.map((x) => ({ ...x, tanggal: x.tanggal_shift ?? tglWib(x.dibuka_at) }))),
     [sesi],
   );
   const run = (
@@ -556,11 +559,8 @@ export function CatatanHarian({
               key={t}
               className={`rounded-2xl border bg-white ${kosong ? "border-stone-200 opacity-70" : "border-matur-200"}`}
             >
-              <button
-                onClick={() => setBuka(terbuka ? null : t)}
-                className="flex w-full flex-wrap items-center gap-2 p-4 text-left"
-              >
-                <div className="min-w-0 flex-1">
+              <div className="flex w-full flex-wrap items-center gap-2 p-4 text-left">
+                <button type="button" aria-expanded={terbuka} onClick={() => setBuka(terbuka ? null : t)} className="min-w-0 flex-1 text-left">
                   <p className="font-bold">{formatTanggal(t)}</p>
                   <p className="text-xs text-stone-500">
                     {h.transaksi} transaksi · {shift.length || h.shift} shift ·
@@ -570,16 +570,14 @@ export function CatatanHarian({
                     </b>{" "}
                     · pengeluaran {formatRupiah(keluar)}
                   </p>
-                </div>
+                </button>
                 {adaPlatform && (
                   <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
                     online food diisi
                   </span>
                 )}
                 {(h.janggal ?? 0) > 0 && (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800" title="Kanal & metode bayar tidak cocok — cek di Tabel → Asal uang">
-                    ⚠️ {h.janggal} transaksi perlu dicek
-                  </span>
+                  <PemeriksaTransaksi outletId={outletId} tanggal={t} sim={sim} akunting={bolehImpor} jumlah={h.janggal ?? 0} />
                 )}
                 {adaKoreksi && (
                   <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
@@ -600,8 +598,8 @@ export function CatatanHarian({
                       : `selisih ${formatRupiah(h.selisih)}`}
                   </span>
                 )}
-                <span className="text-stone-400">{terbuka ? "▴" : "▾"}</span>
-              </button>
+                <button type="button" aria-label={`Buka rincian ${t}`} aria-expanded={terbuka} onClick={() => setBuka(terbuka ? null : t)} className="px-2 text-stone-400">{terbuka ? "▴" : "▾"}</button>
+              </div>
               {terbuka && (
                 <div className="space-y-4 border-t px-4 pb-4 pt-3">
                   {/* Penjualan */}
@@ -859,6 +857,7 @@ export function CatatanHarian({
                     </ul>
                   </div>
 
+                  {!sim && items.some(b => b.sumber === "laci" && (!b.sesi_kas_id || !sesi.some(s => s.id === b.sesi_kas_id && s.tanggal_shift === b.tanggal))) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
                   {/* Shift & kas */}
                   {shift.length > 0 && (
                     <div>
@@ -884,6 +883,7 @@ export function CatatanHarian({
                                 )}
                               />
                             )}
+                            {!sim && bolehImpor && x.ditutup_at && <RekonsiliasiKas sesiId={x.id} />}
                             <span
                               className={
                                 x.selisih ? "text-red-600" : "text-stone-600"

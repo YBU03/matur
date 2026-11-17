@@ -23,6 +23,7 @@ export function RevisiAktualKas({
     fisik_akhir?: number | null;
     setoran: number | null;
     modal_laci: number;
+    seharusnya?: number | null;
   };
   riwayat: RevisiKas[];
 }) {
@@ -70,6 +71,12 @@ export function RevisiAktualKas({
             Angka sebelumnya:{" "}
             {awal === null ? "belum dihitung" : formatRupiah(awal)}.
           </p>
+          <div className="rounded-lg bg-stone-50 p-2 text-xs">
+            <p>Modal tetap di laci: {formatRupiah(sesi.modal_laci)}.</p>
+            <p>Setoran seharusnya tercatat: {sesi.seharusnya == null ? "belum dihitung" : formatRupiah(sesi.seharusnya)}.</p>
+            {nilai !== "" && <p>Setoran setelah revisi: {formatRupiah(Number(nilai) - (sesi.pos_tim ? sesi.modal_laci : 0))}.</p>}
+            <p>Jika pengeluaran salah tanggal/shift, gunakan “Periksa & rekonsiliasi kas”. Mengubah uang aktual saja tidak memperbaiki hubungan pengeluaran.</p>
+          </div>
           <label className="block text-sm">
             {sesi.pos_tim
               ? "Uang fisik termasuk modal (Rp)"
