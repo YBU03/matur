@@ -97,3 +97,5 @@ Subsidi & marketing 18 November: `/promo` mendukung Gratis dengan subsidi/nama p
 ## Voucher per transaksi (18 November 2026)
 
 Lihat `docs/voucher-per-transaksi-2026-11-18.md`. Voucher nominal dipotong sekali per transaksi; promo per-item/harga akhir tetap tersedia. Sambas Rp15.000 sekali, minimum Rp15.001 yang dapat diedit.
+
+Koreksi Penjualan Akunting 18 November: `/koreksi-penjualan` untuk Owner/Admin Pusat/Finance, pratinjau wajib, tambah/edit/hapus/pulihkan dengan alasan, sidik dan idempotensi. Tanggal/shift asli, setoran aktual tetap, delta stok memperhatikan SO. Metadata `koreksi_penjualan` terpisah dari impor PDF. Penjualan susulan Kominot 17 Nov Rp227.000 sudah masuk, tiga rekap per pembayaran; selisih kas aktual masih perlu bukti. Kartu kas kini memakai dasar shift yang sama. Baca `docs/koreksi-penjualan-2026-11-18.md`.

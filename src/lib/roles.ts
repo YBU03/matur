@@ -52,6 +52,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/koreksi-penjualan", label: "Koreksi Penjualan", stage: 4 },
       { href: "/dashboard-pos", label: "Dashboard POS", stage: 4 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/master/outlet", label: "Outlet", stage: 2 },
@@ -105,6 +106,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/koreksi-penjualan", label: "Koreksi Penjualan", stage: 4 },
       { href: "/hpp-menu", label: "Edit HPP Menu", stage: 4 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
       { href: "/catatan-harian", label: "Catatan Harian", stage: 4 },
@@ -154,6 +156,7 @@ export const ROLES: Record<Role, RoleDef> = {
     allOutlets: true,
     menu: [
       dash,
+      { href: "/koreksi-penjualan", label: "Koreksi Penjualan", stage: 4 },
       { href: "/dashboard-pos", label: "Dashboard POS", stage: 4 },
       { href: "/absensi", label: "Rekap Absensi", stage: 5 },
       { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },

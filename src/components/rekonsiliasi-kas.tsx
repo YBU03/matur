@@ -34,6 +34,7 @@ export function RekonsiliasiKas({ sesiId }: { sesiId: string }) {
     {data.sesi.setoran !== null && <p className={`rounded p-2 text-xs ${data.sesi.setoran === data.hitung.seharusnya - data.sesi.modal_laci ? "bg-green-50 text-green-900" : "bg-amber-50 text-amber-900"}`}>
      {data.sesi.setoran === data.hitung.seharusnya - data.sesi.modal_laci ? "Setoran aktual sesuai hasil hitung rincian saat ini." : `Setoran aktual ${data.sesi.setoran > data.hitung.seharusnya - data.sesi.modal_laci ? "lebih" : "kurang"} ${rp(Math.abs(data.sesi.setoran - (data.hitung.seharusnya - data.sesi.modal_laci)))} dibanding hasil hitung rincian saat ini. Periksa pengeluaran dan bukti setoran; koreksi hanya data yang keliru.`}
     </p>}
+    {data.biaya.some((b, i, all) => all.some((x,j) => i!==j && x.tanggal===b.tanggal && x.jumlah===b.jumlah && (x.keterangan??"").trim().toLowerCase()===(b.keterangan??"").trim().toLowerCase())) && <p className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-900">Ada pengeluaran dengan tanggal, nominal, dan nama yang sama. Belum tentu duplikat. Cocokkan nota; edit atau hapus catatan yang salah melalui daftar pengeluaran Catatan Harian.</p>}
     <h3 className="font-semibold">Pengeluaran tanggal ini & yang terhubung ke shift</h3>
     <p className="text-xs text-stone-500">Peringatan menunjukkan hubungan tanggal/shift yang perlu diperiksa, bukan bukti uang hilang. Pilih Perbaiki untuk melihat dampaknya sebelum menyimpan.</p>
     {!data.biaya.length && <p>Tidak ada pengeluaran.</p>}
