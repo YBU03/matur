@@ -39,6 +39,74 @@ function Centang({ checked, onChange, disabled, children }: { checked: boolean; 
   );
 }
 
+/** Satu baris harga promo: Harga normal → Potongan (% / Rp) → Harga akhir (otomatis, bisa diketik). */
+function BarisHarga({ aturan: a, menu, onUbah, onSamakan }: { aturan: AturanPromo; menu?: { harga_langsung?: number | null; harga_ojol?: number | null }; onUbah: (x: Partial<AturanPromo>) => void; onSamakan?: () => void }) {
+  const h = Number(menu?.harga_langsung ?? 0), ho = Number(menu?.harga_ojol ?? 0);
+  const mode = a.jenis === "persen" ? "persen" : a.jenis === "gratis" ? "gratis" : "rp";
+  const akhir = (x: number) => hargaPromo(x, a.jenis, a.nilai || 0);
+  // Nilai potongan yang tampil: persen apa adanya; Rp untuk potongan; untuk harga akhir = selisih dari harga normal.
+  const potong = a.jenis === "persen" || a.jenis === "potongan" ? a.nilai || "" : a.jenis === "harga_akhir" ? (h ? Math.max(h - (a.nilai || 0), 0) : "") : h || "";
+  const nilaiAkhir = a.jenis === "harga_akhir" ? a.nilai || "" : h ? akhir(h) : "";
+  const peringatan = (a.jenis === "persen" && a.nilai > 100) || (a.jenis === "potongan" && h && a.nilai > h) ? "Potongan melebihi harga menu" : a.jenis === "harga_akhir" && h && a.nilai > h ? "Harga akhir lebih mahal dari harga normal" : "";
+  const ganti = (m: "persen" | "rp" | "gratis") => {
+    if (m === "gratis") return onUbah({ jenis: "gratis", nilai: 100 });
+    if (m === "persen") {
+      const rpNow = a.jenis === "potongan" ? a.nilai : a.jenis === "harga_akhir" && h ? h - a.nilai : 0;
+      return onUbah({ jenis: "persen", nilai: h && rpNow > 0 ? Math.min(100, Math.round((rpNow / h) * 100)) : a.jenis === "persen" ? a.nilai : 10 });
+    }
+    const rpNow = a.jenis === "persen" && h ? Math.floor((h * a.nilai) / 100) : a.jenis === "harga_akhir" && h ? h - a.nilai : a.jenis === "potongan" ? a.nilai : 0;
+    return onUbah({ jenis: "potongan", nilai: Math.max(rpNow, 0) || 1000 });
+  };
+  const kotak = "w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-right text-sm font-semibold tabular-nums text-kopi-900 outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100";
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)_auto_minmax(0,1fr)]">
+        <div>
+          <p className="mb-1 text-[11px] font-semibold text-stone-500">Harga normal</p>
+          <p className="rounded-xl bg-stone-100 px-3 py-2 text-right text-sm font-semibold tabular-nums text-stone-600">{h ? rp(h) : "—"}</p>
+        </div>
+        <span className="hidden pb-2 text-stone-400 sm:block">−</span>
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-1">
+            <p className="text-[11px] font-semibold text-stone-500">Potongan</p>
+            <div className="flex overflow-hidden rounded-lg border border-matur-200 text-[11px] font-bold" role="radiogroup" aria-label="Satuan potongan">
+              {(["persen", "rp", "gratis"] as const).map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => ganti(m)} className={`px-2 py-0.5 ${mode === m ? (m === "gratis" ? "bg-emerald-600 text-white" : "bg-matur-500 text-white") : "bg-white text-stone-500"}`}>
+                  {m === "persen" ? "%" : m === "rp" ? "Rp" : "Gratis"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {mode === "gratis" ? (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-right text-sm font-bold text-emerald-800">100% subsidi</p>
+          ) : (
+            <div className="relative">
+              {mode === "rp" && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">Rp</span>}
+              <input aria-label="Nilai potongan" type="number" min="1" max={mode === "persen" ? 100 : undefined} inputMode="numeric" className={`${kotak} ${mode === "persen" ? "pr-7" : "pl-8"}`} value={potong} onChange={(e) => onUbah({ jenis: mode === "persen" ? "persen" : "potongan", nilai: Number(e.target.value) })} />
+              {mode === "persen" && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">%</span>}
+            </div>
+          )}
+        </div>
+        <span className="hidden pb-2 text-stone-400 sm:block">=</span>
+        <div>
+          <p className="mb-1 text-[11px] font-semibold text-matur-700">Harga akhir</p>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-matur-400">Rp</span>
+            <input aria-label="Harga akhir" type="number" min="0" inputMode="numeric" disabled={mode === "gratis"} className={`${kotak} border-matur-400 bg-matur-50 pl-8 text-matur-800`} value={mode === "gratis" ? 0 : nilaiAkhir} onChange={(e) => onUbah({ jenis: "harga_akhir", nilai: Number(e.target.value) })} />
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        {a.jenis === "harga_akhir" && <span className="font-semibold text-sky-700">Harga akhir tetap Rp{new Intl.NumberFormat("id-ID").format(a.nilai || 0)} per cup (termasuk varian)</span>}
+        {ho > 0 && <span className="text-stone-500">Ojol: <span className="line-through">{rp(ho)}</span> → <b className="text-kopi-800">{rp(akhir(ho))}</b></span>}
+        {mode === "gratis" && <span className="text-emerald-800">🎁 Gratis = ditanggung subsidi kantor</span>}
+        {peringatan && <span className="font-semibold text-amber-700">⚠ {peringatan}</span>}
+        {onSamakan && <button type="button" onClick={onSamakan} className="ml-auto font-semibold text-matur-700 underline">Samakan potongan ini ke semua menu</button>}
+      </div>
+    </div>
+  );
+}
+
 export function PromoPanel({
   promos,
   outlets,
@@ -56,7 +124,7 @@ export function PromoPanel({
 }: {
   promos: Promo[];
   outlets: Opsi[];
-  menus: (Opsi & { kemasan?: string | null; harga_langsung?: number | null; kategori_id?: string | null })[];
+  menus: (Opsi & { kemasan?: string | null; harga_langsung?: number | null; harga_ojol?: number | null; kategori_id?: string | null })[];
   variants: (Opsi & { menu_id: string; grup: string })[];
   laporan: PemakaianPromo[];
   kategori?: Opsi[];
@@ -599,70 +667,13 @@ export function PromoPanel({
                     onChange={(id) => rule(i, { menu_id: id, varian_ids: [] })}
                   />
                   {edit.cakupan !== "transaksi" && (
-                    <div className="flex gap-2">
-                      <select
-                        aria-label="Jenis diskon"
-                        className={input}
-                        value={a.jenis}
-                        onChange={(e) =>
-                          e.target.value === "gratis"
-                            ? set({
-                                subsidi: true,
-                                aturan: edit.aturan.map((x, k) =>
-                                  k === i
-                                    ? { ...x, jenis: "gratis", nilai: 100 }
-                                    : x,
-                                ),
-                              })
-                            : rule(i, {
-                                jenis: e.target.value as AturanPromo["jenis"],
-                              })
-                        }
-                      >
-                        <option value="gratis">
-                          Gratis — ditanggung subsidi
-                        </option>
-                        <option value="persen">
-                          Diskon / subsidi persen (%)
-                        </option>
-                        <option value="potongan">Potongan per item (Rp)</option>
-                        <option value="harga_akhir">
-                          Harga akhir per item (Rp)
-                        </option>
-                      </select>
-                      {a.jenis === "gratis" ? (
-                        <span className="flex items-center whitespace-nowrap rounded-xl bg-green-50 px-3 text-sm font-semibold text-green-800">
-                          100% subsidi
-                        </span>
-                      ) : (
-                        <input
-                          aria-label="Nilai promo"
-                          className={`${input} max-w-40`}
-                          type="number"
-                          min="1"
-                          max={a.jenis === "persen" ? 100 : undefined}
-                          placeholder={a.jenis === "persen" ? "%" : "Rp"}
-                          value={a.nilai || ""}
-                          onChange={(e) =>
-                            rule(i, { nilai: Number(e.target.value) })
-                          }
-                        />
-                      )}
-                    </div>
+                    <BarisHarga
+                      aturan={a}
+                      menu={menus.find((x) => x.id === a.menu_id)}
+                      onUbah={(x) => (x.jenis === "gratis" ? set({ subsidi: true, aturan: edit.aturan.map((y, k) => (k === i ? { ...y, ...x } : y)) }) : rule(i, x))}
+                      onSamakan={edit.aturan.length > 1 ? () => set({ aturan: edit.aturan.map((y) => ({ ...y, jenis: a.jenis, nilai: a.nilai })), ...(a.jenis === "gratis" ? { subsidi: true } : {}) }) : undefined}
+                    />
                   )}
-                  {(() => {
-                    const m = menus.find((x) => x.id === a.menu_id);
-                    const h = Number(m?.harga_langsung ?? 0);
-                    if (!m || !h || edit.cakupan === "transaksi") return null;
-                    const akhir = hargaPromo(h, a.jenis, a.nilai || 0);
-                    return (
-                      <p className={`rounded-lg px-2.5 py-1.5 text-xs ${a.jenis === "harga_akhir" && a.nilai > h ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
-                        Contoh di kasir: <span className="line-through opacity-60">{rp(h)}</span> → <b>{rp(akhir)}</b> per cup (harga langsung, sebelum varian)
-                        {a.jenis === "harga_akhir" && a.nilai > h && " · ⚠ harga promo lebih mahal dari harga asli"}
-                      </p>
-                    );
-                  })()}
-                  {a.jenis === "gratis" && edit.cakupan !== "transaksi" && <p className="text-[11px] text-green-800">🎁 Gratis = ditanggung subsidi kantor (pilihan subsidi di bagian 4 otomatis dinyalakan).</p>}
                   {variants.some((v) => v.menu_id === a.menu_id) && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="w-full text-[11px] font-semibold text-stone-500">Hanya berlaku kalau pembeli memilih varian (kosongkan = semua varian):</span>

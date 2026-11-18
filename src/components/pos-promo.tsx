@@ -127,7 +127,7 @@ export function PosPromo({
           }
           ref.current = r.quote;
           setQuote(r.quote);
-          callback.current(r.quote);
+          callback.current({ ...r.quote, promo_id: selected });
         }
       } catch {
         setError(

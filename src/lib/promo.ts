@@ -37,6 +37,8 @@ export type SlotPromo = { mulai: string; selesai: string };
 export type KuotaPromoHarian = { tanggal: string; promo_id: string; promo: string; outlet: string; menu: string | null; kuota: number; terpakai: number; habis_at: string | null };
 export type PromoQuote = {
   id: string;
+  /** id promo yang dipilih kasir (diisi klien) untuk tampilan harga coret per menu */
+  promo_id?: string;
   nama: string;
   cakupan?: "item" | "transaksi";
   nilai_voucher?: number | null;

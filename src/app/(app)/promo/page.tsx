@@ -31,7 +31,7 @@ export default async function PromoPage({
     db.from("outlet").select("id,nama").is("deleted_at", null).order("nama"),
     db
       .from("menu")
-      .select("id,nama,kemasan,harga_langsung,kategori_id")
+      .select("id,nama,kemasan,harga_langsung,harga_ojol,kategori_id")
       .eq("aktif", true)
       .eq("mode", "asli")
       .is("deleted_at", null)

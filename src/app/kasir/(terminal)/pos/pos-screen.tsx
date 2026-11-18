@@ -2,6 +2,7 @@
 import { PosPromo } from "@/components/pos-promo";
 import { KotakPromoKasir } from "@/components/kotak-promo-kasir";
 import type { Promo } from "@/lib/promo";
+import { hargaPromo } from "@/lib/promo-tampilan";
 import type { PromoQuote } from "@/lib/promo";
 import { QrisPaymentSuccess } from "@/components/qris-payment-success";
 import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
@@ -252,6 +253,12 @@ export function PosScreen({
   const [promoState,setPromoState] = useState<{key:string;quote:PromoQuote}|null>(null);
   useEffect(()=>{setQrisBayar(null);},[promoKey]);
   const promo = promoState?.key===promoKey ? promoState.quote : null;
+  // Harga coret per menu di keranjang (tampilan saja; total resmi tetap dari server).
+  const aturanPromo = promo && promo.cakupan !== "transaksi" ? promoAktif.find((p) => p.id === promo.promo_id)?.aturan ?? null : null;
+  const hargaSetelahPromo = (l: Line) => {
+    const a = aturanPromo?.find((x) => x.menu_id === l.menu.id && x.varian_ids.every((v) => l.varian.some((y) => y.id === v)));
+    return a ? hargaPromo(price(l), a.jenis, a.nilai) : null;
+  };
   useEffect(()=>{
     if(!promo)return;
     const timeout=setTimeout(()=>{setQrisBayar(null);setErr("Reservasi promo berakhir. Pilih ulang; cek riwayat jika pembayaran sudah dilakukan.");},Math.max(0,Date.parse(promo.sampai_at)-Date.now()));
@@ -866,9 +873,20 @@ export function PosScreen({
               >
                 +
               </button>
-              <span className="w-20 text-right tabular-nums">
-                {formatRupiah(price(l) * l.qty)}
-              </span>
+              {(() => {
+                const akhir = hargaSetelahPromo(l);
+                return akhir !== null && akhir < price(l) ? (
+                  <span className="w-24 text-right tabular-nums leading-tight">
+                    <span className="block text-[11px] text-stone-400 line-through">{formatRupiah(price(l) * l.qty)}</span>
+                    <span className="block font-bold text-matur-700">{formatRupiah(akhir * l.qty)}</span>
+                    <span className="mt-0.5 inline-block rounded-full bg-matur-100 px-1.5 text-[10px] font-bold text-matur-800">🏷️ promo</span>
+                  </span>
+                ) : (
+                  <span className="w-20 text-right tabular-nums">
+                    {formatRupiah(price(l) * l.qty)}
+                  </span>
+                );
+              })()}
             </li>
           ))}
         </ul>
