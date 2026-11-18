@@ -52,7 +52,7 @@ export async function RiwayatContent({
       supabase
         .from("transaksi")
         .select(
-          "id, sumber_penjualan, nomor, kanal, subtotal, total, diskon, status, void_alasan, void_nama, void_kategori, void_at, created_at, pelanggan, operator_nama, item_transaksi(nama, qty, harga, menu_id), pembayaran(metode, nominal, diterima)",
+          "id, promo_snapshot, sumber_penjualan, nomor, kanal, subtotal, total, diskon, status, void_alasan, void_nama, void_kategori, void_at, created_at, pelanggan, operator_nama, item_transaksi(nama, qty, harga, menu_id), pembayaran(metode, nominal, diterima)",
         )
         .eq("mode", "asli")
         .eq("outlet_id", outlet)

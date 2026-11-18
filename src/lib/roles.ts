@@ -323,6 +323,8 @@ for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] 
 
 for (const role of ["owner", "admin_pusat", "finance", "hrd", "admin_gudang", "manajer_area", "spv"] as Role[]) ROLES[role].menu.push({ href: "/data-void", label: "Data Void", stage: 4 });
 
+for (const role of ["owner","admin_pusat","admin_gudang","hrd","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/promo",label:role==="finance"?"Pemakaian Promo":"Promo & Diskon",stage:5});
+
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }

@@ -66,3 +66,9 @@ describe("struk format Ruma", () => {
     expect(t.slice(-2)).toEqual(["Terima kasih", "Sampai jumpa"]);
   });
 });
+
+it('shows the frozen promo name once while discount remains part of the transaction total',()=>{
+ const lines=teks({...dasar,promoNama:'Trial Opening',diskon:10000,total:60000});
+ expect(lines.filter(l=>l.includes('Promo: Trial Opening'))).toHaveLength(1);
+ expect(lines.some(l=>l.includes('60.000'))).toBe(true);
+});

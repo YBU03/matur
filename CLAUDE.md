@@ -89,3 +89,5 @@ Rincian per metode & titipan per barang 6 November: Catatan Harian per metode ba
 POS tampilan 7 November: kartu menu ringkas, kategori 1 baris, panel keranjang, tab ikon, kartu omzet hari ini, layar koneksi lambat, dashboard sesi habis → login. Hanya tampilan. Baca `docs/pos-tampilan-2026-11-07.md`.
 
 Draft pekerjaan tertunda 9 November: akun karyawan/PIN/password, Outlet Demo nonaktif, pop-up terima kasih shift, grafik Mitra, dll. Baca `docs/draft-pekerjaan-tertunda-2026-11-09.md` sebelum mengerjakan; tiap butir menunggu "gas".
+
+Promo & Diskon POS 18 November: `/promo` untuk Owner/Admin Pusat/Admin Gudang/HRD, SPV satu outlet sendiri, Finance laporan pemakaian. Pilih outlet, periode/jam WIB, menu/varian, persen/potongan/harga akhir, kuota per menu/gabungan dan per outlet/lintas outlet. Promo online memakai reservasi maksimal 15 menit sebelum QR; tidak masuk antrean offline. Nama/aturan/harga dibekukan, diskon laporan sudah termasuk promo sekali; void/hapus mengembalikan kuota. Baca `docs/promo-diskon-pos-2026-11-18.md`.

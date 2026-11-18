@@ -36,6 +36,7 @@ export const ADMIN_MENU_GROUPS = [
       "/master/varian",
       "/master/resep",
       "/hpp-menu",
+      "/promo",
     ],
   },
   {

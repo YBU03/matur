@@ -73,6 +73,7 @@ export type DataStruk = {
   items: ItemStruk[];
   subtotal: number;
   diskon: number;
+  promoNama?: string;
   total: number;
   bayar: BayarStruk[];
   kembalian: number;
@@ -118,6 +119,7 @@ export function susunBarisStruk(d: DataStruk, lebar: number): BarisStruk[] {
   out.push(garis);
   out.push(`Total Item ${d.items.reduce((n, i) => n + i.qty, 0)}`);
   out.push(garis);
+  if (d.promoNama) out.push(`Promo: ${d.promoNama}`);
   if (d.diskon > 0) {
     out.push({ teks: "", kiriKanan: ["Subtotal", angkaStruk(d.subtotal)] });
     out.push({ teks: "", kiriKanan: ["Diskon", `-${angkaStruk(d.diskon)}`] });

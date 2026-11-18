@@ -15,6 +15,7 @@ export type CartLine = {
 };
 export type Checkout = {
   client_id: string;
+  promo_quote?: string;
   /** shift saat transaksi dibuat (penting untuk antrean offline yang dikirim belakangan) */
   sesi_id?: string;
   izin_id?: string;
@@ -36,6 +37,7 @@ export type Checkout = {
   items: CartLine[];
 };
 export type Receipt = {
+  promo_snapshot?: import("./promo").PromoSnapshot | null;
   id: string;
   nomor: number;
   subtotal: number;
@@ -97,7 +99,12 @@ export async function bayar(
   });
   if (error) return { error: error.message };
   revalidatePath("/kasir/antrean");
-  return { receipt: data as Receipt };
+  const receipt = data as Receipt;
+  if (c.promo_quote && receipt?.id) {
+    const { data: t } = await supabase.from("transaksi").select("promo_snapshot").eq("id", receipt.id).single();
+    receipt.promo_snapshot = t?.promo_snapshot ?? null;
+  }
+  return { receipt };
 }
 
 export async function ubahStatus(
