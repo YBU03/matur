@@ -167,6 +167,9 @@ export function PosPromo({
             {list.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nama}
+                {p.cakupan === "transaksi"
+                  ? " · voucher sekali/transaksi"
+                  : " · per item"}
               </option>
             ))}
           </select>
@@ -186,8 +189,17 @@ export function PosPromo({
       {quote && (
         <div className="rounded-lg bg-green-50 p-2 text-green-800">
           <b>{quote.nama}</b>
+          {quote.cakupan === "transaksi" && (
+            <p className="text-xs font-semibold">
+              Voucher sekali per transaksi · tidak dikalikan jumlah item
+            </p>
+          )}
           <p>
-            {quote.subsidi ? (quote.nama_subsidi ?? "Subsidi") : "Diskon"}{" "}
+            {quote.subsidi
+              ? (quote.nama_subsidi ?? "Subsidi")
+              : quote.cakupan === "transaksi"
+                ? "Voucher"
+                : "Diskon"}{" "}
             {formatRupiah(quote.diskon)}
           </p>
           {quote.subsidi && (
@@ -210,7 +222,8 @@ export function PosPromo({
                 : list.flatMap((p) => p.aturan).some((a) => a.menu_id === id)
                   ? (menuNames[id] ?? "menu")
                   : "menu"}
-              : {n} item saat reservasi.
+              : {n} {quote.cakupan === "transaksi" ? "transaksi" : "item"} saat
+              reservasi.
             </p>
           ))}
           <button

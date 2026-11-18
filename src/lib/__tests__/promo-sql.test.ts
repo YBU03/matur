@@ -105,6 +105,11 @@ beforeAll(async () => {
   await db.exec(
     src("../../../supabase/migrations/20261118040314_promo_subsidi_kantor.sql"),
   );
+  await db.exec(
+    src(
+      "../../../supabase/migrations/20261118064829_voucher_per_transaksi.sql",
+    ),
+  );
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -658,13 +663,250 @@ it("settlement is idempotent, validates proof/amount, can be corrected and handl
     q("select laporan_subsidi(null,current_date,current_date)"),
   ).rejects.toThrow(/Accounting/);
 });
-it('marketing report reconciles ordinary discounts and subsidies once and preserves zero-payment sale costs',async()=>{
- await as(owner);
- const rows=(await q<{v:{id:string;status:string;diskon:number;subsidi:number;total:number;subtotal:number}[]}>('select laporan_marketing_diskon(null,current_date-1,current_date+1) v'))[0].v;
- expect(rows.some(r=>r.subsidi>0&&r.total===0)).toBe(true);expect(rows.some(r=>r.subsidi===0&&r.diskon>0)).toBe(true);
- for(const r of rows){expect(Number(r.subtotal)-Number(r.diskon)).toBe(Number(r.total));expect(Number(r.subsidi)).toBeLessThanOrEqual(Number(r.diskon));}
- const ingredient=id(30);await q("insert into bahan(id,nama,satuan_beli,satuan_pakai,harga_pokok) values($1,'Beans','kg','kg',2000)",[ingredient]);await q('insert into resep(menu_id,bahan_id,takaran) values($1,$2,1)',[menu,ingredient]);await q('insert into stok(outlet_id,bahan_id,jumlah) values($1,$2,10)',[o,ingredient]);
- const pid=await call<string>('simpan_promo',config({subsidi:true,kuota:null,aturan:[{menu_id:menu,varian_ids:[],jenis:'gratis',nilai:100}]}));await as(cash);const b=basket(pid),quote=await call('pesan_promo',b),paid=await call('matur_internal.buat_transaksi',sale(b,quote.id as string));
- expect((await q('select hpp_teoritis from transaksi where id=$1',[paid.id]))[0].hpp_teoritis).toBe(2000);expect(Number((await q('select jumlah from stok where outlet_id=$1 and bahan_id=$2',[o,ingredient]))[0].jumlah)).toBe(9);
- await expect(q('select laporan_marketing_diskon(null,current_date,current_date)')).rejects.toThrow(/Accounting/);
+it("marketing report reconciles ordinary discounts and subsidies once and preserves zero-payment sale costs", async () => {
+  await as(owner);
+  const rows = (
+    await q<{
+      v: {
+        id: string;
+        status: string;
+        diskon: number;
+        subsidi: number;
+        total: number;
+        subtotal: number;
+      }[];
+    }>("select laporan_marketing_diskon(null,current_date-1,current_date+1) v")
+  )[0].v;
+  expect(rows.some((r) => r.subsidi > 0 && r.total === 0)).toBe(true);
+  expect(rows.some((r) => r.subsidi === 0 && r.diskon > 0)).toBe(true);
+  for (const r of rows) {
+    expect(Number(r.subtotal) - Number(r.diskon)).toBe(Number(r.total));
+    expect(Number(r.subsidi)).toBeLessThanOrEqual(Number(r.diskon));
+  }
+  const ingredient = id(30);
+  await q(
+    "insert into bahan(id,nama,satuan_beli,satuan_pakai,harga_pokok) values($1,'Beans','kg','kg',2000)",
+    [ingredient],
+  );
+  await q("insert into resep(menu_id,bahan_id,takaran) values($1,$2,1)", [
+    menu,
+    ingredient,
+  ]);
+  await q("insert into stok(outlet_id,bahan_id,jumlah) values($1,$2,10)", [
+    o,
+    ingredient,
+  ]);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      subsidi: true,
+      kuota: null,
+      aturan: [{ menu_id: menu, varian_ids: [], jenis: "gratis", nilai: 100 }],
+    }),
+  );
+  await as(cash);
+  const b = basket(pid),
+    quote = await call("pesan_promo", b),
+    paid = await call(
+      "matur_internal.buat_transaksi",
+      sale(b, quote.id as string),
+    );
+  expect(
+    (await q("select hpp_teoritis from transaksi where id=$1", [paid.id]))[0]
+      .hpp_teoritis,
+  ).toBe(2000);
+  expect(
+    Number(
+      (
+        await q("select jumlah from stok where outlet_id=$1 and bahan_id=$2", [
+          o,
+          ingredient,
+        ])
+      )[0].jumlah,
+    ),
+  ).toBe(9);
+  await expect(
+    q("select laporan_marketing_diskon(null,current_date,current_date)"),
+  ).rejects.toThrow(/Accounting/);
+});
+it("transaction voucher applies Rp15000 once for one/many menus or quantities, yielding 48000 → 33000", async () => {
+  const capp = id(40),
+    caramel = id(41);
+  await q(
+    "insert into menu(id,nama,harga_langsung,harga_ojol) values($1,'Cappucino voucher',20000,20000),($2,'Caramel voucher',28000,28000)",
+    [capp, caramel],
+  );
+  await q(
+    "update matur_internal.pos_izin set katalog=jsonb_set(jsonb_set(katalog,array['menu',$1],'{\"langsung\":20000,\"ojol\":20000}'),array['menu',$2],'{\"langsung\":28000,\"ojol\":28000}') where id=$3",
+    [capp, caramel, permit],
+  );
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      cakupan: "transaksi",
+      nilai_voucher: 15000,
+      minimum_belanja: 15001,
+      kuota: null,
+      per_menu: true,
+      aturan: [capp, caramel].map((menu_id) => ({
+        menu_id,
+        varian_ids: [],
+        jenis: "potongan",
+        nilai: 15000,
+      })),
+    }),
+  );
+  expect(
+    (await q("select per_menu from promo_internal.promo where id=$1", [pid]))[0]
+      .per_menu,
+  ).toBe(false);
+  await as(cash);
+  for (const [items, expected] of [
+    [[{ menu_id: capp, varian_ids: [], qty: 1 }], 5000],
+    [[{ menu_id: caramel, varian_ids: [], qty: 1 }], 13000],
+    [
+      [
+        { menu_id: capp, varian_ids: [], qty: 1 },
+        { menu_id: caramel, varian_ids: [], qty: 1 },
+      ],
+      33000,
+    ],
+    [[{ menu_id: capp, varian_ids: [], qty: 2 }], 25000],
+    [
+      [
+        { menu_id: capp, varian_ids: [], qty: 2 },
+        { menu_id: caramel, varian_ids: [], qty: 1 },
+      ],
+      53000,
+    ],
+  ] as const) {
+    const b = basket(pid, { items });
+    const quote = await call("pesan_promo", b);
+    expect(quote.diskon).toBe(15000);
+    expect(quote.cakupan).toBe("transaksi");
+    expect(await call("pesan_promo", b)).toEqual(quote);
+    const p = sale(b, quote.id as string);
+    const paid = await call("matur_internal.buat_transaksi", p);
+    expect(paid.total).toBe(expected);
+    expect(paid.diskon).toBe(15000);
+    expect((await call("matur_internal.buat_transaksi", p)).id).toBe(paid.id);
+    expect(
+      (
+        await q("select promo_snapshot from transaksi where id=$1", [paid.id])
+      )[0].promo_snapshot,
+    ).toMatchObject({ cakupan: "transaksi", nilai_voucher: 15000 });
+  }
+});
+it("voucher checks minimum on eligible menus and caps discount without leaking it to ineligible items", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      cakupan: "transaksi",
+      nilai_voucher: 15000,
+      minimum_belanja: 15001,
+      kuota: null,
+    }),
+  );
+  await as(cash);
+  await expect(call("pesan_promo", basket(pid))).rejects.toThrow(
+    /Minimum belanja/,
+  );
+  await expect(
+    call(
+      "pesan_promo",
+      basket(pid, {
+        items: [
+          { menu_id: menu, varian_ids: [], qty: 1 },
+          { menu_id: id(41), varian_ids: [], qty: 1 },
+        ],
+      }),
+    ),
+  ).rejects.toThrow(/Minimum belanja/);
+  await as(owner);
+  const capped = await call<string>(
+    "simpan_promo",
+    config({
+      cakupan: "transaksi",
+      nilai_voucher: 15000,
+      minimum_belanja: 0,
+      kuota: null,
+    }),
+  );
+  await as(cash);
+  const q2 = await call(
+    "pesan_promo",
+    basket(capped, {
+      items: [
+        { menu_id: menu, varian_ids: [], qty: 1 },
+        { menu_id: id(41), varian_ids: [], qty: 1 },
+      ],
+    }),
+  );
+  expect(q2.diskon).toBe(10000);
+  await q("select lepas_promo($1)", [q2.id]);
+  await expect(call("pesan_promo", basket(capped))).rejects.toThrow(
+    /lebih dari nol/,
+  );
+  await expect(
+    call(
+      "pesan_promo",
+      basket(capped, { items: [{ menu_id: id(41), varian_ids: [], qty: 1 }] }),
+    ),
+  ).rejects.toThrow(/memenuhi/);
+});
+it("voucher quota counts one transaction, not cups; void returns one use and scope changes revoke old reservations", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      cakupan: "transaksi",
+      nilai_voucher: 15000,
+      minimum_belanja: 0,
+      kuota: 1,
+    }),
+  );
+  await as(cash);
+  const b = basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 3 }] }),
+    quote = await call("pesan_promo", b);
+  expect(quote.sisa).toEqual({ semua: 0 });
+  await expect(
+    call(
+      "pesan_promo",
+      basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 2 }] }),
+    ),
+  ).rejects.toThrow(/Kuota/);
+  const paid = await call(
+    "matur_internal.buat_transaksi",
+    sale(b, quote.id as string),
+  );
+  expect(paid.total).toBe(15000);
+  await q("update transaksi set status='void' where id=$1", [paid.id]);
+  const next = await call(
+    "pesan_promo",
+    basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 2 }] }),
+  );
+  await q("select lepas_promo($1)", [next.id]);
+  await as(owner);
+  const old = await call<string>("simpan_promo", config({ kuota: null }));
+  await as(cash);
+  const before = basket(old),
+    lease = await call("pesan_promo", before);
+  await as(owner);
+  await call(
+    "simpan_promo",
+    config({
+      id: old,
+      versi: 1,
+      cakupan: "transaksi",
+      nilai_voucher: 5000,
+      kuota: null,
+    }),
+  );
+  await as(cash);
+  await expect(
+    call("matur_internal.buat_transaksi", sale(before, lease.id as string)),
+  ).rejects.toThrow(/berakhir/);
+  expect((await call("pesan_promo", basket(old))).diskon).toBe(5000);
 });

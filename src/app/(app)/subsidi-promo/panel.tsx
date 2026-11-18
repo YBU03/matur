@@ -270,6 +270,11 @@ export function SubsidiPanel({
                   </td>
                   <td className="p-2">
                     <b>{r.nama}</b>
+                    {r.cakupan === "transaksi" && (
+                      <p className="text-xs font-semibold text-sky-800">
+                        Voucher sekali per transaksi
+                      </p>
+                    )}
                     {r.nama_subsidi && (
                       <p className="text-xs">{r.nama_subsidi}</p>
                     )}

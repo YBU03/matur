@@ -7,6 +7,9 @@ export type AturanPromo = {
 export type Promo = {
   id: string;
   nama: string;
+  cakupan?: "item" | "transaksi";
+  nilai_voucher?: number | null;
+  minimum_belanja?: number;
   aktif: boolean;
   subsidi?: boolean;
   nama_subsidi?: string;
@@ -26,6 +29,9 @@ export type Promo = {
 export type PromoQuote = {
   id: string;
   nama: string;
+  cakupan?: "item" | "transaksi";
+  nilai_voucher?: number | null;
+  minimum_belanja?: number;
   diskon: number;
   subsidi?: boolean;
   nama_subsidi?: string;
@@ -36,6 +42,9 @@ export type PromoQuote = {
 export type PromoSnapshot = {
   id: string;
   nama: string;
+  cakupan?: "item" | "transaksi";
+  nilai_voucher?: number | null;
+  minimum_belanja?: number;
   diskon: number;
   subsidi?: boolean;
   nama_subsidi?: string;
@@ -48,6 +57,7 @@ export type PemakaianPromo = {
   tanggal: string;
   outlet: string;
   promo: string;
+  cakupan?: "item" | "transaksi";
   diskon: number;
   subsidi?: boolean;
   nama_subsidi?: string;
