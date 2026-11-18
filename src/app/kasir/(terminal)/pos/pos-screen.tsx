@@ -1,4 +1,6 @@
 "use client";
+import { PosPromo } from "@/components/pos-promo";
+import type { PromoQuote } from "@/lib/promo";
 import { QrisPaymentSuccess } from "@/components/qris-payment-success";
 import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
 import { pakaiFeedbackQrisDinamis } from "@/lib/qris-payment-feedback";
@@ -241,7 +243,17 @@ export function PosScreen({
 
   const price = (l: Pick<Line, "menu" | "varian">) => priceFor(kanal, l);
   const subtotal = cart.reduce((s, l) => s + price(l) * l.qty, 0);
-  const total = Math.max(subtotal - num(diskon), 0);
+  const [promoBusy,setPromoBusy] = useState(false);
+  const promoKey = JSON.stringify({items:cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty})),kanal,diskon:num(diskon),sesiId,izinId:izin.id});
+  const [promoState,setPromoState] = useState<{key:string;quote:PromoQuote}|null>(null);
+  useEffect(()=>{setQrisBayar(null);},[promoKey]);
+  const promo = promoState?.key===promoKey ? promoState.quote : null;
+  useEffect(()=>{
+    if(!promo)return;
+    const timeout=setTimeout(()=>{setQrisBayar(null);setErr("Reservasi promo berakhir. Pilih ulang; cek riwayat jika pembayaran sudah dilakukan.");},Math.max(0,Date.parse(promo.sampai_at)-Date.now()));
+    return()=>clearTimeout(timeout);
+  },[promo]);
+  const total = Math.max(subtotal - num(diskon) - (promo?.diskon??0), 0);
   // kemasan tampil sebagai satu kartu menu induk; dipilih di jendela varian
   const anakOf = useMemo(() => {
     const g = new Map<string, PosMenu[]>();
@@ -287,7 +299,7 @@ export function PosScreen({
       ),
     );
 
-  const persenDiskon = subtotal ? (num(diskon) / subtotal) * 100 : 0;
+  const persenDiskon = subtotal > (promo?.diskon??0) ? (num(diskon) / (subtotal-(promo?.diskon??0))) * 100 : 0;
   const sisaSplit = total - bayarList.reduce((t, b) => t + num(b.nominal), 0);
   const attempt = useRef<{
     fingerprint: string;
@@ -309,6 +321,7 @@ export function PosScreen({
     ]);
   };
   const checkout = (otorisasi?: string, simulasi = false) => {
+    if(promoBusy)return setErr("Tunggu pemeriksaan promo selesai.");
     const waktu = new Date(
       Date.parse(izin.server_at) + Date.now() - izin.client_at,
     );
@@ -318,7 +331,7 @@ export function PosScreen({
         split ||
         metode !== "tunai" ||
         draftId ||
-        otorisasi)
+        otorisasi || promo)
     )
       return setErr(
         "Saat offline hanya transaksi tunai biasa yang bisa disimpan. QRIS/split/draft/persetujuan membutuhkan internet.",
@@ -338,6 +351,7 @@ export function PosScreen({
       pelanggan,
       meja,
       diskon: num(diskon),
+      promo_quote: promo?.id,
       metode: split ? "split" : metode,
       diterima:
         !split && metode === "tunai" ? num(diterima) || total : undefined,
@@ -381,7 +395,8 @@ export function PosScreen({
       !split &&
       c.metode === "tunai" &&
       !draftId &&
-      !otorisasi;
+      !otorisasi &&
+      !promo;
     const sementara = `OFF-${c.client_id.slice(0, 8).toUpperCase()}`;
     start(async () => {
       setErr("");
@@ -433,7 +448,7 @@ export function PosScreen({
           split ||
           c.metode !== "tunai" ||
           draftId ||
-          otorisasi
+          otorisasi || c.promo_quote
         )
           return setErr(
             "Transaksi ini memerlukan internet. Keranjang tetap tersimpan di layar; coba lagi saat tersambung.",
@@ -572,6 +587,9 @@ export function PosScreen({
 
   // Non-tunai: bila ada bagian QRIS, tampilkan QR dulu (setelah cek diskon/split/online), baru simpan saat dana masuk.
   const mulaiBayar = (otorisasi?: string) => {
+    if(promoBusy)return setErr("Tunggu pemeriksaan promo selesai.");
+    if (promo && Date.parse(promo.sampai_at)<=Date.now()) return setErr("Reservasi promo berakhir. Pilih ulang sebelum memulai pembayaran.");
+    if (promo && !navigator.onLine) return setErr("Promo membutuhkan internet.");
     const nominalQris = split
       ? bayarList.filter((b) => b.metode === "qris").reduce((t, b) => t + num(b.nominal), 0)
       : metode === "qris"
@@ -850,8 +868,10 @@ export function PosScreen({
 
         <div className="space-y-1 rounded-xl bg-matur-50/70 p-3 text-sm">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
+          {bisaBayar && <PosPromo menuNames={Object.fromEntries(menus.map(m=>[m.id,m.nama]))} onBusy={setPromoBusy} disabled={pending} key={promoKey} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={q=>{setPromoState(q?{key:promoKey,quote:q}:null);setQrisBayar(null);}} />}
+          {promo && <Row label={`Promo: ${promo.nama}`} value={formatRupiah(-promo.diskon)} /> }
           <label className="flex items-center justify-between">
-            Diskon (Rp)
+            Diskon manual (Rp)
             <input
               value={diskon}
               onChange={(e) => setDiskon(e.target.value)}
@@ -1025,7 +1045,7 @@ export function PosScreen({
         </button>
         {bisaBayar ? (
           <button
-            disabled={pending || cart.length === 0}
+            disabled={pending || promoBusy || cart.length === 0}
             onClick={() => {
               // tunai: pop-up uang diterima + kembalian, tidak perlu scroll
               if (!split && metode === "tunai") {

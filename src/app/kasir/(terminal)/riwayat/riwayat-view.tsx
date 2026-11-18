@@ -16,6 +16,7 @@ import { voidLangsung, voidTransaksi } from "@/lib/pos-actions";
 import { PinSpv } from "../pos/pos-screen";
 
 export type Trx = {
+  promo_snapshot?: import("@/lib/promo").PromoSnapshot | null;
   id: string;
   sumber_penjualan?: {
     no: string;
@@ -491,6 +492,7 @@ export function RiwayatView({
           }
           r={{
             id: struk.id,
+            promo_snapshot: struk.promo_snapshot,
             nomor: struk.nomor,
             subtotal: Number(struk.subtotal ?? struk.total),
             diskon: Number(struk.diskon ?? 0),
