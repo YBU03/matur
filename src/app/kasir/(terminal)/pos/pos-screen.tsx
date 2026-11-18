@@ -1,5 +1,7 @@
 "use client";
 import { PosPromo } from "@/components/pos-promo";
+import { KotakPromoKasir } from "@/components/kotak-promo-kasir";
+import type { Promo } from "@/lib/promo";
 import type { PromoQuote } from "@/lib/promo";
 import { QrisPaymentSuccess } from "@/components/qris-payment-success";
 import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
@@ -244,6 +246,8 @@ export function PosScreen({
   const price = (l: Pick<Line, "menu" | "varian">) => priceFor(kanal, l);
   const subtotal = cart.reduce((s, l) => s + price(l) * l.qty, 0);
   const [promoBusy,setPromoBusy] = useState(false);
+  const [promoAktif, setPromoAktif] = useState<Promo[]>([]);
+  const namaMenuPromo = useMemo(() => Object.fromEntries(menus.map((m) => [m.id, m.nama])), [menus]);
   const promoKey = JSON.stringify({items:cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty})),kanal,diskon:num(diskon),sesiId,izinId:izin.id});
   const [promoState,setPromoState] = useState<{key:string;quote:PromoQuote}|null>(null);
   useEffect(()=>{setQrisBayar(null);},[promoKey]);
@@ -640,6 +644,7 @@ export function PosScreen({
             Hitung / tutup kas tim
           </Link>
         </div>
+        <KotakPromoKasir segarkan={receipt} menuNames={namaMenuPromo} onList={setPromoAktif} />
         <div className="space-y-2">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" aria-hidden>
@@ -870,7 +875,7 @@ export function PosScreen({
 
         <div className="space-y-1 rounded-xl bg-matur-50/70 p-3 text-sm">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
-          {bisaBayar && <PosPromo menuNames={Object.fromEntries(menus.map(m=>[m.id,m.nama]))} onBusy={setPromoBusy} disabled={pending} key={promoKey} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={q=>{setPromoState(q?{key:promoKey,quote:q}:null);setQrisBayar(null);}} />}
+          {bisaBayar && <PosPromo awal={promoAktif} menuNames={namaMenuPromo} onBusy={setPromoBusy} disabled={pending} key={promoKey} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={q=>{setPromoState(q?{key:promoKey,quote:q}:null);setQrisBayar(null);}} />}
           {promo && <Row label={promo.subsidi?`${promo.nama_subsidi??"Subsidi"}`:`Promo: ${promo.nama}`} value={formatRupiah(-promo.diskon)} /> }
           <label className="flex items-center justify-between">
             Diskon manual (Rp)

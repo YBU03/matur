@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { labelKuota, labelNilai, rentangJam, rentangTanggal, statusPromo, urutkanPromo } from "../promo-tampilan";
+import { akhirSlot, hargaPromo, hitungMundur, jamLegacy, labelHari, labelKuota, labelNilai, labelWaktu, mulaiLagi, rentangJam, rentangTanggal, statusPromo, urutkanPromo } from "../promo-tampilan";
 import type { Promo } from "../promo";
 
 const now = Date.parse("2026-11-18T05:00:00Z"); // 12.00 WIB
@@ -36,7 +36,32 @@ it("label nilai promo", () => {
 
 it("kuota & urutan", () => {
   expect(labelKuota(p())).toBe("Tanpa batas kuota");
-  expect(labelKuota(p({ kuota: 50, per_menu: true }))).toBe("Kuota 50 item/hari · per menu · per outlet");
+  expect(labelKuota(p({ kuota: 50, per_menu: true }))).toBe("Maks 50 cup/item per hari di setiap outlet, dihitung per menu");
+  expect(labelKuota(p({ kuota: 10, cakupan: "transaksi", bersama: true }))).toBe("Maks 10 transaksi per hari untuk semua outlet bersama");
   const list = urutkanPromo([p({ id: "s", selesai: "2026-11-01" }), p({ id: "n", aktif: false }), p({ id: "t", mulai: "2026-11-25" }), p({ id: "b" })], now);
   expect(list.map((x) => x.id)).toEqual(["b", "t", "n", "s"]);
+});
+
+it("slot, hari dan hitung mundur sama dengan aturan server", () => {
+  const q = p({ mulai: "2026-11-16", selesai: "2026-11-30", hari: [1, 2, 3, 4, 5], slot: [{ mulai: "07:00:00", selesai: "10:00:00" }, { mulai: "15:00:00", selesai: "17:00:00" }, { mulai: "21:00:00", selesai: "01:00:00" }] });
+  const t = (s: string) => Date.parse(s);
+  expect(akhirSlot(q, t("2026-11-18T08:00:00+07:00"))).toBe(t("2026-11-18T10:00:00+07:00"));
+  expect(akhirSlot(q, t("2026-11-18T12:00:00+07:00"))).toBeNull();
+  expect(akhirSlot(q, t("2026-11-18T23:30:00+07:00"))).toBe(t("2026-11-19T01:00:00+07:00"));
+  expect(akhirSlot(q, t("2026-11-21T00:30:00+07:00"))).toBe(t("2026-11-21T01:00:00+07:00"));
+  expect(akhirSlot(q, t("2026-11-21T08:00:00+07:00"))).toBeNull();
+  expect(mulaiLagi(q, t("2026-11-18T12:00:00+07:00"))).toBe("15.00");
+  expect(mulaiLagi(q, t("2026-11-21T12:00:00+07:00"))).toBeNull();
+  expect(labelWaktu(q)).toBe("Sen–Jum · 07.00–10.00 & 15.00–17.00 & 21.00–01.00 WIB");
+  expect(labelHari([6, 7])).toBe("Sab, Min");
+  expect(labelHari([1, 3, 5])).toBe("Sen, Rab, Jum");
+  expect(labelWaktu(p())).toBe("Setiap hari · Sepanjang hari");
+  expect(jamLegacy([{ mulai: "07:00", selesai: "10:00" }])).toEqual({ jam_mulai: "07:00", jam_selesai: "10:00" });
+  expect(jamLegacy([{ mulai: "00:00", selesai: "23:59" }])).toEqual({ jam_mulai: "00:00", jam_selesai: "23:59:59" });
+  expect(jamLegacy([{ mulai: "21:00", selesai: "01:00" }])).toEqual({ jam_mulai: "00:00", jam_selesai: "23:59:59" });
+  expect(hargaPromo(22000, "persen", 20)).toBe(17600);
+  expect(hargaPromo(22000, "harga_akhir", 15000)).toBe(15000);
+  expect(hargaPromo(22000, "potongan", 5000)).toBe(17000);
+  expect(hargaPromo(22000, "gratis", 100)).toBe(0);
+  expect(hitungMundur(5075_000)).toBe("01:24:35");
 });

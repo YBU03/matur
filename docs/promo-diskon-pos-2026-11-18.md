@@ -48,3 +48,16 @@ Hanya tampilan; RPC `simpan_promo`/`daftar_promo`/`laporan_promo`, aturan, kuota
 - Tombol cepat Aktifkan/Nonaktifkan (konfirmasi `tanya`, memakai `simpanPromo` dengan versi yang sama → tercatat di Log Aktivitas) dan Duplikat (membuka form promo baru nonaktif berisi salinan).
 - Form dibagi 5 bagian bernomor + pratinjau ringkas; isian sama seperti sebelumnya.
 - Laporan pemakaian: ringkasan + tabel seragam (`ui-halaman`), kartu per transaksi di HP; total bayar Rp0 tampil "Rp0".
+
+## Hari, slot jam fleksibel, kotak promo kasir & laporan kuota (18 November 2026, malam)
+
+Migrasi `20261118142331_promo_slot_hari_kuota.sql` (hanya menambah):
+- Kolom `promo_internal.promo.slot` (jsonb, maks 6 slot `{mulai, selesai}` HH:MM:SS) dan `hari` (smallint[] ISO 1=Senin…7=Minggu). Promo lama di-backfill 1 slot = jam lama, setiap hari; Sambas & Grand Opening diverifikasi tidak berubah.
+- `promo_internal.akhir_slot(promo, t)` = akhir slot yang berlaku atau null. Slot dengan jam selesai ≤ jam mulai = lewat tengah malam, milik tanggal/hari saat dimulai. Dipakai `daftar` (kasir) dan `pesan` (validasi + batas reservasi). `simpan` memvalidasi & menyimpan slot/hari; klien lama tanpa slot tetap memakai jam_mulai/jam_selesai. Kolom jam lama hanya kompatibilitas (dikirim dari `jamLegacy`).
+- Daftar kasir menambah `berakhir_at` dan `sisa_kuota` (`promo_internal.sisa_kuota`, termasuk reservasi aktif).
+- `laporan_kuota_promo(o,d,s)`: per hari/promo/outlet(/menu): kuota, terpakai, `habis_at` = jam transaksi yang memakai kuota terakhir (hanya pesanan `pakai`; void/hapus tidak dihitung).
+
+Tampilan:
+- Kasir: `src/components/kotak-promo-kasir.tsx` di bawah bar operator. Hanya muncul bila promo aktif & dalam slot/hari. Timer lokal per detik, merah berdenyut 10 menit terakhir, bar kuota hijau/kuning/merah ("Kuota habis"), ketuk untuk detail di HP, "Mulai lagi pukul …" bila ada slot berikutnya hari itu. Data dimuat saat dibuka, setelah transaksi, saat kembali ke layar, tiap 3 menit (5 menit bila tidak ada promo). Daftar juga diisikan ke `PosPromo` (prop `awal`) sehingga kasir tidak perlu klik Muat dulu.
+- Form /promo: kartu jenis promo (Diskon per menu / Voucher belanja), hari (Sen–Min + Setiap hari/Hari kerja/Akhir pekan), slot jam 24 jam pilihan jam:menit + tombol cepat (Sepanjang hari, Ngopi Pagi, Siang, Sore, Malam), contoh harga coret per menu dari `harga_langsung` (peringatan bila harga akhir > harga asli), tambah semua menu satu kategori, label varian "Hanya berlaku kalau pembeli memilih", kalimat kuota otomatis, konfirmasi "Simpan & aktifkan", pesan error ramah (`pesanRamah`).
+- Laporan: kartu "Kuota per hari" dengan jam habis.

@@ -110,6 +110,9 @@ beforeAll(async () => {
       "../../../supabase/migrations/20261118064829_voucher_per_transaksi.sql",
     ),
   );
+  await db.exec(
+    src("../../../supabase/migrations/20261118142331_promo_slot_hari_kuota.sql"),
+  );
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -909,4 +912,57 @@ it("voucher quota counts one transaction, not cups; void returns one use and sco
     call("matur_internal.buat_transaksi", sale(before, lease.id as string)),
   ).rejects.toThrow(/berakhir/);
   expect((await call("pesan_promo", basket(old))).diskon).toBe(5000);
+});
+
+it("slot jam bebas, lewat tengah malam dan hari tertentu menentukan berlakunya promo", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      mulai: "2026-11-16",
+      selesai: "2026-11-30",
+      slot: [{ mulai: "15:00", selesai: "17:00" }, { mulai: "07:00", selesai: "10:00" }, { mulai: "21:00", selesai: "01:00" }],
+      hari: [1, 2, 3, 4, 5],
+      kuota: null,
+    }),
+  );
+  const row = (await q<{ slot: unknown; hari: number[] }>("select slot, hari from promo_internal.promo where id=$1", [pid]))[0];
+  expect(row.slot).toEqual([{ mulai: "07:00:00", selesai: "10:00:00" }, { mulai: "15:00:00", selesai: "17:00:00" }, { mulai: "21:00:00", selesai: "01:00:00" }]);
+  expect(row.hari).toEqual([1, 2, 3, 4, 5]);
+  const akhir = async (t: string) =>
+    (await q<{ v: string | null }>("select to_char(promo_internal.akhir_slot(r,$2::timestamptz) at time zone 'Asia/Jakarta','YYYY-MM-DD HH24:MI') v from promo_internal.promo r where id=$1", [pid, t]))[0].v;
+  expect(await akhir("2026-11-18 08:00+07")).toBe("2026-11-18 10:00"); // Rabu pagi
+  expect(await akhir("2026-11-18 12:00+07")).toBeNull(); // di luar slot
+  expect(await akhir("2026-11-18 16:59+07")).toBe("2026-11-18 17:00");
+  expect(await akhir("2026-11-18 23:30+07")).toBe("2026-11-19 01:00"); // lewat tengah malam
+  expect(await akhir("2026-11-19 00:30+07")).toBe("2026-11-19 01:00");
+  expect(await akhir("2026-11-21 08:00+07")).toBeNull(); // Sabtu
+  expect(await akhir("2026-11-21 00:30+07")).toBe("2026-11-21 01:00"); // sisa slot Jumat malam
+  expect(await akhir("2026-11-22 00:30+07")).toBeNull(); // Sabtu malam tidak dipilih
+  expect(await akhir("2026-12-01 08:00+07")).toBeNull(); // lewat periode
+  await expect(call("simpan_promo", config({ slot: [{ mulai: "07:00", selesai: "07:00" }] }))).rejects.toThrow(/Jam promo/);
+  await expect(call("simpan_promo", config({ hari: [] }))).rejects.toThrow(/hari/);
+  // Promo lama/klien lama tanpa slot tetap 1 slot dari jam & setiap hari.
+  const lama = await call<string>("simpan_promo", config({ jam_mulai: "06:00", jam_selesai: "09:00:00", kuota: null }));
+  expect((await q("select slot, hari from promo_internal.promo where id=$1", [lama]))[0]).toEqual({ slot: [{ mulai: "06:00:00", selesai: "09:00:00" }], hari: [1, 2, 3, 4, 5, 6, 7] });
+});
+
+it("kasir menerima sisa kuota & akhir slot, laporan mencatat jam kuota habis", async () => {
+  await as(owner);
+  const pid = await call<string>("simpan_promo", config({ nama: "Kuota Laporan", kuota: 2 }));
+  await as(cash);
+  const list = (await q<{ v: { id: string; sisa_kuota: Record<string, number>; berakhir_at: string }[] }>("select daftar_promo($1,false) v", [o]))[0].v;
+  const ini = list.find((x) => x.id === pid)!;
+  expect(ini.sisa_kuota).toEqual({ semua: 2 });
+  expect(ini.berakhir_at).toBeTruthy();
+  const b = basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 2 }] }),
+    quote = await call("pesan_promo", b);
+  await call("matur_internal.buat_transaksi", sale(b, quote.id as string));
+  const after = (await q<{ v: { id: string; sisa_kuota: Record<string, number> }[] }>("select daftar_promo($1,false) v", [o]))[0].v;
+  expect(after.find((x) => x.id === pid)!.sisa_kuota).toEqual({ semua: 0 });
+  await as(owner);
+  const lap = (await q<{ v: { promo: string; kuota: number; terpakai: number; habis_at: string | null }[] }>("select laporan_kuota_promo(null,current_date-1,current_date+1) v"))[0].v;
+  const baris = lap.find((x) => x.promo === "Kuota Laporan")!;
+  expect(baris).toMatchObject({ kuota: 2, terpakai: 2 });
+  expect(baris.habis_at).toBeTruthy();
 });

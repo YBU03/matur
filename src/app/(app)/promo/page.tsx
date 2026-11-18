@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { tglOperasional } from "@/lib/hari-operasional";
-import type { Promo, PemakaianPromo } from "@/lib/promo";
+import type { Promo, PemakaianPromo, KuotaPromoHarian } from "@/lib/promo";
 import { PromoPanel } from "./panel";
 export default async function PromoPage({
   searchParams,
@@ -26,12 +26,12 @@ export default async function PromoPage({
   const o = s.active.role === "spv" ? s.active.outletId : sp.outlet || null;
   if (s.active.role === "spv" && !o) notFound();
   const db = await supabaseServer();
-  const [promos, outlets, menus, variants, report] = await Promise.all([
+  const [promos, outlets, menus, variants, report, kategori, kuota] = await Promise.all([
     db.rpc("daftar_promo", { o, manajemen: true }),
     db.from("outlet").select("id,nama").is("deleted_at", null).order("nama"),
     db
       .from("menu")
-      .select("id,nama,kemasan")
+      .select("id,nama,kemasan,harga_langsung,kategori_id")
       .eq("aktif", true)
       .eq("mode", "asli")
       .is("deleted_at", null)
@@ -42,6 +42,8 @@ export default async function PromoPage({
       .is("deleted_at", null)
       .order("nama"),
     db.rpc("laporan_promo", { o, d: dari, s: sampai }),
+    db.from("kategori_menu").select("id,nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
+    db.rpc("laporan_kuota_promo", { o, d: dari, s: sampai }),
   ]);
   return (
     <PromoPanel
@@ -52,6 +54,8 @@ export default async function PromoPage({
       menus={menus.data ?? []}
       variants={variants.data ?? []}
       laporan={(report.data ?? []) as PemakaianPromo[]}
+      kategori={kategori.data ?? []}
+      kuotaHarian={(kuota.data ?? []) as KuotaPromoHarian[]}
       error={
         promos.error?.message ||
         report.error?.message ||

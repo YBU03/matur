@@ -25,7 +25,16 @@ export type Promo = {
   bersama: boolean;
   boleh_manual: boolean;
   versi: number;
+  /** slot jam bebas (boleh lewat tengah malam); kosong = jam_mulai–jam_selesai */
+  slot?: SlotPromo[];
+  /** hari ISO 1=Senin … 7=Minggu; kosong = setiap hari */
+  hari?: number[];
+  /** hanya dari daftar kasir: akhir slot yang sedang berlaku & sisa kuota hari ini */
+  berakhir_at?: string | null;
+  sisa_kuota?: Record<string, number> | null;
 };
+export type SlotPromo = { mulai: string; selesai: string };
+export type KuotaPromoHarian = { tanggal: string; promo_id: string; promo: string; outlet: string; menu: string | null; kuota: number; terpakai: number; habis_at: string | null };
 export type PromoQuote = {
   id: string;
   nama: string;

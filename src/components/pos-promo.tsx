@@ -15,6 +15,7 @@ export function PosPromo({
   onQuote,
   onBusy,
   disabled,
+  awal,
 }: {
   sesiId: string;
   izinId: string;
@@ -26,6 +27,8 @@ export function PosPromo({
   onQuote: (q: PromoQuote | null) => void;
   onBusy: (busy: boolean) => void;
   disabled: boolean;
+  /** promo berlaku dari kotak promo kasir, supaya tidak perlu klik "Muat" dulu */
+  awal?: Promo[];
 }) {
   const [list, setList] = useState<Promo[]>([]);
   const [selected, setSelected] = useState("");
@@ -39,6 +42,9 @@ export function PosPromo({
     onBusy(pending);
     return () => onBusy(false);
   }, [pending, onBusy]);
+  useEffect(() => {
+    if (awal && !ref.current) setList(awal);
+  }, [awal]);
   const callback = useRef(onQuote);
   callback.current = onQuote;
   useEffect(() => {

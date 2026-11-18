@@ -7,8 +7,8 @@ import { PilihMenuPromo } from "@/components/pilih-menu-promo";
 import { simpanPromo } from "@/lib/promo-actions";
 import { tanya } from "@/components/dialog-tanya";
 import { Badge, BarisAngka, HeaderHalaman, Kartu, KartuAngka, Kosong, tabKelas, tabel, tombolAksi, tombolHeaderUtama } from "@/components/ui-halaman";
-import { LABEL_STATUS, diLuarJam, labelKuota, labelNilai, rentangJam, rentangTanggal, statusPromo, urutkanPromo, type StatusPromo } from "@/lib/promo-tampilan";
-import type { Promo, PemakaianPromo, AturanPromo } from "@/lib/promo";
+import { LABEL_STATUS, NAMA_HARI, PRESET_JAM, SEMUA_HARI, cekSlot, diLuarJam, hargaPromo, jamLegacy, labelKuota, labelNilai, labelWaktu, pesanRamah, rentangTanggal, slotPromo, statusPromo, urutkanPromo, type StatusPromo } from "@/lib/promo-tampilan";
+import type { Promo, PemakaianPromo, AturanPromo, KuotaPromoHarian, SlotPromo } from "@/lib/promo";
 type Opsi = { id: string; nama: string };
 const input =
   "w-full rounded-xl border border-matur-200 bg-white px-3 py-2 text-sm text-kopi-900 outline-none focus:border-matur-500 focus:ring-2 focus:ring-matur-100";
@@ -45,6 +45,8 @@ export function PromoPanel({
   menus,
   variants,
   laporan,
+  kategori = [],
+  kuotaHarian = [],
   error,
   bisaEdit,
   spv,
@@ -54,9 +56,11 @@ export function PromoPanel({
 }: {
   promos: Promo[];
   outlets: Opsi[];
-  menus: (Opsi & { kemasan?: string | null })[];
+  menus: (Opsi & { kemasan?: string | null; harga_langsung?: number | null; kategori_id?: string | null })[];
   variants: (Opsi & { menu_id: string; grup: string })[];
   laporan: PemakaianPromo[];
+  kategori?: Opsi[];
+  kuotaHarian?: KuotaPromoHarian[];
   error?: string;
   bisaEdit: boolean;
   spv: boolean;
@@ -93,17 +97,32 @@ export function PromoPanel({
     bersama: false,
     boleh_manual: false,
     versi: 0,
+    slot: [{ mulai: "00:00", selesai: "23:59" }],
+    hari: [...SEMUA_HARI],
   });
+  const [kat, setKat] = useState("");
+  // Form memakai HH:MM (24 jam); server menyimpan HH:MM:SS.
+  const bukaEdit = (p: Promo) => {
+    setErr("");
+    setEdit({ ...structuredClone(p), slot: slotPromo(p).map((x) => ({ mulai: x.mulai.slice(0, 5), selesai: x.selesai.slice(0, 5) })), hari: p.hari?.length ? [...p.hari] : [...SEMUA_HARI] });
+  };
+  const ubahSlot = (i: number, x: Partial<SlotPromo>) => set({ slot: (edit!.slot ?? []).map((v, k) => (k === i ? { ...v, ...x } : v)) });
   const set = (p: Partial<Promo>) =>
     setEdit((x) => (x ? { ...x, ...p } : null));
   const rule = (i: number, p: Partial<AturanPromo>) =>
     set({ aturan: edit!.aturan.map((a, k) => (i === k ? { ...a, ...p } : a)) });
-  const simpan = () =>
+  const simpan = async () => {
+    const slot = edit!.slot ?? [];
+    const salah = cekSlot(slot) || (!(edit!.hari ?? []).length ? "Pilih minimal satu hari" : "");
+    if (salah) return setErr(salah);
+    let aktifkan = edit!.aktif;
+    if (!aktifkan) aktifkan = await tanya("Promo ini akan disimpan dalam keadaan nonaktif sehingga belum muncul di kasir. Aktifkan sekarang?", { judul: "Aktifkan promo?", ya: "Ya, simpan & aktifkan" });
+    const kirim = { ...edit!, aktif: aktifkan, slot: slot.map((x) => ({ mulai: x.mulai, selesai: x.selesai === "23:59" ? "23:59:59" : x.selesai })), ...jamLegacy(slot) };
     start(async () => {
       setErr("");
       try {
-        const r = await simpanPromo({ ...edit!, id: edit!.id || undefined });
-        if (r.error) setErr(r.error);
+        const r = await simpanPromo({ ...kirim, id: kirim.id || undefined });
+        if (r.error) setErr(pesanRamah(r.error));
         else {
           setEdit(null);
           router.refresh();
@@ -114,6 +133,7 @@ export function PromoPanel({
         );
       }
     });
+  };
   // Aktif/nonaktif cepat: memakai penyimpanan & versi yang sama dengan form (tercatat di Log Aktivitas).
   const ubahAktif = async (p: Promo) => {
     const ok = await tanya(
@@ -127,7 +147,7 @@ export function PromoPanel({
       setErrKartu("");
       try {
         const r = await simpanPromo({ ...p, aktif: !p.aktif });
-        if (r.error) setErrKartu(`${p.nama}: ${r.error}`);
+        if (r.error) setErrKartu(`${p.nama}: ${pesanRamah(r.error)}`);
         else router.refresh();
       } catch {
         setErrKartu("Koneksi terputus. Muat ulang untuk memeriksa status promo.");
@@ -136,7 +156,7 @@ export function PromoPanel({
   };
   const duplikat = (p: Promo) => {
     setErr("");
-    setEdit({ ...structuredClone(p), id: "", nama: `${p.nama} (salinan)`.slice(0, 120), aktif: false, versi: 0 });
+    bukaEdit({ ...p, id: "", nama: `${p.nama} (salinan)`.slice(0, 120), aktif: false, versi: 0 });
   };
 
   const namaOutlet = useMemo(() => Object.fromEntries(outlets.map((o) => [o.id, o.nama])), [outlets]);
@@ -227,7 +247,7 @@ export function PromoPanel({
                     {!!p.minimum_belanja && <Badge>Min. belanja {rp(p.minimum_belanja)}</Badge>}
                   </div>
                   <dl className="mt-3 space-y-1.5 text-sm text-stone-700">
-                    <div className="flex gap-2"><dt aria-label="Periode">📅</dt><dd>{rentangTanggal(p.mulai, p.selesai)} · {rentangJam(p.jam_mulai, p.jam_selesai)}</dd></div>
+                    <div className="flex gap-2"><dt aria-label="Periode">📅</dt><dd>{rentangTanggal(p.mulai, p.selesai)}<span className="block text-xs text-stone-500">🕘 {labelWaktu(p)}</span></dd></div>
                     <div className="flex gap-2"><dt aria-label="Outlet">🏪</dt><dd className="flex min-w-0 flex-wrap gap-1">{outletTeks.slice(0, 3).map((o, i) => <span key={i} className="rounded-md bg-stone-100 px-1.5 py-0.5 text-xs">{o}</span>)}{outletTeks.length > 3 && <span className="text-xs text-stone-500">+{outletTeks.length - 3} lainnya</span>}</dd></div>
                     <div className="flex gap-2"><dt aria-label="Menu">☕</dt><dd className="flex min-w-0 flex-wrap gap-1">{menuTeks.length ? menuTeks.slice(0, 3).map((m, i) => <span key={i} className="rounded-md bg-matur-50 px-1.5 py-0.5 text-xs text-matur-800">{m}</span>) : <span className="text-xs text-stone-500">Belum ada menu</span>}{menuTeks.length > 3 && <span className="text-xs text-stone-500">+{menuTeks.length - 3} menu</span>}</dd></div>
                     <div className="flex gap-2"><dt aria-label="Kuota">🎟️</dt><dd className="text-xs text-stone-600">{labelKuota(p)}</dd></div>
@@ -235,7 +255,7 @@ export function PromoPanel({
                   <p className="mt-2 text-xs text-stone-500">{p.boleh_manual ? "Boleh ditambah diskon manual (batas SPV)" : "Tidak digabung diskon manual"}</p>
                   {bisaEdit && (
                     <div className="mt-auto flex flex-wrap gap-2 border-t border-stone-100 pt-3">
-                      <button className={tombolAksi.edit} disabled={pending} onClick={() => { setErr(""); setEdit(structuredClone(p)); }}>✏️ Edit</button>
+                      <button className={tombolAksi.edit} disabled={pending} onClick={() => bukaEdit(p)}>✏️ Edit</button>
                       <button className={p.aktif ? tombolAksi.netral : tombolAksi.utama} disabled={pending} onClick={() => ubahAktif(p)}>{p.aktif ? "⏸ Nonaktifkan" : "▶ Aktifkan"}</button>
                       <button className={tombolAksi.netral} disabled={pending} onClick={() => duplikat(p)}>⧉ Duplikat</button>
                     </div>
@@ -282,6 +302,32 @@ export function PromoPanel({
             </div>
           ))}
         </div>
+        {kuotaHarian.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <h3 className="text-sm font-bold text-kopi-900">🎟️ Kuota per hari</h3>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {kuotaHarian.map((k, i) => {
+                const pct = Math.min(100, Math.round((k.terpakai / k.kuota) * 100));
+                return (
+                  <div key={i} className={`rounded-xl border p-3 text-sm ${k.habis_at ? "border-emerald-200 bg-emerald-50/50" : "border-stone-100 bg-white"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-kopi-900">{k.promo}</p>
+                        <p className="truncate text-xs text-stone-500">{rentangTanggal(k.tanggal, k.tanggal)} · {k.outlet}{k.menu ? ` · ${k.menu}` : ""}</p>
+                      </div>
+                      {k.habis_at ? <Badge nada="hijau">✅ Habis {new Date(k.habis_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" })}</Badge> : <Badge nada="biru">Sisa {Math.max(k.kuota - k.terpakai, 0)}</Badge>}
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                      <div className={`h-full rounded-full ${k.habis_at ? "bg-emerald-500" : pct >= 80 ? "bg-amber-400" : "bg-matur-400"}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="mt-1 text-xs tabular-nums text-stone-600">Terpakai {k.terpakai} / {k.kuota}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-stone-500">Jam habis = jam transaksi yang memakai kuota terakhir. Transaksi void/hapus tidak dihitung.</p>
+          </div>
+        )}
         {laporan.length ? (
           <>
             <ul className="mt-4 space-y-2 md:hidden">
@@ -351,12 +397,12 @@ export function PromoPanel({
               <p className="mt-1 font-bold text-kopi-900 [overflow-wrap:anywhere]">{edit.nama || "Nama promo"}</p>
               <p className="text-2xl font-extrabold text-matur-700">{labelNilai(edit)}</p>
               <p className="mt-1 text-xs text-stone-600">
-                {rentangTanggal(edit.mulai, edit.selesai)} · {rentangJam(edit.jam_mulai, edit.jam_selesai)} · {edit.semua_outlet ? "semua outlet" : `${edit.outlet_ids.length} outlet`} · {edit.aturan.length} menu · {labelKuota(edit).toLowerCase()}
+                {rentangTanggal(edit.mulai, edit.selesai)} · {labelWaktu(edit)} · {edit.semua_outlet ? "semua outlet" : `${edit.outlet_ids.length} outlet`} · {edit.aturan.length} menu · {labelKuota(edit).toLowerCase()}
               </p>
               <p className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${edit.aktif ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{edit.aktif ? "Akan aktif sesuai periode" : "Disimpan nonaktif"}</p>
             </div>
 
-            <Bagian no={1} judul="Info & periode">
+            <Bagian no={1} judul="Info, hari & jam">
               <label className="block text-xs font-semibold text-stone-600">
                 Nama promo
                 <input
@@ -368,32 +414,62 @@ export function PromoPanel({
                 />
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {(["mulai", "selesai", "jam_mulai", "jam_selesai"] as const).map(
-                  (k) => (
-                    <label className="text-xs font-semibold text-stone-600" key={k}>
-                      {
-                        {
-                          mulai: "Tanggal mulai",
-                          selesai: "Tanggal selesai",
-                          jam_mulai: "Jam mulai WIB",
-                          jam_selesai: "Jam selesai WIB",
-                        }[k]
-                      }
-                      <input
-                        className={`${input} mt-1`}
-                        type={k.startsWith("jam") ? "time" : "date"}
-                        step={k.startsWith("jam") ? 1 : undefined}
-                        value={edit[k]}
-                        onChange={(e) => set({ [k]: e.target.value })}
-                      />
-                    </label>
-                  ),
-                )}
+                {(["mulai", "selesai"] as const).map((k) => (
+                  <label className="text-xs font-semibold text-stone-600" key={k}>
+                    {k === "mulai" ? "Tanggal mulai" : "Tanggal selesai"}
+                    <input className={`${input} mt-1`} type="date" value={edit[k]} onChange={(e) => set({ [k]: e.target.value })} />
+                  </label>
+                ))}
               </div>
-              <p className="text-xs text-stone-500">
-                Tanggal kalender WIB, rentang jam dalam hari yang sama. Kuota
-                harian memakai hari operasional 03.00 WIB.
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-stone-600">Hari berlaku</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {NAMA_HARI.map((h, i) => {
+                    const on = (edit.hari ?? []).includes(i + 1);
+                    return (
+                      <button type="button" key={h} aria-pressed={on} onClick={() => set({ hari: on ? (edit.hari ?? []).filter((x) => x !== i + 1) : [...(edit.hari ?? []), i + 1].sort() })} className={`min-w-11 rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition ${on ? "border-matur-500 bg-matur-500 text-white shadow-sm" : "border-stone-200 bg-white text-stone-500"}`}>
+                        {h}
+                      </button>
+                    );
+                  })}
+                  {([["Setiap hari", SEMUA_HARI], ["Hari kerja", [1, 2, 3, 4, 5]], ["Akhir pekan", [6, 7]]] as const).map(([l, v]) => (
+                    <button type="button" key={l} onClick={() => set({ hari: [...v] })} className="rounded-xl border border-dashed border-matur-300 px-2.5 py-1.5 text-xs font-semibold text-matur-700 hover:bg-matur-50">{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-stone-600">Jam berlaku (24 jam, WIB) — bisa lebih dari satu</p>
+                {(edit.slot ?? []).map((sl, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl bg-matur-50/60 p-2">
+                    <span className="text-xs font-bold text-matur-700">Slot {i + 1}</span>
+                    {(["mulai", "selesai"] as const).map((k) => (
+                      <span key={k} className="flex items-center gap-1">
+                        <span className="text-xs text-stone-500">{k === "mulai" ? "dari" : "s/d"}</span>
+                        <select aria-label={`Jam ${k} slot ${i + 1}`} className="rounded-lg border border-matur-200 bg-white px-2 py-1.5 text-sm tabular-nums" value={sl[k].slice(0, 2)} onChange={(e) => ubahSlot(i, { [k]: `${e.target.value}:${sl[k].slice(3, 5)}` })}>
+                          {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => <option key={h}>{h}</option>)}
+                        </select>
+                        <span className="font-bold">:</span>
+                        <select aria-label={`Menit ${k} slot ${i + 1}`} className="rounded-lg border border-matur-200 bg-white px-2 py-1.5 text-sm tabular-nums" value={sl[k].slice(3, 5)} onChange={(e) => ubahSlot(i, { [k]: `${sl[k].slice(0, 2)}:${e.target.value}` })}>
+                          {Array.from({ length: 60 }, (_, m) => String(m).padStart(2, "0")).map((m) => <option key={m}>{m}</option>)}
+                        </select>
+                      </span>
+                    ))}
+                    {sl.selesai <= sl.mulai && sl.selesai !== sl.mulai && <span className="text-[11px] font-semibold text-sky-700">🌙 sampai besok dini hari</span>}
+                    {(edit.slot ?? []).length > 1 && (
+                      <button type="button" className="ml-auto text-xs font-semibold text-red-700 hover:underline" onClick={() => set({ slot: (edit.slot ?? []).filter((_, k) => k !== i) })}>Hapus</button>
+                    )}
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_JAM.map((x) => (
+                    <button type="button" key={x.label} className="rounded-xl border border-matur-200 bg-white px-2.5 py-1 text-xs font-semibold text-kopi-800 hover:bg-matur-50" onClick={() => set({ slot: [{ ...x.slot }] })}>{x.label}</button>
+                  ))}
+                  {(edit.slot ?? []).length < 6 && (
+                    <button type="button" className="rounded-xl border-2 border-dashed border-matur-200 px-2.5 py-1 text-xs font-semibold text-matur-700 hover:bg-matur-50" onClick={() => set({ slot: [...(edit.slot ?? []), { mulai: "15:00", selesai: "17:00" }] })}>+ Tambah slot jam</button>
+                  )}
+                </div>
+                <p className="text-xs text-stone-500">Tombol cepat hanya mengisi jam, setelah itu tetap bisa diubah. Jam selesai lebih kecil dari jam mulai berarti berlanjut lewat tengah malam (milik hari mulainya). Kuota harian memakai hari operasional 03.00 WIB.</p>
+              </div>
               <Centang checked={edit.aktif} onChange={(v) => set({ aktif: v })}>
                 <b>Aktifkan promo</b>
               </Centang>
@@ -431,32 +507,24 @@ export function PromoPanel({
               )}
             </Bagian>
 
-            <Bagian no={3} judul="Cara menghitung & menu" warna="border-sky-200 bg-sky-50/40">
-              <label className="block text-xs font-semibold text-stone-600">
-                Jenis penghitungan
-                <select
-                  className={`${input} mt-1`}
-                  value={edit.cakupan ?? "item"}
-                  onChange={(e) =>
-                    set({
-                      cakupan: e.target.value as "item" | "transaksi",
-                      ...(e.target.value === "transaksi"
-                        ? {
-                            per_menu: false,
-                            nilai_voucher: edit.nilai_voucher ?? 15000,
-                          }
-                        : {}),
-                    })
-                  }
-                >
-                  <option value="item">
-                    Per item — potongan / harga akhir / gratis
-                  </option>
-                  <option value="transaksi">
-                    Voucher — sekali per transaksi
-                  </option>
-                </select>
-              </label>
+            <Bagian no={3} judul="Jenis promo & menu" warna="border-sky-200 bg-sky-50/40">
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Jenis promo">
+                {([
+                  ["item", "☕", "Diskon per menu", "Tiap cup mendapat potongan sendiri. Contoh: Kopi Susu −20%, Americano harga Rp15.000."],
+                  ["transaksi", "🎟️", "Voucher belanja", "Potongan sekali per transaksi, berapa pun jumlah menunya. Contoh: potong Rp15.000."],
+                ] as const).map(([v, ikon, judul, ket]) => {
+                  const on = (edit.cakupan ?? "item") === v;
+                  return (
+                    <button type="button" role="radio" aria-checked={on} key={v} onClick={() => set({ cakupan: v, ...(v === "transaksi" ? { per_menu: false, nilai_voucher: edit.nilai_voucher ?? 15000 } : {}) })} className={`flex gap-3 rounded-2xl border-2 p-3 text-left transition ${on ? "border-matur-500 bg-white shadow-sm" : "border-transparent bg-white/60 hover:border-matur-200"}`}>
+                      <span className={`grid size-10 shrink-0 place-items-center rounded-xl text-xl ${on ? "bg-matur-500 text-white" : "bg-matur-50"}`}>{ikon}</span>
+                      <span className="min-w-0">
+                        <b className="block text-sm text-kopi-900">{judul}</b>
+                        <span className="text-xs text-stone-500">{ket}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {edit.cakupan === "transaksi" && (
                   <label className="block text-xs font-semibold text-stone-600">
@@ -489,14 +557,26 @@ export function PromoPanel({
               </div>
               <p className="text-xs text-stone-600">
                 {edit.cakupan === "transaksi"
-                  ? "Voucher dipotong satu kali, berapa pun jumlah menu atau minumannya. Menu/varian di bawah hanya menentukan kelayakan; voucher tidak melebihi nilai menu yang memenuhi syarat. Kuota dihitung per transaksi."
-                  : "Setiap item mengikuti aturannya sendiri. Harga akhir Rp15.000 berarti bayar Rp15.000 per item; potongan Rp15.000 berarti harga asli dikurangi Rp15.000 per item."}
+                  ? "Voucher berlaku kalau keranjang berisi salah satu menu di bawah. Potongan tidak melebihi total menu yang memenuhi syarat; kuota dihitung per transaksi."
+                  : "Harga akhir Rp15.000 = pembeli bayar Rp15.000 per cup. Potongan Rp15.000 = harga asli dikurangi Rp15.000 per cup. Satu transaksi hanya bisa memakai satu promo."}
               </p>
-              <p className="text-xs text-stone-500">
-                Satu promo dipilih per transaksi. Harga akhir berlaku per item
-                termasuk tambahan varian. Varian yang dicentang wajib ada;
-                kosong berarti semua varian menu tersebut.
-              </p>
+              {kategori.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2">
+                  <span className="text-xs font-semibold text-stone-600">Tambah sekaligus:</span>
+                  <select aria-label="Kategori menu" className="rounded-lg border border-matur-200 bg-white px-2 py-1.5 text-sm" value={kat} onChange={(e) => setKat(e.target.value)}>
+                    <option value="">Pilih kategori…</option>
+                    {kategori.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                  </select>
+                  <button type="button" disabled={!kat} className="rounded-lg bg-matur-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40" onClick={() => {
+                    const ada = new Set(edit.aturan.map((a) => a.menu_id));
+                    const contoh = edit.aturan[0];
+                    const tambah = menus.filter((m) => m.kategori_id === kat && !ada.has(m.id)).map((m) => ({ menu_id: m.id, varian_ids: [], jenis: contoh?.jenis ?? "persen", nilai: contoh?.nilai ?? 10 } as AturanPromo));
+                    set({ aturan: [...edit.aturan.filter((a) => a.menu_id), ...tambah] });
+                    setKat("");
+                  }}>+ Semua menu kategori ini</button>
+                  <span className="text-[11px] text-stone-500">Menu baru di kategori ini nanti tidak otomatis ikut.</span>
+                </div>
+              )}
               {edit.aturan.map((a, i) => (
                 <div className="space-y-2 rounded-xl border border-matur-100 bg-white p-3" key={i}>
                   <div className="flex items-center justify-between gap-2">
@@ -570,8 +650,22 @@ export function PromoPanel({
                       )}
                     </div>
                   )}
+                  {(() => {
+                    const m = menus.find((x) => x.id === a.menu_id);
+                    const h = Number(m?.harga_langsung ?? 0);
+                    if (!m || !h || edit.cakupan === "transaksi") return null;
+                    const akhir = hargaPromo(h, a.jenis, a.nilai || 0);
+                    return (
+                      <p className={`rounded-lg px-2.5 py-1.5 text-xs ${a.jenis === "harga_akhir" && a.nilai > h ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+                        Contoh di kasir: <span className="line-through opacity-60">{rp(h)}</span> → <b>{rp(akhir)}</b> per cup (harga langsung, sebelum varian)
+                        {a.jenis === "harga_akhir" && a.nilai > h && " · ⚠ harga promo lebih mahal dari harga asli"}
+                      </p>
+                    );
+                  })()}
+                  {a.jenis === "gratis" && edit.cakupan !== "transaksi" && <p className="text-[11px] text-green-800">🎁 Gratis = ditanggung subsidi kantor (pilihan subsidi di bagian 4 otomatis dinyalakan).</p>}
                   {variants.some((v) => v.menu_id === a.menu_id) && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-full text-[11px] font-semibold text-stone-500">Hanya berlaku kalau pembeli memilih varian (kosongkan = semua varian):</span>
                       {variants
                         .filter((v) => v.menu_id === a.menu_id)
                         .map((v) => {
@@ -659,6 +753,7 @@ export function PromoPanel({
               <Centang checked={edit.bersama} onChange={(v) => set({ bersama: v })}>
                 Kuota bersama semua outlet terpilih (jika tidak: per outlet)
               </Centang>
+              <p className="rounded-xl bg-matur-50 px-3 py-2 text-sm font-semibold text-kopi-900">🎟️ {labelKuota(edit)}</p>
               <Centang checked={edit.boleh_manual} onChange={(v) => set({ boleh_manual: v })}>
                 Boleh digabung diskon manual (batas persetujuan SPV tetap berlaku)
               </Centang>
