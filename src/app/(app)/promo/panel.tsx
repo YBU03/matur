@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah as rp } from "@/lib/format";
+import { PilihMenuPromo } from "@/components/pilih-menu-promo";
 import { simpanPromo } from "@/lib/promo-actions";
 import type { Promo, PemakaianPromo, AturanPromo } from "@/lib/promo";
 type Opsi = { id: string; nama: string };
@@ -41,6 +42,8 @@ export function PromoPanel({
     id: "",
     nama: "",
     aktif: false,
+    subsidi: false,
+    nama_subsidi: "Subsidi Kantor",
     mulai: dari,
     selesai: dari,
     jam_mulai: "00:00",
@@ -108,7 +111,14 @@ export function PromoPanel({
             className="rounded-xl border border-matur-200 bg-white p-4"
           >
             <div className="flex justify-between gap-3">
-              <h2 className="font-bold">{p.nama}</h2>
+              <h2 className="font-bold">
+                {p.nama}
+                {p.subsidi && (
+                  <span className="ml-2 rounded bg-green-50 px-2 text-xs text-green-800">
+                    {p.nama_subsidi}
+                  </span>
+                )}
+              </h2>
               <span>{p.aktif ? "🟢 Aktif" : "⚪ Nonaktif"}</span>
             </div>
             <p className="text-sm">
@@ -328,6 +338,35 @@ export function PromoPanel({
               Tanggal kalender WIB, rentang jam dalam hari yang sama. Kuota
               harian memakai hari operasional 03.00 WIB.
             </p>
+            <fieldset className="space-y-3 rounded-lg border border-green-200 bg-green-50/40 p-3">
+              <legend className="text-sm font-semibold">
+                Subsidi / penanggung biaya
+              </legend>
+              <label className="flex gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!edit.subsidi}
+                  onChange={(e) => set({ subsidi: e.target.checked })}
+                />
+                Potongan ditanggung kantor sebagai subsidi
+              </label>
+              {edit.subsidi && (
+                <label className="block text-sm">
+                  Nama subsidi (bisa diganti)
+                  <input
+                    className={input}
+                    value={edit.nama_subsidi ?? "Subsidi Kantor"}
+                    maxLength={120}
+                    onChange={(e) => set({ nama_subsidi: e.target.value })}
+                  />
+                </label>
+              )}
+              <p className="text-xs text-stone-600">
+                Subsidi penuh: pelanggan bayar Rp0. Subsidi sebagian: pelanggan
+                membayar sisanya. Tagihan dan pembayaran kantor dikelola
+                Accounting; bukan uang masuk laci kasir.
+              </p>
+            </fieldset>
             <fieldset className="space-y-3 rounded-lg border p-3">
               <legend className="text-sm font-semibold">
                 Aturan menu / kemasan
@@ -339,50 +378,67 @@ export function PromoPanel({
               </p>
               {edit.aturan.map((a, i) => (
                 <div className="space-y-2 rounded-lg bg-matur-50 p-2" key={i}>
-                  <select
-                    aria-label="Menu promo"
-                    className={input}
+                  <PilihMenuPromo
+                    menus={menus}
                     value={a.menu_id}
-                    onChange={(e) =>
-                      rule(i, { menu_id: e.target.value, varian_ids: [] })
-                    }
-                  >
-                    <option value="">Pilih menu / kemasan</option>
-                    {menus.map((m) => (
-                      <option value={m.id} key={m.id}>
-                        {m.nama}
-                        {m.kemasan ? ` · ${m.kemasan}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    terpakai={edit.aturan
+                      .filter((_, k) => k !== i)
+                      .map((x) => x.menu_id)}
+                    onChange={(id) => rule(i, { menu_id: id, varian_ids: [] })}
+                  />
                   <div className="flex gap-2">
                     <select
                       aria-label="Jenis diskon"
                       className={input}
                       value={a.jenis}
                       onChange={(e) =>
-                        rule(i, {
-                          jenis: e.target.value as AturanPromo["jenis"],
-                        })
+                        e.target.value === "gratis"
+                          ? set({
+                              subsidi: true,
+                              aturan: edit.aturan.map((x, k) =>
+                                k === i
+                                  ? { ...x, jenis: "gratis", nilai: 100 }
+                                  : x,
+                              ),
+                            })
+                          : rule(i, {
+                              jenis: e.target.value as AturanPromo["jenis"],
+                              ...(e.target.value === "gratis"
+                                ? { nilai: 100 }
+                                : {}),
+                            })
                       }
                     >
-                      <option value="persen">Diskon persen (%)</option>
+                      <option value="gratis">
+                        Gratis — ditanggung subsidi
+                      </option>
+                      <option value="persen">
+                        Diskon / subsidi persen (%)
+                      </option>
                       <option value="potongan">Potongan per item (Rp)</option>
                       <option value="harga_akhir">
                         Harga akhir per item (Rp)
                       </option>
                     </select>
-                    <input
-                      aria-label="Nilai promo"
-                      className={input}
-                      type="number"
-                      min="1"
-                      max={a.jenis === "persen" ? 100 : undefined}
-                      value={a.nilai || ""}
-                      onChange={(e) =>
-                        rule(i, { nilai: Number(e.target.value) })
-                      }
-                    />
+                    {a.jenis === "gratis" ? (
+                      <span className="flex items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800">
+                        100% subsidi
+                      </span>
+                    ) : (
+                      <>
+                        <input
+                          aria-label="Nilai promo"
+                          className={input}
+                          type="number"
+                          min="1"
+                          max={a.jenis === "persen" ? 100 : undefined}
+                          value={a.nilai || ""}
+                          onChange={(e) =>
+                            rule(i, { nilai: Number(e.target.value) })
+                          }
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {variants

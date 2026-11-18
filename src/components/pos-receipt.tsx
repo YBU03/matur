@@ -86,7 +86,7 @@ export function ReceiptDialog({
       localStorage.setItem("matoer_kertas", k);
     } catch {}
   };
-  const labelMetode =
+  const labelMetode = r.total===0 && r.promo_snapshot?.subsidi?"Subsidi penuh":
     metode === "split"
       ? "Split"
       : (LABEL_METODE_BAYAR[metode] ?? metode);
@@ -145,7 +145,9 @@ export function ReceiptDialog({
     `*${outletNama}* · No. ${nomor}`,
     ...lines.map((l) => `${l.qty}x ${l.nama}  ${formatRupiah(l.total)}`),
     r.promo_snapshot?.nama ? `Promo: ${r.promo_snapshot.nama}` : "",
-    r.diskon ? `Diskon: ${formatRupiah(-r.diskon)}` : "",
+    ...(r.promo_snapshot?.subsidi?[`${r.promo_snapshot.nama_subsidi??"Subsidi"}: ${formatRupiah(-r.promo_snapshot.diskon)}`]:[]),
+    r.diskon && !r.promo_snapshot?.subsidi ? `Diskon: ${formatRupiah(-r.diskon)}` : "",
+    ...(r.promo_snapshot?.subsidi&&r.diskon>r.promo_snapshot.diskon?[`Diskon lainnya: ${formatRupiah(-(r.diskon-r.promo_snapshot.diskon))}`]:[]),
     `Total: ${formatRupiah(r.total)} (${labelMetode})`,
     r.kembalian ? `Kembali: ${formatRupiah(r.kembalian)}` : "",
     "Terima kasih 🙏",
@@ -177,8 +179,9 @@ export function ReceiptDialog({
         subtotal: r.subtotal || r.total + r.diskon,
         diskon: r.diskon,
         promoNama: r.promo_snapshot?.nama,
+        subsidi: r.promo_snapshot?.subsidi?{nama:r.promo_snapshot.nama_subsidi??"Subsidi",nominal:r.promo_snapshot.diskon}:undefined,
         total: r.total,
-        bayar: bayar?.length ? bayar : bayarDariMetode(metode === "split" ? "tunai" : metode, r.total, r.kembalian),
+        bayar: r.total===0&&r.promo_snapshot?.subsidi?[]:bayar?.length ? bayar : bayarDariMetode(metode === "split" ? "tunai" : metode, r.total, r.kembalian),
         kembalian: r.kembalian,
         cetakUlang: salinan,
         voidAlasan: salinan ? voidAlasan : null,

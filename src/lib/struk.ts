@@ -74,6 +74,7 @@ export type DataStruk = {
   subtotal: number;
   diskon: number;
   promoNama?: string;
+  subsidi?: {nama:string;nominal:number};
   total: number;
   bayar: BayarStruk[];
   kembalian: number;
@@ -122,10 +123,14 @@ export function susunBarisStruk(d: DataStruk, lebar: number): BarisStruk[] {
   if (d.promoNama) out.push(`Promo: ${d.promoNama}`);
   if (d.diskon > 0) {
     out.push({ teks: "", kiriKanan: ["Subtotal", angkaStruk(d.subtotal)] });
-    out.push({ teks: "", kiriKanan: ["Diskon", `-${angkaStruk(d.diskon)}`] });
+    if(d.subsidi){
+      out.push({teks:"",kiriKanan:[d.subsidi.nama,`-${angkaStruk(d.subsidi.nominal)}`]});
+      if(d.diskon>d.subsidi.nominal)out.push({teks:"",kiriKanan:["Diskon lainnya",`-${angkaStruk(d.diskon-d.subsidi.nominal)}`]});
+    }else out.push({ teks: "", kiriKanan: ["Diskon", `-${angkaStruk(d.diskon)}`] });
   }
   out.push({ teks: "", tebal: true, kiriKanan: ["Total", angkaStruk(d.total)] });
-  out.push("Tender");
+  if(d.subsidi&&d.total===0)out.push("Pelanggan gratis · ditanggung subsidi");
+  if(d.bayar.length)out.push("Tender");
   for (const b of d.bayar) {
     const nilai = b.metode === "tunai" && b.diterima != null ? Number(b.diterima) : b.nominal;
     out.push({ teks: "", kiriKanan: [`  ${LABEL_METODE[b.metode] ?? b.metode}`, angkaStruk(nilai)] });
