@@ -113,6 +113,9 @@ beforeAll(async () => {
   await db.exec(
     src("../../../supabase/migrations/20261118142331_promo_slot_hari_kuota.sql"),
   );
+  await db.exec(
+    src("../../../supabase/migrations/20261118234109_promo_mitra.sql"),
+  );
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -965,4 +968,30 @@ it("kasir menerima sisa kuota & akhir slot, laporan mencatat jam kuota habis", a
   const baris = lap.find((x) => x.promo === "Kuota Laporan")!;
   expect(baris).toMatchObject({ kuota: 2, terpakai: 2 });
   expect(baris.habis_at).toBeTruthy();
+});
+
+it("Mitra hanya melihat promo aktif outletnya sendiri, beserta kuota & pemakaian", async () => {
+  const mitra = id(90);
+  await q("insert into pengguna(id,nama,email) values($1,'Mitra','mitra@test')", [mitra]);
+  await q("insert into penugasan(pengguna_id,peran,outlet_id) values($1,'mitra',$2)", [mitra, o]);
+  await as(owner);
+  const aktif = await call<string>("simpan_promo", config({ nama: "Campaign Mitra", kuota: 5 }));
+  await call<string>("simpan_promo", config({ nama: "Draft Nonaktif", aktif: false }));
+  await call<string>("simpan_promo", config({ nama: "Outlet Lain", outlet_ids: [other] }));
+  await as(cash);
+  const b = basket(aktif, { items: [{ menu_id: menu, varian_ids: [], qty: 2 }] }), quote = await call("pesan_promo", b);
+  await call("matur_internal.buat_transaksi", sale(b, quote.id as string));
+  await as(mitra);
+  const v = (await q<{ v: { promo: { id: string; nama: string; sisa_kuota: Record<string, number>; aturan: { menu_nama: string }[]; diubah_oleh?: string }[]; pemakaian: { promo: string; transaksi: number; potongan: number }[]; kuota: { promo: string; terpakai: number }[] } }>("select promo_mitra($1,current_date-1,current_date+1) v", [o]))[0].v;
+  const nama = v.promo.map((p) => p.nama);
+  expect(nama).toContain("Campaign Mitra");
+  expect(nama).not.toContain("Draft Nonaktif");
+  expect(nama).not.toContain("Outlet Lain");
+  const c = v.promo.find((p) => p.id === aktif)!;
+  expect(c.sisa_kuota).toEqual({ semua: 3 });
+  expect(c.aturan[0].menu_nama).toBe("Kopi");
+  expect(c.diubah_oleh).toBeUndefined();
+  expect(v.pemakaian.find((p) => p.promo === "Campaign Mitra")).toMatchObject({ transaksi: 1, potongan: 8000 });
+  expect(v.kuota.find((k) => k.promo === "Campaign Mitra")).toMatchObject({ terpakai: 2 });
+  await expect(q("select promo_mitra($1,current_date,current_date)", [other])).rejects.toThrow(/diizinkan/);
 });

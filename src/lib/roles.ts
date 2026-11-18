@@ -282,6 +282,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/portal/bep", label: "Progres BEP", stage: 4 },
       { href: "/portal/pos", label: "POS Outlet (omzet harian)", stage: 4 },
       { href: "/portal/karyawan", label: "Karyawan Outlet", stage: 4 },
+      { href: "/portal/promo", label: "Campaign & Promo", stage: 4 },
     ],
   },
   pic: {
