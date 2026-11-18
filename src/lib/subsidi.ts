@@ -36,6 +36,7 @@ export type TagihanSubsidi = {
   riwayat: RiwayatSubsidi[];
 };
 export type MarketingDiskon = {
+  cakupan?: "item" | "transaksi";
   id: string;
   nomor: number;
   waktu: string;

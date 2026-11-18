@@ -42,6 +42,9 @@ export function PromoPanel({
     id: "",
     nama: "",
     aktif: false,
+    cakupan: "item",
+    nilai_voucher: null,
+    minimum_belanja: 0,
     subsidi: false,
     nama_subsidi: "Subsidi Kantor",
     mulai: dari,
@@ -135,8 +138,14 @@ export function PromoPanel({
             <p className="text-sm">
               {p.aturan.length} menu ·{" "}
               {p.kuota
-                ? `${p.kuota} item/hari ${p.per_menu ? "per menu" : "gabungan menu"} · ${p.bersama ? "bersama lintas outlet" : "per outlet"}`
+                ? `${p.kuota} ${p.cakupan === "transaksi" ? "transaksi" : "item"}/hari ${p.per_menu ? "per menu" : "gabungan menu"} · ${p.bersama ? "bersama lintas outlet" : "per outlet"}`
                 : "Tanpa batas kuota"}
+              {p.cakupan === "transaksi" && (
+                <span className="block font-semibold text-sky-800">
+                  Voucher {rp(p.nilai_voucher ?? 0)} sekali per transaksi ·
+                  minimum {rp(p.minimum_belanja ?? 0)}
+                </span>
+              )}
             </p>
             <p className="text-xs text-stone-500">
               {p.boleh_manual
@@ -217,7 +226,7 @@ export function PromoPanel({
                   "Waktu / No.",
                   "Outlet",
                   "Promo",
-                  "Item",
+                  "Unit kuota",
                   "Diskon promo",
                   "Total bayar",
                   "Status",
@@ -239,7 +248,9 @@ export function PromoPanel({
                   </td>
                   <td className="p-2">{r.outlet}</td>
                   <td className="p-2">{r.promo}</td>
-                  <td className="p-2">{r.qty}</td>
+                  <td className="p-2">
+                    {r.qty} {r.cakupan === "transaksi" ? "transaksi" : "item"}
+                  </td>
                   <td className="p-2">{rp(r.diskon)}</td>
                   <td className="p-2">{rp(r.total)}</td>
                   <td className="p-2">{r.status}</td>
@@ -279,6 +290,69 @@ export function PromoPanel({
               />
               Aktifkan promo
             </label>
+            <fieldset className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/40 p-3">
+              <legend className="text-sm font-semibold">
+                Cara menghitung promo
+              </legend>
+              <label className="block text-sm">
+                Jenis penghitungan
+                <select
+                  className={input}
+                  value={edit.cakupan ?? "item"}
+                  onChange={(e) =>
+                    set({
+                      cakupan: e.target.value as "item" | "transaksi",
+                      ...(e.target.value === "transaksi"
+                        ? {
+                            per_menu: false,
+                            nilai_voucher: edit.nilai_voucher ?? 15000,
+                          }
+                        : {}),
+                    })
+                  }
+                >
+                  <option value="item">
+                    Per item — potongan / harga akhir / gratis
+                  </option>
+                  <option value="transaksi">
+                    Voucher — sekali per transaksi
+                  </option>
+                </select>
+              </label>
+              {edit.cakupan === "transaksi" && (
+                <label className="block text-sm">
+                  Nominal voucher sekali per transaksi (Rp)
+                  <input
+                    className={input}
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={edit.nilai_voucher ?? ""}
+                    onChange={(e) =>
+                      set({ nilai_voucher: Number(e.target.value) })
+                    }
+                  />
+                </label>
+              )}
+              <label className="block text-sm">
+                Minimum belanja menu terpilih, sebelum potongan (Rp)
+                <input
+                  className={input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={edit.minimum_belanja ?? 0}
+                  onChange={(e) =>
+                    set({ minimum_belanja: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <p className="text-xs text-stone-600">
+                {edit.cakupan === "transaksi"
+                  ? "Voucher dipotong satu kali, berapa pun jumlah menu atau minumannya. Menu/varian di bawah hanya menentukan kelayakan; voucher tidak melebihi nilai menu yang memenuhi syarat. Kuota dihitung per transaksi."
+                  : "Setiap item mengikuti aturannya sendiri. Harga akhir Rp15.000 berarti bayar Rp15.000 per item; potongan Rp15.000 berarti harga asli dikurangi Rp15.000 per item."}
+              </p>
+            </fieldset>
             <fieldset className="rounded-lg border p-3">
               <legend className="text-sm font-semibold">
                 Outlet yang memakai promo
@@ -372,9 +446,9 @@ export function PromoPanel({
                 Aturan menu / kemasan
               </legend>
               <p className="text-xs text-stone-500">
-                Satu promo per transaksi. Harga akhir berlaku per item termasuk
-                tambahan varian. Varian yang dicentang wajib ada; kosong berarti
-                semua varian menu tersebut.
+                Satu promo dipilih per transaksi. Harga akhir berlaku per item
+                termasuk tambahan varian. Varian yang dicentang wajib ada;
+                kosong berarti semua varian menu tersebut.
               </p>
               {edit.aturan.map((a, i) => (
                 <div className="space-y-2 rounded-lg bg-matur-50 p-2" key={i}>
@@ -386,60 +460,62 @@ export function PromoPanel({
                       .map((x) => x.menu_id)}
                     onChange={(id) => rule(i, { menu_id: id, varian_ids: [] })}
                   />
-                  <div className="flex gap-2">
-                    <select
-                      aria-label="Jenis diskon"
-                      className={input}
-                      value={a.jenis}
-                      onChange={(e) =>
-                        e.target.value === "gratis"
-                          ? set({
-                              subsidi: true,
-                              aturan: edit.aturan.map((x, k) =>
-                                k === i
-                                  ? { ...x, jenis: "gratis", nilai: 100 }
-                                  : x,
-                              ),
-                            })
-                          : rule(i, {
-                              jenis: e.target.value as AturanPromo["jenis"],
-                              ...(e.target.value === "gratis"
-                                ? { nilai: 100 }
-                                : {}),
-                            })
-                      }
-                    >
-                      <option value="gratis">
-                        Gratis — ditanggung subsidi
-                      </option>
-                      <option value="persen">
-                        Diskon / subsidi persen (%)
-                      </option>
-                      <option value="potongan">Potongan per item (Rp)</option>
-                      <option value="harga_akhir">
-                        Harga akhir per item (Rp)
-                      </option>
-                    </select>
-                    {a.jenis === "gratis" ? (
-                      <span className="flex items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800">
-                        100% subsidi
-                      </span>
-                    ) : (
-                      <>
-                        <input
-                          aria-label="Nilai promo"
-                          className={input}
-                          type="number"
-                          min="1"
-                          max={a.jenis === "persen" ? 100 : undefined}
-                          value={a.nilai || ""}
-                          onChange={(e) =>
-                            rule(i, { nilai: Number(e.target.value) })
-                          }
-                        />
-                      </>
-                    )}
-                  </div>
+                  {edit.cakupan !== "transaksi" && (
+                    <div className="flex gap-2">
+                      <select
+                        aria-label="Jenis diskon"
+                        className={input}
+                        value={a.jenis}
+                        onChange={(e) =>
+                          e.target.value === "gratis"
+                            ? set({
+                                subsidi: true,
+                                aturan: edit.aturan.map((x, k) =>
+                                  k === i
+                                    ? { ...x, jenis: "gratis", nilai: 100 }
+                                    : x,
+                                ),
+                              })
+                            : rule(i, {
+                                jenis: e.target.value as AturanPromo["jenis"],
+                                ...(e.target.value === "gratis"
+                                  ? { nilai: 100 }
+                                  : {}),
+                              })
+                        }
+                      >
+                        <option value="gratis">
+                          Gratis — ditanggung subsidi
+                        </option>
+                        <option value="persen">
+                          Diskon / subsidi persen (%)
+                        </option>
+                        <option value="potongan">Potongan per item (Rp)</option>
+                        <option value="harga_akhir">
+                          Harga akhir per item (Rp)
+                        </option>
+                      </select>
+                      {a.jenis === "gratis" ? (
+                        <span className="flex items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800">
+                          100% subsidi
+                        </span>
+                      ) : (
+                        <>
+                          <input
+                            aria-label="Nilai promo"
+                            className={input}
+                            type="number"
+                            min="1"
+                            max={a.jenis === "persen" ? 100 : undefined}
+                            value={a.nilai || ""}
+                            onChange={(e) =>
+                              rule(i, { nilai: Number(e.target.value) })
+                            }
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {variants
                       .filter((v) => v.menu_id === a.menu_id)
@@ -504,6 +580,7 @@ export function PromoPanel({
             <label className="flex gap-2 text-sm">
               <input
                 type="checkbox"
+                disabled={edit.cakupan === "transaksi"}
                 checked={edit.per_menu}
                 onChange={(e) => set({ per_menu: e.target.checked })}
               />

@@ -76,3 +76,7 @@ it('prints office subsidy separately and shows free customer payment without fak
  const lines=teks({...dasar,promoNama:'Opening',subsidi:{nama:'Subsidi Marketing',nominal:70000},diskon:70000,total:0,bayar:[]});
  expect(lines.join('\n')).toContain('Subsidi Marketing');expect(lines.join('\n')).toContain('Pelanggan gratis');expect(lines).not.toContain('Tender');
 });
+it('labels a transaction voucher once and shows Rp33000 payable from Rp48000',()=>{
+ const lines=teks({...dasar,promoNama:'Sambas',voucherTransaksi:true,subtotal:48000,diskon:15000,total:33000,bayar:[{metode:'tunai',nominal:33000}]});
+ expect(lines.join('\n')).toContain('Voucher sekali/transaksi');expect(lines.filter(x=>x.includes('-15.000'))).toHaveLength(1);expect(lines.join('\n')).toContain('33.000');
+});

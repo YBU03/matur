@@ -93,3 +93,7 @@ Draft pekerjaan tertunda 9 November: akun karyawan/PIN/password, Outlet Demo non
 Promo & Diskon POS 18 November: `/promo` untuk Owner/Admin Pusat/Admin Gudang/HRD, SPV satu outlet sendiri, Finance laporan pemakaian. Pilih outlet, periode/jam WIB, menu/varian, persen/potongan/harga akhir, kuota per menu/gabungan dan per outlet/lintas outlet. Promo online memakai reservasi maksimal 15 menit sebelum QR; tidak masuk antrean offline. Nama/aturan/harga dibekukan, diskon laporan sudah termasuk promo sekali; void/hapus mengembalikan kuota. Baca `docs/promo-diskon-pos-2026-11-18.md`.
 
 Subsidi & marketing 18 November: `/promo` mendukung Gratis dengan subsidi/nama penanggung dan pencarian menu ketik. `/subsidi-promo` khusus Owner/Admin Pusat/Finance: rekap diskon biasa+subsidi, edit tagihan dengan alasan/versi, pelunasan bertahap, bukti privat, pembatalan/pengembalian dan audit. Gratis total Rp0 tanpa pembayaran pelanggan palsu; stok/HPP tetap jalan. Diskon sudah mengurangi POS, jangan catat biaya kedua atau penjualan kedua saat pelunasan. Baca `docs/subsidi-marketing-2026-11-18.md`.
+
+## Voucher per transaksi (18 November 2026)
+
+Lihat `docs/voucher-per-transaksi-2026-11-18.md`. Voucher nominal dipotong sekali per transaksi; promo per-item/harga akhir tetap tersedia. Sambas Rp15.000 sekali, minimum Rp15.001 yang dapat diedit.
