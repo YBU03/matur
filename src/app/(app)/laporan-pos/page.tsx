@@ -17,6 +17,7 @@ export default async function PusatLaporan({ searchParams }: { searchParams: Pro
         <h1 className="text-2xl font-bold">Laporan POS & Stok</h1>
         <p className="text-sm text-stone-500">Pantau harian, mingguan, bulanan, atau rentang tanggal bebas. Data langsung dari kasir POS dan gudang.</p>
       </div>
+      {["owner","admin_pusat","finance"].includes(s.active.role) && <Link href="/koreksi-penjualan" className="inline-block rounded-lg bg-kopi-900 px-4 py-2 font-semibold text-white">Tambah, edit & hapus penjualan</Link>}
       <section className="rounded-2xl border border-matur-200 bg-white p-4">
         <nav className="flex flex-wrap gap-1 border-b border-stone-200 pb-3">
           {TABS.filter(([k]) => boleh.includes(k)).map(([k, l]) => (

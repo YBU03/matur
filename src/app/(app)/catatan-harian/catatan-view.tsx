@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { tglOperasional } from "@/lib/hari-operasional";
 import { tanya } from "@/components/dialog-tanya";
 import { denganAlasan } from "@/lib/dengan-alasan";
@@ -97,6 +98,7 @@ export type ProdukKeluar = {
   created_at: string;
 };
 export type Sesi = {
+  hitung?: {tunai: number; laci: number; keluar: number; seharusnya: number} | null;
   tanggal_shift?: string | null;
   pos_tim?: boolean;
   fisik_akhir?: number | null;
@@ -862,6 +864,7 @@ export function CatatanHarian({
                     <div>
                       <p className="mb-1 text-sm font-semibold">
                         Pergantian shift
+                        {!sim && bolehImpor && <Link className="ml-3 text-xs text-sky-800 underline" href={`/koreksi-penjualan?outlet=${outletId}&dari=${t}&sampai=${t}`}>Tambah / edit / hapus penjualan</Link>}
                       </p>
                       <ul className="divide-y text-xs">
                         {shift.map((x) => (
@@ -897,17 +900,18 @@ export function CatatanHarian({
                       </ul>
                     </div>
                   )}
+                  <div className="rounded bg-sky-50 p-2 text-xs text-sky-900">Rincian kas di bawah mengikuti hubungan shift, termasuk pengeluaran bertanggal lain. Pengeluaran berdasarkan tanggal di daftar atas dapat berbeda. Gunakan Periksa & rekonsiliasi kas untuk menelusuri sumbernya.</div>
                   <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-matur-50 p-2 text-xs sm:grid-cols-4">
                     <div>
-                      <p className="text-stone-500">Penjualan tunai</p>
+                      <p className="text-stone-500">Penjualan tunai shift</p>
                       <p className="font-semibold tabular-nums">
-                        {formatRupiah(v.tunai.akhir)}
+                        {formatRupiah(shift.length && shift.every(s => s.hitung) ? shift.reduce((n,s) => n + s.hitung!.tunai, 0) : v.tunai.akhir)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-stone-500">Keluar dari laci</p>
+                      <p className="text-stone-500">Keluar dari laci shift + penyerahan</p>
                       <p className="font-semibold tabular-nums">
-                        {formatRupiah(-laci)}
+                        {formatRupiah(-(shift.length && shift.every(s => s.hitung) ? shift.reduce((n,s) => n + s.hitung!.laci + s.hitung!.keluar, 0) : laci))}
                       </p>
                     </div>
                     <div>
