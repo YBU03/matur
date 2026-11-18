@@ -348,3 +348,5 @@ for (const role of ["admin_pusat", "admin_gudang"] as Role[]) if (!ROLES[role].m
 
 // Pengujian ASPI terpisah dari konfigurasi QRIS outlet dan BNI produksi.
 for (const role of ["owner", "admin_pusat", "finance"] as Role[]) ROLES[role].menu.push({ href: "/pengaturan/snap-sandbox", label: "Pengujian SNAP / ASPI", stage: 5 });
+
+for (const role of ["owner","admin_pusat","finance"] as Role[]) ROLES[role].menu.push({href:"/subsidi-promo",label:"Diskon & Subsidi Marketing",stage:5});

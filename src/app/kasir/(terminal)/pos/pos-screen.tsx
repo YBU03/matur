@@ -300,6 +300,7 @@ export function PosScreen({
     );
 
   const persenDiskon = subtotal > (promo?.diskon??0) ? (num(diskon) / (subtotal-(promo?.diskon??0))) * 100 : 0;
+  const subsidiPenuh = total===0 && !!promo?.subsidi;
   const sisaSplit = total - bayarList.reduce((t, b) => t + num(b.nominal), 0);
   const attempt = useRef<{
     fingerprint: string;
@@ -337,7 +338,7 @@ export function PosScreen({
         "Saat offline hanya transaksi tunai biasa yang bisa disimpan. QRIS/split/draft/persetujuan membutuhkan internet.",
       );
     if (persenDiskon > batasDiskon && !otorisasi) return setMintaSpv(true);
-    if (split && sisaSplit !== 0)
+    if (!subsidiPenuh && split && sisaSplit !== 0)
       return setErr(
         `Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`,
       );
@@ -352,10 +353,10 @@ export function PosScreen({
       meja,
       diskon: num(diskon),
       promo_quote: promo?.id,
-      metode: split ? "split" : metode,
-      diterima:
+      metode: subsidiPenuh?"tunai":split ? "split" : metode,
+      diterima: subsidiPenuh?0:
         !split && metode === "tunai" ? num(diterima) || total : undefined,
-      pembayaran: split
+      pembayaran: !subsidiPenuh && split
         ? bayarList
             .filter((b) => num(b.nominal) > 0)
             .map((b) => ({
@@ -590,6 +591,7 @@ export function PosScreen({
     if(promoBusy)return setErr("Tunggu pemeriksaan promo selesai.");
     if (promo && Date.parse(promo.sampai_at)<=Date.now()) return setErr("Reservasi promo berakhir. Pilih ulang sebelum memulai pembayaran.");
     if (promo && !navigator.onLine) return setErr("Promo membutuhkan internet.");
+    if(subsidiPenuh)return checkout(otorisasi);
     const nominalQris = split
       ? bayarList.filter((b) => b.metode === "qris").reduce((t, b) => t + num(b.nominal), 0)
       : metode === "qris"
@@ -598,7 +600,7 @@ export function PosScreen({
     if (nominalQris <= 0) return checkout(otorisasi);
     setErr("");
     if (persenDiskon > batasDiskon && !otorisasi) return setMintaSpv(true);
-    if (split && sisaSplit !== 0)
+    if (!subsidiPenuh && split && sisaSplit !== 0)
       return setErr(`Pembayaran split belum pas: ${sisaSplit > 0 ? "kurang" : "lebih"} ${formatRupiah(Math.abs(sisaSplit))}`);
     if (!qris) return setErr("QRIS outlet belum diatur (Pengaturan → QRIS Outlet). Pilih metode lain.");
     if (!navigator.onLine) return setErr("QRIS membutuhkan internet. Gunakan tunai saat offline.");
@@ -869,7 +871,7 @@ export function PosScreen({
         <div className="space-y-1 rounded-xl bg-matur-50/70 p-3 text-sm">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
           {bisaBayar && <PosPromo menuNames={Object.fromEntries(menus.map(m=>[m.id,m.nama]))} onBusy={setPromoBusy} disabled={pending} key={promoKey} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={q=>{setPromoState(q?{key:promoKey,quote:q}:null);setQrisBayar(null);}} />}
-          {promo && <Row label={`Promo: ${promo.nama}`} value={formatRupiah(-promo.diskon)} /> }
+          {promo && <Row label={promo.subsidi?`${promo.nama_subsidi??"Subsidi"}`:`Promo: ${promo.nama}`} value={formatRupiah(-promo.diskon)} /> }
           <label className="flex items-center justify-between">
             Diskon manual (Rp)
             <input
@@ -884,6 +886,7 @@ export function PosScreen({
             <span className="text-2xl font-extrabold text-kopi-900 tabular-nums">{formatRupiah(total)}</span>
           </div>
         </div>
+        {subsidiPenuh?<p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">Gratis untuk pelanggan · ditanggung {promo?.nama_subsidi??"subsidi kantor"}. Tidak menerima uang pelanggan.</p>:<>
         <div className="space-y-1.5" role="group" aria-label="Metode pembayaran">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Metode bayar</p>
           {!split && (
@@ -1012,6 +1015,7 @@ export function PosScreen({
             </div>
           </div>
         )}
+        </>}
         {persenDiskon > batasDiskon && (
           <p className="text-xs text-amber-700">
             Diskon {Math.round(persenDiskon)}% melebihi batas {batasDiskon}% —
@@ -1047,6 +1051,7 @@ export function PosScreen({
           <button
             disabled={pending || promoBusy || cart.length === 0}
             onClick={() => {
+              if(total===0 && promo?.subsidi){mulaiBayar();return;}
               // tunai: pop-up uang diterima + kembalian, tidak perlu scroll
               if (!split && metode === "tunai") {
                 setErr("");
@@ -1056,7 +1061,7 @@ export function PosScreen({
             }}
             className="w-full rounded-xl bg-matur-500 py-3.5 text-lg font-extrabold text-white shadow-md shadow-matur-500/30 transition hover:bg-matur-600 active:scale-[0.99] disabled:opacity-50 disabled:shadow-none"
           >
-            {pending ? "Menyimpan…" : `Bayar ${formatRupiah(total)}`}
+            {pending ? "Menyimpan…" : total===0&&promo?.subsidi?"Selesaikan · Subsidi Penuh":`Bayar ${formatRupiah(total)}`}
           </button>
         ) : (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">

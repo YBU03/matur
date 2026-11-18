@@ -72,3 +72,7 @@ it('shows the frozen promo name once while discount remains part of the transact
  expect(lines.filter(l=>l.includes('Promo: Trial Opening'))).toHaveLength(1);
  expect(lines.some(l=>l.includes('60.000'))).toBe(true);
 });
+it('prints office subsidy separately and shows free customer payment without fake cash tender',()=>{
+ const lines=teks({...dasar,promoNama:'Opening',subsidi:{nama:'Subsidi Marketing',nominal:70000},diskon:70000,total:0,bayar:[]});
+ expect(lines.join('\n')).toContain('Subsidi Marketing');expect(lines.join('\n')).toContain('Pelanggan gratis');expect(lines).not.toContain('Tender');
+});

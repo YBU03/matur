@@ -64,6 +64,7 @@ export const ADMIN_MENU_GROUPS = [
     title: "Keuangan & Laporan",
     hrefs: [
       "/catatan-harian",
+      "/subsidi-promo",
       "/setoran",
       "/gudang/laba-rugi",
       "/master/biaya_outlet",

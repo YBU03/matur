@@ -186,7 +186,15 @@ export function PosPromo({
       {quote && (
         <div className="rounded-lg bg-green-50 p-2 text-green-800">
           <b>{quote.nama}</b>
-          <p>Diskon {formatRupiah(quote.diskon)}</p>
+          <p>
+            {quote.subsidi ? (quote.nama_subsidi ?? "Subsidi") : "Diskon"}{" "}
+            {formatRupiah(quote.diskon)}
+          </p>
+          {quote.subsidi && (
+            <p className="text-xs">
+              Ditagihkan ke kantor, bukan pembayaran pelanggan.
+            </p>
+          )}
           <p className="text-xs">
             Berlaku sampai{" "}
             {new Date(quote.sampai_at).toLocaleTimeString("id-ID", {

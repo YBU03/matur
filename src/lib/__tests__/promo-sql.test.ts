@@ -70,7 +70,10 @@ const sale = (
 });
 let promo: string;
 beforeAll(async () => {
-  await db.exec(`create role anon;create role authenticated;create schema auth;create schema extensions;create schema matur_internal;create schema pos_kas_internal;
+  await db.exec(`create role anon;create role authenticated;create schema auth;create schema extensions;create schema matur_internal;create schema pos_kas_internal;create schema storage;
+ create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);
+ create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ create function storage.foldername(text) returns text[] language sql immutable as $$select (string_to_array($1,'/'))[1:1]$$;
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
  create function extensions.digest(text,text) returns bytea language sql immutable as $$select decode(md5($1),'hex')$$;
  set check_function_bodies=off;`);
@@ -98,6 +101,9 @@ beforeAll(async () => {
   await db.exec(src("./fixtures/promo-checkout-baseline.sql"));
   await db.exec(
     src("../../../supabase/migrations/20261118033002_promo_diskon_pos.sql"),
+  );
+  await db.exec(
+    src("../../../supabase/migrations/20261118040314_promo_subsidi_kantor.sql"),
   );
   await as(owner);
   promo = await call<string>("simpan_promo", config());
@@ -429,4 +435,236 @@ it("ordinary checkout stays unchanged and reservation owner is enforced", async 
       ])
     )[0].status,
   ).toBe("pesan");
+});
+it("full office subsidy accepts zero customer payment, creates one receivable and preserves stock/HPP workflow", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({
+      subsidi: true,
+      nama_subsidi: "Subsidi Opening",
+      kuota: 2,
+      aturan: [{ menu_id: menu, varian_ids: [], jenis: "gratis", nilai: 100 }],
+    }),
+  );
+  await as(cash);
+  const b = basket(pid),
+    quote = await call("pesan_promo", b);
+  expect(quote).toMatchObject({
+    diskon: 10000,
+    subsidi: true,
+    nama_subsidi: "Subsidi Opening",
+  });
+  const p = sale(b, quote.id as string),
+    paid = await call("matur_internal.buat_transaksi", p);
+  expect(paid.total).toBe(0);
+  expect((await call("matur_internal.buat_transaksi", p)).id).toBe(paid.id);
+  const [t] = await q(
+    "select * from promo_internal.tagihan where transaksi_id=$1",
+    [paid.id],
+  );
+  expect(t).toMatchObject({
+    nama: "Subsidi Opening",
+    nominal: 10000,
+    nominal_awal: 10000,
+  });
+  expect(
+    (
+      await q("select count(*)::int n from pembayaran where transaksi_id=$1", [
+        paid.id,
+      ])
+    )[0].n,
+  ).toBe(0);
+  const q2 = await call("pesan_promo", basket(pid));
+  await expect(
+    call(
+      "matur_internal.buat_transaksi",
+      sale(b, q2.id as string, { diterima: 10000 }),
+    ),
+  ).rejects.toThrow(/tidak menerima/);
+  await q("select lepas_promo($1)", [q2.id]);
+  await as(owner);
+  await expect(
+    call(
+      "simpan_promo",
+      config({
+        aturan: [
+          { menu_id: menu, varian_ids: [], jenis: "gratis", nilai: 100 },
+        ],
+      }),
+    ),
+  ).rejects.toThrow(/harus memakai subsidi/);
+});
+it("partial subsidy can be renamed and corrected by Accounting with version and reason; sale stays frozen", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({ subsidi: true, nama_subsidi: "Subsidi Kantor", kuota: null }),
+  );
+  await as(cash);
+  const b = basket(pid),
+    quote = await call("pesan_promo", b);
+  const paid = await call(
+    "matur_internal.buat_transaksi",
+    sale(b, quote.id as string),
+  );
+  expect(paid.total).toBe(6000);
+  const [t] = await q(
+    "select * from promo_internal.tagihan where transaksi_id=$1",
+    [paid.id],
+  );
+  await expect(
+    call("edit_tagihan_subsidi", {
+      id: t.id,
+      versi: 1,
+      nama: "Marketing",
+      nominal: 4500,
+      alasan: "Revisi",
+    }),
+  ).rejects.toThrow(/Accounting/);
+  await as(finance);
+  await expect(
+    call("edit_tagihan_subsidi", {
+      id: t.id,
+      versi: 1,
+      nama: "Marketing",
+      nominal: 4500,
+      alasan: "",
+    }),
+  ).rejects.toThrow(/alasan/);
+  await call("edit_tagihan_subsidi", {
+    id: t.id,
+    versi: 1,
+    nama: "Marketing",
+    nominal: 4500,
+    alasan: "Revisi perjanjian",
+    catatan: "Subsidi pusat",
+  });
+  await expect(
+    call("edit_tagihan_subsidi", {
+      id: t.id,
+      versi: 1,
+      nama: "X",
+      nominal: 5000,
+      alasan: "Lama",
+    }),
+  ).rejects.toThrow(/berubah/);
+  expect(
+    (
+      await q("select total,promo_snapshot from transaksi where id=$1", [
+        paid.id,
+      ])
+    )[0],
+  ).toMatchObject({
+    total: 6000,
+    promo_snapshot: { nama_subsidi: "Subsidi Kantor", diskon: 4000 },
+  });
+});
+it("settlement is idempotent, validates proof/amount, can be corrected and handles paid void with refund", async () => {
+  await as(owner);
+  const pid = await call<string>(
+    "simpan_promo",
+    config({ subsidi: true, kuota: null }),
+  );
+  await as(cash);
+  const b = basket(pid),
+    quote = await call("pesan_promo", b),
+    paid = await call(
+      "matur_internal.buat_transaksi",
+      sale(b, quote.id as string),
+    );
+  const [t] = await q(
+    "select * from promo_internal.tagihan where transaksi_id=$1",
+    [paid.id],
+  );
+  await as(finance);
+  const file = `${finance}/bukti.pdf`;
+  await q(
+    "insert into storage.objects(bucket_id,name) values('subsidi-bukti',$1)",
+    [file],
+  );
+  const pay = {
+    request_id: crypto.randomUUID(),
+    id: t.id,
+    versi: 1,
+    tanggal: new Date().toISOString().slice(0, 10),
+    jumlah: 2000,
+    bukti: file,
+    catatan: "Transfer kantor",
+  };
+  await expect(
+    call("bayar_tagihan_subsidi", { ...pay, bukti: "wrong/proof.pdf" }),
+  ).rejects.toThrow(/bukti/);
+  const entry = await call<string>("bayar_tagihan_subsidi", pay);
+  expect(await call("bayar_tagihan_subsidi", pay)).toBe(entry);
+  await expect(
+    call("bayar_tagihan_subsidi", {
+      ...pay,
+      request_id: crypto.randomUUID(),
+      versi: 2,
+      jumlah: 3000,
+    }),
+  ).rejects.toThrow(/melebihi/);
+  await expect(
+    call("edit_tagihan_subsidi", {
+      id: t.id,
+      versi: 2,
+      nama: "Subsidi",
+      nominal: 1000,
+      alasan: "Turunkan",
+    }),
+  ).rejects.toThrow(/di bawah/);
+  await call("batal_bayar_subsidi", {
+    id: entry,
+    versi: 2,
+    alasan: "Salah nominal",
+  });
+  await call("bayar_tagihan_subsidi", {
+    ...pay,
+    request_id: crypto.randomUUID(),
+    versi: 3,
+    jumlah: 4000,
+  });
+  await q("update transaksi set status='void' where id=$1", [paid.id]);
+  const rows = (
+    await q<{ v: { id: string; target: number; terbayar: number }[] }>(
+      "select laporan_subsidi(null,current_date-1,current_date+1) v",
+    )
+  )[0].v;
+  expect(rows.find((x) => x.id === t.id)).toMatchObject({
+    target: 0,
+    terbayar: 4000,
+  });
+  await call("bayar_tagihan_subsidi", {
+    ...pay,
+    request_id: crypto.randomUUID(),
+    versi: 4,
+    jumlah: -4000,
+    catatan: "Pengembalian transaksi void",
+  });
+  expect(
+    (
+      await q(
+        "select coalesce(sum(jumlah),0)::int n from promo_internal.pelunasan where tagihan_id=$1 and batal_at is null",
+        [t.id],
+      )
+    )[0].n,
+  ).toBe(0);
+  expect(
+    (await q("select total from transaksi where id=$1", [paid.id]))[0].total,
+  ).toBe(6000);
+  await as(cash);
+  await expect(
+    q("select laporan_subsidi(null,current_date,current_date)"),
+  ).rejects.toThrow(/Accounting/);
+});
+it('marketing report reconciles ordinary discounts and subsidies once and preserves zero-payment sale costs',async()=>{
+ await as(owner);
+ const rows=(await q<{v:{id:string;status:string;diskon:number;subsidi:number;total:number;subtotal:number}[]}>('select laporan_marketing_diskon(null,current_date-1,current_date+1) v'))[0].v;
+ expect(rows.some(r=>r.subsidi>0&&r.total===0)).toBe(true);expect(rows.some(r=>r.subsidi===0&&r.diskon>0)).toBe(true);
+ for(const r of rows){expect(Number(r.subtotal)-Number(r.diskon)).toBe(Number(r.total));expect(Number(r.subsidi)).toBeLessThanOrEqual(Number(r.diskon));}
+ const ingredient=id(30);await q("insert into bahan(id,nama,satuan_beli,satuan_pakai,harga_pokok) values($1,'Beans','kg','kg',2000)",[ingredient]);await q('insert into resep(menu_id,bahan_id,takaran) values($1,$2,1)',[menu,ingredient]);await q('insert into stok(outlet_id,bahan_id,jumlah) values($1,$2,10)',[o,ingredient]);
+ const pid=await call<string>('simpan_promo',config({subsidi:true,kuota:null,aturan:[{menu_id:menu,varian_ids:[],jenis:'gratis',nilai:100}]}));await as(cash);const b=basket(pid),quote=await call('pesan_promo',b),paid=await call('matur_internal.buat_transaksi',sale(b,quote.id as string));
+ expect((await q('select hpp_teoritis from transaksi where id=$1',[paid.id]))[0].hpp_teoritis).toBe(2000);expect(Number((await q('select jumlah from stok where outlet_id=$1 and bahan_id=$2',[o,ingredient]))[0].jumlah)).toBe(9);
+ await expect(q('select laporan_marketing_diskon(null,current_date,current_date)')).rejects.toThrow(/Accounting/);
 });
