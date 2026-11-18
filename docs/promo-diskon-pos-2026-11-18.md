@@ -38,3 +38,13 @@ Pengujian khusus `promo-sql.test.ts`: hak akses/anonim, versi edit, tiga jenis h
 Uji browser visual belum dijalankan karena akses browser pada sesi ini dibatasi kebijakan browser. Bukti verifikasi tersedia dari tes otomatis, build aplikasi, uji database terisolasi dan status deployment GitHub/Vercel.
 
 Hasil verifikasi: 94 berkas tes / 540 tes lulus; TypeScript dan ESLint bersih. Uji database tablet authenticated lulus dan ROLLBACK. Security advisor tidak menambah WARN/ERROR; dua INFO RLS tanpa policy adalah tabel privat yang sengaja tidak dibuka untuk akses langsung. Migrasi tersimpan sebagai `20261118033002_promo_diskon_pos.sql`, sesuai versi riwayat database.
+
+## Tampilan baru halaman /promo (18 November 2026)
+
+Hanya tampilan; RPC `simpan_promo`/`daftar_promo`/`laporan_promo`, aturan, kuota dan kasir tidak berubah.
+- Header berwarna + 4 kartu angka (promo berjalan, terjadwal, transaksi promo lunas, total potongan/subsidi periode).
+- Tab Semua/Berjalan/Terjadwal/Nonaktif/Selesai + cari nama. Status dihitung di `src/lib/promo-tampilan.ts` (tanggal/jam WIB, lencana "Di luar jam" bila berjalan tapi di luar rentang jam).
+- Kartu promo: label nilai besar (Diskon %, Potong Rp, Harga Rp, Voucher, Gratis), periode mudah dibaca, label outlet/menu, kuota, garis warna status.
+- Tombol cepat Aktifkan/Nonaktifkan (konfirmasi `tanya`, memakai `simpanPromo` dengan versi yang sama → tercatat di Log Aktivitas) dan Duplikat (membuka form promo baru nonaktif berisi salinan).
+- Form dibagi 5 bagian bernomor + pratinjau ringkas; isian sama seperti sebelumnya.
+- Laporan pemakaian: ringkasan + tabel seragam (`ui-halaman`), kartu per transaksi di HP; total bayar Rp0 tampil "Rp0".
