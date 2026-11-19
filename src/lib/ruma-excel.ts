@@ -44,7 +44,8 @@ export function kategoriUntuk<K extends { id: string; nama: string }>(judul: str
   const persis = kategori.find((k) => tanpa(k.nama) === j.replace(/^biaya /, ""));
   if (persis) return persis;
   const idx = KELUAR.findIndex(([n, re]) => norm(n) === norm(judul) || re.test(j));
-  const cocok = idx >= 0 ? kategori.find((k) => kolomKategori(k.nama) === idx) : null;
+  // Jangan cocokkan kategori tak dikenal melalui kolom fallback "Lain-lain".
+  const cocok = idx >= 0 ? kategori.find((k) => KELUAR[idx][1].test(norm(k.nama))) : null;
   return cocok ?? kategori.find((k) => /lain/.test(norm(k.nama))) ?? null;
 }
 

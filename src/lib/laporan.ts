@@ -4,6 +4,7 @@ export type Baris = { nama: string; jumlah: number };
 export type BagiHasil = { nama: string; persen: number; jumlah: number };
 export type Transfer = { keterangan: string; jumlah: number; bank: string | null; no_rekening: string | null; atas_nama: string | null };
 export type Laporan = {
+  sumber_excel?: import('./laporan-sumber-excel').SumberExcel;
   id: string;
   outlet_id: string;
   periode: string;
