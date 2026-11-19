@@ -4,6 +4,12 @@ import { daftarPromoKasir, pesanPromo, lepasPromo } from "@/lib/promo-actions";
 import { formatRupiah } from "@/lib/format";
 import type { CartLine } from "@/lib/pos-actions";
 import type { Promo, PromoQuote } from "@/lib/promo";
+import {
+  alasanPromoNormal,
+  alasanPromoDariError,
+  pesanHargaNormal,
+  type AlasanPromoNormal,
+} from "@/lib/promo-ketersediaan";
 export function PosPromo({
   sesiId,
   izinId,
@@ -34,6 +40,8 @@ export function PosPromo({
   const [selected, setSelected] = useState("");
   const [quote, setQuote] = useState<PromoQuote | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const [pending, start] = useTransition();
   const live = useRef(true),
     ref = useRef<PromoQuote | null>(null),
@@ -54,20 +62,56 @@ export function PosPromo({
       if (ref.current) void lepasPromo(ref.current.id).catch(() => {});
     };
   }, []);
+  // Reservasi aktif memiliki kuota sendiri: jangan cabut hanya karena sisa umum nol.
+  const normal = (alasan: AlasanPromoNormal) => {
+    const hadQuote = !!ref.current;
+    ref.current = null;
+    request.current = null;
+    setQuote(null);
+    setSelected("");
+    if (hadQuote) callback.current(null);
+    setError("");
+    setNotice(pesanHargaNormal(alasan));
+  };
+  const normalRef = useRef(normal);
+  normalRef.current = normal;
   useEffect(() => {
-    if (!quote) return;
+    if (!list.length) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [list.length]);
+  useEffect(() => {
+    // Jangan mengubah nominal saat permintaan pembayaran sedang diproses.
+    if (!quote || disabled) return;
+    const expire = () => {
+      if (live.current) normalRef.current("waktu");
+    };
     const timer = setTimeout(
-      () => {
-        if (live.current) {
-          setError(
-            "Reservasi berakhir. Pilih promo kembali. Jika pembayaran sudah dilakukan, cek riwayat sebelum mengulang.",
-          );
-        }
-      },
+      expire,
       Math.max(0, Date.parse(quote.sampai_at) - Date.now()),
     );
-    return () => clearTimeout(timer);
-  }, [quote]);
+    const focus = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.parse(quote.sampai_at) <= Date.now()
+      )
+        expire();
+    };
+    document.addEventListener("visibilitychange", focus);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", focus);
+    };
+  }, [quote, disabled]);
+  useEffect(() => {
+    if (quote || pending || disabled || !selected) return;
+    const p = list.find((p) => p.id === selected);
+    const reason = p ? alasanPromoNormal(p, items, now) : "waktu";
+    if (reason) normalRef.current(reason);
+  }, [list, selected, quote, pending, disabled, items, now]);
+  const tersedia = list.filter(
+    (p) => p.id === quote?.promo_id || !alasanPromoNormal(p, items, now),
+  );
   const release = async (id: string) => {
     const r = await lepasPromo(id);
     if (r.error) throw new Error(r.error);
@@ -86,6 +130,13 @@ export function PosPromo({
   const apply = () =>
     start(async () => {
       setError("");
+      setNotice("");
+      const chosen = list.find((p) => p.id === selected);
+      const unavailable = chosen ? alasanPromoNormal(chosen, items) : "waktu";
+      if (!ref.current && unavailable) {
+        normal(unavailable);
+        return;
+      }
       if (!navigator.onLine) {
         setError("Promo membutuhkan internet.");
         return;
@@ -114,7 +165,17 @@ export function PosPromo({
           return;
         }
         if (r.error) {
-          setError(r.error);
+          const reason = alasanPromoDariError(r.error);
+          if (reason) {
+            normal(reason);
+            // Rapatkan perubahan kuota dari kasir lain tanpa menambah polling.
+            try {
+              const fresh = await daftarPromoKasir();
+              if (live.current && !fresh.error) setList(fresh.data ?? []);
+            } catch {
+              /* Harga normal tetap tersedia jika penyegaran gagal. */
+            }
+          } else setError(r.error);
           request.current = null;
         } else if (r.quote) {
           if (r.quote.subtotal !== subtotal) {
@@ -125,9 +186,11 @@ export function PosPromo({
             request.current = null;
             return;
           }
-          ref.current = r.quote;
-          setQuote(r.quote);
-          callback.current({ ...r.quote, promo_id: selected });
+          const reserved = { ...r.quote, promo_id: selected };
+          ref.current = reserved;
+          setQuote(reserved);
+          setNotice("");
+          callback.current(reserved);
         }
       } catch {
         setError(
@@ -144,6 +207,8 @@ export function PosPromo({
         setQuote(null);
         callback.current(null);
         setError("");
+        setSelected("");
+        setNotice("");
       } catch {
         setError("Belum dapat melepas reservasi. Coba lagi.");
       }
@@ -160,7 +225,7 @@ export function PosPromo({
           Muat / segarkan promo
         </button>
       </div>
-      {list.length > 0 && (
+      {tersedia.length > 0 && (
         <>
           <select
             aria-label="Pilih promo"
@@ -170,7 +235,7 @@ export function PosPromo({
             onChange={(e) => setSelected(e.target.value)}
           >
             <option value="">Pilih promo aktif</option>
-            {list.map((p) => (
+            {tersedia.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nama}
                 {p.cakupan === "transaksi"
@@ -245,6 +310,17 @@ export function PosPromo({
         Online · pilih ulang jika keranjang/diskon berubah · kuota ditahan
         maksimal 15 menit sebelum bayar. Terapkan ulang saat memuat draft.
       </p>
+      {!quote && !tersedia.length && list.length > 0 && !notice && (
+        <p role="status" className="rounded-lg bg-stone-50 p-2 text-stone-700">
+          Promo belum tersedia untuk keranjang ini atau sudah berakhir. Harga
+          normal berlaku.
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="rounded-lg bg-amber-50 p-2 text-amber-900">
+          {notice}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-xs text-red-700">
           {error}
