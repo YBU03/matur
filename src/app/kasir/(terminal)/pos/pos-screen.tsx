@@ -320,6 +320,7 @@ export function PosScreen({
   } | null>(null);
   const reset = () => {
     attempt.current = null;
+    setBukaKeranjang(false);
     setCart([]);
     setDiskon("");
     setDiterima("");
