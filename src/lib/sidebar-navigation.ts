@@ -86,6 +86,7 @@ export const ADMIN_MENU_GROUPS = [
       "/pengaturan/qris",
       "/pengaturan/snap-sandbox",
       "/pengaturan/struk",
+      "/pengaturan/support-outlet",
       "/pengaturan/maintenance",
       "/log",
     ],
