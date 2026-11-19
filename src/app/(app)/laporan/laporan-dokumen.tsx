@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LaporanSumberExcel } from "@/components/laporan-sumber-excel";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import {
   hitung,
@@ -20,6 +21,8 @@ export function LaporanDokumen({
   semua?: Laporan[];
   internal?: boolean;
 }) {
+  if (internal && l.sumber_excel?.versi === 1)
+    return <LaporanSumberExcel sumber={l.sumber_excel} outletId={l.outlet_id} />;
   const h = hitung(l);
   const bulan = namaBulan(l.periode);
   // riwayat laporan outlet ini (untuk tren & pembanding bulan lalu)

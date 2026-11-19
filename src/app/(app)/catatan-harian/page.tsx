@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Manual } from "@/lib/harian";
 import type { SusunanTabel } from "@/lib/harian-actions";
 import { getSession } from "@/lib/session";
@@ -149,7 +150,13 @@ export default async function CatatanHarianPage({
   )
     throw new Error((belanjaError ?? revisiError)!.message);
   const { data: pt } = await supabase.from("perusahaan").select("tabel_harian").limit(1).maybeSingle();
+  const { data: arsipExcel, error: arsipError } = !sim && ["owner", "admin_pusat", "finance"].includes(s.active.role)
+    ? await supabase.from("laporan_internal").select("versi_excel:snapshot->sumber_excel->versi").eq("outlet_id", outlet.id).eq("periode", `${bulan}-01`).maybeSingle()
+    : { data: null, error: null };
+  if (arsipError) throw new Error("Gagal membaca arsip Excel laporan.");
   return (
+    <>
+    {Number(arsipExcel?.versi_excel) === 1 && <p className="mb-4 rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">Data diimpor dari Excel. Rincian shift, kas aktual, selisih, nilai presisi, dan seluruh sel sumber tersedia di <Link className="font-bold underline" href={`/laporan/internal?outlet=${outlet.id}&bulan=${bulan}`}>Lihat sumber Excel & PDF lengkap</Link>.</p>}
     <CatatanHarian
       susunan={(pt?.tabel_harian ?? {}) as Partial<SusunanTabel>}
       key={`${outlet.id}-${bulan}-${sim}`}
@@ -177,5 +184,6 @@ export default async function CatatanHarianPage({
       belanja={sim ? [] : (belanja ?? [])}
       bolehImpor={["owner", "admin_pusat", "finance"].includes(s.active.role)}
     />
+    </>
   );
 }
