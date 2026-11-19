@@ -136,8 +136,11 @@ export default async function ProyeksiLaporan({
   if (proyError || draftError)
     throw new Error("Gagal membaca laporan. Muat ulang atau hubungi admin.");
   const sumberExcel = (draft?.snapshot as Laporan | null)?.sumber_excel;
-  if (!sim && sumberExcel?.versi === 1)
-    return <LaporanSumberExcel sumber={sumberExcel} outletId={outlet.id} />;
+  if (!sim && sumberExcel?.versi === 1) {
+    const laporan = { ...(draft!.snapshot as Laporan) };
+    delete laporan.sumber_excel;
+    return <LaporanSumberExcel sumber={sumberExcel} outletId={outlet.id} laporan={laporan} />;
+  }
   const sebelum = (draftPrev?.snapshot ?? prev) as unknown as Laporan | null;
   const akhirBulan = new Date(
     Date.UTC(Number(bulan.slice(0, 4)), Number(bulan.slice(5, 7)), 1),

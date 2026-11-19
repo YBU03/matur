@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useState } from "react";
 import type { SumberExcel } from "@/lib/laporan-sumber-excel";
 import { judulPeriodeSumber } from "@/lib/laporan-sumber-excel";
+import type { Laporan } from "@/lib/laporan";
 
 export function LaporanSumberExcel({
   sumber: s,
   outletId,
+  laporan,
 }: {
   sumber: SumberExcel;
   outletId: string;
+  laporan: Omit<Laporan, "sumber_excel">;
 }) {
   const [sheet, setSheet] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -24,14 +27,16 @@ export function LaporanSumberExcel({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   };
-  const pdf = async () => {
+  const pdf = async (lampiran = false) => {
     setBusy(true);
     setError("");
     try {
-      const { pdfSumberExcel } = await import("@/lib/laporan-sumber-excel");
+      const { pdfLaporanSumber } = await import("@/lib/laporan-sumber-excel");
       download(
-        (await pdfSumberExcel(s)).output("blob"),
-        `Laporan-Kominot-${s.periode}-Lengkap.pdf`,
+        (
+          await pdfLaporanSumber({ ...laporan, sumber_excel: s }, { lampiran })
+        ).output("blob"),
+        `Laporan-${s.outlet_tujuan}-${s.periode}${lampiran ? "-Lengkap" : ""}.pdf`,
       );
     } catch {
       setError("PDF belum berhasil dibuat. Coba lagi.");
@@ -84,10 +89,17 @@ export function LaporanSumberExcel({
         <div className="flex flex-wrap gap-2 pt-2">
           <button
             disabled={busy}
-            onClick={pdf}
+            onClick={() => pdf()}
             className="rounded-lg bg-matur-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Menyiapkan PDF…" : "Unduh PDF lengkap"}
+            {busy ? "Menyiapkan PDF…" : "Unduh PDF laporan"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => pdf(true)}
+            className="rounded-lg border px-4 py-2 font-semibold disabled:opacity-50"
+          >
+            PDF + lampiran lengkap
           </button>
           <button
             onClick={excel}
@@ -102,6 +114,11 @@ export function LaporanSumberExcel({
             Catatan Harian
           </Link>
         </div>
+        <p className="text-xs text-stone-500">
+          PDF laporan memakai format laporan bulanan: kop perusahaan, ringkasan,
+          grafik, dan tabel keuangan. Pilih PDF + lampiran lengkap untuk
+          menyertakan seluruh rincian sumber dan catatan harian.
+        </p>
         {error && (
           <p role="alert" className="text-sm text-red-700">
             {error}
