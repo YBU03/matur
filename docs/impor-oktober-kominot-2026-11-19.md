@@ -19,3 +19,11 @@ Data dan skrip impor privat berada di handoff lokal; tidak dimasukkan Git. Aplik
 PDF lengkap memakai seluruh 3.542 sel berisi yang disajikan dari dua lembar sumber (bagian transaksi sampai footer pertama baris 765; template kosong footer kedua tidak disajikan dan tetap ada dalam file Excel asli). Nilai presisi dan rumus tersedia di rincian layar/Excel; PDF mengikuti tampilan nominal Excel. PDF 46 halaman diperiksa ekstraksi seluruh sel dan render.
 
 Pencocokan kategori impor diperbaiki: Lain-lain tidak boleh memilih kategori tak dikenal seperti Admin Transfer hanya karena kolom fallback ekspornya sama.
+
+## Perbaikan format PDF Oktober
+
+Ekspor utama kini menggunakan renderer bersama `laporan-keuangan-pdf.ts`, sama dengan laporan bulanan lainnya: kop/logo perusahaan, ringkasan KPI/grafik, metadata, HPP, laba rugi, sharing profit, sedekah, transfer dan penandatangan. Ledger modal/sedekah sumber juga dipertahankan. Tombol **Unduh PDF laporan** menghasilkan laporan utama 3 halaman. Tombol **PDF + lampiran lengkap** menambahkan seluruh 3.542 sel sumber/catatan harian (49 halaman). Tabel audit beralamat sel tidak lagi menjadi isi ekspor utama.
+
+Perhitungan impor memakai nilai total cached Excel (termasuk E118) sehingga jumlah transfer sumber yang berbeda Rp0,001 dari penjumlahan rincian tetap dipertahankan. Tidak mengubah data database maupun Excel sumber. Tampilan nominal tetap mengikuti format laporan/Excel, sedangkan nilai presisi tersimpan utuh. Tanggal operasional dan kop diambil dari sumber, bukan master outlet saat ini. Tidak menerbitkan draft ke Mitra atau menambahkan tanda tangan resmi.
+
+PDF utama diperiksa visual seluruh halaman. PDF lengkap dirender dan diperiksa seluruh halaman lewat contact sheet; ekstraksi seluruh 3.542 sel cocok tanpa data hilang. Uji ekspor laporan biasa dan internal tetap lulus setelah renderer dipakai bersama.

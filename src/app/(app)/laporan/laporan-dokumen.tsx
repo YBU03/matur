@@ -21,8 +21,10 @@ export function LaporanDokumen({
   semua?: Laporan[];
   internal?: boolean;
 }) {
-  if (internal && l.sumber_excel?.versi === 1)
-    return <LaporanSumberExcel sumber={l.sumber_excel} outletId={l.outlet_id} />;
+  if (internal && l.sumber_excel?.versi === 1) {
+    const { sumber_excel, ...laporan } = l;
+    return <LaporanSumberExcel sumber={sumber_excel} outletId={l.outlet_id} laporan={laporan} />;
+  }
   const h = hitung(l);
   const bulan = namaBulan(l.periode);
   // riwayat laporan outlet ini (untuk tren & pembanding bulan lalu)
