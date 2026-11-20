@@ -63,9 +63,8 @@ export default async function CatatanHarianPage({
     { data: kat },
     { data: manual },
     { data: produk },
-    { data: sesi },
+    { data: sesiData, error: sesiError },
     { data: menu },
-    { data: dasarKas, error: dasarKasError },
   ] = await Promise.all([
     supabase.rpc("rekap_harian", {
       p_outlet: outlet.id,
@@ -109,26 +108,16 @@ export default async function CatatanHarianPage({
       .lt("tanggal", akhir)
       .is("deleted_at", null)
       .order("created_at"),
-    supabase
-      .from("sesi_kas")
-      .select(
-        "id, dibuka_at, ditutup_at, modal_laci, setoran, seharusnya, selisih, nama_kasir, pos_tim, fisik_akhir, tanggal_shift",
-      )
-      .eq("mode", mode)
-      .eq("outlet_id", outlet.id)
-      .gte("dibuka_at", ta)
-      .lt("dibuka_at", tb)
-      .order("dibuka_at"),
+    supabase.rpc("sesi_catatan_harian", { o: outlet.id, d: awal, a: akhir, md: mode }),
     supabase
       .from("menu")
       .select("id, nama")
       .eq("mode", "asli")
       .is("deleted_at", null)
       .order("nama"),
-    supabase.rpc("dasar_kas_harian", { o: outlet.id, d: awal, s: akhir }),
   ]);
-  if (dasarKasError && !sim) throw new Error(dasarKasError.message);
-  const dasar = new Map<string, Sesi["hitung"]>((dasarKas ?? []).map((x: {id: string;hitung: Sesi["hitung"]}) => [x.id, x.hitung]));
+  if (sesiError) throw new Error(sesiError.message);
+  const sesi = (sesiData ?? []) as Sesi[];
   const { data: revisi, error: revisiError } = await supabase
     .from("revisi_aktual_kas")
     .select("*")
@@ -178,7 +167,7 @@ export default async function CatatanHarianPage({
       }
       manual={(manual ?? []) as Manual[]}
       produk={(produk ?? []) as ProdukKeluar[]}
-      sesi={(sesi ?? []).map(x => ({...x, hitung: dasar.get(x.id)})) as Sesi[]}
+      sesi={sesi}
       menu={menu ?? []}
       revisi={revisi ?? []}
       belanja={sim ? [] : (belanja ?? [])}

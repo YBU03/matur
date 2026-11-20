@@ -29,6 +29,7 @@ export function FormPengeluaran({
   onSimpan,
   onBatal,
   kunciNominal = false,
+  pilihanSesi,
 }: {
   kategori: Kat[];
   pending: boolean;
@@ -39,6 +40,7 @@ export function FormPengeluaran({
   onBatal?: () => void;
   /** kas shift sudah final: nominal & sumber dana dikunci (perbaikan nominal lewat Akunting) */
   kunciNominal?: boolean;
+  pilihanSesi?: { id: string; nama: string | null; dibuka_at: string; ditutup_at: string | null }[];
 }) {
   const [bahan, setBahan] = useState<
     { id: string; nama: string; satuan_pakai: string }[]
@@ -54,6 +56,9 @@ export function FormPengeluaran({
   const [sumber, setSumber] = useState<"laci" | "pusat">(
     awal?.sumber ?? "laci",
   );
+  const [sesi, setSesi] = useState(pilihanSesi?.length === 1 ? pilihanSesi[0].id : "");
+  const [alasan, setAlasan] = useState("");
+  const sesiTertutup = sumber === "laci" && !!pilihanSesi?.find(s => s.id === sesi)?.ditutup_at;
   const pilih = (id: string) => {
     setKat(id);
     if (!awal || baru) setSumber(sumberAwal(kategori.find((k) => k.id === id)));
@@ -211,6 +216,16 @@ export function FormPengeluaran({
           </button>
         ))}
       </div>
+      {sumber === "laci" && pilihanSesi && <div className="space-y-2 text-sm">
+        <label className="block">Hubungkan ke shift kas
+          <select aria-label="Shift pengeluaran" value={sesi} onChange={e => setSesi(e.target.value)} className={cls}>
+            <option value="">Pilih shift yang sesuai</option>
+            {pilihanSesi.map(s => <option key={s.id} value={s.id}>{s.nama ?? "Kas outlet"} · {new Date(s.dibuka_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} · {s.ditutup_at ? "sudah ditutup" : "masih buka"}</option>)}
+          </select>
+        </label>
+        {!pilihanSesi.length && <p role="status" className="rounded bg-amber-50 p-2 text-amber-900">Belum ada shift yang cocok. Pilih tanggal yang benar atau periksa kas outlet; pengeluaran laci tidak disimpan tanpa hubungan shift.</p>}
+        {sesiTertutup && <label className="block">Alasan pengeluaran susulan<textarea aria-label="Alasan pengeluaran susulan" value={alasan} maxLength={500} onChange={e => setAlasan(e.target.value)} className={cls} /><span className="text-xs text-stone-600">Kas seharusnya dihitung ulang. Setoran aktual tetap; riwayat koreksi dicatat.</span></label>}
+      </div>}
       <div className="flex gap-2">
         {onBatal && (
           <button
@@ -226,6 +241,7 @@ export function FormPengeluaran({
             pending ||
             memuat ||
             !kat ||
+            (sumber === "laci" && !!pilihanSesi && (!sesi || (sesiTertutup && alasan.trim().length < 3))) ||
             !(angka(jumlah) > 0) ||
             (bahanBaku &&
               items.some((i) => !i.bahan_id || !(Number(i.qty) > 0)))
@@ -242,6 +258,7 @@ export function FormPengeluaran({
                       })),
                     }
                   : {}),
+                ...(pilihanSesi ? { sesi_id: sumber === "laci" ? sesi : undefined, alasan } : {}),
                 kategori_id: kat,
                 jumlah: angka(jumlah),
                 keterangan: ket,
