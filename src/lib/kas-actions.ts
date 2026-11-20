@@ -14,6 +14,7 @@ export type Pengeluaran = {
   tanggal?: string;
   request_id?: string;
   sesi_id?: string;
+  alasan?: string;
   items?: { bahan_id: string; qty: number }[];
 };
 
@@ -59,6 +60,7 @@ export async function catatPengeluaran(
         outlet_id: outlet,
         request_id: d.request_id ?? crypto.randomUUID(),
         sesi_id: d.sesi_id ?? null,
+        alasan: d.alasan?.trim().slice(0, 500) ?? null,
         ...(d.items?.length ? { items: d.items } : {}),
       },
     },
