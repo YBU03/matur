@@ -2,6 +2,7 @@
 // Ikon dipilih dari awalan alamat menu; menu baru tanpa padanan memakai monogram 2 huruf.
 
 const P: Record<string, string> = {
+  support: "M4 12v-1a8 8 0 0 1 16 0v6a4 4 0 0 1-4 4h-3M4 11H2v7h4v-7zM20 11h2v7h-4v-7z",
   dashboard: "M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z",
   pos: "M4 5h16v10H4zM8 19h8M12 15v4M7.5 9.5h3M13.5 9.5h3",
   antrean: "M5 6h14M5 12h14M5 18h9M18 16.5v3M16.5 18h3",
@@ -48,6 +49,7 @@ const P: Record<string, string> = {
 
 // urutan penting: awalan lebih spesifik lebih dulu
 const PETA: [string, keyof typeof P][] = [
+  ["/portal/support-outlet", "support"], ["/pengaturan/support-outlet", "support"],
   ["/dashboard-pos", "pos"], ["/dashboard", "dashboard"], ["/pantau-pos", "pos"], ["/portal/pos", "pos"], ["/pos", "pos"], ["/kasir", "pos"],
   ["/antrean", "antrean"], ["/operasional/kiriman", "kiriman"], ["/kasbon", "kasbon"], ["/stok-realtime", "stok"], ["/stok", "stok"],
   ["/gudang/kiriman", "kiriman"], ["/gudang/pembelian", "pembelian"], ["/gudang/mutasi", "mutasi"], ["/gudang", "gudang"],

@@ -1,6 +1,6 @@
 "use client";
+import { tanggalShift, sesiPadaHari, biayaBelumTerhubung } from "@/lib/harian-shift";
 import Link from "next/link";
-import { tglOperasional } from "@/lib/hari-operasional";
 import { tanya } from "@/components/dialog-tanya";
 import { denganAlasan } from "@/lib/dengan-alasan";
 
@@ -98,6 +98,9 @@ export type ProdukKeluar = {
   created_at: string;
 };
 export type Sesi = {
+  tanggal_catatan?: string;
+  tanggal_terkait?: string[];
+  tanggal_valid?: string[];
   hitung?: {tunai: number; laci: number; keluar: number; seharusnya: number} | null;
   tanggal_shift?: string | null;
   pos_tim?: boolean;
@@ -226,7 +229,7 @@ export function CatatanHarian({
   const produkHari = useMemo(() => per(produk), [produk]);
   const manualHari = useMemo(() => per(manual), [manual]);
   const sesiHari = useMemo(
-    () => per(sesi.map((x) => ({ ...x, tanggal: x.tanggal_shift ?? tglOperasional(x.dibuka_at) }))),
+    () => per(sesi.flatMap((x) => tanggalShift(x).map(tanggal => ({ ...x, tanggal })))),
     [sesi],
   );
   const run = (
@@ -858,7 +861,7 @@ export function CatatanHarian({
                     </ul>
                   </div>
 
-                  {!sim && items.some(b => b.sumber === "laci" && (!b.sesi_kas_id || !sesi.some(s => s.id === b.sesi_kas_id && (s.tanggal_shift ?? tglOperasional(s.dibuka_at)) === b.tanggal))) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
+                  {!sim && items.some(b => biayaBelumTerhubung(b, sesi)) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
                   {/* Shift & kas */}
                   {shift.length > 0 && (
                     <div>
@@ -874,7 +877,7 @@ export function CatatanHarian({
                           >
                             <span>
                               <b>{x.nama_kasir ?? "Kasir"}</b> ·{" "}
-                              {jam(x.dibuka_at)}–{jam(x.ditutup_at)} · modal{" "}
+                              {new Date(x.dibuka_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}–{x.ditutup_at ? new Date(x.ditutup_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "masih buka"} · modal{" "}
                               {formatRupiah(x.modal_laci)}
                             </span>
                             {!sim && bolehImpor && x.ditutup_at && (
@@ -885,7 +888,8 @@ export function CatatanHarian({
                                 )}
                               />
                             )}
-                            {!sim && bolehImpor && x.ditutup_at && <RekonsiliasiKas sesiId={x.id} />}
+                            {!sim && bolehImpor && <RekonsiliasiKas sesiId={x.id} />}
+                            <span className="w-full rounded bg-stone-50 p-2 text-stone-600">Rincian seluruh shift: tunai {formatRupiah(x.hitung?.tunai ?? 0)} · pengeluaran laci {formatRupiah(x.hitung?.laci ?? 0)} · penyerahan {formatRupiah(x.hitung?.keluar ?? 0)}. Tanggal aktivitas: {tanggalShift(x).join(", ")}.{(tanggalShift(x).length > 1 || x.tanggal_shift !== x.tanggal_catatan) && " Shift melintasi tanggal; angka ini bukan hanya penjualan hari yang sedang dibuka."}</span>
                             <span
                               className={
                                 x.selisih ? "text-red-600" : "text-stone-600"
@@ -900,30 +904,31 @@ export function CatatanHarian({
                       </ul>
                     </div>
                   )}
-                  <div className="rounded bg-sky-50 p-2 text-xs text-sky-900">Rincian kas di bawah mengikuti hubungan shift, termasuk pengeluaran bertanggal lain. Pengeluaran berdasarkan tanggal di daftar atas dapat berbeda. Gunakan Periksa & rekonsiliasi kas untuk menelusuri sumbernya.</div>
+                  <div className="rounded bg-sky-50 p-2 text-xs text-sky-900">Ringkasan harian di bawah memakai tanggal yang sama dengan daftar penjualan dan pengeluaran di atas. Rincian seluruh shift ditampilkan terpisah; setoran aktual dicatat sekali pada tanggal aktivitas terakhir shift, tanpa mengubah uang yang disetor.</div>
+                  <p className="rounded bg-stone-50 p-2 text-xs text-stone-600">Total pengeluaran hari ini: {formatRupiah(keluar)} · dibayar pusat: {formatRupiah(keluar-laci)} (tidak mengurangi laci). Tunai setelah pengeluaran laci, sebelum penyerahan: {formatRupiah(v.tunai.akhir-laci)}.</p>
                   <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-matur-50 p-2 text-xs sm:grid-cols-4">
                     <div>
-                      <p className="text-stone-500">Penjualan tunai shift</p>
+                      <p className="text-stone-500">Penjualan tunai hari ini</p>
                       <p className="font-semibold tabular-nums">
-                        {formatRupiah(shift.length && shift.every(s => s.hitung) ? shift.reduce((n,s) => n + s.hitung!.tunai, 0) : v.tunai.akhir)}
+                        {v.tunai.akhir === 0 ? "Rp0" : formatRupiah(v.tunai.akhir)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-stone-500">Keluar dari laci shift + penyerahan</p>
+                      <p className="text-stone-500">Pengeluaran laci hari ini</p>
                       <p className="font-semibold tabular-nums">
-                        {formatRupiah(-(shift.length && shift.every(s => s.hitung) ? shift.reduce((n,s) => n + s.hitung!.laci + s.hitung!.keluar, 0) : laci))}
+                        {laci === 0 ? "Rp0" : formatRupiah(-laci)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-stone-500">Setoran aktual</p>
+                      <p className="text-stone-500">Setoran aktual shift</p>
                       <p className="font-semibold tabular-nums">
                         {h.setoran === null
-                          ? "shift belum ditutup"
+                          ? "Belum ada setoran shift untuk tanggal ini"
                           : formatRupiah(h.setoran)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-stone-500">Selisih</p>
+                      <p className="text-stone-500">Selisih setoran shift</p>
                       <p
                         className={`font-semibold tabular-nums ${h.selisih ? "text-red-600" : ""}`}
                       >
@@ -956,6 +961,7 @@ export function CatatanHarian({
               }
             }
             baru={!form.item}
+            pilihanSesi={!form.item ? sesiPadaHari(sesi, form.tanggal).filter(s => bolehImpor || !s.ditutup_at).map(s => ({ ...s, nama: s.nama_kasir })) : undefined}
             onBatal={() => setForm(null)}
             onSimpan={(d) =>
               run(

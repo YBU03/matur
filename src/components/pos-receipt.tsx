@@ -230,6 +230,7 @@ export function ReceiptDialog({
     <Modal
       onClose={onClose}
       tutupLuar
+      scrollable
       title={
         salinan
           ? `🧾 Struk #${nomor}`

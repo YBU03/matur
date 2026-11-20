@@ -87,6 +87,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengaturan/maintenance", label: "Mode Maintenance", stage: 4 },
       { href: "/pengaturan/qris", label: "QRIS Outlet", stage: 4 },
       { href: "/pengaturan/struk", label: "Pengaturan Struk", stage: 4 },
+      { href: "/pengaturan/support-outlet", label: "Kelola Support Outlet", stage: 4 },
       { href: "/log", label: "Log Aktivitas", stage: 2 },
     ],
   },
@@ -187,6 +188,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengaturan/maintenance", label: "Mode Maintenance", stage: 4 },
       { href: "/pengaturan/qris", label: "QRIS Outlet", stage: 4 },
       { href: "/pengaturan/struk", label: "Pengaturan Struk", stage: 4 },
+      { href: "/pengaturan/support-outlet", label: "Kelola Support Outlet", stage: 4 },
       { href: "/simulasi", label: "Simulasi Kemitraan", stage: 4 },
     ],
   },
@@ -283,6 +285,7 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/portal/pos", label: "POS Outlet (omzet harian)", stage: 4 },
       { href: "/portal/karyawan", label: "Karyawan Outlet", stage: 4 },
       { href: "/portal/promo", label: "Campaign & Promo", stage: 4 },
+      { href: "/portal/support-outlet", label: "Support Outlet", stage: 4 },
     ],
   },
   pic: {

@@ -75,6 +75,18 @@ Menu Mitra **Campaign & Promo** (`/portal/promo`, hanya baca). Migrasi `20261118
 - Tampilan: ringkasan (berlangsung, akan datang, transaksi & potongan hari ini), tab Berlangsung/Akan datang/Selesai, kartu berlangsung bergaya kotak kasir (timer lokal, bar kuota, "Kuota terpenuhi ✅"), detail (periode, hari & jam, kuota, ketentuan, tabel Harga normal → Potongan → Harga akhir termasuk ojol), riwayat per tanggal dengan filter. Data disegarkan tiap 3 menit.
 - Notifikasi lonceng untuk Mitra belum dibuat (opsional, menunggu persetujuan).
 
+## Kembali ke harga normal otomatis — 19 November 2026
+
+Semua jenis promo (persen, potongan, harga akhir, gratis/subsidi, voucher) mengikuti ketersediaan kuota dan waktu. Panel keranjang menyaring promo yang habis/tidak cukup untuk isi keranjang atau jam/periode sudah selesai. Kuota gabungan tetap dihitung lintas menu; voucher sekali per transaksi, bukan per cup. Kuota per menu tidak menonaktifkan menu lain yang masih tersedia. Kartu promo habis menampilkan **Harga normal berlaku** dan tracker tetap terlihat.
+
+Batas slot dipantau lokal tanpa panggilan server tambahan. Jika kuota berubah di kasir lain antara tampilan dan penerapan, penolakan kuota/waktu dari reservasi diubah menjadi informasi harga normal; pilihan dilepas dan daftar disegarkan sekali. Error izin, koneksi, katalog dan aturan lain tetap ditampilkan. Tidak ada pembayaran ulang otomatis atau pembuatan transaksi diam-diam.
+
+Reservasi sah tidak dicabut saat kuota umum mencapai nol. Setelah reservasi kedaluwarsa, diskonnya dilepas dari total dan QRIS statis yang sedang tampil ditutup melalui callback keranjang. Kasir diberi informasi mengecek total/dana masuk jika pelanggan sudah membayar. Nominal tidak diubah saat permintaan pembayaran diproses, dialog QR simulasi aktif, atau struk berhasil sedang tampil. Guard checkout memeriksa batas kedaluwarsa lagi sebelum pengiriman; transaksi yang dimulai pada batas itu perlu klik bayar kembali setelah total baru diperiksa. Diskon manual terpisah tetap mengikuti aturan yang ada.
+
+Tidak mengubah konfigurasi, periode, sumber subsidi, kuota tersimpan atau riwayat transaksi. Kuota harian mengikuti hari operasional outlet yang sudah berlaku; daftar server diperbarui setelah transaksi, saat tab kembali terlihat, atau interval ringan yang sudah ada. Pemeriksaan server tetap atomik untuk banyak kasir; tidak menambah polling. Tidak otomatis membuat/mengaktifkan promo poster.
+
+Verifikasi: pengujian DOM React untuk pilihan habis, race antarkasir, batas waktu, kedaluwarsa reservasi dan penundaan perubahan nominal saat pembayaran; unit gabungan 30 cup/varian/voucher/per-menu/slot lintas malam; pengujian mesin SQL reservasi terakhir dan penjualan normal tanpa promo. Tidak menguji printer/tablet fisik.
+
 ## Satu nota banyak menu promo — promo menempel di keranjang (20 November 2026)
 
 Temuan UHB 20 Nov (promo "Trial Opening"): 25 dari 27 transaksi promo hanya 1 item; beberapa keranjang 2–3 item dilepas lalu dipecah jadi nota terpisah; log server 5× "Reservasi promo berakhir" (08.01–08.20). Penyebab: `PosPromo` di-remount (`key={promoKey}`) setiap keranjang/kanal/diskon berubah sehingga reservasi dilepas; pembayaran memakai reservasi lepas → error, kasir memilih 1 item per nota. Aturan server sudah mengizinkan banyak item.

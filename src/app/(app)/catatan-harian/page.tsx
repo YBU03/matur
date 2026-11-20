@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Manual } from "@/lib/harian";
 import type { SusunanTabel } from "@/lib/harian-actions";
 import { getSession } from "@/lib/session";
@@ -62,9 +63,8 @@ export default async function CatatanHarianPage({
     { data: kat },
     { data: manual },
     { data: produk },
-    { data: sesi },
+    { data: sesiData, error: sesiError },
     { data: menu },
-    { data: dasarKas, error: dasarKasError },
   ] = await Promise.all([
     supabase.rpc("rekap_harian", {
       p_outlet: outlet.id,
@@ -108,26 +108,16 @@ export default async function CatatanHarianPage({
       .lt("tanggal", akhir)
       .is("deleted_at", null)
       .order("created_at"),
-    supabase
-      .from("sesi_kas")
-      .select(
-        "id, dibuka_at, ditutup_at, modal_laci, setoran, seharusnya, selisih, nama_kasir, pos_tim, fisik_akhir, tanggal_shift",
-      )
-      .eq("mode", mode)
-      .eq("outlet_id", outlet.id)
-      .gte("dibuka_at", ta)
-      .lt("dibuka_at", tb)
-      .order("dibuka_at"),
+    supabase.rpc("sesi_catatan_harian", { o: outlet.id, d: awal, a: akhir, md: mode }),
     supabase
       .from("menu")
       .select("id, nama")
       .eq("mode", "asli")
       .is("deleted_at", null)
       .order("nama"),
-    supabase.rpc("dasar_kas_harian", { o: outlet.id, d: awal, s: akhir }),
   ]);
-  if (dasarKasError && !sim) throw new Error(dasarKasError.message);
-  const dasar = new Map<string, Sesi["hitung"]>((dasarKas ?? []).map((x: {id: string;hitung: Sesi["hitung"]}) => [x.id, x.hitung]));
+  if (sesiError) throw new Error(sesiError.message);
+  const sesi = (sesiData ?? []) as Sesi[];
   const { data: revisi, error: revisiError } = await supabase
     .from("revisi_aktual_kas")
     .select("*")
@@ -149,7 +139,13 @@ export default async function CatatanHarianPage({
   )
     throw new Error((belanjaError ?? revisiError)!.message);
   const { data: pt } = await supabase.from("perusahaan").select("tabel_harian").limit(1).maybeSingle();
+  const { data: arsipExcel, error: arsipError } = !sim && ["owner", "admin_pusat", "finance"].includes(s.active.role)
+    ? await supabase.from("laporan_internal").select("versi_excel:snapshot->sumber_excel->versi").eq("outlet_id", outlet.id).eq("periode", `${bulan}-01`).maybeSingle()
+    : { data: null, error: null };
+  if (arsipError) throw new Error("Gagal membaca arsip Excel laporan.");
   return (
+    <>
+    {Number(arsipExcel?.versi_excel) === 1 && <p className="mb-4 rounded-xl border border-matur-200 bg-matur-50 p-3 text-sm">Data diimpor dari Excel. Rincian shift, kas aktual, selisih, nilai presisi, dan seluruh sel sumber tersedia di <Link className="font-bold underline" href={`/laporan/internal?outlet=${outlet.id}&bulan=${bulan}`}>Lihat sumber Excel & PDF lengkap</Link>.</p>}
     <CatatanHarian
       susunan={(pt?.tabel_harian ?? {}) as Partial<SusunanTabel>}
       key={`${outlet.id}-${bulan}-${sim}`}
@@ -171,11 +167,12 @@ export default async function CatatanHarianPage({
       }
       manual={(manual ?? []) as Manual[]}
       produk={(produk ?? []) as ProdukKeluar[]}
-      sesi={(sesi ?? []).map(x => ({...x, hitung: dasar.get(x.id)})) as Sesi[]}
+      sesi={sesi}
       menu={menu ?? []}
       revisi={revisi ?? []}
       belanja={sim ? [] : (belanja ?? [])}
       bolehImpor={["owner", "admin_pusat", "finance"].includes(s.active.role)}
     />
+    </>
   );
 }

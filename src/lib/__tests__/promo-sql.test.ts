@@ -1015,3 +1015,19 @@ it("satu nota berisi 3 menu promo dibayar sekali, void mengembalikan 3 kuota, re
   await q("update transaksi set status='void' where id=$1", [paid.id]);
   expect(await sisa()).toEqual({ semua: 3 });
 });
+
+it("kuota terakhir tetap sah untuk reservasinya; penjualan normal berikutnya tidak terhalang", async () => {
+  await as(owner);
+  const pid = await call<string>("simpan_promo", config({ nama: "Normal sesudah kuota", kuota: 1 }));
+  await as(cash);
+  const b = basket(pid);
+  const reserved = await call<{ id: string; sisa: Record<string, number> }>("pesan_promo", b);
+  expect(reserved.sisa).toEqual({ semua: 0 });
+  await expect(call("pesan_promo", basket(pid))).rejects.toThrow(/Kuota promo tidak cukup/);
+  const discounted = await call<{ total: number }>("matur_internal.buat_transaksi", sale(b, reserved.id));
+  expect(discounted.total).toBe(6000);
+  const normal = sale(b, reserved.id);
+  delete (normal as Record<string, unknown>).promo_quote;
+  const regular = await call<{ total: number }>("matur_internal.buat_transaksi", normal);
+  expect(regular.total).toBe(10000);
+});
