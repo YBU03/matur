@@ -116,6 +116,9 @@ beforeAll(async () => {
   await db.exec(
     src("../../../supabase/migrations/20261118234109_promo_mitra.sql"),
   );
+  await db.exec(
+    src("../../../supabase/migrations/20261120224147_promo_kuota_sebagian.sql"),
+  );
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -165,12 +168,13 @@ it("reserves capacity idempotently, rejects forged basket/token/outlet and relea
   await expect(
     call("pesan_promo", basket(promo, { outlet_id: other })),
   ).rejects.toThrow(/diizinkan/);
-  await expect(
-    call(
-      "pesan_promo",
-      basket(promo, { items: [{ menu_id: menu, varian_ids: [], qty: 3 }] }),
-    ),
-  ).rejects.toThrow(/Kuota/);
+  // Sisa 2, pesan 3: dua cup promo, satu cup harga normal (tidak lagi ditolak).
+  const sebagian = await call(
+    "pesan_promo",
+    basket(promo, { items: [{ menu_id: menu, varian_ids: [], qty: 3 }] }),
+  );
+  expect(sebagian).toMatchObject({ diskon: 8000, sisa: { semua: 0 }, lebih: { [menu]: 1 } });
+  await q("select lepas_promo($1)", [sebagian.id]);
   await q("select lepas_promo($1)", [quote.id]);
   await q("select lepas_promo($1)", [quote.id]);
   const full = await call(
@@ -1030,4 +1034,30 @@ it("kuota terakhir tetap sah untuk reservasinya; penjualan normal berikutnya tid
   delete (normal as Record<string, unknown>).promo_quote;
   const regular = await call<{ total: number }>("matur_internal.buat_transaksi", normal);
   expect(regular.total).toBe(10000);
+});
+
+it("pesanan melebihi sisa kuota: item pertama dapat promo sesuai sisa, sisanya harga normal dalam satu nota", async () => {
+  await as(owner);
+  const pid = await call<string>("simpan_promo", config({ nama: "Kuota Sebagian", kuota: 3 }));
+  await as(cash);
+  // Sisa 3, pesan 4 (dua baris): 3 cup pertama promo (10.000 → 6.000), cup ke-4 harga normal.
+  const b = basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 2 }, { menu_id: menu, varian_ids: [variant], qty: 2 }] });
+  const quote = await call<{ id: string; diskon: number; subtotal: number; sisa: Record<string, number>; rincian: Record<string, number>; lebih: Record<string, number> }>("pesan_promo", b);
+  expect(quote.subtotal).toBe(2 * 10000 + 2 * 12000);
+  // baris 1: 2 cup × 4.000; baris 2 (varian +2.000): 1 cup × 6.000, 1 cup normal
+  expect(quote.diskon).toBe(2 * 4000 + 6000);
+  expect(quote.rincian).toEqual({ [menu]: 3 });
+  expect(quote.lebih).toEqual({ [menu]: 1 });
+  expect(quote.sisa).toEqual({ semua: 0 });
+  const paid = await call<{ total: number }>("matur_internal.buat_transaksi", sale(b, quote.id));
+  expect(paid.total).toBe(44000 - 14000);
+  // Kuota habis: semua item harga normal → pesan kuota (kasir beralih ke harga normal).
+  await expect(call("pesan_promo", basket(pid))).rejects.toThrow(/^Kuota promo tidak cukup \(sisa 0\)/);
+  // Promo tanpa batas kuota tidak terpengaruh.
+  await as(owner);
+  const bebas = await call<string>("simpan_promo", config({ nama: "Tanpa Kuota", kuota: null }));
+  await as(cash);
+  const q2 = await call<{ diskon: number; lebih: Record<string, number> }>("pesan_promo", basket(bebas, { items: [{ menu_id: menu, varian_ids: [], qty: 5 }] }));
+  expect(q2.diskon).toBe(5 * 4000);
+  expect(q2.lebih).toEqual({});
 });

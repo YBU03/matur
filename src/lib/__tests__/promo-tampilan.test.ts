@@ -65,3 +65,17 @@ it("slot, hari dan hitung mundur sama dengan aturan server", () => {
   expect(hargaPromo(22000, "gratis", 100)).toBe(0);
   expect(hitungMundur(5075_000)).toBe("01:24:35");
 });
+
+it("bagi unit promo per baris sesuai urutan keranjang", async () => {
+  const { bagiPromo, pesanKuotaSebagian } = await import("../promo-tampilan");
+  const lines = [
+    { menu_id: "kopi", qty: 2, layak: true },
+    { menu_id: "ame", qty: 1, layak: true },
+    { menu_id: "kopi", qty: 2, layak: true },
+    { menu_id: "roti", qty: 1, layak: false },
+  ];
+  expect(bagiPromo(lines, { kopi: 3, ame: 1 })).toEqual([{ promo: 2, normal: 0 }, { promo: 1, normal: 0 }, { promo: 1, normal: 1 }, { promo: 0, normal: 1 }]);
+  expect(bagiPromo(lines, null).map((x) => x.promo)).toEqual([0, 0, 0, 0]);
+  expect(pesanKuotaSebagian({ kopi: 3 }, { kopi: 1 })).toBe("Kuota tinggal 3 — 3 item dapat promo, 1 item harga normal.");
+  expect(pesanKuotaSebagian({ kopi: 4 }, {})).toBe("");
+});

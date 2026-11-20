@@ -98,3 +98,9 @@ Perbaikan (klien saja, server/kuota tidak berubah):
 - Bila pembayaran tetap menolak reservasi ("Reservasi promo …"), pos-screen menaikkan `segar` → reservasi ulang → checkout otomatis sekali lagi (maks 30 detik).
 - Kuota kurang: pesan jelas "Kuota promo tidak cukup (sisa N)… kurangi jumlah atau bayar tanpa promo" + tombol Coba lagi.
 - Void/hapus tetap mengembalikan kuota (ditambah tes: satu nota 3 cup, void → kuota kembali 3; reservasi lama yang dilepas ditolak saat bayar).
+
+## Promo sebagian sesuai sisa kuota — satu nota (20 November 2026, malam)
+
+Migrasi `20261120224147_promo_kuota_sebagian.sql` (ganti pola `promo_internal.pesan`, tanpa tabel baru): untuk promo per item berkuota, sisa kuota diambil sekali (promo dikunci), lalu unit promo mendapat potongan **berurutan sesuai keranjang** sampai sisa kuota habis; unit selebihnya harga normal. Contoh sisa 3 pesan 4 → 3 promo + 1 normal; sisa 4 pesan 5 → 4 + 1. Kuota per menu dihitung per menu. Voucher per transaksi tidak berubah (1 kuota/nota). Jika semua unit melebihi kuota (sisa 0) → error kuota seperti sebelumnya (kasir otomatis harga normal). Respons/snapshot menambah `rincian` (unit berpromo per menu) dan `lebih` (unit harga normal). Kuota tercatat = unit yang benar-benar dipotong; void mengembalikan jumlah itu.
+
+Klien: `alasanPromoNormal` hanya "kuota" bila semua item promo di keranjang tidak kebagian; `bagiPromo` membagi unit promo per baris (urutan keranjang) untuk tampilan; baris keranjang menampilkan harga coret, label "🏷️ N promo · M normal" atau "harga normal · kuota habis"; panel promo menampilkan kotak "Kuota tinggal N — N item dapat promo, M item harga normal. Tetap satu nota." Tes: SQL (sisa 3 pesan 4 lintas baris/varian, sisa 0 → error kuota, tanpa kuota tak terbatas), unit `bagiPromo`/`pesanKuotaSebagian`, aturan ketersediaan.

@@ -39,6 +39,10 @@ export type PromoQuote = {
   id: string;
   /** id promo yang dipilih kasir (diisi klien) untuk tampilan harga coret per menu */
   promo_id?: string;
+  /** unit per menu yang mendapat potongan (urutan keranjang) */
+  rincian?: Record<string, number>;
+  /** unit per menu yang melebihi sisa kuota → harga normal */
+  lebih?: Record<string, number>;
   nama: string;
   cakupan?: "item" | "transaksi";
   nilai_voucher?: number | null;

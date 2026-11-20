@@ -11,6 +11,7 @@ import { formatRupiah } from "@/lib/format";
 import type { CartLine } from "@/lib/pos-actions";
 import type { Promo, PromoQuote } from "@/lib/promo";
 import { alasanPromoNormal, alasanPromoDariError, pesanHargaNormal, type AlasanPromoNormal } from "@/lib/promo-ketersediaan";
+import { pesanKuotaSebagian } from "@/lib/promo-tampilan";
 
 /** Kunci keranjang — dipakai juga oleh `promoKey` di pos-screen agar quote tidak terpakai untuk keranjang lain. */
 export const kunciPromo = (items: CartLine[], kanal: string, diskon: number, sesiId: string, izinId: string) =>
@@ -291,6 +292,23 @@ export function PosPromo({
             {quote.subsidi ? (quote.nama_subsidi ?? "Subsidi") : quote.cakupan === "transaksi" ? "Voucher" : "Diskon"} {formatRupiah(quote.diskon)}
           </p>
           {quote.subsidi && <p className="text-xs">Ditagihkan ke kantor, bukan pembayaran pelanggan.</p>}
+          {pesanKuotaSebagian(quote.rincian, quote.lebih) && (
+            <div role="status" className="mt-2 overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900">
+              <p className="flex items-start gap-2 px-2.5 py-2 text-xs font-semibold">
+                <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-amber-200/70 text-sm" aria-hidden>⚖️</span>
+                <span>{pesanKuotaSebagian(quote.rincian, quote.lebih)} Tetap satu nota.</span>
+              </p>
+              <ul className="flex flex-wrap gap-1.5 border-t border-amber-200/70 px-2.5 py-1.5 text-[11px]">
+                {Object.entries(quote.lebih ?? {}).map(([id, n]) => (
+                  <li key={id} className="inline-flex overflow-hidden rounded-full font-bold">
+                    <span className="bg-white/80 px-2 text-kopi-800">{menuNames[id] ?? "Menu"}</span>
+                    <span className="bg-matur-100 px-1.5 text-matur-800">{quote.rincian?.[id] ?? 0} promo</span>
+                    <span className="bg-stone-200/80 px-1.5 text-stone-700">{n} normal</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {Object.entries(quote.sisa).map(([id, n]) => (
             <p className="text-xs" key={id}>
               Sisa kuota {id === "semua" ? "gabungan" : (menuNames[id] ?? "menu")}: {n} {quote.cakupan === "transaksi" ? "transaksi" : "item"} setelah nota ini.

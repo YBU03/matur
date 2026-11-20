@@ -48,13 +48,14 @@ it("kuota 30 gabungan ketiga menu: 15+10+5, lalu penjualan berikutnya normal", (
       now,
     ),
   ).toBe("kuota");
+  // Sisa 2, pesan 3: tetap tersedia (2 promo, 1 harga normal dihitung server).
   expect(
     alasanPromoNormal(
       promo({ sisa_kuota: { semua: 2 } }),
       [item("keluarga"), item("butterscotch"), item("matcha")],
       now,
     ),
-  ).toBe("kuota");
+  ).toBeNull();
   expect(
     alasanPromoNormal(
       promo({ sisa_kuota: { semua: 2 } }),
@@ -110,9 +111,8 @@ it("kuota per menu tidak mematikan menu lain dan hanya menghitung varian yang co
   expect(alasanPromoNormal(p, [], now)).toBeNull();
   expect(alasanPromoNormal(p, [item("butterscotch", 2)], now)).toBeNull();
   expect(alasanPromoNormal(p, [item("keluarga")], now)).toBe("kuota");
-  expect(alasanPromoNormal(p, [item("matcha"), item("matcha")], now)).toBe(
-    "kuota",
-  );
+  expect(alasanPromoNormal(p, [item("matcha"), item("matcha")], now)).toBeNull();
+  expect(alasanPromoNormal(p, [item("keluarga"), item("matcha")], now)).toBeNull();
   expect(alasanPromoNormal(p, [item("menu-lain", 99)], now)).toBeNull();
   const variant = promo({
     aturan: [
@@ -123,9 +123,8 @@ it("kuota per menu tidak mematikan menu lain dan hanya menghitung varian yang co
   expect(
     alasanPromoNormal(variant, [item("keluarga", 3, ["hot"])], now),
   ).toBeNull();
-  expect(alasanPromoNormal(variant, [item("keluarga", 2, ["ice"])], now)).toBe(
-    "kuota",
-  );
+  expect(alasanPromoNormal(variant, [item("keluarga", 2, ["ice"])], now)).toBeNull();
+  expect(alasanPromoNormal({ ...variant, sisa_kuota: { semua: 0 } }, [item("keluarga", 2, ["ice"])], now)).toBe("kuota");
 });
 
 it("tanggal/jam/hari selesai otomatis normal, termasuk slot lintas tengah malam", () => {

@@ -36,11 +36,10 @@ export function alasanPromoNormal(
   if (p.cakupan === "transaksi" && Object.keys(qty).length) {
     return (p.sisa_kuota.semua ?? Infinity) < 1 ? "kuota" : null;
   }
-  return Object.entries(qty).some(
-    ([key, n]) => n > (p.sisa_kuota![key] ?? Infinity),
-  )
-    ? "kuota"
-    : null;
+  // Promo sebagian: tetap tersedia selama minimal satu item promo masih kebagian kuota;
+  // item yang melebihi sisa kuota otomatis harga normal (dihitung server). "kuota" hanya bila semua habis.
+  const keys = Object.keys(qty);
+  return keys.length && keys.every((key) => (p.sisa_kuota![key] ?? Infinity) <= 0) ? "kuota" : null;
 }
 
 /** Jangan memperlakukan error koneksi, izin, atau harga sebagai kuota habis. */

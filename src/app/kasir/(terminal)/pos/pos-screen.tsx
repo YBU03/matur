@@ -2,7 +2,7 @@
 import { PosPromo, kunciPromo } from "@/components/pos-promo";
 import { KotakPromoKasir } from "@/components/kotak-promo-kasir";
 import type { Promo } from "@/lib/promo";
-import { hargaPromo } from "@/lib/promo-tampilan";
+import { bagiPromo, hargaPromo } from "@/lib/promo-tampilan";
 import type { PromoQuote } from "@/lib/promo";
 import { QrisPaymentSuccess } from "@/components/qris-payment-success";
 import { siapkanSuaraQris } from "@/lib/qris-payment-audio";
@@ -258,10 +258,16 @@ export function PosScreen({
   const promo = promoState?.key===promoKey ? promoState.quote : null;
   // Harga coret per menu di keranjang (tampilan saja; total resmi tetap dari server).
   const aturanPromo = promo && promo.cakupan !== "transaksi" ? promoAktif.find((p) => p.id === promo.promo_id)?.aturan ?? null : null;
+  const aturanBaris = (l: Line) => aturanPromo?.find((x) => x.menu_id === l.menu.id && x.varian_ids.every((v) => l.varian.some((y) => y.id === v))) ?? null;
   const hargaSetelahPromo = (l: Line) => {
-    const a = aturanPromo?.find((x) => x.menu_id === l.menu.id && x.varian_ids.every((v) => l.varian.some((y) => y.id === v)));
+    const a = aturanBaris(l);
     return a ? hargaPromo(price(l), a.jenis, a.nilai) : null;
   };
+  // Promo sebagian (kuota kurang): unit promo per baris mengikuti urutan keranjang, sisanya harga normal.
+  const bagianPromo = bagiPromo(
+    cart.map((l) => ({ menu_id: l.menu.id, qty: l.qty, layak: !!aturanBaris(l) })),
+    promo && aturanPromo ? (promo.rincian ?? Object.fromEntries(cart.filter((l) => aturanBaris(l)).map((l) => [l.menu.id, 9999]))) : null,
+  );
   const total = Math.max(subtotal - num(diskon) - (promo?.diskon??0), 0);
   // kemasan tampil sebagai satu kartu menu induk; dipilih di jendela varian
   const anakOf = useMemo(() => {
@@ -876,7 +882,7 @@ export function PosScreen({
               Keranjang kosong
             </li>
           )}
-          {cart.map((l) => (
+          {cart.map((l, iBaris) => (
             <li key={l.key} className="flex items-center gap-2 py-2 text-sm">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{l.menu.nama}</p>
@@ -901,15 +907,26 @@ export function PosScreen({
               </button>
               {(() => {
                 const akhir = hargaSetelahPromo(l);
-                return akhir !== null && akhir < price(l) ? (
+                const b = bagianPromo[iBaris] ?? { promo: 0, normal: l.qty };
+                if (akhir === null || akhir >= price(l)) return <span className="w-20 text-right tabular-nums">{formatRupiah(price(l) * l.qty)}</span>;
+                if (!b.promo) return (
+                  <span className="w-24 text-right tabular-nums leading-tight">
+                    <span className="block">{formatRupiah(price(l) * l.qty)}</span>
+                    <span className="mt-0.5 inline-block rounded-full bg-stone-100 px-1.5 text-[10px] font-bold text-stone-600">harga normal · kuota habis</span>
+                  </span>
+                );
+                return (
                   <span className="w-24 text-right tabular-nums leading-tight">
                     <span className="block text-[11px] text-stone-400 line-through">{formatRupiah(price(l) * l.qty)}</span>
-                    <span className="block font-bold text-matur-700">{formatRupiah(akhir * l.qty)}</span>
-                    <span className="mt-0.5 inline-block rounded-full bg-matur-100 px-1.5 text-[10px] font-bold text-matur-800">🏷️ promo</span>
-                  </span>
-                ) : (
-                  <span className="w-20 text-right tabular-nums">
-                    {formatRupiah(price(l) * l.qty)}
+                    <span className="block font-bold text-matur-700">{formatRupiah(akhir * b.promo + price(l) * b.normal)}</span>
+                    {b.normal ? (
+                      <span className="mt-0.5 inline-flex overflow-hidden rounded-full text-[10px] font-bold">
+                        <span className="bg-matur-100 px-1.5 text-matur-800">🏷️ {b.promo} promo</span>
+                        <span className="bg-stone-100 px-1.5 text-stone-600">{b.normal} normal</span>
+                      </span>
+                    ) : (
+                      <span className="mt-0.5 inline-block rounded-full bg-matur-100 px-1.5 text-[10px] font-bold text-matur-800">🏷️ promo</span>
+                    )}
                   </span>
                 );
               })()}

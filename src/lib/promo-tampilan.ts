@@ -186,3 +186,25 @@ export function hitungMundur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((x) => String(x).padStart(2, "0")).join(":");
 }
+
+/**
+ * Bagi unit berpromo per baris keranjang sesuai `rincian` server (unit per menu yang dapat potongan),
+ * mengikuti urutan keranjang — sama seperti server. Mengembalikan jumlah unit promo & normal per baris.
+ */
+export function bagiPromo<T extends { menu_id: string; qty: number; layak: boolean }>(lines: T[], rincian?: Record<string, number> | null) {
+  const sisa = { ...(rincian ?? {}) };
+  return lines.map((l) => {
+    if (!l.layak || !rincian) return { promo: 0, normal: l.qty };
+    const dapat = Math.max(0, Math.min(l.qty, sisa[l.menu_id] ?? 0));
+    sisa[l.menu_id] = (sisa[l.menu_id] ?? 0) - dapat;
+    return { promo: dapat, normal: l.qty - dapat };
+  });
+}
+
+/** "Kuota tinggal 3 — 3 item dapat promo, 1 item harga normal." */
+export function pesanKuotaSebagian(rincian?: Record<string, number> | null, lebih?: Record<string, number> | null) {
+  const dapat = Object.values(rincian ?? {}).reduce((s, n) => s + n, 0);
+  const normal = Object.values(lebih ?? {}).reduce((s, n) => s + n, 0);
+  if (!normal) return "";
+  return `Kuota tinggal ${dapat} — ${dapat} item dapat promo, ${normal} item harga normal.`;
+}
