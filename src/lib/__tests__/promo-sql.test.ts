@@ -995,3 +995,23 @@ it("Mitra hanya melihat promo aktif outletnya sendiri, beserta kuota & pemakaian
   expect(v.kuota.find((k) => k.promo === "Campaign Mitra")).toMatchObject({ terpakai: 2 });
   await expect(q("select promo_mitra($1,current_date,current_date)", [other])).rejects.toThrow(/diizinkan/);
 });
+
+it("satu nota berisi 3 menu promo dibayar sekali, void mengembalikan 3 kuota, reservasi ulang setelah keranjang berubah", async () => {
+  await as(owner);
+  const pid = await call<string>("simpan_promo", config({ nama: "Satu Nota", kuota: 3 }));
+  await as(cash);
+  // Keranjang awal 1 cup → reservasi, lalu keranjang jadi 3 cup: reservasi lama dilepas, pesan ulang.
+  const awal = await call("pesan_promo", basket(pid));
+  expect(awal.sisa).toEqual({ semua: 2 });
+  await q("select lepas_promo($1)", [awal.id]);
+  const b = basket(pid, { items: [{ menu_id: menu, varian_ids: [], qty: 3 }] }), quote = await call("pesan_promo", b);
+  expect(quote).toMatchObject({ diskon: 12000, subtotal: 30000, sisa: { semua: 0 } });
+  // Reservasi lama yang sudah lepas tidak bisa dipakai bayar.
+  await expect(call("matur_internal.buat_transaksi", sale(basket(pid), awal.id as string))).rejects.toThrow(/Reservasi promo/);
+  const paid = await call("matur_internal.buat_transaksi", sale(b, quote.id as string));
+  expect(paid).toMatchObject({ subtotal: 30000, diskon: 12000, total: 18000 });
+  const sisa = async () => (await q<{ v: { id: string; sisa_kuota: Record<string, number> }[] }>("select daftar_promo($1,false) v", [o]))[0].v.find((x) => x.id === pid)!.sisa_kuota;
+  expect(await sisa()).toEqual({ semua: 0 });
+  await q("update transaksi set status='void' where id=$1", [paid.id]);
+  expect(await sisa()).toEqual({ semua: 3 });
+});

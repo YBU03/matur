@@ -1,9 +1,20 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+// Panel promo di keranjang kasir. Promo yang dipilih tetap menempel saat keranjang berubah:
+// reservasi kuota diperbarui otomatis (debounce), diperpanjang sebelum kedaluwarsa, dan bisa
+// dipicu ulang dari luar (prop `segar`) bila pembayaran menemukan reservasi sudah lepas.
+// Harga, kuota dan validasi tetap di server (pesan_promo / buat_transaksi).
+import { useCallback, useEffect, useRef, useState } from "react";
 import { daftarPromoKasir, pesanPromo, lepasPromo } from "@/lib/promo-actions";
 import { formatRupiah } from "@/lib/format";
 import type { CartLine } from "@/lib/pos-actions";
 import type { Promo, PromoQuote } from "@/lib/promo";
+
+/** Kunci keranjang — harus sama persis dengan `promoKey` di pos-screen. */
+export const kunciPromo = (items: CartLine[], kanal: string, diskon: number, sesiId: string, izinId: string) =>
+  JSON.stringify({ items, kanal, diskon, sesiId, izinId });
+
+const layak = (p: Promo, items: CartLine[]) => p.aturan.some((a) => items.some((i) => i.menu_id === a.menu_id));
+
 export function PosPromo({
   sesiId,
   izinId,
@@ -16,6 +27,7 @@ export function PosPromo({
   onBusy,
   disabled,
   awal,
+  segar = 0,
 }: {
   sesiId: string;
   izinId: string;
@@ -24,29 +36,39 @@ export function PosPromo({
   items: CartLine[];
   subtotal: number;
   menuNames: Record<string, string>;
-  onQuote: (q: PromoQuote | null) => void;
+  /** quote + kunci keranjang tempat quote dihitung (agar tidak terpakai untuk keranjang lain) */
+  onQuote: (q: PromoQuote | null, kunci: string) => void;
   onBusy: (busy: boolean) => void;
   disabled: boolean;
   /** promo berlaku dari kotak promo kasir, supaya tidak perlu klik "Muat" dulu */
   awal?: Promo[];
+  /** naikkan angka ini untuk memaksa reservasi ulang (mis. setelah pembayaran menolak reservasi lama) */
+  segar?: number;
 }) {
   const [list, setList] = useState<Promo[]>([]);
   const [selected, setSelected] = useState("");
   const [quote, setQuote] = useState<PromoQuote | null>(null);
   const [error, setError] = useState("");
-  const [pending, start] = useTransition();
+  const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const kunci = kunciPromo(items, kanal, diskon, sesiId, izinId);
   const live = useRef(true),
     ref = useRef<PromoQuote | null>(null),
-    request = useRef<{ id: string; promo: string } | null>(null);
-  useEffect(() => {
-    onBusy(pending);
-    return () => onBusy(false);
-  }, [pending, onBusy]);
-  useEffect(() => {
-    if (awal && !ref.current) setList(awal);
-  }, [awal]);
+    seq = useRef(0),
+    manualOff = useRef(false),
+    terakhir = useRef(""),
+    props = useRef({ items, kanal, diskon, sesiId, izinId, subtotal, kunci });
+  props.current = { items, kanal, diskon, sesiId, izinId, subtotal, kunci };
   const callback = useRef(onQuote);
   callback.current = onQuote;
+
+  useEffect(() => {
+    onBusy(busy);
+  }, [busy, onBusy]);
+  useEffect(() => () => onBusy(false), [onBusy]);
+  useEffect(() => {
+    if (awal) setList(awal);
+  }, [awal]);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -54,197 +76,178 @@ export function PosPromo({
       if (ref.current) void lepasPromo(ref.current.id).catch(() => {});
     };
   }, []);
-  useEffect(() => {
-    if (!quote) return;
-    const timer = setTimeout(
-      () => {
-        if (live.current) {
-          setError(
-            "Reservasi berakhir. Pilih promo kembali. Jika pembayaran sudah dilakukan, cek riwayat sebelum mengulang.",
-          );
-        }
-      },
-      Math.max(0, Date.parse(quote.sampai_at) - Date.now()),
-    );
-    return () => clearTimeout(timer);
-  }, [quote]);
-  const release = async (id: string) => {
-    const r = await lepasPromo(id);
-    if (r.error) throw new Error(r.error);
+
+  const lepasLama = async () => {
+    const lama = ref.current;
+    ref.current = null;
+    if (lama) await lepasPromo(lama.id).catch(() => {});
   };
-  const load = () =>
-    start(async () => {
-      setError("");
-      try {
-        const r = await daftarPromoKasir();
-        if (r.error) setError(r.error);
-        else setList(r.data ?? []);
-      } catch {
-        setError("Tidak dapat memuat promo. Periksa internet.");
-      }
-    });
-  const apply = () =>
-    start(async () => {
-      setError("");
-      if (!navigator.onLine) {
-        setError("Promo membutuhkan internet.");
+
+  /** Lepas reservasi lama lalu pesan ulang untuk keranjang saat ini. Respons usang diabaikan. */
+  const terapkan = useCallback(async (promoId: string) => {
+    const saya = ++seq.current;
+    const p = props.current;
+    setError("");
+    setBusy(true);
+    try {
+      await lepasLama();
+      setQuote(null);
+      callback.current(null, p.kunci);
+      if (!promoId || !p.items.length) return;
+      if (!navigator.onLine) return setError("Promo membutuhkan internet.");
+      const r = await pesanPromo({ request_id: crypto.randomUUID(), promo_id: promoId, sesi_id: p.sesiId, izin_id: p.izinId, kanal: p.kanal, diskon: p.diskon, items: p.items });
+      if (!live.current || saya !== seq.current) {
+        if (r.quote) void lepasPromo(r.quote.id).catch(() => {});
         return;
       }
-      try {
-        if (ref.current) {
-          await release(ref.current.id);
-          ref.current = null;
-          setQuote(null);
-          callback.current(null);
-          request.current = null;
-        }
-        if (!request.current || request.current.promo !== selected)
-          request.current = { id: crypto.randomUUID(), promo: selected };
-        const r = await pesanPromo({
-          request_id: request.current.id,
-          promo_id: selected,
-          sesi_id: sesiId,
-          izin_id: izinId,
-          kanal,
-          diskon,
-          items,
-        });
-        if (!live.current) {
-          if (r.quote) void lepasPromo(r.quote.id).catch(() => {});
-          return;
-        }
-        if (r.error) {
-          setError(r.error);
-          request.current = null;
-        } else if (r.quote) {
-          if (r.quote.subtotal !== subtotal) {
-            await lepasPromo(r.quote.id);
-            setError(
-              "Harga katalog berubah. Muat ulang kasir sebelum memakai promo.",
-            );
-            request.current = null;
-            return;
-          }
-          ref.current = r.quote;
-          setQuote(r.quote);
-          callback.current({ ...r.quote, promo_id: selected });
-        }
-      } catch {
-        setError(
-          "Koneksi terputus. Klik Terapkan lagi untuk memeriksa reservasi yang sama.",
-        );
+      if (r.error) return setError(/Kuota/i.test(r.error) ? `${r.error}. Promo dilepas sementara; kurangi jumlah atau bayar tanpa promo.` : r.error);
+      if (!r.quote) return;
+      if (r.quote.subtotal !== p.subtotal) {
+        void lepasPromo(r.quote.id).catch(() => {});
+        return setError("Harga katalog berubah. Muat ulang kasir sebelum memakai promo.");
       }
-    });
-  const clear = () =>
-    start(async () => {
-      try {
-        if (ref.current) await release(ref.current.id);
-        ref.current = null;
-        request.current = null;
-        setQuote(null);
-        callback.current(null);
-        setError("");
-      } catch {
-        setError("Belum dapat melepas reservasi. Coba lagi.");
+      ref.current = r.quote;
+      terakhir.current = p.kunci;
+      setQuote(r.quote);
+      callback.current({ ...r.quote, promo_id: promoId }, p.kunci);
+      setInfo("Promo diperbarui ✓");
+    } catch {
+      if (saya === seq.current) setError("Koneksi terputus saat memeriksa promo. Coba lagi.");
+    } finally {
+      if (saya === seq.current && live.current) setBusy(false);
+    }
+  }, []);
+
+  // Pilih otomatis bila hanya ada satu promo berjalan dan keranjang berisi menunya.
+  useEffect(() => {
+    if (!items.length) {
+      manualOff.current = false;
+      return;
+    }
+    if (!selected && !manualOff.current && list.length === 1 && layak(list[0], items)) setSelected(list[0].id);
+  }, [items, list, selected]);
+
+  // Keranjang/kanal/diskon berubah → reservasi diperbarui otomatis (tanpa klik Terapkan).
+  useEffect(() => {
+    if (!selected) return;
+    if (!items.length) {
+      void terapkan("");
+      return;
+    }
+    if (terakhir.current === kunci && ref.current) return;
+    // Langsung tandai sedang menyesuaikan: diskon lama disembunyikan & tombol Bayar menunggu.
+    setBusy(true);
+    setQuote(null);
+    const t = setTimeout(() => void terapkan(selected), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kunci, selected, terapkan]);
+
+  // Dipicu dari pembayaran yang menemukan reservasi lepas/kedaluwarsa.
+  useEffect(() => {
+    if (segar && selected) {
+      terakhir.current = "";
+      void terapkan(selected);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segar]);
+
+  // Perpanjang otomatis sebelum reservasi 15 menit berakhir.
+  useEffect(() => {
+    if (!quote || !selected) return;
+    const t = setTimeout(() => {
+      if (live.current) {
+        terakhir.current = "";
+        void terapkan(selected);
       }
-    });
+    }, Math.max(1000, Date.parse(quote.sampai_at) - Date.now() - 20_000));
+    return () => clearTimeout(t);
+  }, [quote, selected, terapkan]);
+
+  useEffect(() => {
+    if (!info) return;
+    const t = setTimeout(() => setInfo(""), 2500);
+    return () => clearTimeout(t);
+  }, [info]);
+
+  const load = async () => {
+    setError("");
+    try {
+      const r = await daftarPromoKasir();
+      if (r.error) setError(r.error);
+      else setList(r.data ?? []);
+    } catch {
+      setError("Tidak dapat memuat promo. Periksa internet.");
+    }
+  };
+  const lepas = () => {
+    manualOff.current = true;
+    setSelected("");
+    terakhir.current = "";
+    void terapkan("");
+    setInfo("");
+  };
+
   return (
     <section className="space-y-2 rounded-xl border border-matur-200 p-3 text-sm">
       <div className="flex items-center justify-between">
         <b>Promo outlet</b>
-        <button
-          disabled={pending || disabled}
-          onClick={load}
-          className="text-xs font-semibold underline"
-        >
+        <button disabled={busy || disabled} onClick={load} className="text-xs font-semibold underline">
           Muat / segarkan promo
         </button>
       </div>
       {list.length > 0 && (
-        <>
+        <div className="flex gap-2">
           <select
             aria-label="Pilih promo"
-            className="w-full rounded-lg border p-2"
+            className="min-w-0 flex-1 rounded-lg border p-2"
             value={selected}
-            disabled={pending || disabled || !!quote}
-            onChange={(e) => setSelected(e.target.value)}
+            disabled={disabled}
+            onChange={(e) => {
+              manualOff.current = !e.target.value;
+              terakhir.current = "";
+              setSelected(e.target.value);
+              if (!e.target.value) void terapkan("");
+            }}
           >
-            <option value="">Pilih promo aktif</option>
+            <option value="">Tanpa promo</option>
             {list.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nama}
-                {p.cakupan === "transaksi"
-                  ? " · voucher sekali/transaksi"
-                  : " · per item"}
+                {p.cakupan === "transaksi" ? " · voucher sekali/transaksi" : " · per item"}
               </option>
             ))}
           </select>
-          <button
-            className="rounded-lg border px-3 py-1.5 font-semibold"
-            disabled={pending || disabled || !selected || !items.length}
-            onClick={apply}
-          >
-            {pending
-              ? "Memeriksa…"
-              : quote
-                ? "Perbarui reservasi"
-                : "Terapkan promo"}
-          </button>
-        </>
+          {selected && !quote && !busy && (
+            <button className="rounded-lg border px-3 py-1.5 text-xs font-semibold" disabled={disabled || !items.length} onClick={() => { terakhir.current = ""; void terapkan(selected); }}>
+              Coba lagi
+            </button>
+          )}
+        </div>
       )}
+      {busy && <p className="text-xs font-semibold text-matur-700">⏳ Menyesuaikan promo dengan keranjang…</p>}
       {quote && (
         <div className="rounded-lg bg-green-50 p-2 text-green-800">
-          <b>{quote.nama}</b>
-          {quote.cakupan === "transaksi" && (
-            <p className="text-xs font-semibold">
-              Voucher sekali per transaksi · tidak dikalikan jumlah item
-            </p>
-          )}
+          <div className="flex items-start justify-between gap-2">
+            <b>{quote.nama}</b>
+            {info && <span className="text-[11px] font-semibold text-green-700">{info}</span>}
+          </div>
+          {quote.cakupan === "transaksi" && <p className="text-xs font-semibold">Voucher sekali per transaksi · tidak dikalikan jumlah item</p>}
           <p>
-            {quote.subsidi
-              ? (quote.nama_subsidi ?? "Subsidi")
-              : quote.cakupan === "transaksi"
-                ? "Voucher"
-                : "Diskon"}{" "}
-            {formatRupiah(quote.diskon)}
+            {quote.subsidi ? (quote.nama_subsidi ?? "Subsidi") : quote.cakupan === "transaksi" ? "Voucher" : "Diskon"} {formatRupiah(quote.diskon)}
           </p>
-          {quote.subsidi && (
-            <p className="text-xs">
-              Ditagihkan ke kantor, bukan pembayaran pelanggan.
-            </p>
-          )}
-          <p className="text-xs">
-            Berlaku sampai{" "}
-            {new Date(quote.sampai_at).toLocaleTimeString("id-ID", {
-              timeZone: "Asia/Jakarta",
-            })}{" "}
-            WIB.
-          </p>
+          {quote.subsidi && <p className="text-xs">Ditagihkan ke kantor, bukan pembayaran pelanggan.</p>}
           {Object.entries(quote.sisa).map(([id, n]) => (
             <p className="text-xs" key={id}>
-              Sisa kuota{" "}
-              {id === "semua"
-                ? "gabungan"
-                : list.flatMap((p) => p.aturan).some((a) => a.menu_id === id)
-                  ? (menuNames[id] ?? "menu")
-                  : "menu"}
-              : {n} {quote.cakupan === "transaksi" ? "transaksi" : "item"} saat
-              reservasi.
+              Sisa kuota {id === "semua" ? "gabungan" : (menuNames[id] ?? "menu")}: {n} {quote.cakupan === "transaksi" ? "transaksi" : "item"} setelah nota ini.
             </p>
           ))}
-          <button
-            className="mt-1 underline"
-            disabled={pending || disabled}
-            onClick={clear}
-          >
+          <button className="mt-1 underline" disabled={disabled} onClick={lepas}>
             Lepas promo
           </button>
         </div>
       )}
-      <p className="text-[11px] text-stone-500">
-        Online · pilih ulang jika keranjang/diskon berubah · kuota ditahan
-        maksimal 15 menit sebelum bayar. Terapkan ulang saat memuat draft.
-      </p>
+      <p className="text-[11px] text-stone-500">Online · promo ikut menyesuaikan otomatis saat keranjang berubah · satu nota boleh berisi banyak menu promo.</p>
       {error && (
         <p role="alert" className="text-xs text-red-700">
           {error}

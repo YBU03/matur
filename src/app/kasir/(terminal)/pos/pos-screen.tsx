@@ -1,5 +1,5 @@
 "use client";
-import { PosPromo } from "@/components/pos-promo";
+import { PosPromo, kunciPromo } from "@/components/pos-promo";
 import { KotakPromoKasir } from "@/components/kotak-promo-kasir";
 import type { Promo } from "@/lib/promo";
 import { hargaPromo } from "@/lib/promo-tampilan";
@@ -249,8 +249,11 @@ export function PosScreen({
   const [promoBusy,setPromoBusy] = useState(false);
   const [promoAktif, setPromoAktif] = useState<Promo[]>([]);
   const namaMenuPromo = useMemo(() => Object.fromEntries(menus.map((m) => [m.id, m.nama])), [menus]);
-  const promoKey = JSON.stringify({items:cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty})),kanal,diskon:num(diskon),sesiId,izinId:izin.id});
+  const promoKey = kunciPromo(cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty})),kanal,num(diskon),sesiId,izin.id);
   const [promoState,setPromoState] = useState<{key:string;quote:PromoQuote}|null>(null);
+  // Pembayaran yang menemukan reservasi promo lepas/kedaluwarsa: minta PosPromo memesan ulang, lalu bayar otomatis sekali lagi.
+  const [segarPromo, setSegarPromo] = useState(0);
+  const ulangBayar = useRef<{ otorisasi?: string; simulasi: boolean; at: number } | null>(null);
   useEffect(()=>{setQrisBayar(null);},[promoKey]);
   const promo = promoState?.key===promoKey ? promoState.quote : null;
   // Harga coret per menu di keranjang (tampilan saja; total resmi tetap dari server).
@@ -441,6 +444,11 @@ export function PosScreen({
         const res = await kirimCheckout(c);
         if (res.error || !res.receipt) {
           if (durableCash) await hapusTertunda(c.client_id);
+          if (c.promo_quote && /reservasi promo/i.test(res.error ?? "") && !ulangBayar.current) {
+            ulangBayar.current = { otorisasi, simulasi, at: Date.now() };
+            setSegarPromo((n) => n + 1);
+            return setErr("Promo disesuaikan ulang otomatis, pembayaran dilanjutkan…");
+          }
           return setErr(res.error ?? "Gagal menyimpan");
         }
         if (durableCash) {
@@ -507,6 +515,16 @@ export function PosScreen({
       reset();
     });
   };
+  // Lanjutkan pembayaran sekali lagi setelah promo berhasil dipesan ulang (maks 30 detik).
+  useEffect(() => {
+    const u = ulangBayar.current;
+    if (!u) return;
+    if (Date.now() - u.at > 30_000) { ulangBayar.current = null; return; }
+    if (!promo || promoBusy) return;
+    ulangBayar.current = null;
+    checkout(u.otorisasi, u.simulasi);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promo, promoBusy]);
 
   const itemsDraft = (): DraftItem[] =>
     cart.map((l) => ({
@@ -893,7 +911,7 @@ export function PosScreen({
 
         <div className="space-y-1 rounded-xl bg-matur-50/70 p-3 text-sm">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
-          {bisaBayar && <PosPromo awal={promoAktif} menuNames={namaMenuPromo} onBusy={setPromoBusy} disabled={pending} key={promoKey} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={q=>{setPromoState(q?{key:promoKey,quote:q}:null);setQrisBayar(null);}} />}
+          {bisaBayar && <PosPromo awal={promoAktif} segar={segarPromo} menuNames={namaMenuPromo} onBusy={setPromoBusy} disabled={pending} subtotal={subtotal} sesiId={sesiId} izinId={izin.id} kanal={kanal} diskon={num(diskon)} items={cart.map(l=>({menu_id:l.menu.id,varian_ids:l.varian.map(v=>v.id),qty:l.qty}))} onQuote={(q,k)=>{setPromoState(q?{key:k,quote:q}:null);setQrisBayar(null);}} />}
           {promo && <Row label={promo.subsidi?`${promo.nama_subsidi??"Subsidi"}`:`Promo: ${promo.nama}`} value={formatRupiah(-promo.diskon)} /> }
           <label className="flex items-center justify-between">
             Diskon manual (Rp)

@@ -74,3 +74,15 @@ Menu Mitra **Campaign & Promo** (`/portal/promo`, hanya baca). Migrasi `20261118
 - Data: promo **aktif** yang berlaku di outlet (termasuk semua outlet), selesai ≤ 60 hari lalu; aturan diperkaya nama menu + harga langsung/ojol; `berakhir_at` & `sisa_kuota` hari ini; riwayat kuota per hari (jam habis, kuota bersama ditandai) dan pemakaian per hari/promo (transaksi lunas, item, total potongan, subsidi). Tidak memuat `diubah_oleh`, daftar outlet lain, draft nonaktif, atau data pelanggan.
 - Tampilan: ringkasan (berlangsung, akan datang, transaksi & potongan hari ini), tab Berlangsung/Akan datang/Selesai, kartu berlangsung bergaya kotak kasir (timer lokal, bar kuota, "Kuota terpenuhi ✅"), detail (periode, hari & jam, kuota, ketentuan, tabel Harga normal → Potongan → Harga akhir termasuk ojol), riwayat per tanggal dengan filter. Data disegarkan tiap 3 menit.
 - Notifikasi lonceng untuk Mitra belum dibuat (opsional, menunggu persetujuan).
+
+## Satu nota banyak menu promo — promo menempel di keranjang (20 November 2026)
+
+Temuan UHB 20 Nov (promo "Trial Opening"): 25 dari 27 transaksi promo hanya 1 item; beberapa keranjang 2–3 item dilepas lalu dipecah jadi nota terpisah; log server 5× "Reservasi promo berakhir" (08.01–08.20). Penyebab: `PosPromo` di-remount (`key={promoKey}`) setiap keranjang/kanal/diskon berubah sehingga reservasi dilepas; pembayaran memakai reservasi lepas → error, kasir memilih 1 item per nota. Aturan server sudah mengizinkan banyak item.
+
+Perbaikan (klien saja, server/kuota tidak berubah):
+- `PosPromo` tidak lagi di-remount. Promo terpilih menempel; perubahan keranjang memicu pesan ulang otomatis (debounce 450 ms, respons usang diabaikan, reservasi lama dilepas). Selama menyesuaikan, diskon lama disembunyikan dan Bayar menunggu (`onBusy`). Quote dikirim bersama kunci keranjang (`kunciPromo`, dipakai juga oleh `promoKey`) sehingga tidak terpakai untuk keranjang lain.
+- Pilih otomatis bila hanya satu promo berjalan dan keranjang berisi menunya; "Lepas promo"/"Tanpa promo" menghentikan pilih otomatis sampai keranjang kosong.
+- Perpanjang otomatis 20 detik sebelum reservasi 15 menit berakhir.
+- Bila pembayaran tetap menolak reservasi ("Reservasi promo …"), pos-screen menaikkan `segar` → reservasi ulang → checkout otomatis sekali lagi (maks 30 detik).
+- Kuota kurang: pesan jelas "Kuota promo tidak cukup (sisa N)… kurangi jumlah atau bayar tanpa promo" + tombol Coba lagi.
+- Void/hapus tetap mengembalikan kuota (ditambah tes: satu nota 3 cup, void → kuota kembali 3; reservasi lama yang dilepas ditolak saat bayar).
