@@ -44,6 +44,7 @@ export const ADMIN_MENU_GROUPS = [
     hrefs: [
       "/master/bahan",
       "/gudang/stok",
+      "/stok/outlet",
       "/master/supplier",
       "/gudang/pembelian",
       "/gudang/kiriman",

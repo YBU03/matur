@@ -357,3 +357,5 @@ for (const role of ["admin_pusat", "admin_gudang"] as Role[]) if (!ROLES[role].m
 for (const role of ["owner", "admin_pusat", "finance"] as Role[]) ROLES[role].menu.push({ href: "/pengaturan/snap-sandbox", label: "Pengujian SNAP / ASPI", stage: 5 });
 
 for (const role of ["owner","admin_pusat","finance"] as Role[]) ROLES[role].menu.push({href:"/subsidi-promo",label:"Diskon & Subsidi Marketing",stage:5});
+
+for (const role of ["owner","admin_pusat","admin_gudang","finance","hrd","spv","manajer_area"] as Role[]) ROLES[role].menu.push({href:"/stok/outlet",label:"Kelola Stok Outlet",stage:4});
