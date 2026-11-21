@@ -120,3 +120,21 @@ it("default source PDF uses the common financial layout and preserves stored pre
   expect(doc.getNumberOfPages()).toBeLessThan(8);
   expect(JSON.stringify(l)).toBe(before);
 }, 30000);
+
+it("published source PDF removes draft marking and keeps exact report totals", async () => {
+  const l = example();
+  const before = JSON.stringify(l);
+  const asset = (name: string) => {
+    const b = readFileSync(process.cwd() + "/public/brand/" + name);
+    return { url: "data:image/png;base64," + b.toString("base64"), w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+  };
+  const assets = [asset("hazna-logo.png"), asset("ttd-hazna.png")] as const;
+  const draft = await pdfLaporanSumber(l, { assets: [...assets] });
+  const official = await pdfLaporanSumber(l, { internal: false, assets: [...assets] });
+  expect(draft.output()).toContain("DRAFT INTERNAL");
+  expect(official.output()).not.toContain("DRAFT INTERNAL");
+  expect(official.output()).toContain("SHARING PROFIT");
+  expect(official.getNumberOfPages()).toBe(draft.getNumberOfPages());
+  expect(hitung(l).labaBersih).toBe(899.875);
+  expect(JSON.stringify(l)).toBe(before);
+}, 30000);

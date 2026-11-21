@@ -17,7 +17,7 @@ export default async function DetailLaporan({
   const [{ data }, { data: pt }] = await Promise.all([
     supabase
       .from("laporan_bulanan")
-      .select(LAPORAN_COLS)
+      .select(`${LAPORAN_COLS}, sumber_excel`)
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle(),
