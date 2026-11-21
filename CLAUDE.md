@@ -105,3 +105,5 @@ Promo lanjutan 18–19 November: hari tertentu + slot jam fleksibel (kolom `slot
 Support Outlet 19 November: Mitra `/portal/support-outlet`; Owner/Admin Pusat CRUD di `/pengaturan/support-outlet`, nomor langsung ke WhatsApp dan tombol Telepon, urutan/aktif/nonaktif, hapus arsip dan audit. Tabel `support_outlet` dilindungi RLS; tidak menambah polling. Baca `docs/support-outlet-2026-11-19.md`.
 
 Catatan Harian 20 November: tanggal aktivitas kas (`rekonsiliasi_internal.tanggal_sesi`), RPC `sesi_catatan_harian`, ringkasan harian terpisah dari seluruh shift, dan input pengeluaran wajib terhubung bila laci. Baca `docs/catatan-harian-shift-2026-11-20.md`. Tidak mengubah setoran aktual atau timestamp transaksi; jangan kembali mengelompokkan hanya berdasarkan tanggal buka kas.
+
+Laporan sumber resmi 21 November: baca `docs/laporan-oktober-terbit-2026-11-21.md`. Nominal resmi numeric mempertahankan desimal; sumber_excel hanya dipilih di detail, bukan agregat BEP. Publikasi tetap melalui persetujuan+jadwal, satu outlet/periode sekali.

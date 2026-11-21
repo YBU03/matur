@@ -106,6 +106,7 @@ export async function pdfLaporanSumber(
   laporan: import("./laporan").Laporan,
   options: {
     lampiran?: boolean;
+    internal?: boolean;
     assets?: import("./laporan-keuangan-pdf").OpsiLaporanPdf["assets"];
   } = {},
 ) {
@@ -169,7 +170,7 @@ export async function pdfLaporanSumber(
     l,
     pt,
     visual,
-    internal: true,
+    internal: options.internal ?? true,
     assets: options.assets,
     lampiran: options.lampiran
       ? async (doc) => {

@@ -10,7 +10,9 @@ export function LaporanSumberExcel({
   sumber: s,
   outletId,
   laporan,
+  internal = true,
 }: {
+  internal?: boolean;
   sumber: SumberExcel;
   outletId: string;
   laporan: Omit<Laporan, "sumber_excel">;
@@ -34,7 +36,7 @@ export function LaporanSumberExcel({
       const { pdfLaporanSumber } = await import("@/lib/laporan-sumber-excel");
       download(
         (
-          await pdfLaporanSumber({ ...laporan, sumber_excel: s }, { lampiran })
+          await pdfLaporanSumber({ ...laporan, sumber_excel: s }, { lampiran, internal })
         ).output("blob"),
         `Laporan-${s.outlet_tujuan}-${s.periode}${lampiran ? "-Lengkap" : ""}.pdf`,
       );
@@ -72,8 +74,7 @@ export function LaporanSumberExcel({
           Laporan {judulPeriodeSumber(s)} · {s.outlet_tujuan}
         </h1>
         <p className="text-sm">
-          Impor Excel lengkap · sumber: {s.nama_sumber} · internal, belum
-          diterbitkan ke Mitra.
+          Impor Excel lengkap · sumber: {s.nama_sumber} · {internal ? "internal, belum diterbitkan ke Mitra." : "laporan resmi, sudah diterbitkan ke Mitra."}
         </p>
         <p className="text-sm text-stone-600">
           Nilai asli dan hasil rumus disimpan tanpa pembulatan tambahan.
