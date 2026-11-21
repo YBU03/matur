@@ -11,14 +11,21 @@ export type StokRt = { hari: string; tutup_terakhir: string | null; bahan: Bahan
 export type BarisRt = BahanRt & { f: Forecast; pakaiHariIni: number };
 
 export async function ambilStok(supabase: SupabaseClient, outletId: string | null, mode: "asli" | "simulasi" = "asli"): Promise<{ data: StokRt | null; error: string | null }> {
-  const { data, error } = await supabase.rpc("stok_realtime", { p_outlet: outletId, p_mode: mode });
+  const [{ data, error }, { data: minimum, error: minimumError }] = await Promise.all([
+    supabase.rpc("stok_realtime", { p_outlet: outletId, p_mode: mode }),
+    outletId && mode === "asli"
+      ? supabase.from("setelan_stok_outlet").select("bahan_id,minimum").eq("outlet_id",outletId)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
   if (error) return { data: null, error: error.message.replace(/^.*?ERROR:\s*/, "") };
   const d = data as StokRt;
+  if (minimumError) return { data: null, error: minimumError.message };
+  const batas = new Map((minimum ?? []).map(r => [r.bahan_id, Number(r.minimum)]));
   const num = (x: unknown) => Number(x) || 0;
   return {
     data: {
       ...d,
-      bahan: d.bahan.map((b) => ({ ...b, konversi: num(b.konversi) || 1, stok_min: num(b.stok_min), harga: num(b.harga), stok: num(b.stok), stok_tutup: b.stok_tutup === null ? null : num(b.stok_tutup), masuk_hari_ini: num(b.masuk_hari_ini), harian: (b.harian ?? []).map((h) => ({ tanggal: h.tanggal, pakai: num(h.pakai) })) })),
+      bahan: d.bahan.map((b) => ({ ...b, konversi: num(b.konversi) || 1, stok_min: batas.get(b.id) ?? num(b.stok_min), harga: num(b.harga), stok: num(b.stok), stok_tutup: b.stok_tutup === null ? null : num(b.stok_tutup), masuk_hari_ini: num(b.masuk_hari_ini), harian: (b.harian ?? []).map((h) => ({ tanggal: h.tanggal, pakai: num(h.pakai) })) })),
       shift: (d.shift ?? []).map((s) => ({ ...s, bahan: s.bahan.map((x) => ({ ...x, jumlah: num(x.jumlah) })) })),
     },
     error: null,

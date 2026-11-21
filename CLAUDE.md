@@ -107,3 +107,5 @@ Support Outlet 19 November: Mitra `/portal/support-outlet`; Owner/Admin Pusat CR
 Catatan Harian 20 November: tanggal aktivitas kas (`rekonsiliasi_internal.tanggal_sesi`), RPC `sesi_catatan_harian`, ringkasan harian terpisah dari seluruh shift, dan input pengeluaran wajib terhubung bila laci. Baca `docs/catatan-harian-shift-2026-11-20.md`. Tidak mengubah setoran aktual atau timestamp transaksi; jangan kembali mengelompokkan hanya berdasarkan tanggal buka kas.
 
 Laporan sumber resmi 21 November: baca `docs/laporan-oktober-terbit-2026-11-21.md`. Nominal resmi numeric mempertahankan desimal; sumber_excel hanya dipilih di detail, bukan agregat BEP. Publikasi tetap melalui persetujuan+jadwal, satu outlet/periode sekali.
+
+Kelola Stok Outlet21November: `/stok/outlet`, baca `docs/kelola-stok-outlet-2026-11-21.md`. Minimum/aktif per outlet, koreksi/waste berpagar stok terbaru+idempotency, restock ke draft Kiriman existing, transfer baru bergerak setelah diterima tujuan. Laporan penggunaan kuantitas (bukan biaya baru) memakai hari operasional, void/waste/SO terpisah dan PDF/XLSX lengkap. Nonaktif tidak menghapus resep/SO/riwayat lama.
