@@ -6,6 +6,8 @@ import { HeaderHalaman, tombolHeader } from "@/components/ui-halaman";
 import { Filters } from "../dashboard/filters";
 import { SalesDashboard } from "../dashboard/sales";
 import { KartuOmzetHariIni } from "../dashboard/omzet-hari-ini";
+import { tabKelas } from "@/components/ui-halaman";
+import { Komparasi } from "./komparasi";
 
 export default async function DashboardPos({
   searchParams,
@@ -31,10 +33,21 @@ export default async function DashboardPos({
           </Link>
         }
       />
+      <nav className={tabKelas.wadah} aria-label="Tampilan Dashboard POS">
+        {([["ringkasan", "📊 Ringkasan"], ["komparasi", "⚔️ Komparasi"]] as const).map(([k, l]) => (
+          <Link key={k} href={`/dashboard-pos?tab=${k}${mode === "simulasi" ? "&mode=simulasi" : ""}`} aria-current={(sp.tab === "komparasi" ? "komparasi" : "ringkasan") === k ? "page" : undefined} className={(sp.tab === "komparasi" ? "komparasi" : "ringkasan") === k ? tabKelas.aktif : tabKelas.pasif}>
+            {l}
+          </Link>
+        ))}
+      </nav>
       {error ? (
         <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">
           Daftar outlet belum dapat dimuat. Silakan muat ulang halaman.
         </p>
+      ) : sp.tab === "komparasi" ? (
+        <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-matur-50" aria-busy="true" />}>
+          <Komparasi outlets={outlets} sp={sp} mode={mode} />
+        </Suspense>
       ) : (
         <>
           <Suspense

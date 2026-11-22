@@ -109,3 +109,5 @@ Catatan Harian 20 November: tanggal aktivitas kas (`rekonsiliasi_internal.tangga
 Laporan sumber resmi 21 November: baca `docs/laporan-oktober-terbit-2026-11-21.md`. Nominal resmi numeric mempertahankan desimal; sumber_excel hanya dipilih di detail, bukan agregat BEP. Publikasi tetap melalui persetujuan+jadwal, satu outlet/periode sekali.
 
 Kelola Stok Outlet21November: `/stok/outlet`, baca `docs/kelola-stok-outlet-2026-11-21.md`. Minimum/aktif per outlet, koreksi/waste berpagar stok terbaru+idempotency, restock ke draft Kiriman existing, transfer baru bergerak setelah diterima tujuan. Laporan penggunaan kuantitas (bukan biaya baru) memakai hari operasional, void/waste/SO terpisah dan PDF/XLSX lengkap. Nonaktif tidak menghapus resep/SO/riwayat lama.
+
+Komparasi Dashboard POS 22 November: tab ⚔️ Komparasi di `/dashboard-pos?tab=komparasi` (antar outlet atau antar periode), hanya baca `ringkasan_penjualan`, outlet tersembunyi tidak ikut. Baca `docs/komparasi-dashboard-pos-2026-11-22.md`.
