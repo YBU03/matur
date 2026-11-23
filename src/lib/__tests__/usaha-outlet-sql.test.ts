@@ -29,6 +29,7 @@ beforeAll(async()=>{
  insert into resep(menu_id,varian_id,bahan_id,takaran) values('${m}',null,gen_random_uuid(),20),('${m}','${v}',gen_random_uuid(),5);
  `);
  await db.exec(sql);
+ await db.exec(readFileSync("supabase/migrations/20261123051404_katalog_outlet_baca_sekali.sql","utf8"));
  await db.exec(`insert into outlet(id,nama) values('${b}','Bakery B')`);
 },30000);
 afterAll(async()=>{await db.close()});
@@ -66,4 +67,11 @@ it('packaging inserted by the existing variant editor inherits outlet ownership'
  const id=(await db.query<{id:string}>(`select id from menu where outlet_id='${b}'`)).rows[0].id;
  await db.exec(`insert into menu(nama,induk_id) values('Kemasan B','${id}')`);
  expect((await db.query<{outlet_id:string}>(`select outlet_id from menu where nama='Kemasan B'`)).rows[0].outlet_id).toBe(b);
+});
+
+it('the POS catalogue contains only menus and variants belonging to its outlet',async()=>{
+ const ka=(await db.query<{k:{menu:Record<string,unknown>;varian:Record<string,unknown>}}>(`select matur_internal.katalog_pos('${a}') k`)).rows[0].k;
+ const kb=(await db.query<{k:{menu:Record<string,unknown>;varian:Record<string,unknown>}}>(`select matur_internal.katalog_pos('${b}') k`)).rows[0].k;
+ expect(Object.keys(ka.menu)).toEqual([m]);expect(Object.keys(ka.varian)).toEqual([v]);
+ expect(kb.menu).not.toHaveProperty(m);expect(kb.varian).not.toHaveProperty(v);expect(Object.keys(kb.menu)).toHaveLength(2);expect(Object.keys(kb.varian)).toHaveLength(1);
 });
