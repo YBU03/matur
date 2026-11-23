@@ -10,6 +10,8 @@ export const ADMIN_MENU_GROUPS = [
     title: "Outlet & Kemitraan",
     hrefs: [
       "/master/outlet",
+      "/master/brand",
+      "/pengaturan/usaha",
       "/master/mitra",
       "/master/perjanjian",
       "/proyek",
