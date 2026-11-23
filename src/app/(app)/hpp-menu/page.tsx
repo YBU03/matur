@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BarisAngka, ChipHeader, HeaderHalaman, KartuAngka } from "@/components/ui-halaman";
 import { formatRupiah } from "@/lib/format";
@@ -10,24 +11,27 @@ import { hppResep, marginPersen, type BahanHpp, type BarisResep } from "@/lib/hp
 
 
 // HPP per menu: dihitung live dari resep POS × HPP bahan; data file HPP RUMA tetap sebagai referensi
-export default async function HppMenu() {
+export default async function HppMenu({searchParams}:{searchParams:Promise<{outlet?:string}>}) {
   const s = await getSession();
   if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "finance", "hrd"].includes(s.active.role)) notFound();
   const bisaUbah = true;
   const kelolaMenu = s.active.role !== "finance";
   const supabase = await supabaseServer();
+  const sp=await searchParams;
+  const {data:outlet}=sp.outlet?await supabase.from("outlet").select("id,nama,katalog_bersama").eq("id",sp.outlet).single():{data:null};
+  if(sp.outlet&&!outlet)notFound();
   const [{ data: h }, { data: m }, { data: bahan }, { data: kategori }, { data: resep }] = await Promise.all([
     supabase.from("hpp_menu").select("id, menu_id, nama_hpp, seri, komponen, total_hpp, harga_jual").is("deleted_at", null),
-    supabase.from("menu").select("id, nama, harga_langsung, harga_ojol, titipan, harga_titip, aktif, induk_id, kemasan, kategori_menu(nama, urutan), urutan").eq("mode", "asli").is("deleted_at", null).order("urutan").order("nama"),
+    supabase.from("menu").select("id, nama, harga_langsung, harga_ojol, titipan, harga_titip, aktif, outlet_id, induk_id, kemasan, kategori_menu(nama, urutan), urutan").eq("mode", "asli").is("deleted_at", null).order("urutan").order("nama"),
     supabase.from("bahan").select("id, nama, satuan_pakai, harga_pokok").eq("mode", "asli").is("deleted_at", null).order("nama"),
     supabase.from("kategori_menu").select("id, nama").is("deleted_at", null).order("nama"),
     supabase.from("resep").select("menu_id, varian_id, bahan_id, takaran").eq("mode", "asli").is("deleted_at", null),
   ]);
   const hpp = (h ?? []) as Hpp[];
-  const menus = (m ?? []) as unknown as MenuHpp[];
+  const menus = ((m ?? []).filter(x=>!outlet||x.outlet_id===outlet.id||(!x.outlet_id&&outlet.katalog_bersama))) as unknown as MenuHpp[];
   const rs = ((resep ?? []) as BarisResep[]).map((r) => ({ ...r, takaran: Number(r.takaran) }));
   const bh = (bahan ?? []) as BahanHpp[];
-  const lepas = hpp.filter((x) => !x.menu_id);
+  const lepas = outlet?[]:hpp.filter((x) => !x.menu_id);
   const opsi = menus.filter((x) => !x.induk_id).map((x) => ({ id: x.id, nama: x.nama }));
 
   // ringkasan live atas item yang benar-benar dijual: kemasan, atau menu tanpa kemasan
@@ -55,7 +59,8 @@ export default async function HppMenu() {
         <KartuAngka label="Belum ada resep" nilai={tanpaResep} ikon="❔" nada="kuning" sub="stok tidak terpotong, HPP Rp 0" />
       </BarisAngka>
 
-      {kelolaMenu && <TambahHpp menus={menus.filter((m) => !m.induk_id && !m.titipan && !rs.some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
+      {outlet&&<p className="rounded-xl bg-matur-50 p-3 text-sm">Katalog: <b>{outlet.nama}</b>. <Link className="underline" href={`/master/menu?outlet_id=${outlet.id}`}>Tambah menu khusus outlet</Link>, lalu atur resep lewat Edit HPP pada menu tersebut.</p>}
+      {kelolaMenu && !outlet && <TambahHpp menus={menus.filter((m) => !m.induk_id && !m.titipan && !rs.some((r) => r.menu_id === m.id) && !hpp.some((h) => h.menu_id === m.id))} bahan={bahan ?? []} kategori={kategori ?? []} />}
       {lepas.length > 0 && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
           <h2 className="font-bold text-amber-900">HPP belum terhubung ke menu POS ({lepas.length})</h2>

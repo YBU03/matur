@@ -37,6 +37,13 @@ export type Entity = {
 };
 
 export const ENTITIES: Record<string, Entity> = {
+  brand: {
+    table: "brand", title: "Brand Usaha", nameKey: "nama", editors: ["owner", "admin_pusat"],
+    fields: [
+      { key: "nama", label: "Nama Brand", type: "text", required: true },
+      { key: "konsep", label: "Konsep Usaha", type: "text", suggestions: ["Kedai kopi", "Restoran", "Roti & kue", "Minuman", "Retail"] },
+    ],
+  },
   outlet: {
     table: "outlet",
     title: "Outlet",
@@ -45,6 +52,8 @@ export const ENTITIES: Record<string, Entity> = {
     editors: ["owner", "admin_pusat"],
     fields: [
       { key: "nama", label: "Nama Outlet", type: "text", required: true },
+      { key: "brand_id", label: "Brand", type: "select", ref: { table: "brand", label: "nama" } },
+      { key: "konsep", label: "Konsep Outlet", type: "text", suggestions: ["Kedai kopi", "Restoran", "Roti & kue", "Minuman", "Retail"] },
       { key: "kepemilikan", label: "Kepemilikan (Pusat, Mitra, atau lainnya)", type: "text", required: true, suggestions: ["Pusat", "Mitra"] },
       { key: "kota", label: "Kota", type: "text" },
       { key: "alamat", label: "Alamat", type: "text", list: false },
@@ -104,6 +113,7 @@ export const ENTITIES: Record<string, Entity> = {
     fields: [
       { key: "foto_url", label: "Foto", type: "image" },
       { key: "nama", label: "Nama Menu", type: "text", required: true },
+      { key: "outlet_id", label: "Katalog Outlet (kosong = katalog bersama lama)", type: "select", ref: { table: "outlet", label: "nama" } },
       { key: "kategori_id", label: "Kategori", type: "select", ref: { table: "kategori_menu", label: "nama" } },
       { key: "harga_langsung", label: "Harga Dine-in/Take Away", type: "money", required: true },
       { key: "harga_ojol", label: "Harga Ojol", type: "money", required: true },
@@ -133,7 +143,7 @@ export const ENTITIES: Record<string, Entity> = {
     editors: ["owner", "admin_pusat", "admin_gudang"],
     fields: [
       { key: "nama", label: "Nama Bahan", type: "text", required: true },
-      { key: "kategori", label: "Kategori", type: "enum", options: KATEGORI_BAHAN, required: true },
+      { key: "kategori", label: "Kategori", type: "text", suggestions: KATEGORI_BAHAN, required: true },
       { key: "satuan_beli", label: "Satuan Beli", type: "text", required: true },
       { key: "kemasan", label: "Keterangan Kemasan", type: "text" },
       { key: "satuan_pakai", label: "Satuan Pakai", type: "text", required: true },

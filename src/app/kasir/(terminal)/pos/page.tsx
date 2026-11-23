@@ -21,6 +21,7 @@ export default async function PosPage() {
   if(status.alur_shift && !status.boleh)return <PosAlurShift status={status} outlet={s.active.outletNama}/>;
   const sesi = status.sesi!;
 
+  const menuIds=Object.keys(status.katalog?.menu??{});
   const [
     { data: kategori },
     { data: menu },
@@ -39,6 +40,7 @@ export default async function PosPage() {
     supabase
       .from("menu")
       .select("id, nama, kategori_id, harga_langsung, harga_ojol, foto_url, induk_id, kemasan")
+      .in("id",menuIds)
       .eq("mode", "asli")
       .is("deleted_at", null)
       .eq("aktif", true)
@@ -47,6 +49,7 @@ export default async function PosPage() {
     supabase
       .from("varian")
       .select("id, menu_id, grup, nama, tambahan_harga")
+      .in("menu_id",menuIds)
       .eq("mode", "asli")
       .is("deleted_at", null),
     supabase
