@@ -95,7 +95,7 @@ export default async function PosPage() {
         status,
         client_at: Date.now(),
         screen: {
-          kategori: kategori ?? [],
+          kategori: (kategori ?? []).filter(k => menus.some(m => m.kategori_id === k.id)),
           menus,
           outletNama: s.active.outletNama,
           kasir: sesi.nama,
