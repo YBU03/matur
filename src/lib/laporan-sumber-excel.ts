@@ -107,65 +107,20 @@ export async function pdfLaporanSumber(
   options: {
     lampiran?: boolean;
     internal?: boolean;
+    semua?: import("./laporan").Laporan[];
+    pt?: import("./laporan").Perusahaan | null;
     assets?: import("./laporan-keuangan-pdf").OpsiLaporanPdf["assets"];
   } = {},
 ) {
   const s = laporan.sumber_excel;
   if (!s) throw new Error("Arsip sumber laporan belum tersedia.");
-  const [{ buatLaporanKeuanganPdf }, { hitung }] = await Promise.all([
-    import("./laporan-keuangan-pdf"),
-    import("./laporan"),
-  ]);
-  const cells =
-    s.lembar
-      .find((sh) => sh.nama === "Laporan Keuangan")
-      ?.baris.flatMap((r) => r.sel) ?? [];
-  const cell = (address: string) => cells.find((c) => c.alamat === address);
-  const start = cell("E13")?.nilai;
-  const l = {
-    ...laporan,
-    outlet: {
-      nama: laporan.nama_outlet,
-      tgl_mulai:
-        typeof start === "number"
-          ? new Date((start - 25569) * 86400000).toISOString().slice(0, 10)
-          : null,
-      jam_operasional: cell("E14")?.teks ?? null,
-    },
-  };
-  const contact = cell("C5")?.teks ?? "";
-  const pt = {
-    nama: cell("C3")?.teks ?? "CV. Hazna Berkah Indonesia",
-    alamat: cell("C4")?.teks ?? null,
-    email: contact.match(/Email:\s*(.*?)\s*Telp:/i)?.[1] ?? null,
-    telepon: contact.match(/Telp:\s*(.*)/i)?.[1] ?? null,
-  };
-  const h = hitung(l);
-  const visual = {
-    bulan: judulPeriodeSumber(s),
-    penjualan: h.totalPenjualan,
-    hpp: h.hpp,
-    labaKotor: h.labaKotor,
-    labaBersih: h.labaBersih,
-    beban: h.totalBeban - l.sedekah,
-    sedekah: l.sedekah,
-    persenSedekah: l.persen_sedekah,
-    pendapatan: l.pendapatan
-      .filter((x) => x.jumlah > 0)
-      .map((x) => ({ name: x.nama, value: x.jumlah })),
-    bebanRinci: [
-      { name: "Sedekah", value: l.sedekah },
-      ...l.beban.map((x) => ({ name: x.nama, value: x.jumlah })),
-    ]
-      .filter((x) => x.value > 0)
-      .sort((a, b) => b.value - a.value),
-    bagiHasil: l.bagi_hasil.map((x) => ({
-      name: `${x.nama} ${x.persen}%`,
-      value: x.jumlah,
-    })),
-    prev: null,
-    riwayat: [],
-  };
+  const [{ buatLaporanKeuanganPdf }, { siapkanLaporanDokumen, visualLaporan }] =
+    await Promise.all([
+      import("./laporan-keuangan-pdf"),
+      import("./laporan-tampilan"),
+    ]);
+  const { l, pt } = siapkanLaporanDokumen(laporan, options.pt ?? null);
+  const visual = visualLaporan(l, options.semua);
   return buatLaporanKeuanganPdf({
     l,
     pt,
@@ -177,25 +132,10 @@ export async function pdfLaporanSumber(
           const autoTable = (await import("jspdf-autotable")).default;
           for (const sheet of s.lembar) {
             doc.addPage();
-            doc
-              .setTextColor(0)
-              .setFontSize(12)
-              .setFont("helvetica", "bold")
-              .text(`Lampiran sumber - ${sheet.nama}`, 14, 18);
             autoTable(doc, {
-              startY: 24,
-              head: [["Baris", "Keterangan / teks sumber", "Nilai sumber"]],
-              body: sheet.baris.map((row) => [
-                String(row.nomor),
-                row.sel
-                  .filter((c) => typeof c.nilai !== "number")
-                  .map((c) => `${c.alamat}: ${c.teks}`)
-                  .join("\n"),
-                row.sel
-                  .filter((c) => typeof c.nilai === "number")
-                  .map((c) => `${c.alamat}: ${c.teks}`)
-                  .join("\n"),
-              ]),
+              startY: 28,
+              head: [["Baris", "Keterangan", "Nilai sumber"]],
+              body: barisLampiranSumber(sheet),
               styles: { fontSize: 8, cellPadding: 2, overflow: "linebreak" },
               headStyles: { fillColor: [58, 31, 11] },
               columnStyles: {
@@ -203,11 +143,43 @@ export async function pdfLaporanSumber(
                 1: { cellWidth: 96 },
                 2: { cellWidth: 73 },
               },
-              margin: { top: 16, bottom: 18, left: 14, right: 14 },
+              margin: { top: 28, bottom: 18, left: 14, right: 14 },
+              showHead: "everyPage",
+              willDrawPage: () => {
+                doc
+                  .setTextColor(58, 31, 11)
+                  .setFontSize(10)
+                  .setFont("helvetica", "bold")
+                  .text(`Lampiran - ${sheet.nama}`, 14, 18);
+              },
               rowPageBreak: "avoid",
             });
           }
         }
       : undefined,
   });
+}
+
+/** Preserve source row order and displayed text, with readable column names instead of cell codes. */
+export function barisLampiranSumber(sheet: LembarSumberExcel): string[][] {
+  const headers = new Map<string, string>();
+  if (sheet.nama === "Transaksi")
+    for (const row of sheet.baris.filter((r) => r.nomor === 5 || r.nomor === 6))
+      for (const c of row.sel) {
+        if (c.teks) headers.set(c.alamat.replace(/\d+$/, ""), c.teks);
+      }
+  return sheet.baris.map((row) => [
+    String(row.nomor),
+    row.sel
+      .filter((c) => typeof c.nilai !== "number" && c.teks !== "")
+      .map((c) => c.teks)
+      .join("\n"),
+    row.sel
+      .filter((c) => typeof c.nilai === "number" && c.teks !== "")
+      .map((c) => {
+        const label = headers.get(c.alamat.replace(/\d+$/, ""));
+        return label ? `${label}: ${c.teks}` : c.teks;
+      })
+      .join("\n"),
+  ]);
 }

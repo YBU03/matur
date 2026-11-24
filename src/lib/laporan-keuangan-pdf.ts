@@ -1,6 +1,7 @@
 import type { jsPDF } from "jspdf";
 import { formatRupiah, formatTanggal } from "./format";
 import { hitung, namaBulan, type Laporan, type Perusahaan } from "./laporan";
+import { rupiahLaporan } from "./laporan-rekap";
 import { gambar } from "./pdf-kop";
 import {
   batang,
@@ -249,13 +250,17 @@ export async function buatLaporanKeuanganPdf({
     .text(`LAPORAN KEUANGAN ${l.nama_outlet.toUpperCase()}`, W / 2, (y += 8), {
       align: "center",
     });
-  const rp = (n: number) => formatRupiah(n);
+  const rp = l.sumber_excel
+    ? (n: number) => rupiahLaporan(n || 0)
+    : formatRupiah;
   const after = () =>
     (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
       .finalY + 4;
   const plain = {
     theme: "plain" as const,
     styles: { fontSize: 8.5, cellPadding: 0.8 },
+    margin: { top: 16, bottom: 18, left: 14, right: 14 },
+    rowPageBreak: "avoid" as const,
   };
   autoTable(doc, {
     ...plain,
@@ -299,7 +304,7 @@ export async function buatLaporanKeuanganPdf({
         r[2] ?? "",
       ]),
       columnStyles: {
-        1: { halign: "right", cellWidth: 40 },
+        1: { halign: "right", cellWidth: 55 },
         2: { cellWidth: 8, textColor: 120 },
       },
       didParseCell: (d) => {
@@ -308,34 +313,7 @@ export async function buatLaporanKeuanganPdf({
       },
     });
   };
-  const sourceCells =
-    l.sumber_excel?.lembar
-      .find((sh) => sh.nama === "Laporan Keuangan")
-      ?.baris.flatMap((r) => r.sel) ?? [];
-  const sourceText = (address: string) =>
-    sourceCells.find((c) => c.alamat === address)?.teks ?? "";
-  if (sourceCells.length) {
-    autoTable(doc, {
-      ...plain,
-      startY: after(),
-      head: [["MODAL OUTLET", "Keterangan", "Debit", "Kredit", "Saldo"]],
-      body: [
-        [
-          sourceText("A31"),
-          sourceText("C31"),
-          sourceText("E31"),
-          sourceText("F31"),
-          sourceText("H31"),
-        ],
-      ],
-      headStyles: { fillColor: [58, 31, 11], textColor: 255 },
-      columnStyles: {
-        2: { halign: "right" },
-        3: { halign: "right" },
-        4: { halign: "right" },
-      },
-    });
-  }
+  sec("MODAL OUTLET", [["Saldo awal", Number(l.modal_awal)]]);
   sec(
     "HARGA POKOK PENJUALAN",
     [
@@ -403,36 +381,15 @@ export async function buatLaporanKeuanganPdf({
     ],
     [2, bh.length + 3],
   );
-  if (sourceCells.length) {
-    autoTable(doc, {
-      ...plain,
-      startY: after(),
-      head: [["SALDO SEDEKAH", "Keterangan", "Debit", "Kredit", "Saldo"]],
-      body: [104, 105, 108].map((r) => [
-        sourceText(`A${r}`),
-        sourceText(`C${r}`),
-        sourceText(`E${r}`),
-        sourceText(`F${r}`),
-        sourceText(`H${r}`),
-      ]),
-      headStyles: { fillColor: [58, 31, 11], textColor: 255 },
-      columnStyles: {
-        2: { halign: "right" },
-        3: { halign: "right" },
-        4: { halign: "right" },
-      },
-    });
-  } else {
-    sec(
-      "SALDO SEDEKAH",
-      [
-        ["Sedekah bulan ini", l.sedekah],
-        ["Disalurkan (Kelola Pusat)", -l.sedekah],
-        ["Saldo", 0],
-      ],
-      [2],
-    );
-  }
+  sec(
+    "SALDO SEDEKAH",
+    [
+      ["Sedekah bulan ini", Number(l.sedekah)],
+      ["Disalurkan (Kelola Pusat)", -Number(l.sedekah)],
+      ["Saldo", 0],
+    ],
+    [2],
+  );
 
   autoTable(doc, {
     startY: after(),
