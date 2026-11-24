@@ -39,11 +39,11 @@ export default async function DetailLaporan({
     .is("deleted_at", null)
     .order("periode");
   return (
-    <><LaporanHubLinks laporan={l}/>
     <LaporanDokumen
+      pendamping={<LaporanHubLinks laporan={l} />}
       l={l}
       pt={pt as Perusahaan | null}
       semua={(semua ?? []) as unknown as Laporan[]}
-    /></>
+    />
   );
 }

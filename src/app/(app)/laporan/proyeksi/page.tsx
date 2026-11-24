@@ -7,7 +7,7 @@ import type { Rincian } from "@/lib/skema-actions";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProyeksiForm } from "./proyeksi-form";
-import { LaporanSumberExcel } from "@/components/laporan-sumber-excel";
+import { LaporanDokumen } from "../laporan-dokumen";
 
 // Proyeksi laporan bulanan otomatis dari POS (penjualan), gudang (kiriman diterima) dan biaya operasional harian
 export default async function ProyeksiLaporan({
@@ -110,7 +110,9 @@ export default async function ProyeksiLaporan({
     }),
     supabase
       .from("perusahaan")
-      .select("nama, penandatangan_nama, penandatangan_jabatan, kota_terbit")
+      .select(
+        "nama, alamat, email, telepon, penandatangan_nama, penandatangan_jabatan, kota_terbit",
+      )
       .limit(1)
       .maybeSingle(),
     supabase
@@ -137,9 +139,23 @@ export default async function ProyeksiLaporan({
     throw new Error("Gagal membaca laporan. Muat ulang atau hubungi admin.");
   const sumberExcel = (draft?.snapshot as Laporan | null)?.sumber_excel;
   if (!sim && sumberExcel?.versi === 1) {
-    const laporan = { ...(draft!.snapshot as Laporan) };
-    delete laporan.sumber_excel;
-    return <LaporanSumberExcel sumber={sumberExcel} outletId={outlet.id} laporan={laporan} />;
+    const { data: riwayat, error: riwayatError } = await supabase
+      .from("laporan_bulanan")
+      .select(LAPORAN_COLS)
+      .eq("outlet_id", outlet.id)
+      .eq("mode", "asli")
+      .is("deleted_at", null)
+      .lt("periode", periode)
+      .order("periode");
+    if (riwayatError) throw new Error("Gagal membaca riwayat laporan.");
+    return (
+      <LaporanDokumen
+        l={draft!.snapshot as Laporan}
+        pt={pt}
+        semua={(riwayat ?? []) as unknown as Laporan[]}
+        internal
+      />
+    );
   }
   const sebelum = (draftPrev?.snapshot ?? prev) as unknown as Laporan | null;
   const akhirBulan = new Date(

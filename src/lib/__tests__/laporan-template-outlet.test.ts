@@ -53,6 +53,9 @@ it("October source and ordinary months use the same primary financial template, 
       createElement(LaporanDokumen, { l: value, pt: null }),
     );
     expect(html).toContain("<article");
+    expect(html).toContain('aria-label="Navigasi laporan"');
+    expect(html).toContain("Kembali ke daftar laporan");
+    expect(html).not.toContain("PDF + lampiran lengkap");
     for (const label of [
       "Harga Pokok Penjualan",
       "Laba Rugi",
