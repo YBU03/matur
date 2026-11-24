@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LaporanSumberExcel } from "@/components/laporan-sumber-excel";
-import { formatRupiah, formatTanggal } from "@/lib/format";
+import { formatRupiah as formatRupiahBiasa, formatTanggal } from "@/lib/format";
 import {
   hitung,
   namaBulan,
@@ -9,7 +9,9 @@ import {
 } from "@/lib/laporan";
 import { UnduhExcel } from "./[id]/excel";
 import { UnduhPdf } from "./[id]/pdf";
-import { LaporanVisual, type Ringkas, type Visual } from "./[id]/visual";
+import { LaporanVisual } from "./[id]/visual";
+import { rupiahLaporan } from "@/lib/laporan-rekap";
+import { siapkanLaporanDokumen, visualLaporan } from "@/lib/laporan-tampilan";
 export function LaporanDokumen({
   l,
   pt,
@@ -21,61 +23,16 @@ export function LaporanDokumen({
   semua?: Laporan[];
   internal?: boolean;
 }) {
-  if (l.sumber_excel?.versi === 1) {
-    const { sumber_excel, ...laporan } = l;
-    return <LaporanSumberExcel sumber={sumber_excel} outletId={l.outlet_id} laporan={laporan} internal={internal} />;
-  }
+  const prepared = siapkanLaporanDokumen(l, pt);
+  l = prepared.l;
+  pt = prepared.pt;
   const h = hitung(l);
   const bulan = namaBulan(l.periode);
-  // riwayat laporan outlet ini (untuk tren & pembanding bulan lalu)
-  const riwayat: Ringkas[] = ((semua ?? []) as unknown as Laporan[])
-    .slice(-12)
-    .map((r) => {
-      const x = hitung(r);
-      return {
-        periode: r.periode,
-        label: new Date(r.periode + "T00:00:00").toLocaleDateString("id-ID", {
-          month: "short",
-          year: "2-digit",
-        }),
-        penjualan: x.totalPenjualan,
-        hpp: x.hpp,
-        laba_kotor: x.labaKotor,
-        beban: x.totalBeban,
-        laba_bersih: x.labaBersih,
-      };
-    });
-  const urut = (xs: { name: string; value: number }[]) =>
-    xs.filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
-  const visual: Visual = {
-    bulan,
-    penjualan: h.totalPenjualan,
-    hpp: h.hpp,
-    labaKotor: h.labaKotor,
-    beban: h.totalBeban - l.sedekah,
-    sedekah: l.sedekah,
-    persenSedekah: Number(l.persen_sedekah),
-    labaBersih: h.labaBersih,
-    pendapatan: urut(
-      l.pendapatan.map((p) => ({
-        name: p.nama.replace(/ \(.*\)$/, ""),
-        value: Number(p.jumlah),
-      })),
-    ),
-    bebanRinci: urut([
-      { name: "Sedekah", value: l.sedekah },
-      ...l.beban.map((b) => ({
-        name: b.nama.replace(/^Biaya /, ""),
-        value: Number(b.jumlah),
-      })),
-    ]).slice(0, 8),
-    bagiHasil: l.bagi_hasil.map((b) => ({
-      name: `${b.nama} ${b.persen}%`,
-      value: Number(b.jumlah),
-    })),
-    prev: riwayat.length > 1 ? riwayat[riwayat.length - 2] : null,
-    riwayat,
-  };
+  const visual = visualLaporan(l, semua);
+  const formatRupiah = l.sumber_excel ? rupiahLaporan : formatRupiahBiasa;
+  const Row = (props: React.ComponentProps<typeof BarisLaporan>) => (
+    <BarisLaporan {...props} format={formatRupiah} />
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -307,6 +264,23 @@ export function LaporanDokumen({
           </p>
         )}
       </article>
+      {l.sumber_excel && (
+        <details className="rounded-2xl border border-matur-200 bg-white p-4">
+          <summary className="cursor-pointer font-semibold">
+            Lampiran lengkap & Excel sumber
+          </summary>
+          <div className="mt-4">
+            <LaporanSumberExcel
+              sumber={l.sumber_excel}
+              outletId={l.outlet_id}
+              laporan={l}
+              internal={internal}
+              semua={semua}
+              pt={pt}
+            />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -328,13 +302,14 @@ function Bagian({
   );
 }
 
-function Row({
+function BarisLaporan({
   k,
   v,
   op,
   sub,
   total,
   indent,
+  format = formatRupiahBiasa,
 }: {
   k: string;
   v: number;
@@ -342,6 +317,7 @@ function Row({
   sub?: boolean;
   total?: boolean;
   indent?: boolean;
+  format?: (n: number) => string;
 }) {
   return (
     <div
@@ -353,7 +329,7 @@ function Row({
       <span
         className={`whitespace-nowrap tabular-nums ${total ? "text-base" : ""}`}
       >
-        {formatRupiah(v)}
+        {format(v)}
       </span>
       <span className="w-4 text-xs text-stone-400">{op ?? ""}</span>
     </div>

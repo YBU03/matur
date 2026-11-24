@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { hitung, type Laporan } from "../laporan";
-import { pdfLaporanSumber, type SumberExcel } from "../laporan-sumber-excel";
+import { barisLampiranSumber, pdfLaporanSumber, type SumberExcel } from "../laporan-sumber-excel";
 
 const cell = (alamat: string, nilai: number) => ({
   alamat,
@@ -138,3 +138,11 @@ it("published source PDF removes draft marking and keeps exact report totals", a
   expect(hitung(l).labaBersih).toBe(899.875);
   expect(JSON.stringify(l)).toBe(before);
 }, 30000);
+
+it("appendix preserves every source row and visible cell, with readable transaction headings",()=>{
+ const s: SumberExcel["lembar"][number]={nama:"Transaksi",baris:[
+ {nomor:6,sel:[{alamat:"D6",nilai:"Tunai",teks:"Tunai",rumus:null,format:""}]},
+ {nomor:7,sel:[{alamat:"B7",nilai:"Full shift",teks:"Full shift",rumus:null,format:""},cell("D7",123.456)]},
+ ]};const before=JSON.stringify(s);const rows=barisLampiranSumber(s);
+ expect(rows).toHaveLength(2);expect(rows[1]).toEqual(["7","Full shift","Tunai: Rp 123.456"]);expect(JSON.stringify(s)).toBe(before);
+});

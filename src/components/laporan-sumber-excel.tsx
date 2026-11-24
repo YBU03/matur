@@ -4,15 +4,19 @@ import Link from "next/link";
 import { useState } from "react";
 import type { SumberExcel } from "@/lib/laporan-sumber-excel";
 import { judulPeriodeSumber } from "@/lib/laporan-sumber-excel";
-import type { Laporan } from "@/lib/laporan";
+import type { Laporan, Perusahaan } from "@/lib/laporan";
 
 export function LaporanSumberExcel({
   sumber: s,
   outletId,
   laporan,
   internal = true,
+  semua = [],
+  pt = null,
 }: {
   internal?: boolean;
+  semua?: Laporan[];
+  pt?: Perusahaan | null;
   sumber: SumberExcel;
   outletId: string;
   laporan: Omit<Laporan, "sumber_excel">;
@@ -36,7 +40,10 @@ export function LaporanSumberExcel({
       const { pdfLaporanSumber } = await import("@/lib/laporan-sumber-excel");
       download(
         (
-          await pdfLaporanSumber({ ...laporan, sumber_excel: s }, { lampiran, internal })
+          await pdfLaporanSumber(
+            { ...laporan, sumber_excel: s },
+            { lampiran, internal, semua, pt },
+          )
         ).output("blob"),
         `Laporan-${s.outlet_tujuan}-${s.periode}${lampiran ? "-Lengkap" : ""}.pdf`,
       );
@@ -71,14 +78,17 @@ export function LaporanSumberExcel({
       </Link>
       <header className="space-y-2 rounded-2xl border border-matur-200 bg-white p-5">
         <h1 className="text-xl font-bold">
-          Laporan {judulPeriodeSumber(s)} · {s.outlet_tujuan}
+          Arsip sumber {judulPeriodeSumber(s)} · {s.outlet_tujuan}
         </h1>
         <p className="text-sm">
-          Impor Excel lengkap · sumber: {s.nama_sumber} · {internal ? "internal, belum diterbitkan ke Mitra." : "laporan resmi, sudah diterbitkan ke Mitra."}
+          Impor Excel lengkap · sumber: {s.nama_sumber} ·{" "}
+          {internal
+            ? "internal, belum diterbitkan ke Mitra."
+            : "laporan resmi, sudah diterbitkan ke Mitra."}
         </p>
         <p className="text-sm text-stone-600">
           Nilai asli dan hasil rumus disimpan tanpa pembulatan tambahan.
-          Tampilan mengikuti format Excel. Klik rincian baris untuk melihat
+          Lampiran mengikuti urutan data Excel. Klik rincian baris untuk melihat
           nilai presisi dan rumus sumber.
         </p>
         {s.koreksi.map((k) => (
