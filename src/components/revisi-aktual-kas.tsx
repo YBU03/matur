@@ -3,7 +3,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "./confirm-edit";
 import { revisiAktual } from "@/lib/accounting-operasional-actions";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah as uang } from "@/lib/format";
+const formatRupiah = (nilai: number) => (nilai === 0 ? "Rp0" : uang(nilai));
 export type RevisiKas = {
   id: string;
   sesi_id: string;
@@ -16,6 +17,8 @@ export type RevisiKas = {
 export function RevisiAktualKas({
   sesi,
   riwayat,
+  inline = false,
+  onSaved,
 }: {
   sesi: {
     id: string;
@@ -26,6 +29,8 @@ export function RevisiAktualKas({
     seharusnya?: number | null;
   };
   riwayat: RevisiKas[];
+  inline?: boolean;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const awal = sesi.pos_tim ? (sesi.fisik_akhir ?? null) : sesi.setoran;
@@ -34,6 +39,7 @@ export function RevisiAktualKas({
   const [alasan, setAlasan] = useState("");
   const [pesan, setPesan] = useState("");
   const [pending, start] = useTransition();
+  const Panel = inline ? "div" : Modal;
   return (
     <>
       <button
@@ -59,10 +65,10 @@ export function RevisiAktualKas({
         </details>
       )}
       {buka && (
-        <Modal
+        <Panel
           title="Revisi aktual kas"
-          scrollable
-          onClose={() => !pending && setBuka(false)}
+          {...(!inline ? { scrollable: true } : {})}
+          {...(!inline ? { onClose: () => !pending && setBuka(false) } : {})}
         >
           <p className="text-sm">
             {sesi.pos_tim
@@ -73,9 +79,39 @@ export function RevisiAktualKas({
           </p>
           <div className="rounded-lg bg-stone-50 p-2 text-xs">
             <p>Modal tetap di laci: {formatRupiah(sesi.modal_laci)}.</p>
-            <p>Setoran seharusnya tercatat: {sesi.seharusnya == null ? "belum dihitung" : formatRupiah(sesi.seharusnya)}.</p>
-            {nilai !== "" && <p>Setoran setelah revisi: {formatRupiah(Number(nilai) - (sesi.pos_tim ? sesi.modal_laci : 0))}.</p>}
-            <p>Jika pengeluaran salah tanggal/shift, gunakan “Periksa & rekonsiliasi kas”. Mengubah uang aktual saja tidak memperbaiki hubungan pengeluaran.</p>
+            <p>
+              Setoran seharusnya tercatat:{" "}
+              {sesi.seharusnya == null
+                ? "belum dihitung"
+                : formatRupiah(sesi.seharusnya)}
+              .
+            </p>
+            {nilai !== "" && (
+              <p>
+                Setoran setelah revisi:{" "}
+                {formatRupiah(
+                  Number(nilai) - (sesi.pos_tim ? sesi.modal_laci : 0),
+                )}
+                .
+              </p>
+            )}
+            {nilai !== "" && sesi.seharusnya != null && (
+              <p>
+                Selisih setelah revisi:{" "}
+                {formatRupiah(
+                  Number(nilai) -
+                    (sesi.pos_tim ? sesi.modal_laci : 0) -
+                    sesi.seharusnya,
+                )}
+                . Selisih hanya menjadi Rp0 jika uang aktual sesuai uang
+                seharusnya.
+              </p>
+            )}
+            <p>
+              Jika pengeluaran salah tanggal/shift, gunakan “Periksa &
+              rekonsiliasi kas”. Mengubah uang aktual saja tidak memperbaiki
+              hubungan pengeluaran.
+            </p>
           </div>
           <label className="block text-sm">
             {sesi.pos_tim
@@ -139,6 +175,7 @@ export function RevisiAktualKas({
                     else {
                       setBuka(false);
                       setAlasan("");
+                      onSaved?.();
                       router.refresh();
                     }
                   } catch {
@@ -152,7 +189,7 @@ export function RevisiAktualKas({
               {pending ? "Menyimpan…" : "Simpan revisi"}
             </button>
           </div>
-        </Modal>
+        </Panel>
       )}
     </>
   );

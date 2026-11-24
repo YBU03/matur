@@ -1,5 +1,9 @@
 "use client";
-import { tanggalShift, sesiPadaHari, biayaBelumTerhubung } from "@/lib/harian-shift";
+import {
+  tanggalShift,
+  sesiPadaHari,
+  biayaBelumTerhubung,
+} from "@/lib/harian-shift";
 import Link from "next/link";
 import { tanya } from "@/components/dialog-tanya";
 import { denganAlasan } from "@/lib/dengan-alasan";
@@ -101,7 +105,12 @@ export type Sesi = {
   tanggal_catatan?: string;
   tanggal_terkait?: string[];
   tanggal_valid?: string[];
-  hitung?: {tunai: number; laci: number; keluar: number; seharusnya: number} | null;
+  hitung?: {
+    tunai: number;
+    laci: number;
+    keluar: number;
+    seharusnya: number;
+  } | null;
   tanggal_shift?: string | null;
   pos_tim?: boolean;
   fisik_akhir?: number | null;
@@ -206,7 +215,9 @@ export function CatatanHarian({
     items: { menu_id: string; qty: string }[];
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tampilan, setTampilan] = useState<"tabel" | "hari" | "riwayat">("tabel");
+  const [tampilan, setTampilan] = useState<"tabel" | "hari" | "riwayat">(
+    "tabel",
+  );
   useEffect(() => {
     try {
       const v = localStorage.getItem("catatan-harian:tampilan");
@@ -229,7 +240,12 @@ export function CatatanHarian({
   const produkHari = useMemo(() => per(produk), [produk]);
   const manualHari = useMemo(() => per(manual), [manual]);
   const sesiHari = useMemo(
-    () => per(sesi.flatMap((x) => tanggalShift(x).map(tanggal => ({ ...x, tanggal })))),
+    () =>
+      per(
+        sesi.flatMap((x) =>
+          tanggalShift(x).map((tanggal) => ({ ...x, tanggal })),
+        ),
+      ),
     [sesi],
   );
   const run = (
@@ -350,7 +366,9 @@ export function CatatanHarian({
   };
 
   return (
-    <div className={`mx-auto space-y-4 ${tampilan === "tabel" ? "max-w-[1600px]" : "max-w-5xl"}`}>
+    <div
+      className={`mx-auto space-y-4 ${tampilan === "tabel" ? "max-w-[1600px]" : "max-w-5xl"}`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-auto">
           <h1 className="text-2xl font-bold">Catatan Harian</h1>
@@ -517,7 +535,11 @@ export function CatatanHarian({
             ["riwayat", "🕘 Riwayat perbaikan"],
           ] as const
         ).map(([v, l]) => (
-          <button key={v} onClick={() => gantiTampilan(v)} className={tampilan === v ? tabKelas.aktif : tabKelas.pasif}>
+          <button
+            key={v}
+            onClick={() => gantiTampilan(v)}
+            className={tampilan === v ? tabKelas.aktif : tabKelas.pasif}
+          >
             {l}
           </button>
         ))}
@@ -536,412 +558,542 @@ export function CatatanHarian({
           bulan={bulan}
           pending={pending}
           run={run}
-          onPengeluaran={(t, item) => (setMsg(null), setForm({ tanggal: t, item }))}
+          onPengeluaran={(t, item) => (
+            setMsg(null),
+            setForm({ tanggal: t, item })
+          )}
           onPlatform={(t) => bukaPlatform(t)}
         />
       )}
-      {tampilan === "riwayat" && <RiwayatPerbaikan outletId={outletId} bulan={bulan} kategori={kategori} />}
+      {tampilan === "riwayat" && (
+        <RiwayatPerbaikan
+          outletId={outletId}
+          bulan={bulan}
+          kategori={kategori}
+        />
+      )}
       {tampilan === "hari" && (
-      <ul className="space-y-2">
-        {hariTampil.map((h) => {
-          const t = h.tanggal;
-          const v = nilai.get(t)!;
-          const items = biayaHari.get(t) ?? [];
-          const man = manualHari.get(t) ?? [];
-          const pk = produkHari.get(t) ?? [];
-          const shift = sesiHari.get(t) ?? [];
-          const keluar = items.reduce((s, b) => s + b.jumlah, 0);
-          const laci = items
-            .filter((b) => b.sumber === "laci")
-            .reduce((s, b) => s + b.jumlah, 0);
-          const terbuka = buka === t || (!!kata && hariTampil.length <= 3);
-          const kosong = !jualAkhir(t) && !items.length && !pk.length;
-          const adaPlatform = man.some((m) => m.jenis === "platform");
-          const adaKoreksi = man.some((m) => m.jenis === "koreksi");
-          return (
-            <li
-              key={t}
-              className={`rounded-2xl border bg-white ${kosong ? "border-stone-200 opacity-70" : "border-matur-200"}`}
-            >
-              <div className="flex w-full flex-wrap items-center gap-2 p-4 text-left">
-                <button type="button" aria-expanded={terbuka} onClick={() => setBuka(terbuka ? null : t)} className="min-w-0 flex-1 text-left">
-                  <p className="font-bold">{formatTanggal(t)}</p>
-                  <p className="text-xs text-stone-500">
-                    {h.transaksi} transaksi · {shift.length || h.shift} shift ·
-                    penjualan{" "}
-                    <b className="text-kopi-900">
-                      {formatRupiah(jualAkhir(t))}
-                    </b>{" "}
-                    · pengeluaran {formatRupiah(keluar)}
-                  </p>
-                </button>
-                {adaPlatform && (
-                  <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                    online food diisi
-                  </span>
-                )}
-                {(h.janggal ?? 0) > 0 && (
-                  <PemeriksaTransaksi outletId={outletId} tanggal={t} sim={sim} akunting={bolehImpor} jumlah={h.janggal ?? 0} />
-                )}
-                {adaKoreksi && (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                    dikoreksi
-                  </span>
-                )}
-                {pk.length > 0 && (
-                  <span className="rounded-md bg-pink-100 px-2 py-0.5 text-xs font-semibold text-pink-800">
-                    marketing
-                  </span>
-                )}
-                {h.selisih !== null && (
-                  <span
-                    className={`rounded-md px-2 py-0.5 text-xs font-semibold ${h.selisih === 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}
+        <ul className="space-y-2">
+          {hariTampil.map((h) => {
+            const t = h.tanggal;
+            const v = nilai.get(t)!;
+            const items = biayaHari.get(t) ?? [];
+            const man = manualHari.get(t) ?? [];
+            const pk = produkHari.get(t) ?? [];
+            const shift = sesiHari.get(t) ?? [];
+            const keluar = items.reduce((s, b) => s + b.jumlah, 0);
+            const laci = items
+              .filter((b) => b.sumber === "laci")
+              .reduce((s, b) => s + b.jumlah, 0);
+            const terbuka = buka === t || (!!kata && hariTampil.length <= 3);
+            const kosong = !jualAkhir(t) && !items.length && !pk.length;
+            const adaPlatform = man.some((m) => m.jenis === "platform");
+            const adaKoreksi = man.some((m) => m.jenis === "koreksi");
+            return (
+              <li
+                key={t}
+                className={`rounded-2xl border bg-white ${kosong ? "border-stone-200 opacity-70" : "border-matur-200"}`}
+              >
+                <div className="flex w-full flex-wrap items-center gap-2 p-4 text-left">
+                  <button
+                    type="button"
+                    aria-expanded={terbuka}
+                    onClick={() => setBuka(terbuka ? null : t)}
+                    className="min-w-0 flex-1 text-left"
                   >
-                    {h.selisih === 0
-                      ? "kas pas"
-                      : `selisih ${formatRupiah(h.selisih)}`}
-                  </span>
-                )}
-                <button type="button" aria-label={`Buka rincian ${t}`} aria-expanded={terbuka} onClick={() => setBuka(terbuka ? null : t)} className="px-2 text-stone-400">{terbuka ? "▴" : "▾"}</button>
-              </div>
-              {terbuka && (
-                <div className="space-y-4 border-t px-4 pb-4 pt-3">
-                  {/* Penjualan */}
-                  <div>
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <p className="mr-auto text-sm font-semibold">Penjualan</p>
-                      <button
-                        onClick={() => bukaPlatform(t)}
-                        className="rounded-lg border border-sky-300 px-2.5 py-1 text-xs font-semibold text-sky-700"
-                      >
-                        🛵 Input online food
-                      </button>
-                      <button
-                        onClick={() => bukaPlatform(t, true)}
-                        className="rounded-lg border border-violet-300 px-2.5 py-1 text-xs font-semibold text-violet-700"
-                      >
-                        ✏️ Input manual semua kanal
-                      </button>
-                      <button
-                        onClick={() => (
-                          setMsg(null),
-                          setKoreksi({
-                            tanggal: t,
-                            kanal: "tunai",
-                            jumlah: "",
-                            ket: "",
-                          })
-                        )}
-                        className="rounded-lg border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-700"
-                      >
-                        ± Koreksi
-                      </button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="text-left text-stone-500">
-                          <tr>
-                            <th className="py-1">Kanal</th>
-                            <th className="text-right">POS</th>
-                            <th className="text-right">Dashboard platform</th>
-                            <th className="text-right">Koreksi</th>
-                            <th className="text-right">Dipakai</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {([...KANAL_HARIAN, "diskon"] as KanalHarian[])
-                            .filter(
-                              (k) =>
-                                v[k].pos ||
-                                v[k].platform !== null ||
-                                v[k].koreksi ||
-                                k === "tunai",
-                            )
-                            .map((k) => (
-                              <tr key={k} className="border-t">
-                                <td className="py-1">{LABEL_KANAL[k]}</td>
-                                <td className="text-right tabular-nums text-stone-500">
-                                  {formatRupiah(v[k].pos)}
-                                </td>
-                                <td className="text-right tabular-nums text-sky-700">
-                                  {v[k].platform === null
-                                    ? ""
-                                    : formatRupiah(v[k].platform!)}
-                                </td>
-                                <td className="text-right tabular-nums text-amber-700">
-                                  {v[k].koreksi
-                                    ? formatRupiah(v[k].koreksi)
-                                    : ""}
-                                </td>
-                                <td className="text-right font-semibold tabular-nums">
-                                  {formatRupiah(v[k].akhir)}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {man.length > 0 && (
-                      <ul className="mt-1 space-y-0.5 text-[11px] text-stone-500">
-                        {man.map((m) => (
-                          <li key={m.id} className="flex items-center gap-2">
-                            <span className="flex-1">
-                              {m.jenis === "platform" ? "🛵" : "±"}{" "}
-                              {LABEL_KANAL[m.kanal]} {formatRupiah(m.jumlah)} ·{" "}
-                              {m.keterangan ?? "-"} · {m.nama_pembuat ?? "-"}
-                            </span>
-                            {m.jenis === "koreksi" && (
+                    <p className="font-bold">{formatTanggal(t)}</p>
+                    <p className="text-xs text-stone-500">
+                      {h.transaksi} transaksi · {shift.length || h.shift} shift
+                      · penjualan{" "}
+                      <b className="text-kopi-900">
+                        {formatRupiah(jualAkhir(t))}
+                      </b>{" "}
+                      · pengeluaran {formatRupiah(keluar)}
+                    </p>
+                  </button>
+                  {adaPlatform && (
+                    <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                      online food diisi
+                    </span>
+                  )}
+                  {(h.janggal ?? 0) > 0 && (
+                    <PemeriksaTransaksi
+                      outletId={outletId}
+                      tanggal={t}
+                      sim={sim}
+                      akunting={bolehImpor}
+                      jumlah={h.janggal ?? 0}
+                    />
+                  )}
+                  {adaKoreksi && (
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      dikoreksi
+                    </span>
+                  )}
+                  {pk.length > 0 && (
+                    <span className="rounded-md bg-pink-100 px-2 py-0.5 text-xs font-semibold text-pink-800">
+                      marketing
+                    </span>
+                  )}
+                  {h.selisih !== null && (
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs font-semibold ${h.selisih === 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}
+                    >
+                      {h.selisih === 0
+                        ? "kas pas"
+                        : `selisih ${formatRupiah(h.selisih)}`}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Buka rincian ${t}`}
+                    aria-expanded={terbuka}
+                    onClick={() => setBuka(terbuka ? null : t)}
+                    className="px-2 text-stone-400"
+                  >
+                    {terbuka ? "▴" : "▾"}
+                  </button>
+                </div>
+                {terbuka && (
+                  <div className="space-y-4 border-t px-4 pb-4 pt-3">
+                    {/* Penjualan */}
+                    <div>
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <p className="mr-auto text-sm font-semibold">
+                          Penjualan
+                        </p>
+                        <button
+                          onClick={() => bukaPlatform(t)}
+                          className="rounded-lg border border-sky-300 px-2.5 py-1 text-xs font-semibold text-sky-700"
+                        >
+                          🛵 Input online food
+                        </button>
+                        <button
+                          onClick={() => bukaPlatform(t, true)}
+                          className="rounded-lg border border-violet-300 px-2.5 py-1 text-xs font-semibold text-violet-700"
+                        >
+                          ✏️ Input manual semua kanal
+                        </button>
+                        <button
+                          onClick={() => (
+                            setMsg(null),
+                            setKoreksi({
+                              tanggal: t,
+                              kanal: "tunai",
+                              jumlah: "",
+                              ket: "",
+                            })
+                          )}
+                          className="rounded-lg border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-700"
+                        >
+                          ± Koreksi
+                        </button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="text-left text-stone-500">
+                            <tr>
+                              <th className="py-1">Kanal</th>
+                              <th className="text-right">POS</th>
+                              <th className="text-right">Dashboard platform</th>
+                              <th className="text-right">Koreksi</th>
+                              <th className="text-right">Dipakai</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {([...KANAL_HARIAN, "diskon"] as KanalHarian[])
+                              .filter(
+                                (k) =>
+                                  v[k].pos ||
+                                  v[k].platform !== null ||
+                                  v[k].koreksi ||
+                                  k === "tunai",
+                              )
+                              .map((k) => (
+                                <tr key={k} className="border-t">
+                                  <td className="py-1">{LABEL_KANAL[k]}</td>
+                                  <td className="text-right tabular-nums text-stone-500">
+                                    {formatRupiah(v[k].pos)}
+                                  </td>
+                                  <td className="text-right tabular-nums text-sky-700">
+                                    {v[k].platform === null
+                                      ? ""
+                                      : formatRupiah(v[k].platform!)}
+                                  </td>
+                                  <td className="text-right tabular-nums text-amber-700">
+                                    {v[k].koreksi
+                                      ? formatRupiah(v[k].koreksi)
+                                      : ""}
+                                  </td>
+                                  <td className="text-right font-semibold tabular-nums">
+                                    {formatRupiah(v[k].akhir)}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {man.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 text-[11px] text-stone-500">
+                          {man.map((m) => (
+                            <li key={m.id} className="flex items-center gap-2">
+                              <span className="flex-1">
+                                {m.jenis === "platform" ? "🛵" : "±"}{" "}
+                                {LABEL_KANAL[m.kanal]} {formatRupiah(m.jumlah)}{" "}
+                                · {m.keterangan ?? "-"} ·{" "}
+                                {m.nama_pembuat ?? "-"}
+                              </span>
+                              {m.jenis === "koreksi" && (
+                                <button
+                                  onClick={() =>
+                                    setKoreksi({
+                                      tanggal: t,
+                                      id: m.id,
+                                      kanal: m.kanal,
+                                      jumlah: String(m.jumlah),
+                                      ket: m.keterangan ?? "",
+                                    })
+                                  }
+                                  className="text-matur-700"
+                                >
+                                  ✏️
+                                </button>
+                              )}
                               <button
-                                onClick={() =>
-                                  setKoreksi({
-                                    tanggal: t,
-                                    id: m.id,
-                                    kanal: m.kanal,
-                                    jumlah: String(m.jumlah),
-                                    ket: m.keterangan ?? "",
-                                  })
+                                disabled={pending}
+                                onClick={async () =>
+                                  (await tanya("Hapus input manual ini?")) &&
+                                  run(() => hapusManual(m.id))
                                 }
-                                className="text-matur-700"
+                                className="text-red-600"
                               >
-                                ✏️
+                                🗑
                               </button>
-                            )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Pengeluaran */}
+                    <div>
+                      <div className="mb-1 flex items-center">
+                        <p className="mr-auto text-sm font-semibold">
+                          Pengeluaran
+                        </p>
+                        <button
+                          onClick={() => (
+                            setMsg(null),
+                            setForm({ tanggal: t })
+                          )}
+                          className="rounded-lg border border-matur-300 px-2.5 py-1 text-xs font-semibold text-matur-700"
+                        >
+                          + Tambah
+                        </button>
+                      </div>
+                      {items.length === 0 && (
+                        <p className="text-xs text-stone-400">
+                          Tidak ada pengeluaran.
+                        </p>
+                      )}
+                      <ul className="divide-y text-sm">
+                        {items.map((b) => (
+                          <li
+                            key={b.id}
+                            className="flex items-center gap-2 py-1.5"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p>
+                                {b.keterangan ||
+                                  label(kat[b.kategori_id]?.nama ?? "")}
+                              </p>
+                              <p className="text-[11px] text-stone-500">
+                                {label(kat[b.kategori_id]?.nama ?? "-")} ·{" "}
+                                <span
+                                  className={
+                                    b.sumber === "laci"
+                                      ? "text-amber-700"
+                                      : "text-blue-700"
+                                  }
+                                >
+                                  {b.sumber === "laci" ? "laci" : "pusat"}
+                                </span>
+                                {b.pengguna?.nama && ` · ${b.pengguna.nama}`}
+                              </p>
+                            </div>
+                            <span className="tabular-nums">
+                              {formatRupiah(b.jumlah)}
+                            </span>
+                            <button
+                              onClick={() => (
+                                setMsg(null),
+                                setForm({ tanggal: t, item: b })
+                              )}
+                              className="rounded px-1.5 text-matur-700"
+                              title="Ubah"
+                            >
+                              ✏️
+                            </button>
                             <button
                               disabled={pending}
                               onClick={async () =>
-                                (await tanya("Hapus input manual ini?")) &&
-                                run(() => hapusManual(m.id))
+                                (await tanya("Hapus pengeluaran ini?")) &&
+                                run(() =>
+                                  denganAlasan((a) =>
+                                    hapusPengeluaran(b.id, a),
+                                  ),
+                                )
                               }
-                              className="text-red-600"
+                              className="rounded px-1.5 text-red-600"
+                              title="Hapus"
                             >
                               🗑
                             </button>
                           </li>
                         ))}
                       </ul>
-                    )}
-                  </div>
-
-                  {/* Pengeluaran */}
-                  <div>
-                    <div className="mb-1 flex items-center">
-                      <p className="mr-auto text-sm font-semibold">
-                        Pengeluaran
-                      </p>
-                      <button
-                        onClick={() => (setMsg(null), setForm({ tanggal: t }))}
-                        className="rounded-lg border border-matur-300 px-2.5 py-1 text-xs font-semibold text-matur-700"
-                      >
-                        + Tambah
-                      </button>
                     </div>
-                    {items.length === 0 && (
-                      <p className="text-xs text-stone-400">
-                        Tidak ada pengeluaran.
-                      </p>
-                    )}
-                    <ul className="divide-y text-sm">
-                      {items.map((b) => (
-                        <li
-                          key={b.id}
-                          className="flex items-center gap-2 py-1.5"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p>
-                              {b.keterangan ||
-                                label(kat[b.kategori_id]?.nama ?? "")}
-                            </p>
-                            <p className="text-[11px] text-stone-500">
-                              {label(kat[b.kategori_id]?.nama ?? "-")} ·{" "}
-                              <span
-                                className={
-                                  b.sumber === "laci"
-                                    ? "text-amber-700"
-                                    : "text-blue-700"
-                                }
-                              >
-                                {b.sumber === "laci" ? "laci" : "pusat"}
-                              </span>
-                              {b.pengguna?.nama && ` · ${b.pengguna.nama}`}
-                            </p>
-                          </div>
-                          <span className="tabular-nums">
-                            {formatRupiah(b.jumlah)}
-                          </span>
-                          <button
-                            onClick={() => (
-                              setMsg(null),
-                              setForm({ tanggal: t, item: b })
-                            )}
-                            className="rounded px-1.5 text-matur-700"
-                            title="Ubah"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            disabled={pending}
-                            onClick={async () =>
-                              (await tanya("Hapus pengeluaran ini?")) &&
-                              run(() => denganAlasan((a) => hapusPengeluaran(b.id, a)))
-                            }
-                            className="rounded px-1.5 text-red-600"
-                            title="Hapus"
-                          >
-                            🗑
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
 
-                  {/* Marketing produk */}
-                  <div>
-                    <div className="mb-1 flex items-center">
-                      <p className="mr-auto text-sm font-semibold">
-                        Produk untuk marketing / endorse
-                      </p>
-                      <button
-                        onClick={() => (
-                          setMsg(null),
-                          setMkt({
-                            tanggal: t,
-                            penerima: "",
-                            jenis: "endorse",
-                            catatan: "",
-                            items: [{ menu_id: menu[0]?.id ?? "", qty: "1" }],
-                          })
-                        )}
-                        className="rounded-lg border border-pink-300 px-2.5 py-1 text-xs font-semibold text-pink-700"
-                      >
-                        + Produk marketing
-                      </button>
-                    </div>
-                    {pk.length === 0 && (
-                      <p className="text-xs text-stone-400">
-                        Tidak ada. Fee influencer dicatat sebagai pengeluaran
-                        kategori Marketing (sumber pusat).
-                      </p>
-                    )}
-                    <ul className="divide-y text-sm">
-                      {pk.map((p) => (
-                        <li
-                          key={p.id}
-                          className="flex items-center gap-2 py-1.5"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p>
-                              <b>{p.penerima ?? "-"}</b> ·{" "}
-                              {JENIS_MKT[p.jenis] ?? p.jenis}
-                            </p>
-                            <p className="text-[11px] text-stone-500">
-                              {p.items
-                                .map((i) => `${i.qty}× ${i.nama}`)
-                                .join(", ")}{" "}
-                              · nilai jual {formatRupiah(p.nilai_jual)} ·{" "}
-                              {p.nama_pembuat ?? "-"}
-                              {p.catatan && ` · ${p.catatan}`}
-                            </p>
-                          </div>
-                          <span className="tabular-nums" title="HPP produk">
-                            {formatRupiah(p.total_hpp)}
-                          </span>
-                          <button
-                            disabled={pending}
-                            onClick={async () =>
-                              (await tanya(
-                                "Batalkan catatan produk marketing ini? Stok dikembalikan.",
-                              )) && run(() => hapusProdukKeluar(p.id))
-                            }
-                            className="rounded px-1.5 text-red-600"
-                          >
-                            🗑
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {!sim && items.some(b => biayaBelumTerhubung(b, sesi)) && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ Ada pengeluaran laci yang belum cocok dengan tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada shift di bawah untuk melihat rincian dan memperbaikinya.</p>}
-                  {/* Shift & kas */}
-                  {shift.length > 0 && (
+                    {/* Marketing produk */}
                     <div>
-                      <p className="mb-1 text-sm font-semibold">
-                        Pergantian shift
-                        {!sim && bolehImpor && <Link className="ml-3 text-xs text-sky-800 underline" href={`/koreksi-penjualan?outlet=${outletId}&dari=${t}&sampai=${t}`}>Tambah / edit / hapus penjualan</Link>}
-                      </p>
-                      <ul className="divide-y text-xs">
-                        {shift.map((x) => (
+                      <div className="mb-1 flex items-center">
+                        <p className="mr-auto text-sm font-semibold">
+                          Produk untuk marketing / endorse
+                        </p>
+                        <button
+                          onClick={() => (
+                            setMsg(null),
+                            setMkt({
+                              tanggal: t,
+                              penerima: "",
+                              jenis: "endorse",
+                              catatan: "",
+                              items: [{ menu_id: menu[0]?.id ?? "", qty: "1" }],
+                            })
+                          )}
+                          className="rounded-lg border border-pink-300 px-2.5 py-1 text-xs font-semibold text-pink-700"
+                        >
+                          + Produk marketing
+                        </button>
+                      </div>
+                      {pk.length === 0 && (
+                        <p className="text-xs text-stone-400">
+                          Tidak ada. Fee influencer dicatat sebagai pengeluaran
+                          kategori Marketing (sumber pusat).
+                        </p>
+                      )}
+                      <ul className="divide-y text-sm">
+                        {pk.map((p) => (
                           <li
-                            key={x.id}
-                            className="flex flex-wrap justify-between gap-2 py-1"
+                            key={p.id}
+                            className="flex items-center gap-2 py-1.5"
                           >
-                            <span>
-                              <b>{x.nama_kasir ?? "Kasir"}</b> ·{" "}
-                              {new Date(x.dibuka_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}–{x.ditutup_at ? new Date(x.ditutup_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "masih buka"} · modal{" "}
-                              {formatRupiah(x.modal_laci)}
+                            <div className="min-w-0 flex-1">
+                              <p>
+                                <b>{p.penerima ?? "-"}</b> ·{" "}
+                                {JENIS_MKT[p.jenis] ?? p.jenis}
+                              </p>
+                              <p className="text-[11px] text-stone-500">
+                                {p.items
+                                  .map((i) => `${i.qty}× ${i.nama}`)
+                                  .join(", ")}{" "}
+                                · nilai jual {formatRupiah(p.nilai_jual)} ·{" "}
+                                {p.nama_pembuat ?? "-"}
+                                {p.catatan && ` · ${p.catatan}`}
+                              </p>
+                            </div>
+                            <span className="tabular-nums" title="HPP produk">
+                              {formatRupiah(p.total_hpp)}
                             </span>
-                            {!sim && bolehImpor && x.ditutup_at && (
-                              <RevisiAktualKas
-                                sesi={x}
-                                riwayat={revisi.filter(
-                                  (r) => r.sesi_id === x.id,
-                                )}
-                              />
-                            )}
-                            {!sim && bolehImpor && <RekonsiliasiKas sesiId={x.id} />}
-                            <span className="w-full rounded bg-stone-50 p-2 text-stone-600">Rincian seluruh shift: tunai {formatRupiah(x.hitung?.tunai ?? 0)} · pengeluaran laci {formatRupiah(x.hitung?.laci ?? 0)} · penyerahan {formatRupiah(x.hitung?.keluar ?? 0)}. Tanggal aktivitas: {tanggalShift(x).join(", ")}.{(tanggalShift(x).length > 1 || x.tanggal_shift !== x.tanggal_catatan) && " Shift melintasi tanggal; angka ini bukan hanya penjualan hari yang sedang dibuka."}</span>
-                            <span
-                              className={
-                                x.selisih ? "text-red-600" : "text-stone-600"
+                            <button
+                              disabled={pending}
+                              onClick={async () =>
+                                (await tanya(
+                                  "Batalkan catatan produk marketing ini? Stok dikembalikan.",
+                                )) && run(() => hapusProdukKeluar(p.id))
                               }
+                              className="rounded px-1.5 text-red-600"
                             >
-                              {x.ditutup_at
-                                ? `setor ${formatRupiah(x.setoran ?? 0)} · seharusnya ${formatRupiah(x.seharusnya ?? 0)}${x.selisih ? ` · selisih ${formatRupiah(x.selisih)}` : ""}`
-                                : "masih buka"}
-                            </span>
+                              🗑
+                            </button>
                           </li>
                         ))}
                       </ul>
                     </div>
-                  )}
-                  <div className="rounded bg-sky-50 p-2 text-xs text-sky-900">Ringkasan harian di bawah memakai tanggal yang sama dengan daftar penjualan dan pengeluaran di atas. Rincian seluruh shift ditampilkan terpisah; setoran aktual dicatat sekali pada tanggal aktivitas terakhir shift, tanpa mengubah uang yang disetor.</div>
-                  <p className="rounded bg-stone-50 p-2 text-xs text-stone-600">Total pengeluaran hari ini: {formatRupiah(keluar)} · dibayar pusat: {formatRupiah(keluar-laci)} (tidak mengurangi laci). Tunai setelah pengeluaran laci, sebelum penyerahan: {formatRupiah(v.tunai.akhir-laci)}.</p>
-                  <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-matur-50 p-2 text-xs sm:grid-cols-4">
-                    <div>
-                      <p className="text-stone-500">Penjualan tunai hari ini</p>
-                      <p className="font-semibold tabular-nums">
-                        {v.tunai.akhir === 0 ? "Rp0" : formatRupiah(v.tunai.akhir)}
-                      </p>
+
+                    {!sim &&
+                      items.some((b) => biayaBelumTerhubung(b, sesi)) && (
+                        <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+                          ⚠ Ada pengeluaran laci yang belum cocok dengan
+                          tanggal/shift. Buka “Periksa & rekonsiliasi kas” pada
+                          shift di bawah untuk melihat rincian dan
+                          memperbaikinya.
+                        </p>
+                      )}
+                    {/* Shift & kas */}
+                    {shift.length > 0 && (
+                      <div>
+                        <p className="mb-1 text-sm font-semibold">
+                          Pergantian shift
+                          {!sim && bolehImpor && (
+                            <Link
+                              className="ml-3 text-xs text-sky-800 underline"
+                              href={`/koreksi-penjualan?outlet=${outletId}&dari=${t}&sampai=${t}`}
+                            >
+                              Tambah / edit / hapus penjualan
+                            </Link>
+                          )}
+                        </p>
+                        <ul className="divide-y text-xs">
+                          {shift.map((x) => (
+                            <li
+                              key={x.id}
+                              className="flex flex-wrap justify-between gap-2 py-1"
+                            >
+                              <span>
+                                <b>{x.nama_kasir ?? "Kasir"}</b> ·{" "}
+                                {new Date(x.dibuka_at).toLocaleString("id-ID", {
+                                  timeZone: "Asia/Jakarta",
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                –
+                                {x.ditutup_at
+                                  ? new Date(x.ditutup_at).toLocaleString(
+                                      "id-ID",
+                                      {
+                                        timeZone: "Asia/Jakarta",
+                                        day: "2-digit",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )
+                                  : "masih buka"}{" "}
+                                · modal {formatRupiah(x.modal_laci)}
+                              </span>
+                              {!sim && bolehImpor && x.ditutup_at && (
+                                <RevisiAktualKas
+                                  sesi={x}
+                                  riwayat={revisi.filter(
+                                    (r) => r.sesi_id === x.id,
+                                  )}
+                                />
+                              )}
+                              {!sim && bolehImpor && (
+                                <RekonsiliasiKas sesiId={x.id} />
+                              )}
+                              <span className="w-full rounded bg-stone-50 p-2 text-stone-600">
+                                Rincian seluruh shift: tunai{" "}
+                                {formatRupiah(x.hitung?.tunai ?? 0)} ·
+                                pengeluaran laci{" "}
+                                {formatRupiah(x.hitung?.laci ?? 0)} · penyerahan{" "}
+                                {formatRupiah(x.hitung?.keluar ?? 0)}. Tanggal
+                                aktivitas: {tanggalShift(x).join(", ")}.
+                                {(tanggalShift(x).length > 1 ||
+                                  x.tanggal_shift !== x.tanggal_catatan) &&
+                                  " Shift melintasi tanggal; angka ini bukan hanya penjualan hari yang sedang dibuka."}
+                              </span>
+                              <span
+                                className={
+                                  x.selisih ? "text-red-600" : "text-stone-600"
+                                }
+                              >
+                                {x.ditutup_at
+                                  ? `setor ${formatRupiah(x.setoran ?? 0)} · seharusnya ${formatRupiah(x.seharusnya ?? 0)}${x.selisih ? ` · selisih ${formatRupiah(x.selisih)}` : ""}`
+                                  : "masih buka"}
+                              </span>
+                              {!sim && bolehImpor && !!x.selisih && (
+                                <RekonsiliasiKas
+                                  sesiId={x.id}
+                                  label={`Telusuri selisih ${formatRupiah(x.selisih ?? 0)}`}
+                                />
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="rounded bg-sky-50 p-2 text-xs text-sky-900">
+                      Ringkasan harian di bawah memakai tanggal yang sama dengan
+                      daftar penjualan dan pengeluaran di atas. Rincian seluruh
+                      shift ditampilkan terpisah; setoran aktual dicatat sekali
+                      pada tanggal aktivitas terakhir shift, tanpa mengubah uang
+                      yang disetor.
                     </div>
-                    <div>
-                      <p className="text-stone-500">Pengeluaran laci hari ini</p>
-                      <p className="font-semibold tabular-nums">
-                        {laci === 0 ? "Rp0" : formatRupiah(-laci)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-stone-500">Setoran aktual shift</p>
-                      <p className="font-semibold tabular-nums">
-                        {h.setoran === null
-                          ? "Belum ada setoran shift untuk tanggal ini"
-                          : formatRupiah(h.setoran)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-stone-500">Selisih setoran shift</p>
-                      <p
-                        className={`font-semibold tabular-nums ${h.selisih ? "text-red-600" : ""}`}
-                      >
-                        {h.selisih === null ? "-" : formatRupiah(h.selisih)}
-                      </p>
+                    <p className="rounded bg-stone-50 p-2 text-xs text-stone-600">
+                      Total pengeluaran hari ini: {formatRupiah(keluar)} ·
+                      dibayar pusat: {formatRupiah(keluar - laci)} (tidak
+                      mengurangi laci). Tunai setelah pengeluaran laci, sebelum
+                      penyerahan: {formatRupiah(v.tunai.akhir - laci)}.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-matur-50 p-2 text-xs sm:grid-cols-4">
+                      <div>
+                        <p className="text-stone-500">
+                          Penjualan tunai hari ini
+                        </p>
+                        <p className="font-semibold tabular-nums">
+                          {v.tunai.akhir === 0
+                            ? "Rp0"
+                            : formatRupiah(v.tunai.akhir)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-stone-500">
+                          Pengeluaran laci hari ini
+                        </p>
+                        <p className="font-semibold tabular-nums">
+                          {laci === 0 ? "Rp0" : formatRupiah(-laci)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-stone-500">Setoran aktual shift</p>
+                        <p className="font-semibold tabular-nums">
+                          {h.setoran === null
+                            ? "Belum ada setoran shift untuk tanggal ini"
+                            : formatRupiah(h.setoran)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-stone-500">Selisih setoran shift</p>
+                        {!sim && bolehImpor && h.selisih !== null && (
+                          <details>
+                            <summary className="cursor-pointer text-sky-800 underline">
+                              Telusuri sumber & perbaiki
+                            </summary>
+                            <p>
+                              Setoran dicatat pada tanggal aktivitas terakhir.
+                              Pilih shift sumber:
+                            </p>
+                            {shift
+                              .filter(
+                                (x) => x.ditutup_at && x.tanggal_catatan === t,
+                              )
+                              .map((x) => (
+                                <div key={x.id} className="py-1">
+                                  <RekonsiliasiKas
+                                    sesiId={x.id}
+                                    label={`${x.nama_kasir ?? "Kasir"} · awal ${x.tanggal_shift} · selisih ${formatRupiah(x.selisih ?? 0)}`}
+                                  />
+                                </div>
+                              ))}
+                          </details>
+                        )}
+                        <p
+                          className={`font-semibold tabular-nums ${h.selisih ? "text-red-600" : ""}`}
+                        >
+                          {h.selisih === null ? "-" : formatRupiah(h.selisih)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {!sim && <PenerimaanBelanja data={belanja} bolehTerima={false} />}
@@ -961,7 +1113,13 @@ export function CatatanHarian({
               }
             }
             baru={!form.item}
-            pilihanSesi={!form.item ? sesiPadaHari(sesi, form.tanggal).filter(s => bolehImpor || !s.ditutup_at).map(s => ({ ...s, nama: s.nama_kasir })) : undefined}
+            pilihanSesi={
+              !form.item
+                ? sesiPadaHari(sesi, form.tanggal)
+                    .filter((s) => bolehImpor || !s.ditutup_at)
+                    .map((s) => ({ ...s, nama: s.nama_kasir }))
+                : undefined
+            }
             onBatal={() => setForm(null)}
             onSimpan={(d) =>
               run(
