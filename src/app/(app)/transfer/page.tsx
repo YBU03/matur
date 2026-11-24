@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { penerimaUnik } from "@/lib/penerimaan-mitra";
 import { notFound } from "next/navigation";
 import { PilihOutlet } from "@/components/pilih-outlet";
 import { formatRupiah } from "@/lib/format";
@@ -18,22 +20,14 @@ export default async function TransferMitra({ searchParams }: { searchParams: Pr
   const daftar = outlets ?? [];
   const pilih = (await searchParams).outlet ?? daftar.find((o) => semua.some((l) => l.outlet_id === o.id))?.id ?? daftar[0]?.id;
   const list = semua.filter((l) => l.outlet_id === pilih);
-  // total per penerima sepanjang waktu
-  const per = new Map<string, { nama: string; rek: string; total: number; bulan: number }>();
-  for (const l of list)
-    for (const t of l.transfer) {
-      const k = t.atas_nama || t.keterangan;
-      const x = per.get(k) ?? { nama: k, rek: [t.bank, t.no_rekening].filter(Boolean).join(" "), total: 0, bulan: 0 };
-      x.total += Number(t.jumlah);
-      x.bulan += 1;
-      per.set(k, x);
-    }
+  const calon=[...new Set(list.flatMap(l=>[...l.transfer.map(t=>t.atas_nama||t.keterangan.replace(/^bagi hasil\s+/i,'')),...l.bagi_hasil.filter(b=>!/pengelola|pusat/i.test(b.nama)).map(b=>b.nama.replace(/^(ibu|bapak)\s+/i,''))]))];
+  const per=new Map(penerimaUnik(list,calon).map(x=>[x.nama,{nama:x.nama,rek:x.data.at(-1)?.rincian[0]?.rekening??'',total:x.data.reduce((t,d)=>t+d.total,0),bulan:x.data.length}]));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Transfer Mitra</h1>
-        <p className="text-sm text-stone-500">Daftar transfer bagi hasil & sewa dari setiap laporan bulanan yang sudah terbit.</p>
+        <h1 className="text-2xl font-bold">Alokasi & Pembayaran Mitra</h1><Link className="underline" href="/laporan/rekap">Kelola pembayaran aktual & bukti transfer →</Link>
+        <p className="text-sm text-stone-500">Alokasi transfer dalam laporan resmi; bukan bukti bahwa transfer bank sudah dilakukan.</p>
       </div>
       <PilihOutlet outlets={daftar} pilih={pilih} href={(id) => `/transfer?outlet=${id}`} />
       {list.length === 0 ? (
@@ -76,7 +70,7 @@ export default async function TransferMitra({ searchParams }: { searchParams: Pr
                         </tr>
                       ))}
                       <tr className="border-t-2 font-bold">
-                        <td className="py-1.5" colSpan={2}>Total transfer</td>
+                        <td className="py-1.5" colSpan={2}>Total alokasi transfer</td>
                         <td className="text-right tabular-nums">{formatRupiah(h.totalTransfer)}</td>
                       </tr>
                     </tbody>

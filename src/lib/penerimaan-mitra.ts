@@ -28,3 +28,18 @@ export function penerimaanMitra(laporan: Pick<Laporan, "periode" | "transfer" | 
     .filter((p) => p.rincian.length)
     .sort((a, b) => a.periode.localeCompare(b.periode));
 }
+
+/** Two labels are aliases only when every matched source line is identical.
+ * Equal amounts alone never establish identity. Keep the longest complete name. */
+export function penerimaUnik(laporan:Pick<Laporan,'periode'|'transfer'|'bagi_hasil'>[],names:string[]){
+ const candidates=names.map(n=>({nama:n,data:penerimaanMitra(laporan,n),fingerprint:JSON.stringify(laporan.map(l=>{
+  const t=(l.transfer??[]).flatMap((t,i)=>cocokNama(t.atas_nama,n)||cocokNama(t.keterangan,n)?[`transfer:${i}`]:[]);
+  return {periode:l.periode,keys:t.length?t:(l.bagi_hasil??[]).flatMap((b,i)=>cocokNama(b.nama,n)?[`bagi:${i}`]:[])};
+ }))})).filter(x=>x.data.length);
+ const result:typeof candidates=[];
+ for(const c of candidates.sort((a,b)=>b.nama.length-a.nama.length)){
+  if(result.some(x=>x.fingerprint===c.fingerprint))continue;
+  result.push(c);
+ }
+ return result.map(({nama,data})=>({nama,data}));
+}

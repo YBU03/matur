@@ -69,20 +69,20 @@ export function hitung(l: Laporan) {
       .find((c) => c.alamat === alamat)?.nilai;
     return typeof v === "number" && Number.isFinite(v) ? v : fallback;
   };
-  const totalPenjualan = cached("H61", sum(l.pendapatan) - l.diskon);
+  const totalPenjualan = cached("H61", sum(l.pendapatan) - Number(l.diskon));
   // HPP = persediaan awal + pembelian bahan baku + tagihan snack & cheesecake − persediaan akhir
   const tersedia = cached(
     "G40",
-    l.persediaan_awal + l.pembelian + Number(l.tagihan_titipan ?? 0),
+    Number(l.persediaan_awal) + Number(l.pembelian) + Number(l.tagihan_titipan ?? 0),
   );
-  const hpp = cached("G43", tersedia - l.persediaan_akhir);
+  const hpp = cached("G43", tersedia - Number(l.persediaan_akhir));
   const labaKotor = cached("H66", totalPenjualan - hpp);
   const labaBersih = cached(
     "H84",
-    l.laba_bersih ?? labaKotor - l.sedekah - sum(l.beban),
+    l.laba_bersih != null ? Number(l.laba_bersih) : labaKotor - Number(l.sedekah) - sum(l.beban),
   );
   const totalBeban = cached("H83", labaKotor - labaBersih);
-  const modal = cached("G93", l.modal_awal + labaBersih);
+  const modal = cached("G93", Number(l.modal_awal) + labaBersih);
   const pengelola = l.bagi_hasil.filter((b) => /pengelola/i.test(b.nama));
   const mitra = l.bagi_hasil.filter((b) => !/pengelola/i.test(b.nama));
   const totalTransfer = cached("E118", sum(l.transfer));

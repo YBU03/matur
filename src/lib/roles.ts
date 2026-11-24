@@ -363,3 +363,6 @@ for (const role of ["owner", "admin_pusat", "finance"] as Role[]) ROLES[role].me
 for (const role of ["owner","admin_pusat","finance"] as Role[]) ROLES[role].menu.push({href:"/subsidi-promo",label:"Diskon & Subsidi Marketing",stage:5});
 
 for (const role of ["owner","admin_pusat","admin_gudang","finance","hrd","spv","manajer_area"] as Role[]) ROLES[role].menu.push({href:"/stok/outlet",label:"Kelola Stok Outlet",stage:4});
+
+for(const role of ["owner","admin_pusat","finance","mitra","manajer_area"] as Role[])ROLES[role].menu.push({href:"/laporan/rekap",label:"Rekap Keuangan & Bagi Hasil",stage:4});
+for(const role of ["owner","admin_pusat","finance","mitra"] as Role[])ROLES[role].menu.push({href:"/meeting-laporan",label:"Meeting Laporan",stage:4});

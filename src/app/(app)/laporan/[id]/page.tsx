@@ -1,3 +1,4 @@
+import { LaporanHubLinks } from "@/components/laporan-hub-links";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -38,10 +39,11 @@ export default async function DetailLaporan({
     .is("deleted_at", null)
     .order("periode");
   return (
+    <><LaporanHubLinks laporan={l}/>
     <LaporanDokumen
       l={l}
       pt={pt as Perusahaan | null}
       semua={(semua ?? []) as unknown as Laporan[]}
-    />
+    /></>
   );
 }
