@@ -17,11 +17,13 @@ export function LaporanDokumen({
   pt,
   semua = [],
   internal = false,
+  pendamping,
 }: {
   l: Laporan;
   pt: Perusahaan | null;
   semua?: Laporan[];
   internal?: boolean;
+  pendamping?: React.ReactNode;
 }) {
   const prepared = siapkanLaporanDokumen(l, pt);
   l = prepared.l;
@@ -42,12 +44,15 @@ export function LaporanDokumen({
           editor untuk perhitungan terbaru.
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2">
+      <nav
+        aria-label="Navigasi laporan"
+        className="sticky top-14 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-matur-200 bg-white/95 p-2 backdrop-blur lg:top-2"
+      >
         <Link
           href={`/laporan?outlet=${l.outlet_id}`}
-          className="mr-auto text-sm text-matur-700"
+          className="mr-auto rounded-lg border border-matur-300 bg-white px-3 py-2 text-sm font-semibold text-kopi-900"
         >
-          ← Semua laporan
+          ← Kembali ke daftar laporan
         </Link>
         <UnduhExcel
           internal={internal}
@@ -74,7 +79,8 @@ export function LaporanDokumen({
             }) as Perusahaan
           }
         />
-      </div>
+      </nav>
+      {pendamping}
 
       <LaporanVisual v={visual} />
 
@@ -273,10 +279,7 @@ export function LaporanDokumen({
             <LaporanSumberExcel
               sumber={l.sumber_excel}
               outletId={l.outlet_id}
-              laporan={l}
               internal={internal}
-              semua={semua}
-              pt={pt}
             />
           </div>
         </details>

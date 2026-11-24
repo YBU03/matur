@@ -4,25 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import type { SumberExcel } from "@/lib/laporan-sumber-excel";
 import { judulPeriodeSumber } from "@/lib/laporan-sumber-excel";
-import type { Laporan, Perusahaan } from "@/lib/laporan";
 
 export function LaporanSumberExcel({
   sumber: s,
   outletId,
-  laporan,
   internal = true,
-  semua = [],
-  pt = null,
 }: {
   internal?: boolean;
-  semua?: Laporan[];
-  pt?: Perusahaan | null;
   sumber: SumberExcel;
   outletId: string;
-  laporan: Omit<Laporan, "sumber_excel">;
 }) {
   const [sheet, setSheet] = useState(0);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const selected = s.lembar[sheet] ?? s.lembar[0];
   const download = (blob: Blob, name: string) => {
@@ -32,26 +24,6 @@ export function LaporanSumberExcel({
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  };
-  const pdf = async (lampiran = false) => {
-    setBusy(true);
-    setError("");
-    try {
-      const { pdfLaporanSumber } = await import("@/lib/laporan-sumber-excel");
-      download(
-        (
-          await pdfLaporanSumber(
-            { ...laporan, sumber_excel: s },
-            { lampiran, internal, semua, pt },
-          )
-        ).output("blob"),
-        `Laporan-${s.outlet_tujuan}-${s.periode}${lampiran ? "-Lengkap" : ""}.pdf`,
-      );
-    } catch {
-      setError("PDF belum berhasil dibuat. Coba lagi.");
-    } finally {
-      setBusy(false);
-    }
   };
   const excel = () => {
     try {
@@ -99,20 +71,6 @@ export function LaporanSumberExcel({
         ))}
         <div className="flex flex-wrap gap-2 pt-2">
           <button
-            disabled={busy}
-            onClick={() => pdf()}
-            className="rounded-lg bg-matur-600 px-4 py-2 font-semibold text-white disabled:opacity-50"
-          >
-            {busy ? "Menyiapkan PDF…" : "Unduh PDF laporan"}
-          </button>
-          <button
-            disabled={busy}
-            onClick={() => pdf(true)}
-            className="rounded-lg border px-4 py-2 font-semibold disabled:opacity-50"
-          >
-            PDF + lampiran lengkap
-          </button>
-          <button
             onClick={excel}
             className="rounded-lg border px-4 py-2 font-semibold"
           >
@@ -126,9 +84,8 @@ export function LaporanSumberExcel({
           </Link>
         </div>
         <p className="text-xs text-stone-500">
-          PDF laporan memakai format laporan bulanan: kop perusahaan, ringkasan,
-          grafik, dan tabel keuangan. Pilih PDF + lampiran lengkap untuk
-          menyertakan seluruh rincian sumber dan catatan harian.
+          Arsip ini hanya untuk penelusuran data. PDF laporan tidak menyertakan
+          lampiran sumber.
         </p>
         {error && (
           <p role="alert" className="text-sm text-red-700">
