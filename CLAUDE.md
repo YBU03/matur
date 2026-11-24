@@ -119,3 +119,5 @@ Rekap/Pembayaran/Meeting 24 November: baca `docs/laporan-pembayaran-meeting-2026
 Koreksi template Oktober & BEP per outlet 24 November: semua laporan termasuk impor Excel memakai LaporanDokumen + helper laporan-tampilan untuk layar/PDF; arsip menjadi lampiran, Excel sumber tetap asli. Query BEP dibatasi outlet di server. Baca docs/laporan-oktober-template-bep-2026-11-24.md.
 
 Semua jalur Oktober & kembali 24 November: proyeksi sumber juga memakai LaporanDokumen; toolbar kembali sticky sebelum panel pembayaran, Versi resmi navigasi dokumen penuh, opsi PDF lampiran dihapus. Baca docs/laporan-oktober-semua-jalur-2026-11-24.md.
+
+Penjelasan margin 24 November: klik margin ⓘ pada rekap untuk diagnosis pembulatan, PDF/Excel rekap menyertakan rinciannya. Hanya tampilan, bukan perubahan laba/jurnal. Baca docs/penjelasan-margin-2026-11-24.md.
