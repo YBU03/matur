@@ -1,4 +1,10 @@
 import {
+  CATATAN_MARGIN,
+  marginPresisi,
+  pembulatanMargin,
+  rupiahEfekMargin,
+} from "./pembulatan-margin";
+import {
   rekapKeuangan,
   marginLaba,
   persenLaba,
@@ -36,6 +42,16 @@ export async function eksporRekap(
       ),
     })),
   );
+  const efek = [
+    ...rows.map((r) => ({ ...r, ...pembulatanMargin(r.omzet, r.laba) })),
+    {
+      outlet: "Total",
+      periode: "",
+      omzet: totals.omzet,
+      laba: totals.laba,
+      ...pembulatanMargin(totals.omzet, totals.laba),
+    },
+  ];
   const file = `Rekap-Keuangan-${new Date().toISOString().slice(0, 10)}`;
   if (jenis === "excel") {
     const ExcelJS = await import("exceljs");
@@ -143,11 +159,42 @@ export async function eksporRekap(
     );
     penerima.getColumn(4).numFmt = "0.00%";
     penerima.getColumn(5).numFmt = "#,##0.############";
-    for (const s of [ws, d, b, penerima]) {
-      s.views = [{ state: "frozen", ySplit: s === ws ? 2 : 1 }];
+    const m = wb.addWorksheet("Pembulatan margin");
+    m.addRow([CATATAN_MARGIN]);
+    m.mergeCells("A1:H1");
+    m.getRow(1).alignment = { wrapText: true };
+    m.getRow(1).height = 32;
+    m.addRow([
+      "Outlet",
+      "Bulan",
+      "Omzet asli",
+      "Laba asli",
+      "Margin hitung (hingga 12 desimal)",
+      "Margin tampilan (2 desimal)",
+      "Hitung balik omzet × margin tampilan",
+      "Selisih hitung balik - laba asli",
+    ]);
+    efek.forEach((r) =>
+      m.addRow([
+        r.outlet,
+        r.periode ? namaBulan(r.periode) : "",
+        r.omzet,
+        r.laba,
+        r.asli === null ? null : r.asli / 100,
+        r.tampilan === null ? null : r.tampilan / 100,
+        r.hitungBalik,
+        r.selisih,
+      ]),
+    );
+    for (const c of [3, 4]) m.getColumn(c).numFmt = "#,##0.############";
+    for (const c of [7, 8]) m.getColumn(c).numFmt = "#,##0.00";
+    m.getColumn(5).numFmt = "0.000000000000%";
+    m.getColumn(6).numFmt = "0.00%";
+    for (const s of [ws, d, b, penerima, m]) {
+      s.views = [{ state: "frozen", ySplit: s === ws || s === m ? 2 : 1 }];
       s.autoFilter = {
-        from: { row: s === ws ? 2 : 1, column: 1 },
-        to: { row: s === ws ? 2 : 1, column: s.columnCount },
+        from: { row: s === ws || s === m ? 2 : 1, column: 1 },
+        to: { row: s === ws || s === m ? 2 : 1, column: s.columnCount },
       };
       s.columns.forEach((c) => {
         c.width = 24;
@@ -207,6 +254,48 @@ export async function eksporRekap(
       styles: { fontSize: 8, cellPadding: 3 },
       rowPageBreak: "avoid",
       margin: { top: 34, bottom: 18 },
+      headStyles: { fillColor: [74, 42, 15] },
+    });
+    doc.addPage();
+    autoTable(doc, {
+      startY: 46,
+      didDrawPage: () => {
+        header("Penjelasan Pembulatan Margin");
+        doc
+          .setFontSize(8)
+          .text(
+            doc.splitTextToSize(
+              CATATAN_MARGIN +
+                " Margin sebelum pembulatan ditampilkan hingga 12 desimal (perkiraan). Selisih = hitung balik - laba asli.",
+              269,
+            ),
+            14,
+            31,
+          );
+      },
+      head: [
+        [
+          "Outlet / bulan",
+          "Omzet asli",
+          "Laba asli",
+          "Margin hitung (rinci)",
+          "Margin tampilan",
+          "Hitung balik",
+          "Selisih tampilan",
+        ],
+      ],
+      body: efek.map((r) => [
+        r.outlet + (r.periode ? " / " + namaBulan(r.periode) : ""),
+        rupiahLaporan(r.omzet),
+        rupiahLaporan(r.laba),
+        marginPresisi(r.asli).replace("≈ ", "~ "),
+        persenLaba(r.tampilan),
+        rupiahEfekMargin(r.hitungBalik),
+        rupiahEfekMargin(r.selisih),
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 3 },
+      rowPageBreak: "avoid",
+      margin: { top: 46, bottom: 18 },
       headStyles: { fillColor: [74, 42, 15] },
     });
     doc.addPage();

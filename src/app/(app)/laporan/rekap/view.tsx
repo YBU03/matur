@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { PenjelasanMargin } from "@/components/penjelasan-margin";
 import { useState, useTransition } from "react";
 import { ChartCard, TrendChart, StatTile } from "@/components/charts";
 import { SERIES } from "@/lib/chart-utils";
@@ -175,7 +176,8 @@ export function RekapLaporan({
       <p className="text-xs text-stone-500">
         Margin = laba bersih ÷ omzet setelah diskon × 100%. Total memakai jumlah
         laba ÷ jumlah omzet, bukan rata-rata persentase. Hak pembagian sesuai
-        laporan periode tersebut; persentase BEP berbeda.
+        laporan periode tersebut; persentase BEP berbeda. Klik angka margin
+        bertanda ⓘ untuk melihat nilai asli dan efek pembulatannya.
       </p>
       {!rows.length ? (
         <p>Belum ada laporan resmi pada pilihan ini.</p>
@@ -307,7 +309,7 @@ export function RekapLaporan({
                           {rp(r.laba)}
                         </td>
                         <td className="p-2 font-semibold">
-                          {persenLaba(r.margin)}
+                          <PenjelasanMargin omzet={r.omzet} laba={r.laba} />
                         </td>
                         <td className="p-2">
                           {rp(r.mitra)}
@@ -360,7 +362,13 @@ export function RekapLaporan({
                     <td className="p-2">Total</td>
                     <td>{rp(total.omzet)}</td>
                     <td>{rp(total.laba)}</td>
-                    <td>{persenLaba(marginLaba(total.laba, total.omzet))}</td>
+                    <td>
+                      <PenjelasanMargin
+                        omzet={total.omzet}
+                        laba={total.laba}
+                        label="Penjelasan margin total"
+                      />
+                    </td>
                     <td>{rp(total.mitra)}</td>
                     <td>{rp(total.pusat)}</td>
                     <td />
