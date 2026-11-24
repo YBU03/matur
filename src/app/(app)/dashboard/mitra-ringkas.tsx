@@ -1,3 +1,4 @@
+import {marginLaba,persenLaba} from "@/lib/laporan-rekap";
 import Image from "next/image";
 import Link from "next/link";
 import { formatRupiah } from "@/lib/format";
@@ -26,6 +27,7 @@ export async function MitraRingkas({ userId, nama }: { userId: string; nama: str
   const persen = invest ? Math.min((akum / invest) * 100, 100) : null;
   return (
     <section className="space-y-3 rounded-2xl border border-matur-200 bg-white p-4">
+      <Link href="/laporan/rekap" className="block font-semibold underline">Rekap bulanan, margin & pembayaran →</Link>
       <div className="flex items-center gap-3">
         <Image src="/brand/outlet.png" alt="" width={48} height={48} className="rounded-xl bg-matur-50" />
         <div className="mr-auto">
@@ -40,8 +42,9 @@ export async function MitraRingkas({ userId, nama }: { userId: string; nama: str
         {[
           ["Penjualan", formatRupiah(h.totalPenjualan)],
           ["Laba bersih outlet", formatRupiah(h.labaBersih)],
-          ["Penerimaan Anda bulan itu", formatRupiah(terimaTerakhir)],
-          ["Total penerimaan Anda", formatRupiah(totalTerima)],
+          ["Margin laba bersih",persenLaba(marginLaba(h.labaBersih,h.totalPenjualan))],
+          ["Hak sesuai laporan bulan itu", formatRupiah(terimaTerakhir)],
+          ["Total alokasi sesuai laporan", formatRupiah(totalTerima)],
         ].map(([k, v]) => (
           <div key={k} className="rounded-xl bg-matur-50 p-3">
             <p className="text-xs text-stone-500">{k}</p>

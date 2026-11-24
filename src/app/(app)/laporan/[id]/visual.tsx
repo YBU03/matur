@@ -4,6 +4,7 @@
 // Warna kategori mengikuti urutan tetap tervalidasi (SERIES); teks selalu memakai tinta netral.
 import { BarList, ChartCard, TrendChart } from "@/components/charts";
 import { SERIES, rupiah } from "@/lib/chart-utils";
+import { marginLaba, persenLaba } from "@/lib/laporan-rekap";
 
 export type Ringkas = { periode: string; label: string; penjualan: number; hpp: number; laba_kotor: number; beban: number; laba_bersih: number };
 export type Visual = {
@@ -48,8 +49,8 @@ export function LaporanVisual({ v }: { v: Visual }) {
   const porsi = (b: { value: number; persen?: number }) => (b.persen !== undefined ? b.persen : pct(b.value, total));
   const kpi = [
     { k: "Total penjualan", now: v.penjualan, prev: v.prev?.penjualan },
-    { k: "Laba kotor", now: v.labaKotor, prev: v.prev?.laba_kotor, sub: `margin ${pct(v.labaKotor, v.penjualan).toString().replace(".", ",")}%` },
-    { k: "Laba bersih", now: v.labaBersih, prev: v.prev?.laba_bersih, sub: `margin ${pct(v.labaBersih, v.penjualan).toString().replace(".", ",")}%` },
+    { k: "Laba kotor", now: v.labaKotor, prev: v.prev?.laba_kotor, sub: `margin ${persenLaba(marginLaba(v.labaKotor, v.penjualan))}` },
+    { k: "Laba bersih", now: v.labaBersih, prev: v.prev?.laba_bersih, sub: `margin ${persenLaba(marginLaba(v.labaBersih, v.penjualan))}` },
     { k: "HPP", now: v.hpp, sub: `${pct(v.hpp, v.penjualan).toString().replace(".", ",")}% dari penjualan` },
   ];
   const tren = v.riwayat.map((r) => ({ label: r.label, penjualan: r.penjualan, laba: r.laba_bersih }));

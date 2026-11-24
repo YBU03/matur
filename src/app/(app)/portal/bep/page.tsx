@@ -1,11 +1,12 @@
+import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ChartCard, TrendChart } from "@/components/charts";
 import { PilihOutlet } from "@/components/pilih-outlet";
 import { SERIES } from "@/lib/chart-utils";
-import { formatRupiah } from "@/lib/format";
+import { rupiahLaporan as formatRupiah } from "@/lib/laporan-rekap";
 import { hitung, LAPORAN_COLS, namaBulan, type Laporan } from "@/lib/laporan";
-import { penerimaanMitra } from "@/lib/penerimaan-mitra";
+import { penerimaUnik } from "@/lib/penerimaan-mitra";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -27,10 +28,10 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
   let akum = 0;
   const tren = list.map((l) => {
     akum += hitung(l).labaBersih;
-    return { label: namaBulan(l.periode), laba: hitung(l).labaBersih, akumulasi: akum };
+    return { label: namaBulan(l.periode), laba: hitung(l).labaBersih, akumulasi: akum, investasi };
   });
   const rata = list.length ? akum / list.length : 0;
-  const persen = investasi ? Math.min((akum / investasi) * 100, 100) : 0;
+  const persen = investasi ? (akum / investasi) * 100 : 0;
   const sisa = Math.max(investasi - akum, 0);
   const bulanLagi = rata > 0 ? Math.ceil(sisa / rata) : null;
 
@@ -43,7 +44,7 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
   } else {
     namaPenerima = [...new Set([...p.map((j) => j.mitra?.nama ?? ""), ...list.flatMap((l) => l.bagi_hasil.filter((b) => !/pengelola/i.test(b.nama)).map((b) => b.nama.replace(/^(ibu|bapak)\s+/i, "")))].filter(Boolean))];
   }
-  const penerima = namaPenerima.map((n) => ({ nama: n, data: penerimaanMitra(list, n) })).filter((x) => x.data.length);
+  const penerima = penerimaUnik(list,namaPenerima);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -61,11 +62,11 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
             <div className="min-w-48 flex-1">
               <p className="font-bold">{p[0].outlet?.nama}</p>
               <p className="text-xs text-stone-500">Mitra: {p.map((j) => j.mitra?.nama).filter(Boolean).join(", ")}</p>
-              <div className="mt-2 h-4 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`BEP ${persen.toFixed(1)}%`}>
-                <div className="h-full rounded-full" style={{ width: `${persen}%`, background: SERIES[2] }} />
+              <div className="mt-2 h-4 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`BEP ${persen.toFixed(2)}%`}>
+                <div className="h-full rounded-full" style={{ width: `${Math.max(0,Math.min(persen,100))}%`, background: SERIES[2] }} />
               </div>
               <p className="mt-1 text-sm">
-                <b>{persen.toFixed(1).replace(".", ",")}%</b> kembali · {formatRupiah(akum)} dari {formatRupiah(investasi)}
+                <b>{persen.toFixed(2).replace(".", ",")}%</b> tercapai dari laba outlet · {formatRupiah(akum)} dari {formatRupiah(investasi)}
               </p>
             </div>
           </section>
@@ -73,7 +74,7 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
             {[
               ["Investasi awal", formatRupiah(investasi)],
               ["Akumulasi laba", formatRupiah(akum)],
-              ["Rata-rata / bulan", formatRupiah(Math.round(rata))],
+              ["Rata-rata / bulan", formatRupiah(rata)],
               ["Perkiraan BEP", sisa === 0 ? "Sudah BEP 🎉" : bulanLagi ? `± ${bulanLagi} bulan lagi` : "-"],
             ].map(([k, v]) => (
               <div key={k} className="rounded-2xl border border-matur-200 bg-white p-3">
@@ -83,14 +84,15 @@ export default async function Bep({ searchParams }: { searchParams: Promise<{ ou
             ))}
           </section>
           {tren.length > 0 && (
-            <ChartCard title="Akumulasi laba bersih" sub="Naik setiap bulan menuju nilai investasi" rows={tren} cols={[{ key: "label", label: "Bulan" }, { key: "laba", label: "Laba bulan itu", money: true }, { key: "akumulasi", label: "Akumulasi", money: true }]}>
-              <TrendChart data={tren} series={[{ key: "akumulasi", name: "Akumulasi", color: SERIES[2] }, { key: "laba", name: "Laba bulan itu", color: SERIES[0] }]} />
+            <ChartCard title="Akumulasi laba bersih" sub="Laba tiap bulan dapat naik atau turun; garis investasi menjadi pembanding" rows={tren} cols={[{ key: "label", label: "Bulan" }, { key: "laba", label: "Laba bulan itu", money: true }, { key: "akumulasi", label: "Akumulasi", money: true }]}>
+              <TrendChart data={tren} series={[{ key: "akumulasi", name: "Akumulasi", color: SERIES[2] }, { key: "investasi", name: "Investasi awal", color: SERIES[1] }]} />
             </ChartCard>
           )}
+          <div className="rounded-2xl border bg-white p-4"><h2 className="font-bold">Posisi terhadap investasi</h2><p className="text-sm">{formatRupiah(Math.min(Math.max(akum,0),investasi))} tertutup oleh laba · {formatRupiah(sisa)} tersisa{akum>investasi?` · surplus laba ${formatRupiah(akum-investasi)}`:''}</p><div className="mt-3 flex h-6 overflow-hidden rounded-full bg-stone-200"><div className="bg-emerald-600" style={{width:`${Math.max(0,Math.min(persen,100))}%`}}/></div><p className="mt-2 text-xs text-stone-500">BEP ini memakai laba outlet, bukan jumlah uang yang ditransfer kepada Mitra.</p><Link href={`/laporan/rekap?outlet=${pilih}`} className="mt-3 inline-block font-semibold underline">Rekap bulanan, margin & pembayaran →</Link></div>
           {penerima.length > 0 && (
             <section className="rounded-2xl border border-matur-200 bg-white p-4">
-              <h2 className="font-bold">{s.active.role === "mitra" ? "Penerimaan Anda" : "Penerimaan mitra & investor"}</h2>
-              <p className="mb-2 text-xs text-stone-500">Bagi hasil dan sewa yang ditransfer sesuai laporan bulanan terbit.</p>
+              <h2 className="font-bold">{s.active.role === "mitra" ? "Hak sesuai laporan Anda" : "Alokasi mitra & investor sesuai laporan"}</h2>
+              <p className="mb-2 text-xs text-stone-500">Bagi hasil dan sewa sesuai laporan terbit, bukan konfirmasi pembayaran aktual.</p>
               <div className="space-y-3">
                 {penerima.map((x) => {
                   const tot = x.data.reduce((t, d) => t + d.total, 0);

@@ -107,15 +107,15 @@ function Tip({ active, payload, label, money = true, unit = "" }: { active?: boo
 }
 
 /** Tren omzet: satu garis per outlet. */
-export function TrendChart({ data, series }: { data: Record<string, string | number>[]; series: { key: string; name: string; color: string }[] }) {
+export function TrendChart({ data, series, money=true, unit="" }: { money?:boolean;unit?:string;data: Record<string, string | number | null>[]; series: { key: string; name: string; color: string }[] }) {
   return (
     <div className="h-64">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: INK2 }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
-          <YAxis tickFormatter={ringkas} tick={{ fontSize: 11, fill: INK2 }} tickLine={false} axisLine={false} width={60} />
-          <Tooltip content={<Tip />} cursor={{ stroke: "#a8a29e", strokeDasharray: "3 3" }} />
+          <YAxis tickFormatter={money?ringkas:(v)=>`${angka(Number(v))}${unit}`}  tick={{ fontSize: 11, fill: INK2 }} tickLine={false} axisLine={false} width={60} />
+          <Tooltip content={<Tip money={money} unit={unit}/>} cursor={{ stroke: "#a8a29e", strokeDasharray: "3 3" }} />
           {series.length > 1 && <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />}
           {series.map((s) => (
             <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />

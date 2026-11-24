@@ -63,7 +63,7 @@ export default async function DaftarLaporan({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-2xl font-bold">Laporan Keuangan</h1>
+        <h1 className="mr-auto text-2xl font-bold">Laporan Keuangan</h1><Link href="/laporan/rekap" className="rounded-xl border px-4 py-2 font-semibold">Rekap bulanan & margin %</Link>
         {["owner", "admin_pusat", "finance"].includes(s.active.role) &&
           pilih && (
             <ImporRuma

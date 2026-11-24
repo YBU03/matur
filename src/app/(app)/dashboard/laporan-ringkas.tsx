@@ -72,7 +72,7 @@ export async function LaporanRingkas({ outlets, outletId, dari, sampai }: { outl
   const terakhir = list[list.length - 1];
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4"><Link href="/laporan/rekap" className="font-semibold underline">Rekap bulanan, margin, pembagian & pembayaran →</Link>
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="mr-auto text-lg font-bold">Kinerja outlet dari laporan keuangan</h2>
         <p className="text-xs text-stone-500">

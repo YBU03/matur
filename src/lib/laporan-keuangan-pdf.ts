@@ -132,7 +132,7 @@ export async function buatLaporanKeuanganPdf({
     delta(v.labaBersih, v.prev?.laba_bersih),
   );
   const persen = (x: number) =>
-    v.penjualan ? ((x / v.penjualan) * 100).toFixed(1).replace(".", ",") : "0";
+    v.penjualan ? ((x / v.penjualan) * 100).toFixed(2).replace(".", ",") : "0";
   kpi(
     doc,
     14 + 3 * (kw + 3),
