@@ -121,3 +121,5 @@ Koreksi template Oktober & BEP per outlet 24 November: semua laporan termasuk im
 Semua jalur Oktober & kembali 24 November: proyeksi sumber juga memakai LaporanDokumen; toolbar kembali sticky sebelum panel pembayaran, Versi resmi navigasi dokumen penuh, opsi PDF lampiran dihapus. Baca docs/laporan-oktober-semua-jalur-2026-11-24.md.
 
 Penjelasan margin 24 November: klik margin ⓘ pada rekap untuk diagnosis pembulatan, PDF/Excel rekap menyertakan rinciannya. Hanya tampilan, bukan perubahan laba/jurnal. Baca docs/penjelasan-margin-2026-11-24.md.
+
+Telusuri selisih & modal Rp0 24 November: diagnosis dari shift dan ringkasan harian, revisi aktual inline/riwayat, rentang koreksi penjualan mengikuti aktivitas shift, pilihan Tanpa modal di POS. Baca docs/telusuri-selisih-kas-2026-11-24.md. Koreksi khusus UHB 22 November terdokumentasi; jangan menolkan selisih tanpa membetulkan sumber.

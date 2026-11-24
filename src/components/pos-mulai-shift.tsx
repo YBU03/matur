@@ -9,7 +9,13 @@ import { formatRupiah as rp } from "@/lib/format";
 // Layar mulai shift bertahap (tablet): Pilih petugas → PIN outlet (langsung dicek) → Modal awal → Mulai shift.
 // Kas sudah berjalan (perangkat baru / login ulang): cukup PIN untuk melanjutkan.
 
-export function FotoPetugas({ p, besar = false }: { p: { nama: string; foto_url?: string }; besar?: boolean }) {
+export function FotoPetugas({
+  p,
+  besar = false,
+}: {
+  p: { nama: string; foto_url?: string };
+  besar?: boolean;
+}) {
   const [gagal, setGagal] = useState(false);
   const ukuran = besar ? "size-24" : "size-20";
   return (
@@ -26,7 +32,15 @@ export function FotoPetugas({ p, besar = false }: { p: { nama: string; foto_url?
 }
 
 /** Kartu petugas: foto bulat besar, cincin + centang saat dipilih, badge terjadwal/pengganti. */
-export function KartuPetugas({ p, aktif, onPilih }: { p: PilihanShift; aktif: boolean; onPilih: () => void }) {
+export function KartuPetugas({
+  p,
+  aktif,
+  onPilih,
+}: {
+  p: PilihanShift;
+  aktif: boolean;
+  onPilih: () => void;
+}) {
   return (
     <button
       type="button"
@@ -34,23 +48,38 @@ export function KartuPetugas({ p, aktif, onPilih }: { p: PilihanShift; aktif: bo
       onClick={onPilih}
       className={`group relative flex flex-col items-center gap-2 rounded-3xl border-2 bg-white p-4 text-center shadow-sm transition active:scale-[.97] ${aktif ? "border-matur-500 bg-matur-50 shadow-md" : "border-transparent hover:border-matur-200"}`}
     >
-      <span className={`relative rounded-full p-1 ${aktif ? "bg-gradient-to-br from-matur-400 to-orange-600" : "bg-stone-100 group-hover:bg-matur-100"}`}>
+      <span
+        className={`relative rounded-full p-1 ${aktif ? "bg-gradient-to-br from-matur-400 to-orange-600" : "bg-stone-100 group-hover:bg-matur-100"}`}
+      >
         <FotoPetugas p={p} besar />
         {aktif && (
-          <span className="absolute -bottom-1 -right-1 grid size-8 place-items-center rounded-full bg-emerald-500 text-base font-black text-white ring-4 ring-white" aria-hidden>
+          <span
+            className="absolute -bottom-1 -right-1 grid size-8 place-items-center rounded-full bg-emerald-500 text-base font-black text-white ring-4 ring-white"
+            aria-hidden
+          >
             ✓
           </span>
         )}
       </span>
-      <span className="block text-base font-extrabold text-kopi-900">{p.nama}</span>
-      <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold ${p.terjadwal ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+      <span className="block text-base font-extrabold text-kopi-900">
+        {p.nama}
+      </span>
+      <span
+        className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold ${p.terjadwal ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+      >
         {p.terjadwal ? p.label : "Pengganti"}
       </span>
     </button>
   );
 }
 
-export function Langkah({ aktif, daftar }: { aktif: number; daftar: string[] }) {
+export function Langkah({
+  aktif,
+  daftar,
+}: {
+  aktif: number;
+  daftar: string[];
+}) {
   return (
     <ol className="flex items-center justify-center gap-2" aria-label="Langkah">
       {daftar.map((l, i) => (
@@ -61,42 +90,86 @@ export function Langkah({ aktif, daftar }: { aktif: number; daftar: string[] }) 
           >
             {i < aktif ? "✓" : i + 1}
           </span>
-          <span className={`hidden text-sm font-semibold sm:inline ${i === aktif ? "text-kopi-900" : "text-stone-400"}`}>{l}</span>
-          {i < daftar.length - 1 && <span className={`h-0.5 w-6 rounded sm:w-10 ${i < aktif ? "bg-emerald-400" : "bg-stone-200"}`} aria-hidden />}
+          <span
+            className={`hidden text-sm font-semibold sm:inline ${i === aktif ? "text-kopi-900" : "text-stone-400"}`}
+          >
+            {l}
+          </span>
+          {i < daftar.length - 1 && (
+            <span
+              className={`h-0.5 w-6 rounded sm:w-10 ${i < aktif ? "bg-emerald-400" : "bg-stone-200"}`}
+              aria-hidden
+            />
+          )}
         </li>
       ))}
     </ol>
   );
 }
 
-const tombolAngka = "grid h-16 place-items-center rounded-2xl bg-white text-2xl font-extrabold text-kopi-900 shadow-sm ring-1 ring-stone-200 transition active:scale-95 active:bg-matur-50 disabled:opacity-40";
+const tombolAngka =
+  "grid h-16 place-items-center rounded-2xl bg-white text-2xl font-extrabold text-kopi-900 shadow-sm ring-1 ring-stone-200 transition active:scale-95 active:bg-matur-50 disabled:opacity-40";
 
-export function PapanAngka({ onAngka, onHapus, kiriBawah }: { onAngka: (d: string) => void; onHapus: () => void; kiriBawah?: { label: string; aksi: () => void } }) {
+export function PapanAngka({
+  onAngka,
+  onHapus,
+  kiriBawah,
+}: {
+  onAngka: (d: string) => void;
+  onHapus: () => void;
+  kiriBawah?: { label: string; aksi: () => void };
+}) {
   return (
     <div className="mx-auto grid max-w-xs grid-cols-3 gap-3">
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-        <button key={d} type="button" className={tombolAngka} onClick={() => onAngka(d)}>
+        <button
+          key={d}
+          type="button"
+          className={tombolAngka}
+          onClick={() => onAngka(d)}
+        >
           {d}
         </button>
       ))}
       {kiriBawah ? (
-        <button type="button" className={`${tombolAngka} !text-lg`} onClick={kiriBawah.aksi}>
+        <button
+          type="button"
+          className={`${tombolAngka} !text-lg`}
+          onClick={kiriBawah.aksi}
+        >
           {kiriBawah.label}
         </button>
       ) : (
         <span />
       )}
-      <button type="button" className={tombolAngka} onClick={() => onAngka("0")}>
+      <button
+        type="button"
+        className={tombolAngka}
+        onClick={() => onAngka("0")}
+      >
         0
       </button>
-      <button type="button" className={`${tombolAngka} !text-xl`} onClick={onHapus} aria-label="Hapus">
+      <button
+        type="button"
+        className={`${tombolAngka} !text-xl`}
+        onClick={onHapus}
+        aria-label="Hapus"
+      >
         ⌫
       </button>
     </div>
   );
 }
 
-export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: PilihanShift[]; outlet: string; sesiBerjalan?: ShiftBaru | null }) {
+export function PosMulaiShift({
+  pilihan,
+  outlet,
+  sesiBerjalan,
+}: {
+  pilihan: PilihanShift[];
+  outlet: string;
+  sesiBerjalan?: ShiftBaru | null;
+}) {
   const router = useRouter();
   const lanjut = !!sesiBerjalan;
   const daftar = lanjut ? ["PIN outlet"] : ["Petugas", "PIN", "Modal", "Mulai"];
@@ -123,10 +196,16 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
 
   const cekPin = () =>
     start(async () => {
-      if (!navigator.onLine) return setPesan("Hubungkan internet untuk memulai shift.");
+      if (!navigator.onLine)
+        return setPesan("Hubungkan internet untuk memulai shift.");
       try {
         if (lanjut) {
-          const r = await prosesAlurShift({ request_id: (request.current ??= crypto.randomUUID()), aksi: "lanjut", shift_id: sesiBerjalan!.id, pin });
+          const r = await prosesAlurShift({
+            request_id: (request.current ??= crypto.randomUUID()),
+            aksi: "lanjut",
+            shift_id: sesiBerjalan!.id,
+            pin,
+          });
           if (r.error) return salah(r.error);
           request.current = null;
           router.refresh();
@@ -142,7 +221,8 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
 
   const mulai = () =>
     start(async () => {
-      if (!navigator.onLine) return setPesan("Hubungkan internet untuk memulai shift.");
+      if (!navigator.onLine)
+        return setPesan("Hubungkan internet untuk memulai shift.");
       try {
         const r = await prosesAlurShift({
           request_id: (request.current ??= crypto.randomUUID()),
@@ -165,21 +245,32 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
         request.current = null;
         router.refresh();
       } catch {
-        setPesan("Belum ada konfirmasi server. Coba tekan Mulai shift lagi — tidak akan tercatat ganda.");
+        setPesan(
+          "Belum ada konfirmasi server. Coba tekan Mulai shift lagi — tidak akan tercatat ganda.",
+        );
       }
     });
 
   const judul = lanjut
     ? "Lanjutkan shift berjalan"
-    : ["Siapa yang bertugas?", "Masukkan PIN outlet", "Modal awal laci", "Siap mulai shift"][langkah];
+    : [
+        "Siapa yang bertugas?",
+        "Masukkan PIN outlet",
+        "Modal awal laci",
+        "Siap mulai shift",
+      ][langkah];
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] items-start justify-center bg-gradient-to-b from-matur-50 to-orange-50/60 px-3 py-6 sm:items-center">
       <section className="pos-muncul w-full max-w-3xl rounded-[2rem] bg-white/90 p-5 shadow-[0_24px_60px_rgba(58,31,11,0.12)] backdrop-blur sm:p-8">
         <div className="mb-6 space-y-4 text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-matur-600">🏪 {outlet}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-matur-600">
+            🏪 {outlet}
+          </p>
           {daftar.length > 1 && <Langkah aktif={langkah} daftar={daftar} />}
-          <h1 className="text-2xl font-extrabold text-kopi-900 sm:text-3xl">{judul}</h1>
+          <h1 className="text-2xl font-extrabold text-kopi-900 sm:text-3xl">
+            {judul}
+          </h1>
         </div>
 
         {/* 1. Pilih petugas */}
@@ -200,7 +291,10 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
                 ))}
               </div>
             ) : (
-              <p className="rounded-2xl bg-amber-50 p-4 text-center text-sm text-amber-900">Belum ada staf aktif di outlet ini. Minta HRD menambahkan penugasan staf.</p>
+              <p className="rounded-2xl bg-amber-50 p-4 text-center text-sm text-amber-900">
+                Belum ada staf aktif di outlet ini. Minta HRD menambahkan
+                penugasan staf.
+              </p>
             )}
             {pic && !pic.terjadwal && (
               <div className="space-y-3 rounded-2xl bg-amber-50 p-4">
@@ -233,16 +327,37 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
             <div className="flex items-center justify-center gap-3">
               <FotoPetugas p={lanjut ? { nama: sesiBerjalan!.nama } : pic!} />
               <div className="text-left">
-                <p className="text-lg font-extrabold text-kopi-900">{lanjut ? sesiBerjalan!.nama : pic!.nama}</p>
-                <p className="text-sm text-stone-500">{lanjut ? `Shift berjalan · kas awal ${rp(sesiBerjalan!.awal)}` : pic!.terjadwal ? pic!.label : "Pengganti"}</p>
+                <p className="text-lg font-extrabold text-kopi-900">
+                  {lanjut ? sesiBerjalan!.nama : pic!.nama}
+                </p>
+                <p className="text-sm text-stone-500">
+                  {lanjut
+                    ? `Shift berjalan · kas awal ${rp(sesiBerjalan!.awal)}`
+                    : pic!.terjadwal
+                      ? pic!.label
+                      : "Pengganti"}
+                </p>
               </div>
             </div>
-            <div className={`flex justify-center gap-3 ${goyang ? "animate-[pin-salah_.4s]" : ""}`} aria-label={`${pin.length} angka PIN diisi`}>
+            <div
+              className={`flex justify-center gap-3 ${goyang ? "animate-[pin-salah_.4s]" : ""}`}
+              aria-label={`${pin.length} angka PIN diisi`}
+            >
               {Array.from({ length: 6 }, (_, i) => (
-                <span key={i} className={`size-4 rounded-full transition ${i < pin.length ? "scale-110 bg-kopi-900" : "bg-stone-200"} ${i >= 4 && i >= pin.length ? "opacity-40" : ""}`} />
+                <span
+                  key={i}
+                  className={`size-4 rounded-full transition ${i < pin.length ? "scale-110 bg-kopi-900" : "bg-stone-200"} ${i >= 4 && i >= pin.length ? "opacity-40" : ""}`}
+                />
               ))}
             </div>
-            <PapanAngka onAngka={(d) => { setPesan(""); if (pin.length < 6) setPin(pin + d); }} onHapus={() => setPin(pin.slice(0, -1))} kiriBawah={lanjut ? undefined : { label: "←", aksi: () => ke(0) }} />
+            <PapanAngka
+              onAngka={(d) => {
+                setPesan("");
+                if (pin.length < 6) setPin(pin + d);
+              }}
+              onHapus={() => setPin(pin.slice(0, -1))}
+              kiriBawah={lanjut ? undefined : { label: "←", aksi: () => ke(0) }}
+            />
             <button
               type="button"
               disabled={busy || pin.length < 4}
@@ -258,27 +373,53 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
         {!lanjut && langkah === 2 && (
           <div className="space-y-5">
             <div className="rounded-3xl bg-gradient-to-br from-kopi-900 to-kopi-700 p-5 text-center text-white">
-              <p className="text-xs font-bold uppercase tracking-widest text-white/70">Uang di laci saat mulai</p>
-              <p className="mt-1 text-4xl font-black tabular-nums">{rp(Number(modal || 0))}</p>
-              <p className="mt-1 text-xs text-white/70">Dicatat sekali untuk hari ini</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-white/70">
+                Uang di laci saat mulai
+              </p>
+              <p className="mt-1 text-4xl font-black tabular-nums">
+                {rp(Number(modal || 0))}
+              </p>
+              <p className="mt-1 text-xs text-white/70">
+                Tanpa uang awal? Pilih Tanpa modal. Nilainya ikut tercatat di
+                Akunting.
+              </p>
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-              {[100000, 200000, 300000, 500000].map((n) => (
-                <button key={n} type="button" onClick={() => setModal(String(n))} className={`rounded-full px-4 py-2 text-sm font-bold ring-1 transition active:scale-95 ${Number(modal) === n ? "bg-matur-500 text-white ring-matur-500" : "bg-white text-kopi-900 ring-matur-200"}`}>
-                  {rp(n)}
+              {[0, 100000, 200000, 300000, 500000].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setModal(String(n))}
+                  className={`rounded-full px-4 py-2 text-sm font-bold ring-1 transition active:scale-95 ${Number(modal) === n ? "bg-matur-500 text-white ring-matur-500" : "bg-white text-kopi-900 ring-matur-200"}`}
+                >
+                  {n === 0 ? "Tanpa modal · Rp0" : rp(n)}
                 </button>
               ))}
             </div>
             <PapanAngka
-              onAngka={(d) => modal.length < 10 && setModal((modal === "0" ? "" : modal) + d)}
+              onAngka={(d) =>
+                modal.length < 10 && setModal((modal === "0" ? "" : modal) + d)
+              }
               onHapus={() => setModal(modal.slice(0, -1))}
-              kiriBawah={{ label: "000", aksi: () => modal && modal.length < 8 && setModal(modal + "000") }}
+              kiriBawah={{
+                label: "000",
+                aksi: () =>
+                  modal && modal.length < 8 && setModal(modal + "000"),
+              }}
             />
             <div className="mx-auto flex max-w-xs gap-2">
-              <button type="button" onClick={() => ke(1)} className="rounded-2xl border border-stone-200 px-5 py-4 font-bold text-stone-700">
+              <button
+                type="button"
+                onClick={() => ke(1)}
+                className="rounded-2xl border border-stone-200 px-5 py-4 font-bold text-stone-700"
+              >
                 ←
               </button>
-              <button type="button" onClick={() => ke(3)} className="flex-1 rounded-2xl bg-kopi-900 py-4 text-lg font-extrabold text-white">
+              <button
+                type="button"
+                onClick={() => ke(3)}
+                className="flex-1 rounded-2xl bg-kopi-900 py-4 text-lg font-extrabold text-white"
+              >
                 Lanjut →
               </button>
             </div>
@@ -293,13 +434,19 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
                 <FotoPetugas p={pic} besar />
               </span>
               <div>
-                <p className="text-xl font-extrabold text-kopi-900">{pic.nama}</p>
-                <p className="text-sm text-stone-500">{pic.terjadwal ? pic.label : `Pengganti · ${alasan}`}</p>
+                <p className="text-xl font-extrabold text-kopi-900">
+                  {pic.nama}
+                </p>
+                <p className="text-sm text-stone-500">
+                  {pic.terjadwal ? pic.label : `Pengganti · ${alasan}`}
+                </p>
               </div>
               <dl className="grid w-full grid-cols-2 gap-2 text-left text-sm">
                 <div className="rounded-2xl bg-white p-3">
                   <dt className="text-xs text-stone-500">Modal awal</dt>
-                  <dd className="font-extrabold tabular-nums text-kopi-900">{rp(Number(modal || 0))}</dd>
+                  <dd className="font-extrabold tabular-nums text-kopi-900">
+                    {rp(Number(modal || 0))}
+                  </dd>
                 </div>
                 <div className="rounded-2xl bg-white p-3">
                   <dt className="text-xs text-stone-500">PIN outlet</dt>
@@ -308,7 +455,12 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
               </dl>
             </div>
             <div className="mx-auto flex max-w-md gap-2">
-              <button type="button" disabled={busy} onClick={() => ke(2)} className="rounded-2xl border border-stone-200 px-5 py-4 font-bold text-stone-700">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => ke(2)}
+                className="rounded-2xl border border-stone-200 px-5 py-4 font-bold text-stone-700"
+              >
                 ←
               </button>
               <button
@@ -324,7 +476,10 @@ export function PosMulaiShift({ pilihan, outlet, sesiBerjalan }: { pilihan: Pili
         )}
 
         {pesan && (
-          <p role="alert" className="mx-auto mt-5 max-w-md rounded-2xl bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-700">
+          <p
+            role="alert"
+            className="mx-auto mt-5 max-w-md rounded-2xl bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-700"
+          >
             {pesan}
           </p>
         )}
