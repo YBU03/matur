@@ -3,30 +3,60 @@ import { Kosong } from "@/components/ui-halaman";
 import { getSession } from "@/lib/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { OmzetHariIni } from "@/components/kartu-omzet";
-import { PantauView, selisihHari, tambah, tglRe, type Detail, type Ringkas } from "./view";
+import {
+  PantauView,
+  selisihHari,
+  tambah,
+  tglRe,
+  type Detail,
+  type Ringkas,
+} from "./view";
 
 // Pemantau POS: satu halaman omzet harian, tren, menu terlaris, jam ramai/sepi. Data hanya lewat RPC pantau_pos*.
 
-export default async function PantauPos({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function PantauPos({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const s = await getSession();
-  if (s?.active?.role !== "pemantau_pos" && s?.active?.role !== "owner") notFound();
+  if (!["pemantau_pos", "owner", "marketing"].includes(s?.active?.role ?? ""))
+    notFound();
   const sp = await searchParams;
   const supabase = await supabaseServer();
 
-  const { data: awal, error } = await supabase.rpc("pantau_pos_periode", { p_outlet: null });
+  const { data: awal, error } = await supabase.rpc("pantau_pos_periode", {
+    p_outlet: null,
+  });
   if (error || !awal) {
-    return <Kosong ikon="🔒" judul="Data POS tidak bisa dimuat">{error?.message ?? "Coba muat ulang halaman."}</Kosong>;
+    return (
+      <Kosong ikon="🔒" judul="Data POS tidak bisa dimuat">
+        {error?.message ?? "Coba muat ulang halaman."}
+      </Kosong>
+    );
   }
   const outlets = (awal as Ringkas).outlet;
-  const outletId = outlets.length === 1 ? outlets[0].id : outlets.some((o) => o.id === sp.outlet) ? sp.outlet! : null;
-  const ringkas = outletId ? ((await supabase.rpc("pantau_pos_periode", { p_outlet: outletId })).data as Ringkas | null) ?? (awal as Ringkas) : (awal as Ringkas);
+  const outletId =
+    outlets.length === 1
+      ? outlets[0].id
+      : outlets.some((o) => o.id === sp.outlet)
+        ? sp.outlet!
+        : null;
+  const ringkas = outletId
+    ? (((await supabase.rpc("pantau_pos_periode", { p_outlet: outletId }))
+        .data as Ringkas | null) ?? (awal as Ringkas))
+    : (awal as Ringkas);
   const hariIni = ringkas.hari_ini;
 
   // rentang detail: pilihan cepat atau kustom (maks. 400 hari)
   const rentang = sp.rentang ?? (tglRe.test(sp.dari ?? "") ? "kustom" : "30");
   let dari: string;
   let sampai = hariIni;
-  if (rentang === "kustom" && tglRe.test(sp.dari ?? "") && tglRe.test(sp.sampai ?? "")) {
+  if (
+    rentang === "kustom" &&
+    tglRe.test(sp.dari ?? "") &&
+    tglRe.test(sp.sampai ?? "")
+  ) {
     [dari, sampai] = [sp.dari!, sp.sampai!].sort();
     if (sampai > hariIni) sampai = hariIni;
     if (dari > sampai) dari = sampai;
@@ -36,22 +66,64 @@ export default async function PantauPos({ searchParams }: { searchParams: Promis
   else if (rentang === "bulan") dari = hariIni.slice(0, 8) + "01";
   else dari = tambah(hariIni, -29);
 
-  const kosong: Detail = { kpi: { omzet: 0, trx: 0, diskon: 0, void: 0 }, harian: [], kanal: [], jam: [], menu: [], outlet: [] };
+  const kosong: Detail = {
+    kpi: { omzet: 0, trx: 0, diskon: 0, void: 0 },
+    harian: [],
+    kanal: [],
+    jam: [],
+    menu: [],
+    outlet: [],
+  };
   const kemarin = tambah(hariIni, -1);
-  const [{ data: det }, { data: hIni }, { data: hKemarin }] = await Promise.all([
-    supabase.rpc("pantau_pos", { p_outlet: outletId, p_dari: dari, p_sampai: sampai }),
-    supabase.rpc("pantau_pos", { p_outlet: outletId, p_dari: hariIni, p_sampai: hariIni }),
-    supabase.rpc("pantau_pos", { p_outlet: outletId, p_dari: kemarin, p_sampai: kemarin }),
-  ]);
+  const [{ data: det }, { data: hIni }, { data: hKemarin }] = await Promise.all(
+    [
+      supabase.rpc("pantau_pos", {
+        p_outlet: outletId,
+        p_dari: dari,
+        p_sampai: sampai,
+      }),
+      supabase.rpc("pantau_pos", {
+        p_outlet: outletId,
+        p_dari: hariIni,
+        p_sampai: hariIni,
+      }),
+      supabase.rpc("pantau_pos", {
+        p_outlet: outletId,
+        p_dari: kemarin,
+        p_sampai: kemarin,
+      }),
+    ],
+  );
   const d = (det as Detail | null) ?? kosong;
-  return <PantauView ringkas={ringkas} d={d} kartu={kartuHariIni(hariIni, (hIni as Detail | null) ?? kosong, (hKemarin as Detail | null) ?? kosong)} outlets={outlets} outletId={outletId} rentang={rentang} dari={dari} sampai={sampai} hariIni={hariIni} />;
+  return (
+    <PantauView
+      ringkas={ringkas}
+      d={d}
+      kartu={kartuHariIni(
+        hariIni,
+        (hIni as Detail | null) ?? kosong,
+        (hKemarin as Detail | null) ?? kosong,
+      )}
+      outlets={outlets}
+      outletId={outletId}
+      rentang={rentang}
+      dari={dari}
+      sampai={sampai}
+      hariIni={hariIni}
+    />
+  );
 }
 
 /** Kartu omzet hari ini dari RPC pantau_pos (Pemantau tidak membaca tabel transaksi langsung).
  *  Pembanding "kemarin di jam yang sama": jam-jam penuh sebelum jam sekarang + porsi menit jam berjalan. */
 function kartuHariIni(hari: string, ini: Detail, kmrn: Detail): OmzetHariIni {
   const sekarang = new Date();
-  const [j, m] = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+  const [j, m] = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  })
     .format(sekarang)
     .split(":")
     .map(Number);
@@ -63,8 +135,12 @@ function kartuHariIni(hari: string, ini: Detail, kmrn: Detail): OmzetHariIni {
     omzet: Number(ini.kpi.omzet),
     trx: Number(ini.kpi.trx),
     terakhir: null,
-    kemarin_omzet: Math.round(jamKmrn.reduce((t, x) => t + Number(x.omzet) * porsi(x), 0)),
-    kemarin_trx: Math.round(jamKmrn.reduce((t, x) => t + Number(x.trx) * porsi(x), 0)),
+    kemarin_omzet: Math.round(
+      jamKmrn.reduce((t, x) => t + Number(x.omzet) * porsi(x), 0),
+    ),
+    kemarin_trx: Math.round(
+      jamKmrn.reduce((t, x) => t + Number(x.trx) * porsi(x), 0),
+    ),
     outlet: ini.outlet.map((o) => ({ ...o, omzet: Number(o.omzet) })),
     jam: ini.jam.map((x) => ({ jam: x.jam, trx: Number(x.trx) })),
   };

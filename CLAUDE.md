@@ -123,3 +123,5 @@ Semua jalur Oktober & kembali 24 November: proyeksi sumber juga memakai LaporanD
 Penjelasan margin 24 November: klik margin ⓘ pada rekap untuk diagnosis pembulatan, PDF/Excel rekap menyertakan rinciannya. Hanya tampilan, bukan perubahan laba/jurnal. Baca docs/penjelasan-margin-2026-11-24.md.
 
 Telusuri selisih & modal Rp0 24 November: diagnosis dari shift dan ringkasan harian, revisi aktual inline/riwayat, rentang koreksi penjualan mengikuti aktivitas shift, pilihan Tanpa modal di POS. Baca docs/telusuri-selisih-kas-2026-11-24.md. Koreksi khusus UHB 22 November terdokumentasi; jangan menolkan selisih tanpa membetulkan sumber.
+
+Marketing Matoer 25 November: role `marketing` global dengan `/pantau-pos`, `/promo`, `/marketing/shift` hari ini (hanya jadwal terbit/nama/jabatan/jam). Tidak membuka HPP/keuangan atau mengubah Tamu Matur. Katalog/jadwal melalui RPC invoker + implementasi privat; master biaya mentah ditutup untuk Marketing-only. Baca docs/marketing-matoer-2026-11-25.md.

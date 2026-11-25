@@ -12,9 +12,15 @@ export default async function PromoPage({
   const s = await getSession();
   if (
     !s?.active ||
-    !["owner", "admin_pusat", "admin_gudang", "hrd", "spv", "finance"].includes(
-      s.active.role,
-    )
+    ![
+      "owner",
+      "admin_pusat",
+      "admin_gudang",
+      "hrd",
+      "spv",
+      "finance",
+      "marketing",
+    ].includes(s.active.role)
   )
     notFound();
   const sp = await searchParams;
@@ -26,25 +32,51 @@ export default async function PromoPage({
   const o = s.active.role === "spv" ? s.active.outletId : sp.outlet || null;
   if (s.active.role === "spv" && !o) notFound();
   const db = await supabaseServer();
-  const [promos, outlets, menus, variants, report, kategori, kuota] = await Promise.all([
-    db.rpc("daftar_promo", { o, manajemen: true }),
-    db.from("outlet").select("id,nama").is("deleted_at", null).order("nama"),
-    db
-      .from("menu")
-      .select("id,nama,kemasan,harga_langsung,harga_ojol,kategori_id")
-      .eq("aktif", true)
-      .eq("mode", "asli")
-      .is("deleted_at", null)
-      .order("nama"),
-    db
-      .from("varian")
-      .select("id,nama,grup,menu_id")
-      .is("deleted_at", null)
-      .order("nama"),
-    db.rpc("laporan_promo", { o, d: dari, s: sampai }),
-    db.from("kategori_menu").select("id,nama").eq("mode", "asli").is("deleted_at", null).order("urutan"),
-    db.rpc("laporan_kuota_promo", { o, d: dari, s: sampai }),
-  ]);
+  // Marketing receives only selling prices and names via a narrow RPC, never raw HPP/master rows.
+  const katalog =
+    s.active.role === "marketing"
+      ? await db.rpc("katalog_promo_marketing")
+      : null;
+  const mk = katalog?.data as
+    | import("@/lib/marketing").KatalogMarketing
+    | undefined;
+  const [promos, outlets, menus, variants, report, kategori, kuota] =
+    await Promise.all([
+      db.rpc("daftar_promo", { o, manajemen: true }),
+      katalog
+        ? Promise.resolve({ data: mk?.outlets ?? [], error: katalog.error })
+        : db
+            .from("outlet")
+            .select("id,nama")
+            .is("deleted_at", null)
+            .order("nama"),
+      katalog
+        ? Promise.resolve({ data: mk?.menus ?? [], error: katalog.error })
+        : db
+            .from("menu")
+            .select("id,nama,kemasan,harga_langsung,harga_ojol,kategori_id")
+            .eq("aktif", true)
+            .eq("mode", "asli")
+            .is("deleted_at", null)
+            .order("nama"),
+      katalog
+        ? Promise.resolve({ data: mk?.variants ?? [], error: katalog.error })
+        : db
+            .from("varian")
+            .select("id,nama,grup,menu_id")
+            .is("deleted_at", null)
+            .order("nama"),
+      db.rpc("laporan_promo", { o, d: dari, s: sampai }),
+      katalog
+        ? Promise.resolve({ data: mk?.kategori ?? [], error: katalog.error })
+        : db
+            .from("kategori_menu")
+            .select("id,nama")
+            .eq("mode", "asli")
+            .is("deleted_at", null)
+            .order("urutan"),
+      db.rpc("laporan_kuota_promo", { o, d: dari, s: sampai }),
+    ]);
   return (
     <PromoPanel
       promos={(promos.data ?? []) as Promo[]}
@@ -61,7 +93,9 @@ export default async function PromoPage({
         report.error?.message ||
         outlets.error?.message ||
         menus.error?.message ||
-        variants.error?.message
+        variants.error?.message ||
+        kategori.error?.message ||
+        kuota.error?.message
       }
       bisaEdit={s.active.role !== "finance"}
       spv={s.active.role === "spv"}

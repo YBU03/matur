@@ -11,9 +11,14 @@ export async function simpanPromo(
   const s = await getSession();
   if (
     !s?.active ||
-    !["owner", "admin_pusat", "admin_gudang", "hrd", "spv"].includes(
-      s.active.role,
-    )
+    ![
+      "owner",
+      "admin_pusat",
+      "admin_gudang",
+      "hrd",
+      "spv",
+      "marketing",
+    ].includes(s.active.role)
   )
     return { error: "Tidak diizinkan" };
   const db = await supabaseServer();
