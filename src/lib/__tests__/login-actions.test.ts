@@ -88,6 +88,14 @@ describe("login animation server confirmation", () => {
     [
       {
         status: "aktif",
+        assignments: [{ role: "marketing" }],
+        active: { role: "marketing" },
+      },
+      "/pantau-pos",
+    ],
+    [
+      {
+        status: "aktif",
         assignments: [{ role: "pemantau_pos" }],
         active: { role: "pemantau_pos" },
       },

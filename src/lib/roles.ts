@@ -14,6 +14,7 @@ export type Role =
   | "pic"
   /** hanya memantau omzet & penjualan POS (tanpa HPP, laba, stok, gaji) */
   | "pemantau_pos"
+  | "marketing"
   /** akun tersembunyi milik tablet POS outlet (dibuat saat pemasangan tablet) */
   | "tablet";
 
@@ -89,7 +90,11 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengaturan/maintenance", label: "Mode Maintenance", stage: 4 },
       { href: "/pengaturan/qris", label: "QRIS Outlet", stage: 4 },
       { href: "/pengaturan/struk", label: "Pengaturan Struk", stage: 4 },
-      { href: "/pengaturan/support-outlet", label: "Kelola Support Outlet", stage: 4 },
+      {
+        href: "/pengaturan/support-outlet",
+        label: "Kelola Support Outlet",
+        stage: 4,
+      },
       { href: "/log", label: "Log Aktivitas", stage: 2 },
     ],
   },
@@ -99,7 +104,12 @@ export const ROLES: Record<Role, RoleDef> = {
     accent: "bg-violet-600",
     login: "password",
     allOutlets: false,
-    menu: [dash, { href: "/stok-realtime", label: "Stok Real-time", stage: 4 }, { href: "/master/outlet", label: "Outlet Wilayah", stage: 2 }, { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 }],
+    menu: [
+      dash,
+      { href: "/stok-realtime", label: "Stok Real-time", stage: 4 },
+      { href: "/master/outlet", label: "Outlet Wilayah", stage: 2 },
+      { href: "/laporan-pos", label: "Laporan POS & Stok", stage: 4 },
+    ],
   },
   finance: {
     label: "Finance / Akuntan",
@@ -192,7 +202,11 @@ export const ROLES: Record<Role, RoleDef> = {
       { href: "/pengaturan/maintenance", label: "Mode Maintenance", stage: 4 },
       { href: "/pengaturan/qris", label: "QRIS Outlet", stage: 4 },
       { href: "/pengaturan/struk", label: "Pengaturan Struk", stage: 4 },
-      { href: "/pengaturan/support-outlet", label: "Kelola Support Outlet", stage: 4 },
+      {
+        href: "/pengaturan/support-outlet",
+        label: "Kelola Support Outlet",
+        stage: 4,
+      },
       { href: "/simulasi", label: "Simulasi Kemitraan", stage: 4 },
     ],
   },
@@ -309,6 +323,18 @@ export const ROLES: Record<Role, RoleDef> = {
     outletOpsional: true,
     menu: [{ href: PANTAU_POS, label: "Penjualan POS", stage: 1 }],
   },
+  marketing: {
+    label: "Marketing Matoer",
+    mascot: "kasir",
+    accent: "bg-pink-600",
+    login: "password",
+    allOutlets: true,
+    menu: [
+      { href: PANTAU_POS, label: "Omzet Outlet", stage: 5 },
+      { href: "/promo", label: "Promo & Pemakaian", stage: 5 },
+      { href: "/marketing/shift", label: "Shift Hari Ini", stage: 5 },
+    ],
+  },
   tablet: {
     label: "Tablet POS Outlet",
     mascot: "kasir",
@@ -320,26 +346,98 @@ export const ROLES: Record<Role, RoleDef> = {
 };
 
 const operasionalMenu: Partial<Record<Role, MenuItem[]>> = {
- owner: [{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5},{href:"/kasbon",label:"Kasbon Karyawan",stage:5},{href:"/stok",label:"Opname Outlet",stage:5}],
- admin_pusat:[{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5}],
- admin_gudang:[{href:"/operasional/kiriman",label:"Invoice & Penerimaan Barang",stage:5}],
- finance:[{href:"/operasional/kiriman",label:"Invoice Pengiriman",stage:5},{href:"/setoran",label:"Setoran & Rekonsiliasi",stage:5},{href:"/stok",label:"Opname Outlet",stage:5},{href:"/kasbon",label:"Kasbon (lihat)",stage:5}],
- hrd:[{href:"/stok",label:"Opname Outlet",stage:5},{href:"/titipan",label:"Titipan Produk",stage:5},{href:"/kasbon",label:"Kasbon Karyawan",stage:5}],
- spv:[{href:"/operasional/kiriman",label:"Pemeriksaan Kiriman",stage:5},{href:"/setoran",label:"Setoran Omzet",stage:5}],
+  owner: [
+    {
+      href: "/operasional/kiriman",
+      label: "Invoice & Penerimaan Barang",
+      stage: 5,
+    },
+    { href: "/setoran", label: "Setoran & Rekonsiliasi", stage: 5 },
+    { href: "/kasbon", label: "Kasbon Karyawan", stage: 5 },
+    { href: "/stok", label: "Opname Outlet", stage: 5 },
+  ],
+  admin_pusat: [
+    {
+      href: "/operasional/kiriman",
+      label: "Invoice & Penerimaan Barang",
+      stage: 5,
+    },
+    { href: "/setoran", label: "Setoran & Rekonsiliasi", stage: 5 },
+  ],
+  admin_gudang: [
+    {
+      href: "/operasional/kiriman",
+      label: "Invoice & Penerimaan Barang",
+      stage: 5,
+    },
+  ],
+  finance: [
+    { href: "/operasional/kiriman", label: "Invoice Pengiriman", stage: 5 },
+    { href: "/setoran", label: "Setoran & Rekonsiliasi", stage: 5 },
+    { href: "/stok", label: "Opname Outlet", stage: 5 },
+    { href: "/kasbon", label: "Kasbon (lihat)", stage: 5 },
+  ],
+  hrd: [
+    { href: "/stok", label: "Opname Outlet", stage: 5 },
+    { href: "/titipan", label: "Titipan Produk", stage: 5 },
+    { href: "/kasbon", label: "Kasbon Karyawan", stage: 5 },
+  ],
+  spv: [
+    { href: "/operasional/kiriman", label: "Pemeriksaan Kiriman", stage: 5 },
+    { href: "/setoran", label: "Setoran Omzet", stage: 5 },
+  ],
 };
-for (const [role,items] of Object.entries(operasionalMenu)) ROLES[role as Role].menu.push(...items);
+for (const [role, items] of Object.entries(operasionalMenu))
+  ROLES[role as Role].menu.push(...items);
 
-for (const role of ["owner", "hrd", "admin_pusat"] as Role[]) ROLES[role].menu.push({ href: "/profil-karyawan", label: "Profil Karyawan", stage: 5 });
-for (const role of ["owner","hrd","admin_gudang","admin_pusat","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/pengaturan/pos",label:role==="finance"?"Rekap Kas Tim":"Akses Kasir POS Outlet",stage:5});
+for (const role of ["owner", "hrd", "admin_pusat"] as Role[])
+  ROLES[role].menu.push({
+    href: "/profil-karyawan",
+    label: "Profil Karyawan",
+    stage: 5,
+  });
+for (const role of [
+  "owner",
+  "hrd",
+  "admin_gudang",
+  "admin_pusat",
+  "spv",
+  "finance",
+] as Role[])
+  ROLES[role].menu.push({
+    href: "/pengaturan/pos",
+    label: role === "finance" ? "Rekap Kas Tim" : "Akses Kasir POS Outlet",
+    stage: 5,
+  });
 
-for (const role of ["owner", "admin_pusat", "finance", "hrd", "admin_gudang", "manajer_area", "spv"] as Role[]) ROLES[role].menu.push({ href: "/data-void", label: "Data Void", stage: 4 });
+for (const role of [
+  "owner",
+  "admin_pusat",
+  "finance",
+  "hrd",
+  "admin_gudang",
+  "manajer_area",
+  "spv",
+] as Role[])
+  ROLES[role].menu.push({ href: "/data-void", label: "Data Void", stage: 4 });
 
-for (const role of ["owner","admin_pusat","admin_gudang","hrd","spv","finance"] as Role[]) ROLES[role].menu.push({href:"/promo",label:role==="finance"?"Pemakaian Promo":"Promo & Diskon",stage:5});
+for (const role of [
+  "owner",
+  "admin_pusat",
+  "admin_gudang",
+  "hrd",
+  "spv",
+  "finance",
+] as Role[])
+  ROLES[role].menu.push({
+    href: "/promo",
+    label: role === "finance" ? "Pemakaian Promo" : "Promo & Diskon",
+    stage: 5,
+  });
 
 export function findMenu(role: Role, href: string): MenuItem | undefined {
   return ROLES[role].menu.find((m) => m.href === href);
 }
-
 
 // Aplikasi POS terpisah di /kasir (login kode staf + PIN, dipakai di perangkat outlet)
 export const POS_ROLES: Role[] = ["kasir", "barista", "spv", "tablet"];
@@ -349,20 +447,80 @@ export const BISA_JUAL: Role[] = ["kasir", "spv", "tablet"];
 /** akun perangkat: hanya membuka POS di /pos, tidak punya dashboard/absen */
 export const TABLET: Role = "tablet";
 
-for(const role of ["owner","admin_pusat","admin_gudang","finance"] as Role[])ROLES[role].menu.push({href:"/gudang/opname",label:"Opname Gudang",stage:4},{href:"/gudang/laba-rugi",label:"Laba Rugi Gudang",stage:4},{href:"/gudang/pergerakan",label:"Pergerakan & Forecast",stage:4});
+for (const role of [
+  "owner",
+  "admin_pusat",
+  "admin_gudang",
+  "finance",
+] as Role[])
+  ROLES[role].menu.push(
+    { href: "/gudang/opname", label: "Opname Gudang", stage: 4 },
+    { href: "/gudang/laba-rugi", label: "Laba Rugi Gudang", stage: 4 },
+    { href: "/gudang/pergerakan", label: "Pergerakan & Forecast", stage: 4 },
+  );
 
-for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/pengaturan-dokumen",label:"Pengaturan Dokumen",stage:4});
+for (const role of ["owner", "admin_pusat", "admin_gudang"] as Role[])
+  ROLES[role].menu.push({
+    href: "/gudang/pengaturan-dokumen",
+    label: "Pengaturan Dokumen",
+    stage: 4,
+  });
 
-for(const role of ["owner","admin_pusat","admin_gudang"] as Role[])ROLES[role].menu.push({href:"/gudang/outlet",label:"Kontak Outlet",stage:4},{href:"/gudang/dokumen-arsip",label:"Arsip Dokumen",stage:4});
+for (const role of ["owner", "admin_pusat", "admin_gudang"] as Role[])
+  ROLES[role].menu.push(
+    { href: "/gudang/outlet", label: "Kontak Outlet", stage: 4 },
+    { href: "/gudang/dokumen-arsip", label: "Arsip Dokumen", stage: 4 },
+  );
 
-for (const role of ["admin_pusat", "admin_gudang"] as Role[]) if (!ROLES[role].menu.some(m => m.href === "/stok")) ROLES[role].menu.push({ href: "/stok", label: "Opname Outlet", stage: 4 });
+for (const role of ["admin_pusat", "admin_gudang"] as Role[])
+  if (!ROLES[role].menu.some((m) => m.href === "/stok"))
+    ROLES[role].menu.push({ href: "/stok", label: "Opname Outlet", stage: 4 });
 
 // Pengujian ASPI terpisah dari konfigurasi QRIS outlet dan BNI produksi.
-for (const role of ["owner", "admin_pusat", "finance"] as Role[]) ROLES[role].menu.push({ href: "/pengaturan/snap-sandbox", label: "Pengujian SNAP / ASPI", stage: 5 });
+for (const role of ["owner", "admin_pusat", "finance"] as Role[])
+  ROLES[role].menu.push({
+    href: "/pengaturan/snap-sandbox",
+    label: "Pengujian SNAP / ASPI",
+    stage: 5,
+  });
 
-for (const role of ["owner","admin_pusat","finance"] as Role[]) ROLES[role].menu.push({href:"/subsidi-promo",label:"Diskon & Subsidi Marketing",stage:5});
+for (const role of ["owner", "admin_pusat", "finance"] as Role[])
+  ROLES[role].menu.push({
+    href: "/subsidi-promo",
+    label: "Diskon & Subsidi Marketing",
+    stage: 5,
+  });
 
-for (const role of ["owner","admin_pusat","admin_gudang","finance","hrd","spv","manajer_area"] as Role[]) ROLES[role].menu.push({href:"/stok/outlet",label:"Kelola Stok Outlet",stage:4});
+for (const role of [
+  "owner",
+  "admin_pusat",
+  "admin_gudang",
+  "finance",
+  "hrd",
+  "spv",
+  "manajer_area",
+] as Role[])
+  ROLES[role].menu.push({
+    href: "/stok/outlet",
+    label: "Kelola Stok Outlet",
+    stage: 4,
+  });
 
-for(const role of ["owner","admin_pusat","finance","mitra","manajer_area"] as Role[])ROLES[role].menu.push({href:"/laporan/rekap",label:"Rekap Keuangan & Bagi Hasil",stage:4});
-for(const role of ["owner","admin_pusat","finance","mitra"] as Role[])ROLES[role].menu.push({href:"/meeting-laporan",label:"Meeting Laporan",stage:4});
+for (const role of [
+  "owner",
+  "admin_pusat",
+  "finance",
+  "mitra",
+  "manajer_area",
+] as Role[])
+  ROLES[role].menu.push({
+    href: "/laporan/rekap",
+    label: "Rekap Keuangan & Bagi Hasil",
+    stage: 4,
+  });
+for (const role of ["owner", "admin_pusat", "finance", "mitra"] as Role[])
+  ROLES[role].menu.push({
+    href: "/meeting-laporan",
+    label: "Meeting Laporan",
+    stage: 4,
+  });

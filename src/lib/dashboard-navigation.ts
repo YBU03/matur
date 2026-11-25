@@ -14,6 +14,12 @@ export function mobileQuickLinks(
       { href: DASHBOARD_POS, label: "POS" },
       { href: "/laporan", label: "Laporan" },
     ];
+  if (role === "marketing")
+    return [
+      { href: PANTAU_POS, label: "Omzet" },
+      { href: "/promo", label: "Promo" },
+      { href: "/marketing/shift", label: "Shift hari ini" },
+    ];
   if (role === "pemantau_pos")
     return [
       { href: PANTAU_POS, label: "POS" },
