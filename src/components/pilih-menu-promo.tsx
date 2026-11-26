@@ -1,4 +1,5 @@
 "use client";
+import { labelPenyajian, type MenuPromo } from "@/lib/promo-menu";
 import { useId, useState } from "react";
 export function PilihMenuPromo({
   menus,
@@ -6,7 +7,7 @@ export function PilihMenuPromo({
   terpakai,
   onChange,
 }: {
-  menus: { id: string; nama: string; kemasan?: string | null }[];
+  menus: MenuPromo[];
   value: string;
   terpakai: string[];
   onChange: (id: string) => void;
@@ -17,7 +18,7 @@ export function PilihMenuPromo({
   const pilihan = menus.find((m) => m.id === value);
   const norm = (s: string) => s.toLocaleLowerCase("id-ID").trim();
   const hasil = menus.filter((m) =>
-    norm(`${m.nama} ${m.kemasan ?? ""}`).includes(norm(cari)),
+    norm(`${m.nama} ${m.kemasan ?? ""} ${m.penyajian ?? ""} ${m.jenis_kemasan ?? ""}`).includes(norm(cari)),
   );
   return (
     <div className="rounded-lg border border-matur-200 bg-white">
@@ -72,6 +73,7 @@ export function PilihMenuPromo({
                       {m.kemasan}
                     </span>
                   )}
+                  {(m.penyajian || m.jenis_kemasan) && <span className="ml-2 text-xs text-stone-500">{m.penyajian ? labelPenyajian(m.penyajian) : ""}{m.jenis_kemasan ? ` · ${m.jenis_kemasan}` : ""}</span>}
                   {m.id !== value && terpakai.includes(m.id) && (
                     <span className="ml-2 text-xs">Sudah dipilih</span>
                   )}

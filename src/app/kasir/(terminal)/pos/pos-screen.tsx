@@ -701,7 +701,7 @@ export function PosScreen({
             <button onClick={() => setKat(null)} className={chipKat(!kat)} role="tab" aria-selected={!kat}>
               <span aria-hidden>🍽️</span> Semua <span className={angkaKat(!kat)}>{jumlahSemua}</span>
             </button>
-            {kategori.map((k) => (
+            {kategori.filter((k) => (jumlahKat.get(k.id) ?? 0) > 0).map((k) => (
               <button
                 key={k.id}
                 onClick={() => setKat(k.id)}

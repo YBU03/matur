@@ -3,6 +3,8 @@ import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/confirm-edit";
 import { formatRupiah as rp } from "@/lib/format";
+import { PromoMenuFilter } from "@/components/promo-menu-filter";
+import type { MenuPromo } from "@/lib/promo-menu";
 import { PilihMenuPromo } from "@/components/pilih-menu-promo";
 import { simpanPromo } from "@/lib/promo-actions";
 import { tanya } from "@/components/dialog-tanya";
@@ -124,7 +126,7 @@ export function PromoPanel({
 }: {
   promos: Promo[];
   outlets: Opsi[];
-  menus: (Opsi & { kemasan?: string | null; harga_langsung?: number | null; harga_ojol?: number | null; kategori_id?: string | null })[];
+  menus: MenuPromo[];
   variants: (Opsi & { menu_id: string; grup: string })[];
   laporan: PemakaianPromo[];
   kategori?: Opsi[];
@@ -168,7 +170,6 @@ export function PromoPanel({
     slot: [{ mulai: "00:00", selesai: "23:59" }],
     hari: [...SEMUA_HARI],
   });
-  const [kat, setKat] = useState("");
   // Form memakai HH:MM (24 jam); server menyimpan HH:MM:SS.
   const bukaEdit = (p: Promo) => {
     setErr("");
@@ -628,23 +629,11 @@ export function PromoPanel({
                   ? "Voucher berlaku kalau keranjang berisi salah satu menu di bawah. Potongan tidak melebihi total menu yang memenuhi syarat; kuota dihitung per transaksi."
                   : "Harga akhir Rp15.000 = pembeli bayar Rp15.000 per cup. Potongan Rp15.000 = harga asli dikurangi Rp15.000 per cup. Satu transaksi hanya bisa memakai satu promo."}
               </p>
-              {kategori.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2">
-                  <span className="text-xs font-semibold text-stone-600">Tambah sekaligus:</span>
-                  <select aria-label="Kategori menu" className="rounded-lg border border-matur-200 bg-white px-2 py-1.5 text-sm" value={kat} onChange={(e) => setKat(e.target.value)}>
-                    <option value="">Pilih kategori…</option>
-                    {kategori.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                  </select>
-                  <button type="button" disabled={!kat} className="rounded-lg bg-matur-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40" onClick={() => {
-                    const ada = new Set(edit.aturan.map((a) => a.menu_id));
-                    const contoh = edit.aturan[0];
-                    const tambah = menus.filter((m) => m.kategori_id === kat && !ada.has(m.id)).map((m) => ({ menu_id: m.id, varian_ids: [], jenis: contoh?.jenis ?? "persen", nilai: contoh?.nilai ?? 10 } as AturanPromo));
-                    set({ aturan: [...edit.aturan.filter((a) => a.menu_id), ...tambah] });
-                    setKat("");
-                  }}>+ Semua menu kategori ini</button>
-                  <span className="text-[11px] text-stone-500">Menu baru di kategori ini nanti tidak otomatis ikut.</span>
-                </div>
-              )}
+              <PromoMenuFilter menus={menus} kategori={kategori} terpilih={edit.aturan.map((a) => a.menu_id)} onTambah={(ids) => {
+                const contoh = edit.aturan.find((a) => a.menu_id);
+                const tambah: AturanPromo[] = ids.map((id) => ({ menu_id: id, varian_ids: [], jenis: contoh?.jenis ?? "persen", nilai: contoh?.nilai ?? 10 }));
+                set({ aturan: [...edit.aturan.filter((a) => a.menu_id), ...tambah] });
+              }} />
               {edit.aturan.map((a, i) => (
                 <div className="space-y-2 rounded-xl border border-matur-100 bg-white p-3" key={i}>
                   <div className="flex items-center justify-between gap-2">

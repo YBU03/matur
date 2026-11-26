@@ -115,6 +115,8 @@ export const ENTITIES: Record<string, Entity> = {
       { key: "nama", label: "Nama Menu", type: "text", required: true },
       { key: "outlet_id", label: "Katalog Outlet (kosong = katalog bersama lama)", type: "select", ref: { table: "outlet", label: "nama" } },
       { key: "kategori_id", label: "Kategori", type: "select", ref: { table: "kategori_menu", label: "nama" } },
+      { key: "penyajian", label: "Penyajian", type: "enum", options: ["ice", "hot", "tanpa"], optionLabels: { ice: "Ice / dingin", hot: "Hot / panas", tanpa: "Tanpa pilihan suhu" } },
+      { key: "jenis_kemasan", label: "Jenis Kemasan", type: "text", suggestions: ["Cup", "Can", "Botol", "Piring", "Box"] },
       { key: "harga_langsung", label: "Harga Dine-in/Take Away", type: "money", required: true },
       { key: "harga_ojol", label: "Harga Ojol", type: "money", required: true },
       { key: "aktif", label: "Aktif", type: "bool" },
