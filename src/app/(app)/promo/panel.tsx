@@ -9,7 +9,7 @@ import { PilihMenuPromo } from "@/components/pilih-menu-promo";
 import { simpanPromo } from "@/lib/promo-actions";
 import { tanya } from "@/components/dialog-tanya";
 import { Badge, BarisAngka, HeaderHalaman, Kartu, KartuAngka, Kosong, tabKelas, tabel, tombolAksi, tombolHeaderUtama } from "@/components/ui-halaman";
-import { LABEL_STATUS, NAMA_HARI, PRESET_JAM, SEMUA_HARI, cekSlot, diLuarJam, hargaPromo, jamLegacy, labelKuota, labelNilai, labelWaktu, pesanRamah, rentangTanggal, slotPromo, statusPromo, urutkanPromo, type StatusPromo } from "@/lib/promo-tampilan";
+import { KANAL_PROMO, syaratPromo, LABEL_STATUS, NAMA_HARI, PRESET_JAM, SEMUA_HARI, cekSlot, diLuarJam, hargaPromo, jamLegacy, labelKuota, labelNilai, labelWaktu, pesanRamah, rentangTanggal, slotPromo, statusPromo, urutkanPromo, type StatusPromo } from "@/lib/promo-tampilan";
 import type { Promo, PemakaianPromo, AturanPromo, KuotaPromoHarian, SlotPromo } from "@/lib/promo";
 type Opsi = { id: string; nama: string };
 const input =
@@ -153,6 +153,9 @@ export function PromoPanel({
     cakupan: "item",
     nilai_voucher: null,
     minimum_belanja: 0,
+    batas_diskon: null,
+    dasar_minimum: "menu",
+    kanal_ids: [],
     subsidi: false,
     nama_subsidi: "Subsidi Kantor",
     mulai: dari,
@@ -313,7 +316,7 @@ export function PromoPanel({
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {p.subsidi && <Badge nada="hijau">🎁 {p.nama_subsidi || "Subsidi"}</Badge>}
                     {p.cakupan === "transaksi" && <Badge nada="biru">Sekali per transaksi</Badge>}
-                    {!!p.minimum_belanja && <Badge>Min. belanja {rp(p.minimum_belanja)}</Badge>}
+                    {syaratPromo(p) && <p className="text-xs text-stone-600">{syaratPromo(p)}</p>}
                   </div>
                   <dl className="mt-3 space-y-1.5 text-sm text-stone-700">
                     <div className="flex gap-2"><dt aria-label="Periode">📅</dt><dd>{rentangTanggal(p.mulai, p.selesai)}<span className="block text-xs text-stone-500">🕘 {labelWaktu(p)}</span></dd></div>
@@ -611,7 +614,7 @@ export function PromoPanel({
                   </label>
                 )}
                 <label className="block text-xs font-semibold text-stone-600">
-                  Minimum belanja menu terpilih, sebelum potongan (Rp)
+                  Minimum belanja sebelum potongan (Rp)
                   <input
                     className={`${input} mt-1`}
                     type="number"
@@ -624,6 +627,12 @@ export function PromoPanel({
                   />
                 </label>
               </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-stone-600">Dasar minimum belanja<select aria-label="Dasar minimum belanja" className={`${input} mt-1`} value={edit.dasar_minimum ?? "menu"} onChange={(e) => set({ dasar_minimum: e.target.value as "menu" | "keranjang" })}><option value="menu">Hanya menu terpilih</option><option value="keranjang">Total seluruh keranjang</option></select></label>
+                <label className="text-xs font-semibold text-stone-600">Maksimal diskon per transaksi (Rp)<input aria-label="Maksimal diskon per transaksi" className={`${input} mt-1`} type="number" min="1" step="1" placeholder="Kosong = tanpa batas" value={edit.batas_diskon ?? ""} onChange={(e) => set({ batas_diskon: e.target.value ? Number(e.target.value) : null })}/></label>
+              </div>
+              <fieldset className="space-y-2 rounded-xl border border-matur-100 bg-white p-3"><legend className="text-xs font-semibold">Kanal penjualan (kosong = semua kanal)</legend><div className="flex flex-wrap gap-3">{Object.entries(KANAL_PROMO).map(([id,nama]) => <Centang key={id} checked={!!edit.kanal_ids?.includes(id)} onChange={(v) => set({kanal_ids:v?[...(edit.kanal_ids??[]),id]:(edit.kanal_ids??[]).filter(k=>k!==id)})}>{nama}</Centang>)}</div><p className="text-xs text-stone-500">Ruma App adalah kanal pencatatan di Matoer. Website pemesanan terpisah tetap memerlukan pengaturan promo di websitenya sendiri.</p></fieldset>
+              {syaratPromo(edit) && <p className="rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-900">{syaratPromo(edit)}. Diskon hanya dikenakan pada menu yang dipilih di bawah.</p>}
               <p className="text-xs text-stone-600">
                 {edit.cakupan === "transaksi"
                   ? "Voucher berlaku kalau keranjang berisi salah satu menu di bawah. Potongan tidak melebihi total menu yang memenuhi syarat; kuota dihitung per transaksi."

@@ -208,3 +208,12 @@ export function pesanKuotaSebagian(rincian?: Record<string, number> | null, lebi
   if (!normal) return "";
   return `Kuota tinggal ${dapat} — ${dapat} item dapat promo, ${normal} item harga normal.`;
 }
+
+export const KANAL_PROMO: Record<string,string> = { langsung: "Kasir langsung", ruma_app: "Ruma App", gofood: "GoFood", grabfood: "GrabFood", shopeefood: "ShopeeFood", tiktok: "TikTok", tumbler: "Tumbler" };
+export function syaratPromo(p: Pick<Promo,"minimum_belanja"|"batas_diskon"|"dasar_minimum"|"kanal_ids">) {
+ return [p.minimum_belanja ? `Min. ${p.dasar_minimum === "keranjang" ? "total belanja" : "menu terpilih"} ${rp(p.minimum_belanja)}` : "",p.batas_diskon ? `Maks. diskon ${rp(p.batas_diskon)} per transaksi` : "", p.kanal_ids?.length ? p.kanal_ids.map(k=>KANAL_PROMO[k]??k).join(", ") : ""].filter(Boolean).join(" · ");
+}
+export const kanalPromoBoleh = (p: Pick<Promo,"kanal_ids">, kanal: string) => !p.kanal_ids?.length || p.kanal_ids.includes(kanal);
+
+/** One-item illustration only; combined baskets share one transaction cap. */
+export const hargaPromoDenganBatas = (harga: number, jenis: Promo["aturan"][number]["jenis"], nilai: number, batas?: number|null) => harga-Math.min(harga-hargaPromo(harga,jenis,nilai),batas??Infinity);

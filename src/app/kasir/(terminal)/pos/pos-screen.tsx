@@ -257,7 +257,7 @@ export function PosScreen({
   useEffect(()=>{setQrisBayar(null);},[promoKey]);
   const promo = promoState?.key===promoKey ? promoState.quote : null;
   // Harga coret per menu di keranjang (tampilan saja; total resmi tetap dari server).
-  const aturanPromo = promo && promo.cakupan !== "transaksi" ? promoAktif.find((p) => p.id === promo.promo_id)?.aturan ?? null : null;
+  const aturanPromo = promo && promo.cakupan !== "transaksi" && !(promo.batas_diskon && (promo.diskon_sebelum_batas ?? 0) > promo.batas_diskon) ? promoAktif.find((p) => p.id === promo.promo_id)?.aturan ?? null : null;
   const aturanBaris = (l: Line) => aturanPromo?.find((x) => x.menu_id === l.menu.id && x.varian_ids.every((v) => l.varian.some((y) => y.id === v))) ?? null;
   const hargaSetelahPromo = (l: Line) => {
     const a = aturanBaris(l);

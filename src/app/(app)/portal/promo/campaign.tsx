@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah as rp } from "@/lib/format";
 import { Badge, BarisAngka, HeaderHalaman, Kartu, KartuAngka, Kosong, tabKelas } from "@/components/ui-halaman";
-import { hargaPromo, hitungMundur, labelKuota, labelNilai, labelWaktu, mulaiLagi, rentangTanggal, statusPromo } from "@/lib/promo-tampilan";
+import { syaratPromo, hargaPromoDenganBatas, hitungMundur, labelKuota, labelNilai, labelWaktu, mulaiLagi, rentangTanggal, statusPromo } from "@/lib/promo-tampilan";
 import type { AturanPromo, KuotaPromoHarian, Promo } from "@/lib/promo";
 
 export type AturanMitra = AturanPromo & { menu_nama?: string | null; kemasan?: string | null; harga_langsung?: number | null; harga_ojol?: number | null };
@@ -56,7 +56,7 @@ function Detail({ p }: { p: PromoMitra }) {
           <dt className="text-[11px] font-semibold text-stone-500">ℹ️ Ketentuan</dt>
           <dd className="font-semibold">
             {p.cakupan === "transaksi" ? "Voucher sekali per transaksi" : "Potongan per cup/menu"}
-            {p.minimum_belanja ? ` · min. belanja ${rp(p.minimum_belanja)}` : ""}
+            {syaratPromo(p) ? ` · ${syaratPromo(p)}` : ""}
             {p.subsidi ? ` · ditanggung ${p.nama_subsidi || "subsidi kantor"}` : ""}
           </dd>
         </div>
@@ -65,6 +65,7 @@ function Detail({ p }: { p: PromoMitra }) {
         <p className="rounded-xl border border-matur-100 px-3 py-2 text-xs text-stone-600">Berlaku bila keranjang berisi salah satu menu: <b>{p.aturan.map((a) => a.menu_nama ?? "Menu").join(", ")}</b>. Potongan {rp(p.nilai_voucher ?? 0)} sekali per transaksi.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-matur-100">
+          {p.batas_diskon && <p className="bg-amber-50 p-3 text-xs text-amber-900">Simulasi harga untuk satu item setelah minimum belanja terpenuhi. Jika beberapa menu digabung, total diskon tetap maksimal {rp(p.batas_diskon)} untuk satu transaksi.</p>}
           <table className="w-full text-xs sm:text-sm">
             <thead className="bg-matur-50 text-left text-[11px] font-semibold uppercase tracking-wide text-matur-800">
               <tr><th className="px-3 py-2">Menu</th><th className="px-3 py-2 text-right">Harga normal</th><th className="px-3 py-2 text-right">Potongan</th><th className="px-3 py-2 text-right">Harga akhir</th></tr>
@@ -77,7 +78,7 @@ function Detail({ p }: { p: PromoMitra }) {
                     <td className="px-3 py-2 font-semibold">{a.menu_nama ?? "Menu"}{a.kemasan ? <span className="font-normal text-stone-500"> · {a.kemasan}</span> : null}{a.varian_ids.length ? <span className="block text-[11px] font-normal text-stone-500">dengan varian tertentu</span> : null}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-stone-500">{h ? rp(h) : "—"}{ho ? <span className="block text-[11px]">ojol {rp(ho)}</span> : null}</td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums text-red-600">{potongan(a)}</td>
-                    <td className="px-3 py-2 text-right font-extrabold tabular-nums text-matur-700">{h ? rp(hargaPromo(h, a.jenis, a.nilai)) : a.jenis === "harga_akhir" ? rp(a.nilai) : "—"}{ho ? <span className="block text-[11px] font-semibold">ojol {rp(hargaPromo(ho, a.jenis, a.nilai))}</span> : null}</td>
+                    <td className="px-3 py-2 text-right font-extrabold tabular-nums text-matur-700">{h ? rp(hargaPromoDenganBatas(h, a.jenis, a.nilai,p.batas_diskon)) : a.jenis === "harga_akhir" ? rp(a.nilai) : "—"}{ho ? <span className="block text-[11px] font-semibold">ojol {rp(hargaPromoDenganBatas(ho, a.jenis, a.nilai,p.batas_diskon))}</span> : null}</td>
                   </tr>
                 );
               })}

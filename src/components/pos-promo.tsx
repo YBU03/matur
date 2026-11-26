@@ -11,7 +11,7 @@ import { formatRupiah } from "@/lib/format";
 import type { CartLine } from "@/lib/pos-actions";
 import type { Promo, PromoQuote } from "@/lib/promo";
 import { alasanPromoNormal, alasanPromoDariError, pesanHargaNormal, type AlasanPromoNormal } from "@/lib/promo-ketersediaan";
-import { pesanKuotaSebagian } from "@/lib/promo-tampilan";
+import { kanalPromoBoleh, syaratPromo, pesanKuotaSebagian } from "@/lib/promo-tampilan";
 
 /** Kunci keranjang — dipakai juga oleh `promoKey` di pos-screen agar quote tidak terpakai untuk keranjang lain. */
 export const kunciPromo = (items: CartLine[], kanal: string, diskon: number, sesiId: string, izinId: string) =>
@@ -161,7 +161,7 @@ export function PosPromo({
     [normal],
   );
 
-  const tersedia = list.filter((p) => (p.id === selected && !!quote) || !alasanPromoNormal(p, items, now));
+  const tersedia = list.filter((p) => kanalPromoBoleh(p, kanal) && ((p.id === selected && !!quote) || !alasanPromoNormal(p, items, now)));
 
   // Pilih otomatis bila hanya satu promo tersedia dan keranjang berisi menunya.
   useEffect(() => {
@@ -186,6 +186,12 @@ export function PosPromo({
   // Keranjang/kanal/diskon berubah → reservasi diperbarui otomatis (tanpa klik Terapkan).
   useEffect(() => {
     if (!selected || disabled) return;
+    const pilihan = list.find((p) => p.id === selected);
+    if (pilihan && !kanalPromoBoleh(pilihan, kanal)) {
+      seq.current++; buangQuote(); setSelected(""); setBusy(false); setError("");
+      setNotice("Promo tidak berlaku untuk kanal ini. Harga normal berlaku.");
+      return;
+    }
     if (!items.length) {
       void terapkan("");
       return;
@@ -197,7 +203,7 @@ export function PosPromo({
     const t = setTimeout(() => void terapkan(selected), 450);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kunci, selected, terapkan, disabled]);
+  }, [kunci, selected, terapkan, disabled, list, kanal]);
 
   // Dipicu dari pembayaran yang menemukan reservasi lepas/kedaluwarsa.
   useEffect(() => {
@@ -291,6 +297,8 @@ export function PosPromo({
           <p>
             {quote.subsidi ? (quote.nama_subsidi ?? "Subsidi") : quote.cakupan === "transaksi" ? "Voucher" : "Diskon"} {formatRupiah(quote.diskon)}
           </p>
+          {syaratPromo(quote) && <p className="text-xs font-semibold">{syaratPromo(quote)}</p>}
+          {!!quote.batas_diskon && (quote.diskon_sebelum_batas ?? 0) > quote.batas_diskon && <p className="text-xs">Hitungan awal {formatRupiah(quote.diskon_sebelum_batas!)} dibatasi menjadi {formatRupiah(quote.diskon)} untuk satu transaksi.</p>}
           {quote.subsidi && <p className="text-xs">Ditagihkan ke kantor, bukan pembayaran pelanggan.</p>}
           {pesanKuotaSebagian(quote.rincian, quote.lebih) && (
             <div role="status" className="mt-2 overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900">

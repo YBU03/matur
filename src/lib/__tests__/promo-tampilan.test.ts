@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { akhirSlot, hargaPromo, hitungMundur, jamLegacy, labelHari, labelKuota, labelNilai, labelWaktu, mulaiLagi, rentangJam, rentangTanggal, statusPromo, urutkanPromo } from "../promo-tampilan";
+import { syaratPromo, hargaPromoDenganBatas, kanalPromoBoleh, akhirSlot, hargaPromo, hitungMundur, jamLegacy, labelHari, labelKuota, labelNilai, labelWaktu, mulaiLagi, rentangJam, rentangTanggal, statusPromo, urutkanPromo } from "../promo-tampilan";
 import type { Promo } from "../promo";
 
 const now = Date.parse("2026-11-18T05:00:00Z"); // 12.00 WIB
@@ -78,4 +78,13 @@ it("bagi unit promo per baris sesuai urutan keranjang", async () => {
   expect(bagiPromo(lines, null).map((x) => x.promo)).toEqual([0, 0, 0, 0]);
   expect(pesanKuotaSebagian({ kopi: 3 }, { kopi: 1 })).toBe("Kuota tinggal 3 — 3 item dapat promo, 1 item harga normal.");
   expect(pesanKuotaSebagian({ kopi: 4 }, {})).toBe("");
+});
+
+it("menampilkan syarat NGOPAG dan harga satu item setelah batas transaksi",()=>{
+ const ng=p({minimum_belanja:25000,dasar_minimum:'keranjang',batas_diskon:5000,kanal_ids:['langsung','ruma_app']});
+ expect(syaratPromo(ng)).toContain('Min. total belanja');expect(syaratPromo(ng)).toContain('per transaksi');
+ expect(hargaPromoDenganBatas(28000,'persen',20,5000)).toBe(23000);
+ expect(hargaPromoDenganBatas(56000,'persen',20,5000)).toBe(51000);
+ expect(kanalPromoBoleh(ng,'ruma_app')).toBe(true);expect(kanalPromoBoleh(ng,'grabfood')).toBe(false);
+ expect(kanalPromoBoleh(p(),'grabfood')).toBe(true);
 });
