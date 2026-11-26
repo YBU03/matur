@@ -119,6 +119,7 @@ beforeAll(async () => {
   await db.exec(
     src("../../../supabase/migrations/20261120224147_promo_kuota_sebagian.sql"),
   );
+  await db.exec(src("../../../supabase/migrations/20261126023652_promo_batas_transaksi.sql"));
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -1060,4 +1061,32 @@ it("pesanan melebihi sisa kuota: item pertama dapat promo sesuai sisa, sisanya h
   const q2 = await call<{ diskon: number; lebih: Record<string, number> }>("pesan_promo", basket(bebas, { items: [{ menu_id: menu, varian_ids: [], qty: 5 }] }));
   expect(q2.diskon).toBe(5 * 4000);
   expect(q2.lebih).toEqual({});
+});
+
+it("NGOPAG: minimum whole basket, coffee-only 20%, one Rp5000 cap, channels and final accounting",async()=>{
+ await as(owner);
+ const non=id(700);
+ await db.exec(`insert into menu(id,nama,harga_langsung,harga_ojol) values('${non}','Snack',15000,15000);
+ update matur_internal.pos_izin set katalog=jsonb_set(katalog,'{menu,${non}}','{"langsung":15000,"ojol":15000}') where id='${permit}'`);
+ const cfg=config({nama:'NGOPAG',kuota:null,aturan:[{menu_id:menu,varian_ids:[],jenis:'persen',nilai:20}],batas_diskon:5000,dasar_minimum:'keranjang',minimum_belanja:25000,kanal_ids:['langsung','ruma_app']});
+ const pid=await call<string>('simpan_promo',cfg);
+ await as(cash);
+ await expect(call('pesan_promo',basket(pid))).rejects.toThrow('Minimum total belanja');
+ const mixed=basket(pid,{items:[{menu_id:menu,varian_ids:[],qty:1},{menu_id:non,varian_ids:[],qty:1}]});
+ const qm=await call<{id:string;diskon:number;subtotal:number}>('pesan_promo',mixed);
+ expect(qm.subtotal).toBe(25000);expect(qm.diskon).toBe(2000); // snack meets minimum, never discounted
+ const b=basket(pid,{items:[{menu_id:menu,varian_ids:[],qty:3}]});
+ const quote=await call<{id:string;diskon:number;diskon_sebelum_batas:number;batas_diskon:number}>('pesan_promo',b);
+ expect(quote.diskon_sebelum_batas).toBe(6000);expect(quote.diskon).toBe(5000);expect(quote.batas_diskon).toBe(5000);
+ const retry=await call('pesan_promo',b);expect(retry.diskon).toBe(5000);expect(retry.batas_diskon).toBe(5000);
+ await expect(call('pesan_promo',basket(pid,{kanal:'gofood',items:b.items}))).rejects.toThrow('kanal');
+ await expect(call('pesan_promo',basket(pid,{items:[{menu_id:non,varian_ids:[],qty:2}]}))).rejects.toThrow('Tidak ada item');
+ const app=await call('pesan_promo',basket(pid,{kanal:'ruma_app',items:b.items}));expect(app.diskon).toBe(5000);
+ const paid=await call<{total:number}>('matur_internal.buat_transaksi',sale(b,quote.id));expect(paid.total).toBe(25000);
+ // stored snapshot verified through the consumed quote's transaction id
+ const [row]=await q(`select t.diskon,t.total,t.promo_snapshot->>'batas_diskon' cap from transaksi t join promo_internal.pesanan r on r.transaksi_id=t.id where r.id=$1`,[quote.id]);
+ expect(row).toMatchObject({diskon:5000,total:25000,cap:'5000'});
+ await as(owner);
+ await call('simpan_promo',{...cfg,id:pid,versi:1,batas_diskon:3000});
+ await as(cash);await expect(call('matur_internal.buat_transaksi',sale(mixed,qm.id))).rejects.toThrow(/Reservasi|reserva/i);
 });

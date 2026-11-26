@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { daftarPromoKasir } from "@/lib/promo-actions";
 import type { Promo } from "@/lib/promo";
 import { alasanPromoNormal } from "@/lib/promo-ketersediaan";
-import { hitungMundur, labelNilai, mulaiLagi } from "@/lib/promo-tampilan";
+import { hitungMundur, syaratPromo, labelNilai, mulaiLagi } from "@/lib/promo-tampilan";
 
 type Habis = { id: string; nama: string; lagi: string };
 
@@ -163,6 +163,7 @@ export function KotakPromoKasir({
                   <p className="text-base font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-lg">
                     {normal ? "Harga normal berlaku" : labelNilai(p)}
                   </p>
+                  {syaratPromo(p) && <p className="mt-1 text-[11px] font-semibold text-white/90">{syaratPromo(p)}</p>}
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-white/80">

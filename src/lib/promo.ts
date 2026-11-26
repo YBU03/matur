@@ -10,6 +10,10 @@ export type Promo = {
   cakupan?: "item" | "transaksi";
   nilai_voucher?: number | null;
   minimum_belanja?: number;
+  batas_diskon?: number | null;
+  dasar_minimum?: "menu" | "keranjang";
+  kanal_ids?: string[];
+  diskon_sebelum_batas?: number;
   aktif: boolean;
   subsidi?: boolean;
   nama_subsidi?: string;
@@ -47,6 +51,10 @@ export type PromoQuote = {
   cakupan?: "item" | "transaksi";
   nilai_voucher?: number | null;
   minimum_belanja?: number;
+  batas_diskon?: number | null;
+  dasar_minimum?: "menu" | "keranjang";
+  kanal_ids?: string[];
+  diskon_sebelum_batas?: number;
   diskon: number;
   subsidi?: boolean;
   nama_subsidi?: string;
@@ -60,6 +68,10 @@ export type PromoSnapshot = {
   cakupan?: "item" | "transaksi";
   nilai_voucher?: number | null;
   minimum_belanja?: number;
+  batas_diskon?: number | null;
+  dasar_minimum?: "menu" | "keranjang";
+  kanal_ids?: string[];
+  diskon_sebelum_batas?: number;
   diskon: number;
   subsidi?: boolean;
   nama_subsidi?: string;
