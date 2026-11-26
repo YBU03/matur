@@ -30,6 +30,10 @@ beforeAll(async()=>{
  `);
  await db.exec(sql);
  await db.exec(readFileSync("supabase/migrations/20261123051404_katalog_outlet_baca_sekali.sql","utf8"));
+ await db.exec(`create schema menu_internal;create schema marketing_internal;
+ create function marketing_internal.katalog_promo_marketing() returns jsonb language sql as $$select coalesce(jsonb_agg(jsonb_build_object('id',id,'kategori_id',kategori_id)),'[]') from public.menu$$;`);
+ await db.exec(readFileSync("supabase/migrations/20261126022011_menu_coffee_series.sql","utf8"));
+ await db.exec(`update menu set penyajian='ice',jenis_kemasan='Cup' where id='${m}'`);
  await db.exec(`insert into outlet(id,nama) values('${b}','Bakery B')`);
 },30000);
 afterAll(async()=>{await db.close()});
@@ -41,6 +45,7 @@ it('copies independent menu, variants and recipes without financial/stock writes
  await db.query(`select public.salin_katalog_outlet($1::jsonb)`,[payload]);
  await db.query(`select public.salin_katalog_outlet($1::jsonb)`,[payload]);
  const r=await db.query<{id:string;outlet_id:string}>(`select id,outlet_id from menu where outlet_id='${b}'`);expect(r.rows).toHaveLength(1);expect(r.rows[0].id).not.toBe(m);
+ expect((await db.query(`select penyajian,jenis_kemasan from menu where id='${r.rows[0].id}'`)).rows[0]).toEqual({penyajian:"ice",jenis_kemasan:"Cup"});
  const id=r.rows[0].id;const rs=await db.query(`select * from resep where menu_id='${id}'`);expect(rs.rows).toHaveLength(2);
  expect((await db.query(`select * from varian where menu_id='${id}'`)).rows).toHaveLength(1);
  await db.exec(`update menu set harga_langsung=12000 where id='${id}';update resep set takaran=30 where menu_id='${id}'`);
@@ -74,4 +79,13 @@ it('the POS catalogue contains only menus and variants belonging to its outlet',
  const kb=(await db.query<{k:{menu:Record<string,unknown>;varian:Record<string,unknown>}}>(`select matur_internal.katalog_pos('${b}') k`)).rows[0].k;
  expect(Object.keys(ka.menu)).toEqual([m]);expect(Object.keys(ka.varian)).toEqual([v]);
  expect(kb.menu).not.toHaveProperty(m);expect(kb.varian).not.toHaveProperty(v);expect(Object.keys(kb.menu)).toHaveLength(2);expect(Object.keys(kb.varian)).toHaveLength(1);
+});
+
+it('keeps serving independent of package and validates new metadata',async()=>{
+ await expect(db.exec(`update menu set penyajian='Coffee' where id='${m}'`)).rejects.toThrow();
+ await db.exec(`insert into menu(nama,induk_id,kemasan) values('Kopi Hot','${m}','Hot'),('Kopi Can','${m}','Can')`);
+ const rows=(await db.query(`select penyajian,jenis_kemasan from menu where induk_id='${m}' order by kemasan`)).rows;
+ expect(rows).toEqual([{penyajian:'ice',jenis_kemasan:'Can'},{penyajian:'hot',jenis_kemasan:'Cup'}]);
+ const data=(await db.query<{v:Record<string,unknown>[]}>(`select marketing_internal.katalog_promo_marketing() v`)).rows[0].v;
+ expect(data.find(x=>x.id===m)).toMatchObject({penyajian:'ice',jenis_kemasan:'Cup'});
 });

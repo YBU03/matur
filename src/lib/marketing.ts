@@ -4,6 +4,8 @@ export type KatalogMarketing = {
     id: string;
     nama: string;
     kemasan: string | null;
+    penyajian: string | null;
+    jenis_kemasan: string | null;
     harga_langsung: number;
     harga_ojol: number;
     kategori_id: string | null;

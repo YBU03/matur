@@ -54,7 +54,7 @@ export default async function PromoPage({
         ? Promise.resolve({ data: mk?.menus ?? [], error: katalog.error })
         : db
             .from("menu")
-            .select("id,nama,kemasan,harga_langsung,harga_ojol,kategori_id")
+            .select("id,nama,kemasan,harga_langsung,harga_ojol,kategori_id,penyajian,jenis_kemasan")
             .eq("aktif", true)
             .eq("mode", "asli")
             .is("deleted_at", null)

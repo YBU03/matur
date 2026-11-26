@@ -125,3 +125,5 @@ Penjelasan margin 24 November: klik margin ⓘ pada rekap untuk diagnosis pembul
 Telusuri selisih & modal Rp0 24 November: diagnosis dari shift dan ringkasan harian, revisi aktual inline/riwayat, rentang koreksi penjualan mengikuti aktivitas shift, pilihan Tanpa modal di POS. Baca docs/telusuri-selisih-kas-2026-11-24.md. Koreksi khusus UHB 22 November terdokumentasi; jangan menolkan selisih tanpa membetulkan sumber.
 
 Marketing Matoer 25 November: role `marketing` global dengan `/pantau-pos`, `/promo`, `/marketing/shift` hari ini (hanya jadwal terbit/nama/jabatan/jam). Tidak membuka HPP/keuangan atau mengubah Tamu Matur. Katalog/jadwal melalui RPC invoker + implementasi privat; master biaya mentah ditutup untuk Marketing-only. Baca docs/marketing-matoer-2026-11-25.md.
+
+Coffee Series 26 November: kategori produk terpisah dari `menu.penyajian` dan `jenis_kemasan`, graph `kemasan` existing tetap. Filter/pratinjau promo menghasilkan daftar ID eksplisit, bukan scope kategori dinamis. Klik kategori POS menampilkan menu, kategori kosong disembunyikan. Pemetaan shared RUMA 18 kopi + 12 nonkopi menjaga harga/resep/riwayat/promo. Baca docs/coffee-series-2026-11-26.md.
