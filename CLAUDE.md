@@ -131,3 +131,5 @@ Coffee Series 26 November: kategori produk terpisah dari `menu.penyajian` dan `j
 NGOPAG 26 November: promo memiliki batas_diskon opsional sekali per transaksi, dasar_minimum menu/keranjang dan kanal_ids. Default promo lama tidak berubah, perubahan constraint melepas quote lama, snapshot menyimpan hitungan sebelum batas. NGOPAG Kominot diperbaiki maksimal Rp5.000/minimum keranjang Rp25.000/kanal langsung+Ruma App, periode 30 Nov–31 Des dan NONAKTIF tetap. Ruma App hanya pencatatan, bukan integrasi website lain. Baca docs/ngopag-2026-11-26.md.
 
 POS adaptif 27 November: dua kolom berdasarkan ruang browser dengan scroll menu/pesanan terpisah, total/metode/Bayar tetap terlihat. HP tetap Lihat & Bayar; resize mempertahankan state, tidak menambahkan reload/polling atau mengubah checkout/shift. Baca docs/pos-adaptive-2026-11-27.md.
+
+Arsip promo 27 November: Hapus/Arsipkan dengan konfirmasi dan tab Arsip; pulihkan selalu nonaktif, tidak menghapus histori/akunting. RPC versioned + scope edit yang sama, melepas quote belum dibayar dengan lock promo. Baca docs/promo-archive-2026-11-27.md.

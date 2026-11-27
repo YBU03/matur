@@ -16,7 +16,7 @@ type Log = {
   nilai_baru: Record<string, unknown> | null;
 };
 
-const AKSI: Record<string, string> = { create: "Tambah", update: "Ubah", delete: "Hapus", restore: "Pulihkan", purge: "Hapus permanen" };
+const AKSI: Record<string, string> = { create: "Tambah", update: "Ubah", delete: "Hapus", restore: "Pulihkan", purge: "Hapus permanen", atur_promo: "Atur promo", arsip_promo: "Arsipkan promo", pulihkan_promo: "Pulihkan promo" };
 const SKIP = new Set(["id", "mode", "created_at", "deleted_at"]);
 
 function changes(l: Log) {
