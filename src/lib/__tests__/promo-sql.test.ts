@@ -120,6 +120,7 @@ beforeAll(async () => {
     src("../../../supabase/migrations/20261120224147_promo_kuota_sebagian.sql"),
   );
   await db.exec(src("../../../supabase/migrations/20261126023652_promo_batas_transaksi.sql"));
+  await db.exec(src("../../../supabase/migrations/20261127023715_promo_archive.sql"));
   await as(owner);
   promo = await call<string>("simpan_promo", config());
 }, 30000);
@@ -1089,4 +1090,57 @@ it("NGOPAG: minimum whole basket, coffee-only 20%, one Rp5000 cap, channels and 
  await as(owner);
  await call('simpan_promo',{...cfg,id:pid,versi:1,batas_diskon:3000});
  await as(cash);await expect(call('matur_internal.buat_transaksi',sale(mixed,qm.id))).rejects.toThrow(/Reservasi|reserva/i);
+});
+
+const archive = async (i: string, v: number, pulihkan = false) =>
+  (await q<{ id: string }>('select arsip_promo($1,$2,$3) id', [i,v,pulihkan]))[0].id;
+it('archive invalidates unpaid quotes, hides cashier promo, preserves completed sale/accounting and audit; restore stays inactive',async()=>{
+ await as(owner);
+ const cfg=config({nama:'Arsip Simulasi',kuota:10});
+ const pid=await call<string>('simpan_promo',cfg);
+ await as(cash);
+ const b=basket(pid), paidQuote=await call<{id:string}>('pesan_promo',b);
+ const paid=await call<{id:string}>('matur_internal.buat_transaksi',sale(b,paidQuote.id));
+ const waiting=basket(pid), unpaid=await call<{id:string}>('pesan_promo',waiting);
+ const before=await q('select to_jsonb(t) row from transaksi t where id=$1',[paid.id]);
+ await as(owner);
+ const reportBefore=await q('select laporan_promo($1,current_date-1,current_date+1) row',[o]);
+ await as(owner);expect(await archive(pid,1)).toBe(pid);
+ const [archived]=await q('select aktif,diarsipkan_at,diarsipkan_oleh,diarsipkan_nama,versi from promo_internal.promo where id=$1',[pid]);
+ expect(archived).toMatchObject({aktif:false,diarsipkan_oleh:owner,diarsipkan_nama:'Owner',versi:2});expect(archived.diarsipkan_at).toBeTruthy();
+ expect(await q('select to_jsonb(t) row from transaksi t where id=$1',[paid.id])).toEqual(before);
+ expect(await q('select laporan_promo($1,current_date-1,current_date+1) row',[o])).toEqual(reportBefore);
+ expect((await q('select status from promo_internal.pesanan where id=$1',[unpaid.id]))[0].status).toBe('lepas');
+ expect((await q('select status from promo_internal.pesanan where id=$1',[paidQuote.id]))[0].status).toBe('pakai');
+ const list=(await q<{v:{id:string;diarsipkan_at:string}[]}>('select daftar_promo($1,true) v',[o]))[0].v;
+ expect(list.find(x=>x.id===pid)?.diarsipkan_at).toBeTruthy();
+ await expect(call('simpan_promo',{...cfg,id:pid,versi:2,aktif:true})).rejects.toThrow('diarsipkan');
+ await expect(archive(pid,1,true)).rejects.toThrow('diubah pengguna lain');
+ await as(cash);
+ expect((await q<{v:{id:string}[]}>('select daftar_promo($1,false) v',[o]))[0].v.some(x=>x.id===pid)).toBe(false);
+ await expect(call('pesan_promo',basket(pid))).rejects.toThrow('tidak aktif');
+ await expect(call('matur_internal.buat_transaksi',sale(waiting,unpaid.id))).rejects.toThrow('diarsipkan');
+ const normalSale={...sale(waiting,unpaid.id)};delete (normalSale as Record<string,unknown>).promo_quote;
+ expect((await call('matur_internal.buat_transaksi',normalSale)).total).toBe(10000);
+ await as(owner);await archive(pid,2,true);
+ expect((await q('select aktif,diarsipkan_at,versi from promo_internal.promo where id=$1',[pid]))[0]).toMatchObject({aktif:false,diarsipkan_at:null,versi:3});
+ await as(cash);await expect(call('pesan_promo',basket(pid))).rejects.toThrow('tidak aktif');
+ await as(owner);await call('simpan_promo',{...cfg,id:pid,versi:3});
+ await as(cash);expect((await call('pesan_promo',basket(pid))).diskon).toBe(4000);
+ // Restore/reactivate never revives an already released quote.
+ await expect(call('matur_internal.buat_transaksi',sale(waiting,unpaid.id))).rejects.toThrow('Reservasi promo berakhir');
+ await as(owner);
+ expect((await q('select aksi,pengguna_id from log_aktivitas where entitas_id=$1 and aksi in (\'arsip_promo\',\'pulihkan_promo\') order by id',[pid])).map(x=>x.aksi)).toEqual(['arsip_promo','pulihkan_promo']);
+});
+it('archive/restore enforces management scope and versions on the server, including finance/cashier/anonymous denial',async()=>{
+ await as(owner);
+ const own=await call<string>('simpan_promo',config({nama:'SPV sendiri'}));
+ const foreign=await call<string>('simpan_promo',config({nama:'SPV lain',outlet_ids:[other]}));
+ for(const uid of [cash,finance,'']){await as(uid);await expect(archive(own,1)).rejects.toThrow(/berwenang|Masuk/);}
+ await as(spv);await expect(archive(foreign,1)).rejects.toThrow('berwenang');
+ await archive(own,1);await expect(archive(own,1,true)).rejects.toThrow('diubah pengguna lain');
+ await as(finance);await expect(archive(own,2,true)).rejects.toThrow('berwenang');
+ await as(spv);await archive(own,2,true);
+ expect((await q('select aktif,versi from promo_internal.promo where id=$1',[own]))[0]).toMatchObject({aktif:false,versi:3});
+ expect((await q("select has_function_privilege('anon','public.arsip_promo(uuid,integer,boolean)','execute') allowed"))[0].allowed).toBe(false);
 });

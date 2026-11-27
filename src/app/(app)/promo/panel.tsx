@@ -6,7 +6,7 @@ import { formatRupiah as rp } from "@/lib/format";
 import { PromoMenuFilter } from "@/components/promo-menu-filter";
 import type { MenuPromo } from "@/lib/promo-menu";
 import { PilihMenuPromo } from "@/components/pilih-menu-promo";
-import { simpanPromo } from "@/lib/promo-actions";
+import { simpanPromo, arsipPromo } from "@/lib/promo-actions";
 import { tanya } from "@/components/dialog-tanya";
 import { Badge, BarisAngka, HeaderHalaman, Kartu, KartuAngka, Kosong, tabKelas, tabel, tombolAksi, tombolHeaderUtama } from "@/components/ui-halaman";
 import { KANAL_PROMO, syaratPromo, LABEL_STATUS, NAMA_HARI, PRESET_JAM, SEMUA_HARI, cekSlot, diLuarJam, hargaPromo, jamLegacy, labelKuota, labelNilai, labelWaktu, pesanRamah, rentangTanggal, slotPromo, statusPromo, urutkanPromo, type StatusPromo } from "@/lib/promo-tampilan";
@@ -17,7 +17,7 @@ const input =
 const NADA_STATUS = { berjalan: "hijau", terjadwal: "biru", selesai: "netral", nonaktif: "kuning" } as const;
 const GARIS_STATUS: Record<StatusPromo, string> = { berjalan: "bg-emerald-500", terjadwal: "bg-sky-500", selesai: "bg-stone-300", nonaktif: "bg-amber-400" };
 const bayar = (n: number) => (Number(n) ? rp(n) : "Rp0");
-const TAB: ("semua" | StatusPromo)[] = ["semua", "berjalan", "terjadwal", "nonaktif", "selesai"];
+const TAB: ("semua" | "arsip" | StatusPromo)[] = ["semua", "berjalan", "terjadwal", "nonaktif", "selesai", "arsip"];
 
 function Bagian({ no, judul, keterangan, children, warna = "border-matur-100 bg-white" }: { no: number; judul: string; keterangan?: string; children: ReactNode; warna?: string }) {
   return (
@@ -142,6 +142,7 @@ export function PromoPanel({
   const [edit, setEdit] = useState<Promo | null>(null);
   const [err, setErr] = useState("");
   const [errKartu, setErrKartu] = useState("");
+  const [infoKartu, setInfoKartu] = useState("");
   const [tab, setTab] = useState<(typeof TAB)[number]>("semua");
   const [cari, setCari] = useState("");
   const [pending, start] = useTransition();
@@ -226,21 +227,43 @@ export function PromoPanel({
       }
     });
   };
+  const ubahArsip = async (p: Promo, pulihkan: boolean) => {
+    const ok = await tanya(pulihkan
+      ? `Pulihkan promo "${p.nama}"? Promo kembali ke daftar dalam keadaan NONAKTIF. Periksa pengaturan lalu aktifkan secara terpisah.`
+      : `Hapus/arsipkan promo "${p.nama}"? Promo disembunyikan dari daftar utama dan tidak dapat dipakai kasir. Reservasi yang belum dibayar dilepas. Riwayat transaksi, diskon dan laporan tetap tersimpan.`,
+      { judul: pulihkan ? "Pulihkan promo?" : "Hapus/arsipkan promo?", ya: pulihkan ? "Pulihkan sebagai nonaktif" : "Ya, arsipkan", bahaya: !pulihkan });
+    if (!ok) return;
+    start(async () => {
+      setErrKartu("");
+      try {
+        setInfoKartu("");
+        const r = await arsipPromo(p.id, p.versi, pulihkan);
+        if (r.error) setErrKartu(`${p.nama}: ${pesanRamah(r.error)}`);
+        else {
+          setInfoKartu(pulihkan ? `"${p.nama}" dipulihkan sebagai nonaktif. Buka tab Nonaktif untuk memeriksa dan mengaktifkannya.` : `"${p.nama}" dipindahkan ke Arsip. Riwayat transaksi dan laporan tetap tersimpan.`);
+          router.refresh();
+        }
+      } catch { setErrKartu("Koneksi terputus. Muat ulang untuk memeriksa status arsip promo."); }
+    });
+  };
   const duplikat = (p: Promo) => {
     setErr("");
-    bukaEdit({ ...p, id: "", nama: `${p.nama} (salinan)`.slice(0, 120), aktif: false, versi: 0 });
+    bukaEdit({ ...p, id: "", nama: `${p.nama} (salinan)`.slice(0, 120), aktif: false, versi: 0, diarsipkan_at: null, diarsipkan_oleh: null, diarsipkan_nama: null });
   };
 
   const namaOutlet = useMemo(() => Object.fromEntries(outlets.map((o) => [o.id, o.nama])), [outlets]);
   const namaMenu = useMemo(() => Object.fromEntries(menus.map((m) => [m.id, m.kemasan ? `${m.nama} (${m.kemasan})` : m.nama])), [menus]);
   const daftar = useMemo(() => urutkanPromo(promos, sekarang).map((p) => ({ p, status: statusPromo(p, sekarang) })), [promos, sekarang]);
   const hitung = useMemo(() => {
-    const c: Record<string, number> = { semua: daftar.length };
-    for (const d of daftar) c[d.status] = (c[d.status] ?? 0) + 1;
+    const c: Record<string, number> = { semua: 0, arsip: 0 };
+    for (const d of daftar) {
+      if (d.p.diarsipkan_at) c.arsip++;
+      else { c.semua++; c[d.status] = (c[d.status] ?? 0) + 1; }
+    }
     return c;
   }, [daftar]);
   const q = cari.trim().toLowerCase();
-  const tampil = daftar.filter((d) => (tab === "semua" || d.status === tab) && (!q || d.p.nama.toLowerCase().includes(q)));
+  const tampil = daftar.filter((d) => (tab === "arsip" ? !!d.p.diarsipkan_at : !d.p.diarsipkan_at && (tab === "semua" || d.status === tab)) && (!q || d.p.nama.toLowerCase().includes(q)));
 
   const aktif = laporan.filter((r) => r.status === "lunas");
   const totalDiskon = aktif.reduce((s, r) => s + Number(r.diskon), 0);
@@ -274,7 +297,7 @@ export function PromoPanel({
       )}
 
       <BarisAngka>
-        <KartuAngka ikon="🟢" nada="hijau" label="Promo berjalan" nilai={hitung.berjalan ?? 0} sub={`dari ${promos.length} promo`} />
+        <KartuAngka ikon="🟢" nada="hijau" label="Promo berjalan" nilai={hitung.berjalan ?? 0} sub={`dari ${hitung.semua} promo · ${hitung.arsip} arsip`} />
         <KartuAngka ikon="🗓️" nada="biru" label="Terjadwal" nilai={hitung.terjadwal ?? 0} sub="belum dimulai" />
         <KartuAngka ikon="🧾" nada="netral" label="Transaksi promo" nilai={aktif.length} sub={`lunas · ${periode}`} />
         <KartuAngka ikon="💸" nada="ungu" label="Total potongan" nilai={<span className="block whitespace-normal text-lg sm:text-xl">{rp(totalDiskon)}</span>} sub={totalSubsidi ? `subsidi ${rp(totalSubsidi)}` : periode} />
@@ -285,13 +308,15 @@ export function PromoPanel({
           <div className={`${tabKelas.wadah} sm:flex-1`} role="tablist" aria-label="Status promo">
             {TAB.map((t) => (
               <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? tabKelas.aktif : tabKelas.pasif} onClick={() => setTab(t)}>
-                {t === "semua" ? "Semua" : LABEL_STATUS[t]}
+                {t === "semua" ? "Semua" : t === "arsip" ? "Arsip" : LABEL_STATUS[t]}
                 <span className="ml-1 text-xs font-normal text-stone-400">{hitung[t] ?? 0}</span>
               </button>
             ))}
           </div>
           <input type="search" aria-label="Cari promo" placeholder="🔍 Cari nama promo" className={`${input} sm:w-64`} value={cari} onChange={(e) => setCari(e.target.value)} />
         </div>
+        {tab === "arsip" && <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-600">Promo di arsip tidak tersedia di kasir. Riwayat transaksi dan laporan tetap tersimpan. Pulihkan untuk mengembalikannya sebagai promo nonaktif.</p>}
+        {infoKartu && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{infoKartu}</p>}
         {errKartu && (
           <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
             {errKartu}
@@ -309,7 +334,7 @@ export function PromoPanel({
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="min-w-0 font-bold leading-snug text-kopi-900 [overflow-wrap:anywhere]">{p.nama}</h2>
                     <Badge nada={NADA_STATUS[status]}>
-                      {status === "terjadwal" ? `Mulai ${rentangTanggal(p.mulai, p.mulai).replace(/ \d{4}$/, "")}` : luarJam ? "Di luar jam" : LABEL_STATUS[status]}
+                      {p.diarsipkan_at ? "Diarsipkan" : status === "terjadwal" ? `Mulai ${rentangTanggal(p.mulai, p.mulai).replace(/ \d{4}$/, "")}` : luarJam ? "Di luar jam" : LABEL_STATUS[status]}
                     </Badge>
                   </div>
                   <p className="mt-2 text-2xl font-extrabold tracking-tight text-matur-700">{labelNilai(p)}</p>
@@ -325,11 +350,15 @@ export function PromoPanel({
                     <div className="flex gap-2"><dt aria-label="Kuota">🎟️</dt><dd className="text-xs text-stone-600">{labelKuota(p)}</dd></div>
                   </dl>
                   <p className="mt-2 text-xs text-stone-500">{p.boleh_manual ? "Boleh ditambah diskon manual (batas SPV)" : "Tidak digabung diskon manual"}</p>
+                  {p.diarsipkan_at && <p className="my-2 text-xs text-stone-500">Diarsipkan {new Date(p.diarsipkan_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB{p.diarsipkan_nama ? ` oleh ${p.diarsipkan_nama}` : ""}</p>}
                   {bisaEdit && (
                     <div className="mt-auto flex flex-wrap gap-2 border-t border-stone-100 pt-3">
+                      {p.diarsipkan_at ? <button className={tombolAksi.netral} disabled={pending} onClick={() => ubahArsip(p, true)}>↩ Pulihkan</button> : <>
                       <button className={tombolAksi.edit} disabled={pending} onClick={() => bukaEdit(p)}>✏️ Edit</button>
                       <button className={p.aktif ? tombolAksi.netral : tombolAksi.utama} disabled={pending} onClick={() => ubahAktif(p)}>{p.aktif ? "⏸ Nonaktifkan" : "▶ Aktifkan"}</button>
                       <button className={tombolAksi.netral} disabled={pending} onClick={() => duplikat(p)}>⧉ Duplikat</button>
+                      <button className={tombolAksi.hapus} disabled={pending} onClick={() => ubahArsip(p, false)}>🗑 Hapus/Arsipkan</button>
+                      </>}
                     </div>
                   )}
                 </article>

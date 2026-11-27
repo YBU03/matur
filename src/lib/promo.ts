@@ -15,6 +15,9 @@ export type Promo = {
   kanal_ids?: string[];
   diskon_sebelum_batas?: number;
   aktif: boolean;
+  diarsipkan_at?: string | null;
+  diarsipkan_oleh?: string | null;
+  diarsipkan_nama?: string | null;
   subsidi?: boolean;
   nama_subsidi?: string;
   mulai: string;

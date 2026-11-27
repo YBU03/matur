@@ -27,6 +27,17 @@ export async function simpanPromo(
   revalidatePath("/promo");
   return { id: data as string };
 }
+/** Archive preserves sales/history. Restore always returns an inactive promo. */
+export async function arsipPromo(id: string, versi: number, pulihkan = false) {
+  const s = await getSession();
+  if (!s?.active || !["owner", "admin_pusat", "admin_gudang", "hrd", "spv", "marketing"].includes(s.active.role))
+    return { error: "Tidak diizinkan" };
+  const db = await supabaseServer();
+  const { data, error } = await db.rpc("arsip_promo", { i: id, v: versi, pulihkan });
+  if (error) return { error: error.message };
+  revalidatePath("/promo");
+  return { id: data as string };
+}
 export async function daftarPromoKasir() {
   const s = await getSession();
   if (!s?.active?.outletId) return { error: "Pilih outlet" };
