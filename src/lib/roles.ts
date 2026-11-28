@@ -524,3 +524,6 @@ for (const role of ["owner", "admin_pusat", "finance", "mitra"] as Role[])
     label: "Meeting Laporan",
     stage: 4,
   });
+
+// Akunting boleh menelusuri rincian stok gudang; hak perubahan tetap terpisah.
+ROLES.finance.menu.push({ href: "/gudang/stok", label: "Stok Gudang (lihat)", stage: 4 });

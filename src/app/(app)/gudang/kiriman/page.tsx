@@ -1,3 +1,4 @@
+import { RincianStokBahan } from "@/components/rincian-stok-bahan";
 import { MenuDokumen } from "@/components/gudang-dokumen-menu";
 import type { DokumenKiriman } from "@/lib/gudang-dokumen-model";
 import { stokMenipis } from "@/lib/stok-menipis";
@@ -169,19 +170,14 @@ export default async function DaftarKiriman({
           <summary className="cursor-pointer font-bold text-amber-900">
             ⚠️ Stok {m.outlet} menipis: {m.items.length} bahan{" "}
             <span className="text-sm font-normal text-stone-600">
-              (berkurang otomatis dari penjualan kasir)
+              (saldo sistem; buka rincian dan riwayat)
             </span>
           </summary>
           <ul className="mt-2 grid gap-x-6 text-sm sm:grid-cols-2">
             {m.items.map((i) => (
-              <li
-                key={i.nama}
-                className="flex justify-between border-b border-amber-200 py-1"
-              >
-                <span>{i.nama}</span>
-                <span className="tabular-nums text-stone-600">
-                  sisa {i.sisa}
-                </span>
+              <li key={i.id} className="min-w-0 border-b border-amber-200 py-2">
+                <p className="mb-1 font-semibold">{i.nama}</p>
+                <RincianStokBahan info={i.info} riwayat={`/stok/outlet?outlet=${m.outletId}&bahan=${i.id}&tab=laporan`} />
               </li>
             ))}
           </ul>

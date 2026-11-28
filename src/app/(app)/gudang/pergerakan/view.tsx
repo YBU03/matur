@@ -1,4 +1,5 @@
 "use client";
+import { jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -30,6 +31,7 @@ const STATUS: Record<HasilForecast["status"], [string, "merah" | "kuning" | "hij
 };
 
 export function PergerakanView(p: {
+  bahanAwal?: string;
   tab: "pergerakan" | "forecast";
   grain: "hari" | "minggu" | "bulan";
   dari: string;
@@ -43,7 +45,7 @@ export function PergerakanView(p: {
   gerak: Gerak | null;
   forecast: Forecast | null;
 }) {
-  const url = (o: Record<string, string>) => "/gudang/pergerakan?" + new URLSearchParams({ tab: p.tab, grain: p.grain, dari: p.dari, sampai: p.sampai, ...(p.outlet && { outlet: p.outlet }), ...o });
+  const url = (o: Record<string, string>) => "/gudang/pergerakan?" + new URLSearchParams({ tab: p.tab, grain: p.grain, dari: p.dari, sampai: p.sampai, ...(p.outlet && { outlet: p.outlet }), ...(p.bahanAwal && { bahan: p.bahanAwal }), ...o });
   return (
     <div className="mx-auto max-w-6xl space-y-4 pb-6">
       <Link href="/gudang/stok" className="inline-flex text-sm font-semibold text-matur-700 hover:underline">
@@ -86,10 +88,10 @@ export function PergerakanView(p: {
 // ---------------- Pergerakan ----------------
 type BarisGerak = { b: BahanForecast; awal: number; masuk: number; keluar: number; waste: number; sesuai: number; akhir: number };
 
-function TabPergerakan({ grain, dari, sampai, hari, bahan, gerak, url }: { grain: "hari" | "minggu" | "bulan"; dari: string; sampai: string; hari: string; bahan: BahanForecast[]; gerak: Gerak; url: (o: Record<string, string>) => string }) {
+function TabPergerakan({ bahanAwal, grain, dari, sampai, hari, bahan, gerak, url }: { bahanAwal?: string; grain: "hari" | "minggu" | "bulan"; dari: string; sampai: string; hari: string; bahan: BahanForecast[]; gerak: Gerak; url: (o: Record<string, string>) => string }) {
   const router = useRouter();
   const [cari, setCari] = useState("");
-  const [pilih, setPilih] = useState<string | null>(null);
+  const [pilih, setPilih] = useState<string | null>(bahanAwal ?? null);
   const [aktif, setAktif] = useState(true);
   const rows: BarisGerak[] = useMemo(
     () =>
@@ -243,11 +245,11 @@ function TabPergerakan({ grain, dari, sampai, hari, bahan, gerak, url }: { grain
       </section>
 
       {detail && (
-        <section className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm">
+        <section id="rincian-bahan" className="rounded-2xl border border-matur-100 bg-white p-4 shadow-sm">
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <h2 className="text-base font-bold text-kopi-900">{detail.b.nama}</h2>
-              <p className="text-xs text-stone-500">per {grain === "hari" ? "hari" : grain === "minggu" ? "minggu" : "bulan"} · {detail.b.satuan_beli}</p>
+              <p className="text-xs text-stone-500">per {grain === "hari" ? "hari" : grain === "minggu" ? "minggu" : "bulan"} · grafik dalam {detail.b.satuan_beli}; rincian jumlah asli dalam {detail.b.satuan_pakai}</p>
             </div>
             <button onClick={() => setPilih(null)} className="text-sm text-stone-400">✕</button>
           </div>
@@ -274,6 +276,7 @@ function TabPergerakan({ grain, dari, sampai, hari, bahan, gerak, url }: { grain
                     <span className="tabular-nums text-xs">
                       masuk <b className="text-emerald-700">{kemasan(x.masuk, detail.b)}</b> · keluar <b className="text-sky-700">{kemasan(x.keluar, detail.b)}</b> · waste <b className="text-red-700">{kemasan(x.waste, detail.b)}</b> · penyesuaian <b>{kemasan(Number(x.sesuai) + Number(x.lain), detail.b)}</b>
                     </span>
+                    <p className="w-full text-xs text-stone-700">Jumlah asli: masuk {jumlahBahanTertulis(Number(x.masuk), detail.b.satuan_pakai)} · keluar {jumlahBahanTertulis(Number(x.keluar), detail.b.satuan_pakai)} · waste {jumlahBahanTertulis(Number(x.waste), detail.b.satuan_pakai)} · penyesuaian {jumlahBahanTertulis(Number(x.sesuai) + Number(x.lain), detail.b.satuan_pakai)}.</p>
                   </li>
                 ))}
               </ul>

@@ -25,6 +25,7 @@ export default async function StokGudangPage() {
     harga_pokok: Number(b.harga_pokok),
     stok_min: Number(b.stok_min),
     jumlah: Number(map.get(b.id)?.jumlah ?? 0),
+    tercatat: map.has(b.id),
     updated_at: map.get(b.id)?.updated_at ?? null,
   }));
   return <StokView rows={rows} canEdit={["owner", "admin_pusat", "admin_gudang"].includes(s.active.role)} />;

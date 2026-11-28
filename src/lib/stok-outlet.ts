@@ -52,6 +52,8 @@ export type LaporanStokOutlet = {
   awal_riwayat: string | null;
 };
 export type BahanOutlet = {
+  satuan_beli?: string;
+  konversi?: number;
   id: string;
   nama: string;
   satuan_pakai: string;
