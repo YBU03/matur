@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { getSession } from "@/lib/session";
+import { LaporanKontakMitra } from "@/components/laporan-kontak-mitra";
+import type { KontakMitraLaporan } from "@/lib/laporan-kontak-mitra";
 import { supabaseServer } from "@/lib/supabase/server";
 import { nomorSupport } from "@/lib/support-outlet";
 import { namaBulan, type Laporan } from "@/lib/laporan";
@@ -11,14 +14,20 @@ export async function LaporanHubLinks({
   >;
 }) {
   const db = await supabaseServer();
-  const { data, error } = await db
-    .from("support_outlet")
-    .select("nomor,nama")
-    .eq("aktif", true)
-    .ilike("bagian", "%akunting%")
-    .order("urutan")
-    .limit(1)
-    .maybeSingle();
+  const session = await getSession();
+  const pusat = !!session?.active && ["owner", "admin_pusat", "finance"].includes(session.active.role);
+  const [support, mitra] = await Promise.all([
+    db
+      .from("support_outlet")
+      .select("nomor,nama")
+      .eq("aktif", true)
+      .ilike("bagian", "%akunting%")
+      .order("urutan")
+      .limit(1)
+      .maybeSingle(),
+    pusat ? db.rpc("kontak_mitra_laporan", { l: l.id }) : Promise.resolve(null),
+  ]);
+  const { data, error } = support;
   const nomor = data ? nomorSupport(data.nomor) : null;
   const pesan = `Halo Akunting, saya ingin penjelasan laporan keuangan ${l.outlet?.nama ?? l.nama_outlet}, ${namaBulan(l.periode)}. ${"https://matoer.id/laporan/" + l.id}\nPertanyaan saya: `;
   return (
@@ -50,6 +59,14 @@ export async function LaporanHubLinks({
       >
         Rekap bulanan & margin %
       </Link>
+      {pusat && (
+        <LaporanKontakMitra
+          kontak={(mitra?.data ?? []) as KontakMitraLaporan[]}
+          error={!!mitra?.error}
+          bisaKelola={session?.active?.role === "owner" || session?.active?.role === "admin_pusat"}
+          laporan={{ id: l.id, nama_outlet: l.outlet?.nama ?? l.nama_outlet, periode: l.periode }}
+        />
+      )}
       <p className="w-full text-xs text-stone-500">
         WhatsApp membuka pesan awal untuk Anda kirim sendiri. Hak bagi hasil
         berbeda dari pembayaran aktual.
