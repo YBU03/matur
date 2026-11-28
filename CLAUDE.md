@@ -133,3 +133,5 @@ NGOPAG 26 November: promo memiliki batas_diskon opsional sekali per transaksi, d
 POS adaptif 27 November: dua kolom berdasarkan ruang browser dengan scroll menu/pesanan terpisah, total/metode/Bayar tetap terlihat. HP tetap Lihat & Bayar; resize mempertahankan state, tidak menambahkan reload/polling atau mengubah checkout/shift. Baca docs/pos-adaptive-2026-11-27.md.
 
 Arsip promo 27 November: Hapus/Arsipkan dengan konfirmasi dan tab Arsip; pulihkan selalu nonaktif, tidak menghapus histori/akunting. RPC versioned + scope edit yang sama, melepas quote belum dibayar dengan lock promo. Baca docs/promo-archive-2026-11-27.md.
+
+Kontak Mitra laporan 28 November: Owner/Admin/Finance menghubungi mitra sesuai outlet laporan via WhatsApp; pilih penerima jika banyak, master nomor terbaru/fallback akun, tanpa kirim otomatis/status berubah. RPC privat hanya proyeksi kontak, tidak memperluas RLS pengguna. Baca docs/laporan-kontak-mitra-2026-11-28.md.
