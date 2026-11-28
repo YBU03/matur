@@ -74,7 +74,7 @@ function Baris({ m, label, template, resep, peta, bisaUbah, onEdit }: { m: MenuH
                   <thead className="bg-matur-50 text-left font-semibold uppercase tracking-wide text-matur-800">
                     <tr>
                       <th className="rounded-l-lg px-2 py-1.5">Bahan</th>
-                      <th className="px-2 text-right">Takaran</th>
+                      <th className="px-2 text-right">Takaran per 1 menu (satuan pakai)</th>
                       <th className="px-2 text-right">HPP/satuan</th>
                       <th className="rounded-r-lg px-2 text-right">Biaya</th>
                     </tr>

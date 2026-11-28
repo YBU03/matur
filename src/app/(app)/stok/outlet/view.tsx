@@ -1,4 +1,5 @@
 "use client";
+import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
 import Link from "next/link";
 import { minta } from "@/components/dialog-tanya";
 import { useRouter } from "next/navigation";
@@ -596,6 +597,7 @@ export function StokOutletView(p: Props) {
               Ekspor Excel
             </button>
           </div>
+          <p className="rounded-lg bg-stone-50 p-3 text-sm">{PETUNJUK_DESIMAL_BAHAN} Kolom Masuk adalah penerimaan; Pemakaian resep POS adalah penggunaan teoritis; SO adalah penyesuaian hasil hitung fisik.</p>
           <p className="rounded-lg bg-sky-50 p-3 text-sm">
             Hari operasional mengikuti tutup buku outlet. Saldo awal/akhir
             direkonstruksi dari stok sekarang dan mutasi tersimpan. Pemakaian
@@ -985,6 +987,7 @@ export function StokOutletView(p: Props) {
                   </select>
                 </label>
               )}
+              <p className="rounded-lg bg-sky-50 p-3 text-xs text-sky-900">{PETUNJUK_DESIMAL_BAHAN} Form ini memakai satuan pakai yang tertera pada pilihan bahan.</p>
               {form.aksi === "setelan" ? (
                 <>
                   <label className="block">
@@ -1041,6 +1044,7 @@ export function StokOutletView(p: Props) {
                       }
                     />
                   </label>
+                  {form.jumlah.trim() && Number.isFinite(Number(form.jumlah)) && <p className="text-sm font-medium">{form.aksi === "koreksi" ? "Total stok pengganti" : "Jumlah terbuang"}: {jumlahBahanTertulis(Number(form.jumlah), p.bahan.find(b => b.id === form.bahan)?.satuan_pakai ?? "")}</p>}
                   {form.aksi === "waste" && (
                     <label className="block">
                       Foto opsional (maks. 5 MB)

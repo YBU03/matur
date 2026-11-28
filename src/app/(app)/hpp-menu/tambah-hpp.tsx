@@ -31,7 +31,7 @@ export function TambahHpp({ menus, bahan, kategori }: { menus: { id: string; nam
       <label className="block">Seri<select className={cls} value={v.seri} onChange={(e) => setV({ ...v, seri: e.target.value })}>{["Ice", "Hot", "Can"].map((s) => <option key={s}>{s}</option>)}</select></label>
       {rows.map((r, i) => <div key={i} className="flex flex-wrap items-end gap-2">
         <label className="min-w-40 flex-1">Bahan<select required className={cls} value={r.id} onChange={(e) => setRows(rows.map((x, j) => i === j ? { ...x, id: e.target.value } : x))}><option value="">Pilih bahan</option>{bahan.map((b) => <option key={b.id} value={b.id} disabled={rows.some((x, j) => j !== i && x.id === b.id)}>{b.nama} ({b.satuan_pakai})</option>)}</select></label>
-        <label>Takaran ({bahan.find((b) => b.id === r.id)?.satuan_pakai ?? "satuan pakai"})<input required type="number" min="0.0001" max="1000000" step="0.0001" className={cls} value={r.qty} onChange={(e) => setRows(rows.map((x, j) => i === j ? { ...x, qty: e.target.value } : x))} /></label>
+        <label>Takaran per 1 menu ({bahan.find((b) => b.id === r.id)?.satuan_pakai ?? "satuan pakai"})<input required type="number" min="0.0001" max="1000000" step="0.0001" className={cls} value={r.qty} onChange={(e) => setRows(rows.map((x, j) => i === j ? { ...x, qty: e.target.value } : x))} /></label>
         <button type="button" disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="p-2 text-red-700">Hapus bahan</button>
       </div>)}
       <button type="button" onClick={() => setRows([...rows, { id: "", qty: "" }])} className="text-matur-700 underline">+ Bahan</button>

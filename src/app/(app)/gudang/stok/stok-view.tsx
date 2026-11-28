@@ -1,6 +1,7 @@
 "use client";
 
 import {HargaGudang} from "@/components/gudang-harga";
+import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -71,6 +72,7 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
         )}
       </div>
 
+      <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">Stok gudang ditampilkan dalam kemasan dan satuan pakai. Tanda ≈ adalah perkiraan jumlah kemasan; rincian satuan pakai menunjukkan jumlah stok. {PETUNJUK_DESIMAL_BAHAN}</p>
       <nav className="flex flex-wrap gap-2 text-sm font-semibold">{canEdit&&<Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/pengaturan-dokumen">Pengaturan Dokumen</Link>}<Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/opname">📋 Opname Gudang</Link><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/laba-rugi">📊 Laba Rugi Gudang</Link><Link className="rounded-xl border bg-white px-4 py-2" href="/gudang/pergerakan">📈 Pergerakan & Forecast</Link></nav>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Jenis bahan" value={String(rows.length)} />
@@ -128,13 +130,13 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
                         <p className="text-xs text-stone-500">
                           {b.satuan_beli}
                           {b.kemasan && ` · ${b.kemasan}`}
-                          {b.konversi !== 1 && ` · 1 ${b.satuan_beli} = ${nf(b.konversi)} ${b.satuan_pakai}`}
+                          {b.konversi !== 1 && ` · 1 ${b.satuan_beli} = ${b.konversi.toLocaleString("id-ID", { maximumFractionDigits: 20 })} ${b.satuan_pakai}`}
                         </p>
                         {b.catatan && <p className="mt-0.5 text-xs text-amber-700">⚠️ {b.catatan}</p>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right">
-                        <p className="font-semibold tabular-nums">{nf(b.jumlah / b.konversi)} {b.satuan_beli}</p>
-                        {b.konversi !== 1 && <p className="text-xs text-stone-500 tabular-nums">{nf(b.jumlah, 0)} {b.satuan_pakai}</p>}
+                        <p className="font-semibold tabular-nums">{b.konversi === 1 ? jumlahBahanTertulis(b.jumlah, b.satuan_pakai) : `≈ ${nf(b.jumlah / b.konversi, 3)} ${b.satuan_beli}`}</p>
+                        {b.konversi !== 1 && <p className="text-xs text-stone-500 tabular-nums">Setara {jumlahBahanTertulis(b.jumlah, b.satuan_pakai)}</p>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_beli)}<span className="text-xs text-stone-500">/{b.satuan_beli}</span></td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_jual_gudang??b.harga_beli)}{b.harga_jual_gudang===null&&<p className="text-xs text-stone-500">Mengikuti harga beli</p>}</td><td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah((b.harga_jual_gudang??b.harga_beli)-b.harga_beli)}</td>
@@ -174,14 +176,15 @@ function KoreksiDialog({ b, onClose }: { b: BahanStok; onClose: () => void }) {
         <label className="block text-sm font-medium">
           Stok fisik sekarang ({b.satuan_beli})
           <input value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border px-3 py-2 text-lg" />
-          {b.konversi !== 1 && Number.isFinite(baru) && <span className="mt-1 block text-xs text-stone-500">= {nf(baru * b.konversi, 0)} {b.satuan_pakai}</span>}
+          {b.konversi !== 1 && Number.isFinite(baru) && <span className="mt-1 block text-xs text-stone-500">= {jumlahBahanTertulis(baru, b.satuan_beli)} × {jumlahBahanTertulis(b.konversi, b.satuan_pakai)} = {jumlahBahanTertulis(Math.round(baru * b.konversi * 1000) / 1000, b.satuan_pakai)}</span>}
         </label>
       ) : (
         <p className="text-sm">
-          Stok <b>{b.nama}</b>: <span className="text-red-600 line-through">{nf(lama)} {b.satuan_beli}</span> →{" "}
-          <span className="font-semibold text-green-700">{nf(baru)} {b.satuan_beli}</span>
+          Stok <b>{b.nama}</b>: <span className="text-red-600 line-through">{jumlahBahanTertulis(lama, b.satuan_beli)}</span> →{" "}
+          <span className="font-semibold text-green-700">{jumlahBahanTertulis(baru, b.satuan_beli)}</span>
         </p>
       )}
+      <p className="mt-2 text-xs text-stone-600">Jumlah ini adalah total stok fisik pengganti, bukan tambahan stok. {PETUNJUK_DESIMAL_BAHAN}</p>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={konfirmasi ? () => setKonfirmasi(false) : onClose} className="rounded-lg border px-4 py-2 text-sm">{konfirmasi ? "Periksa lagi" : "Batal"}</button>

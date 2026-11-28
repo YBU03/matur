@@ -1,4 +1,5 @@
 "use client";
+import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
 import { tanya } from "@/components/dialog-tanya";
 
 import { useRouter } from "next/navigation";
@@ -294,10 +295,11 @@ export function OpnameView({
           )}
         </div>
         <p className="mb-2 text-xs text-stone-500">
-          Isi jumlah kemasan utuh, lalu sisa yang sudah terbuka dalam satuan
-          kecil (gram/ml). Kosongkan bahan yang tidak dihitung; stoknya tetap
+          Hitung fisik: isi jumlah kemasan, lalu sisa terbuka dalam satuan pakai yang tertulis.
+          Jika sisa kemasan sudah dimasukkan sebagai desimal di kolom kemasan, jangan dihitung lagi di kolom sisa terbuka. Kosongkan bahan yang tidak dihitung; stoknya tetap
           dipertahankan. Riwayat nilai persediaan mencakup seluruh stok outlet.
         </p>
+        <p className="mb-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900">{PETUNJUK_DESIMAL_BAHAN}</p>
         {tampil.length === 0 && (
           <p className="py-4 text-sm text-stone-500">
             Tidak ada bahan yang cocok dengan pencarian.
@@ -326,35 +328,37 @@ export function OpnameView({
                     <button type="button" disabled={locked} className="mt-2 block rounded-lg border border-amber-700 px-3 py-2 font-semibold" onClick={async()=>{if(await tanya(`Sudah menghitung ulang ${b.nama} sekarang dan memastikan isian fisiknya benar?`)){drafts.change(x=>({...x,sistem:{...x.sistem,[b.id]:konflik[b.id]}}));setKonflik(old=>{const next={...old};delete next[b.id];return next;});setReview(false);}}}>Sudah hitung ulang {b.nama}</button>
                   </div>}
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <label className="inline-flex items-center gap-1.5">
                     <input
                       data-so-input onFocus={()=>setFocused(b.id)}
                       value={isi[b.id]?.kemasan ?? ""}
                       onChange={(e) => set(b.id, "kemasan", e.target.value)}
-                      aria-label={`Kemasan ${b.nama}`}
+                      aria-label={`${b.konversi > 1 ? "Jumlah kemasan" : "Jumlah fisik"} ${b.nama}`}
                       inputMode="decimal"
                       placeholder="0"
                       className="w-16 rounded-lg border border-stone-300 px-2 py-1.5 text-right"
                     />
                     <span className="text-xs text-stone-600">
-                      {b.satuan_beli === b.satuan_pakai || b.konversi <= 1
-                        ? b.satuan_pakai
-                        : b.satuan_beli}
+                      {b.konversi > 1 ? `kemasan (${b.satuan_beli})` : b.satuan_pakai}
                     </span>
+                    </label>
                     {b.konversi > 1 && (
                       <>
                         <span className="text-stone-400">+</span>
+                        <label className="inline-flex items-center gap-1.5">
                         <input
                           data-so-input onFocus={()=>setFocused(b.id)}
                           value={isi[b.id]?.eceran ?? ""}
                           onChange={(e) => set(b.id, "eceran", e.target.value)}
-                          aria-label={`Sisa ${b.nama}`}
+                          aria-label={`Sisa terbuka ${b.nama} (${b.satuan_pakai})`}
                           inputMode="decimal"
                           placeholder="sisa"
                           className="w-20 rounded-lg border border-stone-300 px-2 py-1.5 text-right"
                         />
                         <span className="text-xs text-stone-600">
-                          {b.satuan_pakai}
+                          {b.satuan_pakai} sisa terbuka
                         </span>
+                        </label>
                       </>
                     )}
                     <button type="button" aria-label={`Berikutnya setelah ${b.nama}`} onClick={e=>{const row=e.currentTarget.closest("li");const last=row?.querySelectorAll<HTMLInputElement>("input[data-so-input]");if(last?.length)berikutnya(last[last.length-1]);}} className="rounded-lg border px-2 py-1 text-xs text-matur-700">Berikutnya ↓</button>
@@ -373,6 +377,11 @@ export function OpnameView({
                       </span>
                     )}
                   </div>
+                  {v !== null && Number.isFinite(v) && <p className="rounded-lg bg-stone-50 px-2 py-1 text-xs text-stone-700">
+                    Total fisik: {b.konversi > 1
+                      ? `${nf.format(num(isi[b.id]?.kemasan) ?? 0)} kemasan × ${jumlahBahanTertulis(b.konversi, b.satuan_pakai)} + ${jumlahBahanTertulis(num(isi[b.id]?.eceran) ?? 0, b.satuan_pakai)} sisa terbuka = `
+                      : ""}{jumlahBahanTertulis(v, b.satuan_pakai)}. Ini hasil hitung fisik, bukan jumlah pemakaian.
+                  </p>}
                 </li>
               );
             })}
