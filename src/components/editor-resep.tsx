@@ -1,4 +1,5 @@
 "use client";
+import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { formatRupiah } from "@/lib/format";
@@ -62,6 +63,7 @@ export function EditorResep({
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+          <p className="rounded-lg bg-sky-50 p-3 text-xs text-sky-900">{PETUNJUK_DESIMAL_BAHAN} Takaran di bawah berlaku per 1 menu terjual.</p>
           {!rows.length && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Belum ada bahan. Tanpa resep, penjualan menu ini tidak memotong stok dan HPP-nya Rp 0.</p>}
           <ul className="space-y-2">
             {rows.map((r, i) => {
@@ -74,6 +76,7 @@ export function EditorResep({
                     <p className="text-[11px] text-stone-500">
                       {b?.harga_pokok ? `${formatRupiah(Number(b.harga_pokok))}/${b.satuan_pakai}` : "HPP bahan belum ada"} · biaya <b className="text-kopi-800">{formatRupiah(t > 0 ? t * Number(b?.harga_pokok ?? 0) : 0)}</b>
                     </p>
+                    {b && r.isi.trim() && Number.isFinite(t) && <p className="mt-1 text-xs text-kopi-800">Pemakaian resep: {jumlahBahanTertulis(t, b.satuan_pakai)} per 1 menu.</p>}
                   </div>
                   <label className="relative block">
                     <span className="sr-only">Takaran {b?.nama}</span>

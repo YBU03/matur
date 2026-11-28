@@ -1,3 +1,4 @@
+import { PETUNJUK_DESIMAL_BAHAN } from "./keterangan-jumlah-bahan";
 import type { LaporanStokOutlet, StokGerak } from "./stok-outlet";
 import { LABEL_GERAK } from "./stok-outlet";
 export const KOLOM_STOK = [
@@ -70,7 +71,7 @@ export async function eksporStokOutlet(
   const title = "Laporan Penggunaan Bahan Baku";
   const sub = `${lokasi} | ${periode} | hari operasional`;
   const note =
-    "* Saldo direkonstruksi dari stok saat ini dan riwayat mutasi. Pemakaian POS bersifat teoritis berdasarkan resep. Waste, marketing, void dan SO terpisah; selisih SO bukan otomatis pemakaian nyata. Tidak ada penjumlahan lintas satuan.";
+    PETUNJUK_DESIMAL_BAHAN + " * Saldo direkonstruksi dari stok saat ini dan riwayat mutasi. Pemakaian POS bersifat teoritis berdasarkan resep. Waste, marketing, void dan SO terpisah; selisih SO bukan otomatis pemakaian nyata. Tidak ada penjumlahan lintas satuan.";
   if (jenis === "excel") {
     const { Workbook } = (await import("exceljs")).default;
     const wb = new Workbook();
@@ -82,6 +83,9 @@ export async function eksporStokOutlet(
       ws.addRow([title]).font = { bold: true, size: 15 };
       ws.addRow([sub]);
       ws.addRow([note]);
+      ws.mergeCells(3, 1, 3, head.length);
+      ws.getRow(3).height = 54;
+      ws.getCell(3, 1).alignment = { wrapText: true, vertical: "top" };
       const h = ws.addRow([...head]);
       h.font = { bold: true };
       h.eachCell((c) => {
@@ -121,7 +125,7 @@ export async function eksporStokOutlet(
     doc.setFontSize(9).text(sub, 14, 23);
     doc.setFontSize(8).text(doc.splitTextToSize(note, 268), 14, 30);
     autoTable(doc, {
-      startY: 44,
+      startY: 30 + doc.splitTextToSize(note, 268).length * 4 + 4,
       head: [KOLOM_STOK],
       body: barisStok(d).map((r) =>
         r.map((v) =>
