@@ -80,7 +80,7 @@ export default async function Page({
     }),
     db
       .from("bahan")
-      .select("id,nama,satuan_pakai,stok_min")
+      .select("id,nama,satuan_pakai,satuan_beli,konversi,stok_min")
       .eq("mode", "asli")
       .is("deleted_at", null)
       .order("nama"),

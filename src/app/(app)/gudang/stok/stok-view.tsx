@@ -2,6 +2,7 @@
 
 import {HargaGudang} from "@/components/gudang-harga";
 import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
+import { RincianStokBahan } from "@/components/rincian-stok-bahan";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -25,14 +26,17 @@ export type BahanStok = {
   stok_min: number;
   catatan: string | null;
   jumlah: number; // satuan pakai
+  tercatat?: boolean;
   updated_at: string | null;
 };
 
 const nf = (n: number, d = 2) => n.toLocaleString("id-ID", { maximumFractionDigits: d });
 // nilai = jumlah kemasan × harga beli per kemasan (sama dengan daftar belanja)
 const nilai = (b: BahanStok) => (b.jumlah / b.konversi) * b.harga_beli;
-const status = (b: BahanStok) => (b.jumlah <= 0 ? "habis" : b.jumlah < b.stok_min ? "menipis" : "aman");
+const status = (b: BahanStok) => (b.tercatat === false ? "belum_tercatat" : b.jumlah < 0 ? "negatif" : b.jumlah === 0 ? "habis" : b.jumlah <= b.stok_min ? "menipis" : "aman");
 const BADGE = {
+  negatif: "bg-red-100 text-red-700",
+  belum_tercatat: "bg-stone-100 text-stone-700",
   aman: "bg-green-100 text-green-800",
   menipis: "bg-amber-100 text-amber-800",
   habis: "bg-red-100 text-red-700",
@@ -132,17 +136,18 @@ export function StokView({ rows, canEdit }: { rows: BahanStok[]; canEdit: boolea
                           {b.kemasan && ` · ${b.kemasan}`}
                           {b.konversi !== 1 && ` · 1 ${b.satuan_beli} = ${b.konversi.toLocaleString("id-ID", { maximumFractionDigits: 20 })} ${b.satuan_pakai}`}
                         </p>
+                        <RincianStokBahan info={{ jumlah: b.tercatat === false ? null : b.jumlah, satuan: b.satuan_pakai, satuanBeli: b.satuan_beli, konversi: b.konversi, minimum: b.stok_min, sumberMinimum: "master bahan gudang" }} riwayat={`/gudang/pergerakan?bahan=${b.id}#rincian-bahan`} />
                         {b.catatan && <p className="mt-0.5 text-xs text-amber-700">⚠️ {b.catatan}</p>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right">
-                        <p className="font-semibold tabular-nums">{b.konversi === 1 ? jumlahBahanTertulis(b.jumlah, b.satuan_pakai) : `≈ ${nf(b.jumlah / b.konversi, 3)} ${b.satuan_beli}`}</p>
-                        {b.konversi !== 1 && <p className="text-xs text-stone-500 tabular-nums">Setara {jumlahBahanTertulis(b.jumlah, b.satuan_pakai)}</p>}
+                        <p className="font-semibold tabular-nums">{b.tercatat === false ? "Belum tercatat" : b.konversi === 1 ? jumlahBahanTertulis(b.jumlah, b.satuan_pakai) : `≈ ${nf(b.jumlah / b.konversi, 3)} ${b.satuan_beli}`}</p>
+                        {b.tercatat !== false && b.konversi !== 1 && <p className="text-xs text-stone-500 tabular-nums">Setara {jumlahBahanTertulis(b.jumlah, b.satuan_pakai)}</p>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_beli)}<span className="text-xs text-stone-500">/{b.satuan_beli}</span></td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah(b.harga_jual_gudang??b.harga_beli)}{b.harga_jual_gudang===null&&<p className="text-xs text-stone-500">Mengikuti harga beli</p>}</td><td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{rupiah((b.harga_jual_gudang??b.harga_beli)-b.harga_beli)}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">Rp {nf(b.harga_pokok)}<span className="text-xs text-stone-500">/{b.satuan_pakai}</span></td>
                       <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">{rupiah(nilai(b))}</td>
-                      <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs ${BADGE[st]}`}>{st}</span></td>
+                      <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs ${BADGE[st]}`}>{st === "negatif" ? "Negatif · perlu cek" : st === "belum_tercatat" ? "Belum tercatat" : st}</span></td>
                       {canEdit && (
                         <td className="whitespace-nowrap px-3 py-2 text-right">
                           <HargaGudang id={b.id} nama={b.nama} satuan={b.satuan_beli} harga={b.harga_jual_gudang} beli={b.harga_beli}/><br/><button onClick={() => setEdit(b)} className="text-matur-700 hover:underline">Koreksi stok</button>

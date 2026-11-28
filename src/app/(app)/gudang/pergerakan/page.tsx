@@ -9,7 +9,7 @@ const PERAN = ["owner", "admin_pusat", "admin_gudang", "finance"];
 const geser = (iso: string, hari: number) => new Date(Date.parse(iso + "T00:00:00Z") + hari * 86400_000).toISOString().slice(0, 10);
 
 // Pergerakan stok Gudang (harian/mingguan/bulanan) & Smart Forecast kebutuhan bulan depan.
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; grain?: string; dari?: string; sampai?: string; outlet?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ bahan?: string; tab?: string; grain?: string; dari?: string; sampai?: string; outlet?: string }> }) {
   const s = await getSession();
   if (!s?.active || !PERAN.includes(s.active.role)) notFound();
   const sp = await searchParams;
@@ -40,7 +40,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   }));
   return (
     <PergerakanView
-      key={[tab, grain, dari, sampai, outlet].join(":")}
+      key={[tab, grain, dari, sampai, outlet, sp.bahan].join(":")}
+      bahanAwal={listBahan.some(b => b.id === sp.bahan) ? sp.bahan : undefined}
       tab={tab}
       grain={grain}
       dari={dari}

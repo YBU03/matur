@@ -1,5 +1,7 @@
 "use client";
 import { PETUNJUK_DESIMAL_BAHAN, jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
+import { batasPeringatanStok, statusStokTertulis } from "@/lib/rincian-stok";
+import { RincianStokBahan } from "@/components/rincian-stok-bahan";
 import Link from "next/link";
 import { minta } from "@/components/dialog-tanya";
 import { useRouter } from "next/navigation";
@@ -112,6 +114,8 @@ export function StokOutletView(p: Props) {
     return {
       ...b,
       jumlah: Number(r?.jumlah ?? 0),
+      tercatat: !!r,
+      batas: batasPeringatanStok(Number(b.stok_min), Number(b.konversi ?? 1), cfg ? Number(cfg.minimum) : undefined),
       minimum: Number(cfg?.minimum ?? b.stok_min),
       aktif: cfg?.aktif ?? true,
     };
@@ -431,21 +435,15 @@ export function StokOutletView(p: Props) {
                 <tbody>
                   {rows.map((b) => (
                     <tr key={b.id} className="border-t">
-                      <td className="p-3 font-semibold">{b.nama}</td>
+                      <td className="min-w-64 p-3"><p className="mb-1 font-semibold">{b.nama}</p><RincianStokBahan info={{ jumlah: b.tercatat ? b.jumlah : null, satuan: b.satuan_pakai, satuanBeli: b.satuan_beli, konversi: b.konversi, minimum: b.batas.minimum, sumberMinimum: b.batas.sumberMinimum }} riwayat={url({ bahan: b.id, tab: "laporan" })} /></td>
                       <td>
-                        {nf(b.jumlah)} {b.satuan_pakai}
+                        {b.tercatat ? jumlahBahanTertulis(b.jumlah, b.satuan_pakai) : "Belum tercatat"}
                       </td>
                       <td>
-                        {nf(b.minimum)} {b.satuan_pakai}
+                        {jumlahBahanTertulis(b.batas.minimum, b.satuan_pakai)}<p className="text-xs text-stone-500">{b.batas.sumberMinimum}</p>
                       </td>
                       <td>
-                        {!b.aktif
-                          ? "Nonaktif"
-                          : b.jumlah <= 0
-                            ? "Habis / perlu cek"
-                            : b.jumlah <= b.minimum
-                              ? "Menipis"
-                              : "Cukup"}
+                        {!b.aktif ? "Nonaktif" : statusStokTertulis(b.tercatat ? b.jumlah : null, b.batas.minimum)}
                       </td>
                       <td className="flex flex-wrap gap-1 p-2">
                         <Link

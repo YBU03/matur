@@ -1,4 +1,6 @@
 "use client";
+import { jumlahBahanTertulis } from "@/lib/keterangan-jumlah-bahan";
+import { RincianStokBahan } from "@/components/rincian-stok-bahan";
 import { ChipHeader, HeaderHalaman } from "@/components/ui-halaman";
 
 import Link from "next/link";
@@ -154,11 +156,12 @@ export function StokRealtimeView({
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${GAYA[r.f.status].chip}`}>{GAYA[r.f.status].label}</span>
                 </div>
                 <p className="mt-1 text-sm">
-                  Sisa <b>{qty(Math.max(r.stok, 0), r)}</b> <span className="text-xs text-stone-500">· min {qty(r.stok_min, r)}</span>
+                  Sisa <b>{jumlahBahanTertulis(r.stok, r.satuan)}</b> <span className="text-xs text-stone-500">· min {qty(r.stok_min, r)}</span>
                 </p>
+                {basePath === "/stok-realtime" && <RincianStokBahan info={{ jumlah: r.stok, satuan: r.satuan, satuanBeli: r.satuan_beli, konversi: r.konversi, minimum: r.stok_min, sumberMinimum: "batas minimum pemantauan lokasi ini" }} riwayat={pilihan === "gudang" ? `/gudang/pergerakan?bahan=${r.id}#rincian-bahan` : `/stok/outlet?outlet=${pilihan}&bahan=${r.id}&tab=laporan`} />}
                 <SisaBar r={r} />
                 <p className="mt-1.5 text-xs text-stone-600">
-                  {r.f.status === "habis" ? "Stok sudah habis" : r.f.tglHabis ? `Perkiraan habis ${tglPendek(r.f.tglHabis)} (±${nf.format(r.f.hariTersisa ?? 0)} hari)` : "Belum ada pemakaian rutin"}
+                  {r.stok < 0 ? "Saldo sistem negatif · perlu cek riwayat" : r.f.status === "habis" ? "Stok sistem habis" : r.f.tglHabis ? `Perkiraan habis ${tglPendek(r.f.tglHabis)} (±${nf.format(r.f.hariTersisa ?? 0)} hari)` : "Belum ada pemakaian rutin"}
                   {r.f.rata > 0 && ` · ±${qty(r.f.rata, r)}/hari`}
                 </p>
                 {r.f.saran > 0 && (
@@ -202,6 +205,7 @@ export function StokRealtimeView({
                   <td className="px-2 py-1.5">
                     <p className="font-medium">{r.nama}</p>
                     <p className="text-[11px] text-stone-400">{r.kategori ?? "-"}</p>
+                    {basePath === "/stok-realtime" && <RincianStokBahan info={{ jumlah: r.stok, satuan: r.satuan, satuanBeli: r.satuan_beli, konversi: r.konversi, minimum: r.stok_min, sumberMinimum: "batas minimum pemantauan lokasi ini" }} riwayat={pilihan === "gudang" ? `/gudang/pergerakan?bahan=${r.id}#rincian-bahan` : `/stok/outlet?outlet=${pilihan}&bahan=${r.id}&tab=laporan`} />}
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums">
                     <b className={r.stok <= 0 ? "text-red-600" : ""}>{qty(r.stok, r)}</b>

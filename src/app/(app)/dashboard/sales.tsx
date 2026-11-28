@@ -1,3 +1,4 @@
+import { RincianStokBahan } from "@/components/rincian-stok-bahan";
 import { BarList, ChartCard, StatTile, TrendChart } from "@/components/charts";
 import { JamRamai } from "./jam-ramai";
 import type { DataJamTanggal } from "@/lib/jam-penjualan";
@@ -282,18 +283,18 @@ export function SalesView({
       )}
 
       {menipis.length > 0 && (
-        <LipatHp aktif={lipat} ikon="⚠️" judul="Stok menipis" ringkas={`${menipis.reduce((a, m) => a + m.items.length, 0)} bahan di bawah batas minimum`}>
+        <LipatHp aktif={lipat} ikon="⚠️" judul="Stok menipis" ringkas={`${menipis.reduce((a, m) => a + m.items.length, 0)} bahan dengan peringatan saldo`}>
         <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
           <h3 className="font-bold">⚠️ Produk dengan stok rendah</h3>
-          <p className="mb-2 text-xs text-stone-600">Bahan resep di bawah batas minimum, berkurang otomatis dari penjualan kasir.</p>
+          <p className="mb-2 text-xs text-stone-600">Saldo stok saat ini, bukan pemakaian dalam periode omzet. Klik Rincian untuk melihat satuan, batas minimum dan sumber pergerakannya.</p>
           {menipis.map((m) => (
             <div key={m.outletId} className="mt-2">
               {menipis.length > 1 && <p className="text-sm font-semibold">{m.outlet}</p>}
               <ul className="grid gap-x-6 text-sm sm:grid-cols-2">
-                {m.items.slice(0, 12).map((i) => (
-                  <li key={i.nama} className="flex justify-between border-b border-amber-200 py-1">
-                    <span>{i.nama}</span>
-                    <span className="tabular-nums text-stone-600">sisa {i.sisa}</span>
+                {m.items.map((i) => (
+                  <li key={i.id} className="min-w-0 border-b border-amber-200 py-2">
+                    <p className="mb-1 font-medium">{i.nama}</p>
+                    <RincianStokBahan info={i.info} riwayat={`/stok/outlet?outlet=${m.outletId}&bahan=${i.id}&tab=laporan`} />
                   </li>
                 ))}
               </ul>
